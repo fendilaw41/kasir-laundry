@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import { formatWhatsAppMessage } from '../utils/whatsapp';
 import PrintLayout from '../components/PrintLayout';
 import { printViaRawBT } from '../utils/rawbt';
@@ -40,7 +41,7 @@ const OrderDetail = () => {
 
   const updateCatatan = async () => {
     await db.orders.update(order.id, { catatan });
-    alert('Catatan diperbarui!');
+    toast.success('Catatan diperbarui!');
   };
 
   // const hapusTransaksi = async () => {
@@ -61,7 +62,7 @@ const OrderDetail = () => {
   const sendWhatsApp = () => {
     const waData = formatWhatsAppMessage(order, pelanggan);
     if (!waData) {
-      alert('Nomor HP pelanggan tidak ditemukan!');
+      toast.error('Nomor HP pelanggan tidak ditemukan!');
       return;
     }
     window.open(waData.url, '_blank');
@@ -88,7 +89,7 @@ const OrderDetail = () => {
               <span className="badge bg-white text-danger fw-bold shadow-sm"><i className="bi bi-star-fill me-1"></i> PRIORITAS</span>
             </div>
           )}
-          <h5 className="fw-bold mb-0">Keenan Laundry</h5>
+          <h5 className="text-white fw-bold mb-0">Keenan Laundry</h5>
           <small className="opacity-75">Solusi Laundry Bersih & Cepat</small>
         </div>
 

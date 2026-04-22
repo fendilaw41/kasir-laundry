@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { db } from '../db';
+import toast from 'react-hot-toast';
 
 const Pembayaran = () => {
   const location = useLocation();
@@ -39,16 +40,25 @@ const Pembayaran = () => {
       createdAt: new Date()
     });
 
-    // Kurangi stok jika ada inventory yang dipilih
-    if (orderData.selectedInvId) {
-      const item = await db.inventory.get(parseInt(orderData.selectedInvId));
-      if (item && item.stok > 0) {
-        await db.inventory.update(item.id, { stok: item.stok - 1 });
+    // Kurangi stok untuk semua inventory yang dipilih
+    if (orderData.inventoryUsed && orderData.inventoryUsed.length > 0) {
+      for (const inv of orderData.inventoryUsed) {
+        const item = await db.inventory.get(inv.id);
+        if (item && item.stok > 0) {
+          await db.inventory.update(item.id, { stok: item.stok - 1 });
+        }
       }
     }
 
     await db.cart.clear();
-    alert('Transaksi berhasil disimpan!');
+    localStorage.removeItem('activePelanggan');
+    toast.success(`Transaksi berhasil dibuat`, {
+      style: {
+        borderRadius: '10px',
+        background: '#333',
+        color: '#fff',
+      },
+    });
     navigate(`/order/${id}`);
   };
 
@@ -92,25 +102,7 @@ const Pembayaran = () => {
         </select>
       </div>
 
-      <div className="text-center mb-4">
-        <small className="text-muted italic">
-          *Pembayaran nominal lebih kecil dari total invoice akan otomatis menjadi DP*
-        </small>
-      </div>
-
-      <div className="d-grid gap-3 mb-5">
-        <button className="btn btn-primary btn-lg py-3 fw-bold" onClick={() => handleBayar(true)}>
-          Bayar Sekarang
-        </button>
-        <button className="btn btn-primary btn-lg py-3 fw-bold" onClick={() => handleBayar(false)}>
-          Bayar Nanti
-        </button>
-        <button className="btn btn-outline-secondary btn-lg py-3" onClick={() => navigate('/transaksi')}>
-          Kembali
-        </button>
-      </div>
-
-      <div className="row g-2">
+      <div className="row g-2 mb-3">
         <div className="col-6">
           <button className="btn btn-outline-primary w-100 py-3" onClick={() => setNominal('pas')}>Uang Pas</button>
         </div>
@@ -126,6 +118,18 @@ const Pembayaran = () => {
         <div className="col-12">
           <button className="btn btn-outline-primary w-100 py-3" onClick={() => setNominal(100000)}>IDR100,000</button>
         </div>
+      </div>
+
+      <div className="d-grid gap-3 mb-5">
+        <button className="btn btn-primary btn-lg py-3 fw-bold" onClick={() => handleBayar(true)}>
+          Bayar Sekarang
+        </button>
+        <button className="btn btn-primary btn-lg py-3 fw-bold" onClick={() => handleBayar(false)}>
+          Bayar Nanti
+        </button>
+        <button className="btn btn-outline-secondary btn-lg py-3" onClick={() => navigate('/transaksi')}>
+          Kembali
+        </button>
       </div>
     </div>
   );

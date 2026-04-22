@@ -111,7 +111,7 @@ const DataOrder = () => {
               <div className="card-body p-3">
                 <div className="d-flex justify-content-between mb-1">
                   <div className="d-flex align-items-center">
-                    <span className="text-primary fw-bold small">ID: {order.invoiceId}/{order.id}</span>
+                    <span className="text-primary fw-bold small">ID: {order.invoiceId}</span>
                     <i className="bi bi-clipboard ms-2 text-muted" style={{ cursor: 'pointer', fontSize: '0.8rem' }} onClick={(e) => handleCopy(e, `${order.invoiceId}/${order.id}`)}></i>
                     {order.isPriority && <span className="badge bg-danger ms-2" style={{ fontSize: '0.55rem' }}>PRIORITAS</span>}
                   </div>

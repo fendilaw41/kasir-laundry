@@ -16,12 +16,23 @@ db.on('ready', async () => {
   const pCount = await db.products.count();
   if (pCount === 0) {
     await db.products.bulkAdd([
-      { name: 'Cuci Kering', price: 5000 },
-      { name: 'Cuci Setrika', price: 7000 },
-      { name: 'Setrika Saja', price: 4000 },
-      { name: 'Cuci Karpet', price: 15000 },
-      { name: 'Cuci Sepatu', price: 20000 },
-      { name: 'Cuci Boneka', price: 10000 }
+      // Cuci Lipat Rapi
+      { category: 'CUCI LIPAT RAPI', name: 'Reguler (2-3 hari)', price: 5000 },
+      { category: 'CUCI LIPAT RAPI', name: 'Express (1 Hari)', price: 7000 },
+      { category: 'CUCI LIPAT RAPI', name: 'Pagi Sore (8 Jam)', price: 9000 },
+      { category: 'CUCI LIPAT RAPI', name: 'Kilat (4 Jam)', price: 12000 },
+
+      // Cuci Setrika
+      { category: 'CUCI SETRIKA', name: 'Reguler (2-3 hari)', price: 6000 },
+      { category: 'CUCI SETRIKA', name: 'Express (1 Hari)', price: 9000 },
+      { category: 'CUCI SETRIKA', name: 'Pagi Sore (8 Jam)', price: 11000 },
+      { category: 'CUCI SETRIKA', name: 'Kilat (4 Jam)', price: 14000 },
+
+      // Setrika Saja
+      { category: 'SETRIKA SAJA', name: 'Reguler (2-3 hari)', price: 5000 },
+      { category: 'SETRIKA SAJA', name: 'Express (1 Hari)', price: 7000 },
+      { category: 'SETRIKA SAJA', name: 'Pagi Sore (8 Jam)', price: 9000 },
+      { category: 'SETRIKA SAJA', name: 'Kilat (4 Jam)', price: 12000 },
     ]);
   }
 
