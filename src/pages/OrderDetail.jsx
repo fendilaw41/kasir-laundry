@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useState } from 'react';
@@ -9,7 +9,7 @@ import { printDirectBluetooth } from '../utils/bluetooth';
 
 const OrderDetail = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const order = useLiveQuery(() => db.orders.get(parseInt(id)));
   const pelanggan = useLiveQuery(() => order ? db.pelanggan.get(order.pelangganId) : null, [order]);
 
@@ -43,12 +43,12 @@ const OrderDetail = () => {
     alert('Catatan diperbarui!');
   };
 
-  const hapusTransaksi = async () => {
-    if (window.confirm('Hapus transaksi ini?')) {
-      await db.orders.delete(order.id);
-      navigate('/orders');
-    }
-  };
+  // const hapusTransaksi = async () => {
+  //   if (window.confirm('Hapus transaksi ini?')) {
+  //     await db.orders.delete(order.id);
+  //     navigate('/orders');
+  //   }
+  // };
 
   const togglePriority = async () => {
     await db.orders.update(order.id, { isPriority: !order.isPriority });
