@@ -1,0 +1,10 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="8" fill="url(#paint0_linear)"/>
+  <text x="16" y="24" fill="white" style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-weight: 900; font-size: 22px; text-anchor: middle;">K</text>
+  <defs>
+    <linearGradient id="paint0_linear" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0134d4"/>
+      <stop offset="1" stop-color="#2855e1"/>
+    </linearGradient>
+  </defs>
+</svg>

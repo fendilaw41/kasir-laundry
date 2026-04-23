@@ -29,10 +29,21 @@ const Login = ({ onLogin }) => {
         <div className="row justify-content-center">
           <div className="col-12 col-sm-9 col-md-7 col-lg-5 col-xl-4">
             <div className="text-center px-4">
-              <img className="login-intro-img mb-4" src="/img/core-img/logo.png" alt="" style={{ width: '150px' }} />
+              <div className="text-center px-4 mb-4">
+                <div className="mx-auto d-flex align-items-center justify-content-center shadow-sm" style={{
+                  width: '80px',
+                  height: '80px',
+                  background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)',
+                  borderRadius: '22px',
+                  marginBottom: '15px'
+                }}>
+                  <span style={{ fontSize: '42px', fontWeight: '900', color: '#fff', letterSpacing: '-2px' }}>K</span>
+                </div>
+                <h2 className="fw-bold mb-0" style={{ letterSpacing: '1px', color: '#0134d4' }}>KASIR</h2>
+                <p className="text-muted small">Laundry Management System</p>
+              </div>
             </div>
             <div className="register-form mt-4 px-4">
-              <h4 className="mb-4 text-center">Login Kasir Laundry</h4>
               {error && <div className="alert alert-danger">{error}</div>}
               <form onSubmit={handleLogin}>
                 <div className="form-group text-start mb-3">
