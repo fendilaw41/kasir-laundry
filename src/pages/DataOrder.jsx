@@ -1,11 +1,13 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
 
 const DataOrder = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('Proses');
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'Proses';
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   // State Filter
   const [filterAntar, setFilterAntar] = useState('Semua');

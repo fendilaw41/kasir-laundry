@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 const Home = ({ user }) => {
   const [showPelangganModal, setShowPelangganModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
+  const [showOmzet, setShowOmzet] = useState(false);
 
   // State Form Pelanggan
   const [newPelanggan, setNewPelanggan] = useState({ nama: '', hp: '', alamat: '' });
@@ -121,37 +122,50 @@ const Home = ({ user }) => {
       <h6 className="fw-bold mb-3 px-1">Ringkasan Hari Ini</h6>
       <div className="row g-2 mb-4 px-1">
         <div className="col-4">
-          <div className="card shadow-sm border-0 h-100" style={{ borderRadius: '15px' }}>
-            <div className="card-body p-2 text-center">
-              <div className="icon-circle bg-success-light text-success mb-2 mx-auto" style={{ width: '35px', height: '35px', backgroundColor: '#d1f7e0', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <i className="bi bi-wallet2 fs-5"></i>
+          <div className="card shadow-sm border-0 h-100 position-relative" style={{ borderRadius: '15px' }}>
+            <i 
+              className={`bi ${showOmzet ? 'bi-eye-slash' : 'bi-eye'} text-muted position-absolute`} 
+              style={{ top: '8px', right: '8px', cursor: 'pointer', fontSize: '0.75rem', zIndex: 10 }}
+              onClick={() => setShowOmzet(!showOmzet)}
+            ></i>
+            <Link to="/reports?today=true" className="text-decoration-none text-dark h-100">
+              <div className="card-body p-2 text-center">
+                <div className="icon-circle bg-success-light text-success mb-2 mx-auto" style={{ width: '35px', height: '35px', backgroundColor: '#d1f7e0', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <i className="bi bi-wallet2 fs-5"></i>
+                </div>
+                <small className="text-muted d-block" style={{ fontSize: '0.65rem' }}>Omzet</small>
+                <h6 className="fw-bold mb-0" style={{ fontSize: '0.8rem' }}>
+                  {showOmzet ? `Rp ${stats?.totalOmzet.toLocaleString() || 0}` : 'Rp ••••••'}
+                </h6>
               </div>
-              <small className="text-muted d-block" style={{ fontSize: '0.65rem' }}>Omzet</small>
-              <h6 className="fw-bold mb-0" style={{ fontSize: '0.8rem' }}>Rp {stats?.totalOmzet.toLocaleString() || 0}</h6>
-            </div>
+            </Link>
           </div>
         </div>
         <div className="col-4">
-          <div className="card shadow-sm border-0 h-100" style={{ borderRadius: '15px' }}>
-            <div className="card-body p-2 text-center">
-              <div className="icon-circle bg-primary-light text-primary mb-2 mx-auto" style={{ width: '35px', height: '35px', backgroundColor: '#e1f5fe', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <i className="bi bi-bag-check fs-5"></i>
+          <Link to="/orders?tab=Proses" className="text-decoration-none text-dark">
+            <div className="card shadow-sm border-0 h-100" style={{ borderRadius: '15px' }}>
+              <div className="card-body p-2 text-center">
+                <div className="icon-circle bg-primary-light text-primary mb-2 mx-auto" style={{ width: '35px', height: '35px', backgroundColor: '#e1f5fe', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <i className="bi bi-bag-check fs-5"></i>
+                </div>
+                <small className="text-muted d-block" style={{ fontSize: '0.65rem' }}>Proses</small>
+                <h6 className="fw-bold mb-0" style={{ fontSize: '0.8rem' }}>{stats?.pendingOrders || 0} Item</h6>
               </div>
-              <small className="text-muted d-block" style={{ fontSize: '0.65rem' }}>Order</small>
-              <h6 className="fw-bold mb-0" style={{ fontSize: '0.8rem' }}>{stats?.orderHariIni || 0} Nota</h6>
             </div>
-          </div>
+          </Link>
         </div>
         <div className="col-4">
-          <div className="card shadow-sm border-0 h-100" style={{ borderRadius: '15px' }}>
-            <div className="card-body p-2 text-center">
-              <div className="icon-circle bg-warning-light text-warning mb-2 mx-auto" style={{ width: '35px', height: '35px', backgroundColor: '#fff9c4', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <i className="bi bi-box-seam fs-5"></i>
+          <Link to="/orders?tab=Selesai" className="text-decoration-none text-dark">
+            <div className="card shadow-sm border-0 h-100" style={{ borderRadius: '15px' }}>
+              <div className="card-body p-2 text-center">
+                <div className="icon-circle bg-warning-light text-warning mb-2 mx-auto" style={{ width: '35px', height: '35px', backgroundColor: '#fff9c4', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <i className="bi bi-box-seam fs-5"></i>
+                </div>
+                <small className="text-muted d-block" style={{ fontSize: '0.65rem' }}>Siap</small>
+                <h6 className="fw-bold mb-0" style={{ fontSize: '0.8rem' }}>{stats?.readyToPickUp || 0} Item</h6>
               </div>
-              <small className="text-muted d-block" style={{ fontSize: '0.65rem' }}>Siap</small>
-              <h6 className="fw-bold mb-0" style={{ fontSize: '0.8rem' }}>{stats?.readyToPickUp || 0} Item</h6>
             </div>
-          </div>
+          </Link>
         </div>
       </div>
 
@@ -179,11 +193,11 @@ const Home = ({ user }) => {
           <small className="text-dark fw-bold" style={{ fontSize: '0.7rem' }}>Pelanggan</small>
         </div>
         <div className="col-3 text-center">
-          <Link to="/orders" className="text-decoration-none">
+          <Link to="/reports" className="text-decoration-none">
             <div className="bg-white shadow-sm rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style={{ width: '55px', height: '55px' }}>
-              <i className="bi bi-list-task fs-4 text-warning"></i>
+              <i className="bi bi-file-earmark-bar-graph fs-4 text-warning"></i>
             </div>
-            <small className="text-dark fw-bold" style={{ fontSize: '0.7rem' }}>Data Order</small>
+            <small className="text-dark fw-bold" style={{ fontSize: '0.7rem' }}>Report</small>
           </Link>
         </div>
       </div>

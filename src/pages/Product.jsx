@@ -7,17 +7,38 @@ const Product = () => {
   const products = useLiveQuery(() => db.products.toArray());
   const [searchTerm, setSearchTerm] = useState('');
 
+  // State untuk menyimpan jumlah qty sementara per produk
+  const [quantities, setQuantities] = useState({});
+
+  const updateQty = (id, delta) => {
+    setQuantities(prev => ({
+      ...prev,
+      [id]: Math.max(1, (prev[id] || 1) + delta)
+    }));
+  };
+
   const addToCart = async (product) => {
+    const qty = quantities[product.id] || 1;
     const existing = await db.cart.where('productId').equals(product.id).first();
+
     if (existing) {
-      await db.cart.update(existing.id, { quantity: existing.quantity + 1 });
+      await db.cart.update(existing.id, { quantity: existing.quantity + qty });
     } else {
-      await db.cart.add({ productId: product.id, quantity: 1, name: `${product.category} - ${product.name}`, price: product.price });
+      await db.cart.add({
+        productId: product.id,
+        quantity: qty,
+        name: `${product.category} - ${product.name}`,
+        price: product.price
+      });
     }
-    toast.success(`${product.name} ditambahkan`, {
+
+    toast.success(`${qty}x ${product.name} ditambahkan`, {
       position: 'bottom-center',
       style: { borderRadius: '12px', background: '#333', color: '#fff', fontSize: '14px' }
     });
+
+    // Reset qty setelah tambah
+    setQuantities(prev => ({ ...prev, [product.id]: 1 }));
   };
 
   const filteredProducts = products?.filter(p =>
@@ -26,14 +47,14 @@ const Product = () => {
   );
 
   return (
-    <div className="product-page pb-5">
+    <div className="product-page pb-5" style={{ backgroundColor: '#f8faff', minHeight: '100vh' }}>
       {/* Search Header */}
-      <div className="search-wrapper mb-4">
-        <h5 className="fw-bold mb-3 px-1">Layanan Laundry</h5>
+      <div className="search-wrapper mb-4 p-3 bg-white shadow-sm sticky-top">
+        <h5 className="fw-bold mb-3 text-primary">Layanan Laundry</h5>
         <div className="position-relative">
           <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
           <input
-            className="form-control ps-5 py-3 rounded-4 border-0 shadow-sm"
+            className="form-control ps-5 py-2 rounded-pill border-light bg-light"
             type="text"
             placeholder="Cari layanan..."
             value={searchTerm}
@@ -42,46 +63,60 @@ const Product = () => {
         </div>
       </div>
 
-      <div className="row g-3 px-1">
+      <div className="row g-3 px-3">
         {filteredProducts?.map(product => (
           <div className="col-6" key={product.id}>
-            <div className="card h-100 border-0 shadow-sm rounded-4 overflow-hidden position-relative scale-on-click" onClick={() => addToCart(product)} style={{ cursor: 'pointer' }}>
-              <div className="card-body p-3">
-                {/* Category Badge */}
-                <div className="mb-2">
-                  <span className="badge rounded-pill bg-primary-light text-primary fw-bold" style={{ fontSize: '0.55rem', backgroundColor: '#e3f2fd' }}>
-                    {product.category}
+            <div className="card h-100 border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+              {/* Product Image/Icon Area */}
+              <div className="p-3 bg-light m-2 rounded-4 text-center position-relative" style={{ height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span className="badge bg-warning position-absolute top-0 end-0 m-2" style={{ fontSize: '0.6rem' }}>{product.category}</span>
+                <i className={`bi ${product.category.includes('SETRIKA') ? 'bi-fire' : 'bi-water'} text-primary opacity-25`} style={{ fontSize: '3.5rem' }}></i>
+              </div>
+
+              <div className="card-body p-3 pt-0">
+                {/* Product Info */}
+                <h6 className="fw-bold mb-1 text-dark text-truncate" style={{ fontSize: '0.9rem' }}>{product.name.split(' (')[0]}</h6>
+                <div className="d-flex align-items-baseline gap-2 mb-3">
+                  <span className="fw-bold text-primary" style={{ fontSize: '1rem' }}>
+                    Rp {product.price.toLocaleString()}
+                  </span>
+                  <span className="text-danger text-decoration-line-through opacity-50" style={{ fontSize: '0.7rem' }}>
+                    Rp {(product.price + 5000).toLocaleString()}
                   </span>
                 </div>
 
-                {/* Icon Laundry */}
-                <div className="text-center mb-2 text-primary opacity-50">
-                  <i className={`bi ${product.category.includes('SETRIKA') ? 'bi-fire' : 'bi-water'} fs-2`}></i>
+                {/* Quantity Selector */}
+                <div className="d-flex align-items-center justify-content-between bg-light rounded-pill p-1 mb-2">
+                  <button
+                    className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
+                    style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
+                    onClick={() => updateQty(product.id, -1)}
+                  >
+                    <i className="bi bi-dash text-primary"></i>
+                  </button>
+                  <span className="fw-bold" style={{ fontSize: '0.9rem' }}>{quantities[product.id] || 1}</span>
+                  <button
+                    className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
+                    style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
+                    onClick={() => updateQty(product.id, 1)}
+                  >
+                    <i className="bi bi-plus text-primary"></i>
+                  </button>
                 </div>
 
-                {/* Product Info */}
-                <div className="text-center">
-                  <h6 className="fw-bold mb-1" style={{ fontSize: '0.85rem' }}>{product.name.split(' (')[0]}</h6>
-                  <p className="text-muted mb-3" style={{ fontSize: '0.7rem' }}>{product.name.split(' (')[1]?.replace(')', '') || ''}</p>
-
-                  <div className="border-0 rounded-3 py-2 px-1">
-                    <span className="fw-bold text-primary" style={{ fontSize: '0.9rem' }}>
-                      Rp {product.price.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
+                {/* Add to Cart Button */}
+                <button
+                  className="btn btn-outline-primary btn-sm w-100 rounded-pill fw-bold py-2 d-flex align-items-center justify-content-center gap-2"
+                  onClick={() => addToCart(product)}
+                >
+                  <i className="bi bi-cart-plus"></i>
+                  <span>Add</span>
+                </button>
               </div>
             </div>
           </div>
         ))}
       </div>
-
-      <style>{`
-        .scale-on-click:active {
-          transform: scale(0.96);
-          transition: transform 0.1s ease;
-        }
-      `}</style>
     </div>
   );
 };

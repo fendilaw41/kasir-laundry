@@ -11,6 +11,7 @@ import Pembayaran from './pages/Pembayaran';
 import OrderDetail from './pages/OrderDetail';
 import Product from './pages/Product';
 import Layout from './components/Layout';
+import Reports from './pages/Reports';
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -42,6 +43,7 @@ function App() {
           <Route path="/pembayaran" element={user ? <Pembayaran /> : <Navigate to="/login" />} />
           <Route path="/order/:id" element={user ? <OrderDetail /> : <Navigate to="/login" />} />
           <Route path="/orders" element={user ? <DataOrder /> : <Navigate to="/login" />} />
+          <Route path="/reports" element={user ? <Reports /> : <Navigate to="/login" />} />
         </Route>
       </Routes>
     </Router>

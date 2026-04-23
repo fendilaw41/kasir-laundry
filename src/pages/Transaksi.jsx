@@ -111,7 +111,7 @@ const Transaksi = () => {
     <div className="card shadow-sm mb-5 border-0" style={{ borderRadius: '28px' }}>
       <div className="card-body p-4">
         <div className="text-center mb-4">
-          <h5 className="fw-bold mb-0">Konfirmasi Pesanan</h5>
+          <h5 className="fw-bold mb-0">Transaksi</h5>
           <small className="text-muted">Lengkapi detail laundry pelanggan</small>
         </div>
 
