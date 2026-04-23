@@ -6,11 +6,13 @@ import { useState } from 'react';
 const Reports = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+
   const isTodayOnly = searchParams.get('today') === 'true';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilter, setShowFilter] = useState(false);
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().substring(0, 7));
+  const [filterBayar, setFilterBayar] = useState('Semua');
   const [showBalance, setShowBalance] = useState(false);
 
   // Query Data
@@ -30,9 +32,11 @@ const Reports = () => {
 
       const matchesDate = isTodayOnly ? orderDateStr === today : (filterMonth === 'All' || orderMonthStr === filterMonth);
 
-      return matchesSearch && matchesDate;
+      const matchesStatus = filterBayar === 'Semua' || (filterBayar === 'Lunas' ? order.statusBayar === 'Lunas' : order.statusBayar !== 'Lunas');
+
+      return matchesSearch && matchesDate && matchesStatus;
     });
-  }, [searchTerm, isTodayOnly, filterMonth]);
+  }, [searchTerm, isTodayOnly, filterMonth, filterBayar]);
 
   // Grouping by Date for BCA style
   const groupedData = data?.reduce((acc, order) => {
@@ -89,14 +93,14 @@ const Reports = () => {
                   {showBalance ? `Rp ${data?.reduce((acc, o) => acc + o.total, 0).toLocaleString()}` : 'Rp ••••••••'}
                 </h2>
               </div>
-              <button 
+              <button
                 className="btn btn-sm btn-white bg-white bg-opacity-25 border-0 text-white rounded-circle shadow-none"
                 onClick={() => setShowBalance(!showBalance)}
               >
                 <i className={`bi ${showBalance ? 'bi-eye-slash-fill' : 'bi-eye-fill'} fs-5`}></i>
               </button>
             </div>
-            
+
             {showBalance && (
               <div className="d-flex gap-3 pt-2 border-top border-white border-opacity-25">
                 <div className="flex-fill">
@@ -130,6 +134,28 @@ const Reports = () => {
           <i className="bi bi-download text-primary ms-3" style={{ cursor: 'pointer' }} onClick={() => handleDownload()}></i>
         </div>
 
+        {/* Minimal Status Tabs */}
+        <div className="mb-4">
+          <div className="d-flex border-bottom" style={{ borderColor: '#eee !important' }}>
+            {['Semua', 'Lunas', 'Belum'].map((status) => (
+              <div
+                key={status}
+                className={`pb-2 px-3 fw-bold text-uppercase cursor-pointer ${filterBayar === status ? 'text-primary border-bottom border-2 border-primary' : 'text-muted'}`}
+                onClick={() => setFilterBayar(status)}
+                style={{
+                  fontSize: '0.75rem',
+                  letterSpacing: '0.5px',
+                  cursor: 'pointer',
+                  marginBottom: '-1px',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {status === 'Belum' ? 'BELUM' : status}
+              </div>
+            ))}
+          </div>
+        </div>
+
         {showFilter && !isTodayOnly && (
           <div className="mb-4 p-3 bg-white rounded shadow-sm border-0" style={{ borderRadius: '15px' }}>
             <label className="small fw-bold text-muted mb-2">FILTER BULAN</label>
@@ -146,7 +172,12 @@ const Reports = () => {
         )}
 
         {/* Transaction List */}
-        <h6 className="fw-bold mb-3 px-1">Riwayat Transaksi</h6>
+        <div className="d-flex justify-content-between align-items-center mb-3 px-1">
+          <h6 className="fw-bold mb-0">Riwayat Transaksi</h6>
+          <span className="badge bg-primary-light text-primary rounded-pill px-3 py-2" style={{ fontSize: '0.7rem', backgroundColor: '#eef2ff' }}>
+            {data?.length || 0} Data
+          </span>
+        </div>
         {groupedData && Object.keys(groupedData).length > 0 ? (
           Object.entries(groupedData).map(([month, dates]) => (
             <div key={month} className="month-group mb-4">
@@ -156,35 +187,51 @@ const Reports = () => {
                   {orders.map(order => (
                     <div
                       key={order.id}
-                      className="card border-0 shadow-sm mb-3"
+                      className="card border-0 shadow-sm mb-3 position-relative"
                       style={{ borderRadius: '20px', overflow: 'hidden' }}
                       onClick={() => navigate(`/order/${order.id}`)}
                     >
-                      <div className="card-body p-3">
-                        <div className="d-flex justify-content-between align-items-start mb-2">
-                          <div className="d-flex align-items-center">
-                            <div className={`rounded-circle d-flex align-items-center justify-content-center me-3 ${order.statusBayar === 'Lunas' ? 'bg-success-light text-success' : 'bg-warning-light text-warning'}`} style={{ width: '45px', height: '45px', flexShrink: 0 }}>
-                              <i className={`bi ${order.statusBayar === 'Lunas' ? 'bi-check-lg' : 'bi-clock'} fs-4`}></i>
-                            </div>
-                            <div>
-                              <div className="fw-bold text-dark mb-0" style={{ fontSize: '1rem', lineHeight: '1.2' }}>{order.pelangganNama || 'Umum'}</div>
-                              <div className="text-muted small mt-1">
-                                <span className="fw-medium text-primary">{order.invoiceId}</span>
-                              </div>
+                      {/* Label Pojok Kiri */}
+                      <div
+                        className={`position-absolute top-0 start-0 px-3 py-1 fw-bold text-white shadow-sm ${order.statusBayar === 'Lunas' ? 'bg-success' : 'bg-warning text-dark'}`}
+                        style={{ borderBottomRightRadius: '15px', fontSize: '0.6rem', zIndex: 1, letterSpacing: '0.5px' }}
+                      >
+                        {order.statusBayar?.toUpperCase() || 'BELUM BAYAR'}
+                      </div>
+
+                      <div className="card-body p-3 pt-4">
+                        <div className="d-flex align-items-center mb-2 mt-1">
+                          <div className={`rounded-circle d-flex align-items-center justify-content-center me-3`}
+                            style={{
+                              width: '45px',
+                              height: '45px',
+                              flexShrink: 0,
+                              backgroundColor: order.status === 'Selesai' ? '#d1f7e0' : order.status === 'Ambil' ? '#e9ecef' : '#e0e7ff',
+                              color: order.status === 'Selesai' ? '#198754' : order.status === 'Ambil' ? '#212529' : '#0d6efd'
+                            }}
+                          >
+                            <i className={`bi ${order.status === 'Selesai' ? 'bi-check-lg' : order.status === 'Ambil' ? 'bi-box-seam' : 'bi-gear-wide-connected'} fs-4`}></i>
+                          </div>
+                          <div className="flex-grow-1 min-width-0">
+                            <div className="fw-bold text-dark mb-0 text-truncate" style={{ fontSize: '1rem', lineHeight: '1.2' }}>{order.pelangganNama || 'Umum'}</div>
+                            <div className="d-flex align-items-center gap-2 mt-1">
+                              <span className="fw-medium text-primary small">{order.invoiceId}</span>
                             </div>
                           </div>
-                          <div className="text-end">
-                            <div className="fw-bold text-primary" style={{ fontSize: '1.1rem' }}>Rp {order.total.toLocaleString()}</div>
+                          <div className="ms-auto text-end ps-2">
+                            <div className="fw-bold text-primary" style={{ fontSize: '1.1rem', whiteSpace: 'nowrap' }}>Rp {order.total.toLocaleString()}</div>
                           </div>
                         </div>
-                        
+
                         <div className="d-flex justify-content-between align-items-center pt-2 border-top border-light mt-2">
                           <div className="text-muted" style={{ fontSize: '0.7rem' }}>
                             <i className="bi bi-calendar3 me-1"></i> {new Date(order.createdAt).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })} • {new Date(order.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                           </div>
-                          <span className="badge rounded-pill bg-light text-primary border-0 px-3 py-2" style={{ fontSize: '0.65rem', fontWeight: '600' }}>
-                            <i className="bi bi-tag-fill me-1"></i> {order.tipeLayanan}
-                          </span>
+                          <div>
+                            <span className="badge rounded-pill bg-light text-primary border-0 px-3 py-2" style={{ fontSize: '0.65rem', fontWeight: '600' }}>
+                              <i className="bi bi-tag-fill me-1"></i> {order.tipeLayanan}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>

@@ -78,10 +78,11 @@ const OrderDetail = () => {
   };
 
   return (
-    <div className="order-detail-wrapper pb-5">
-
+    <>
       {/* Komponen Cetak Standar */}
       <PrintLayout order={order} pelanggan={pelanggan} printType={printType} />
+
+      <div className="order-detail-wrapper pb-5">
 
       <div className="card shadow-sm border-0 mb-3 overflow-hidden">
         {/* Banner */}
@@ -165,6 +166,14 @@ const OrderDetail = () => {
           <div className="d-flex justify-content-between fw-bold border-top pt-2 mt-1">
             <span className="text-dark">TOTAL AKHIR</span>
             <span className="text-primary fs-5">Rp {order.total.toLocaleString()}</span>
+          </div>
+          <div className="d-flex justify-content-between mt-2 pt-2 border-top text-muted">
+            <span>Bayar</span>
+            <span className="fw-bold text-dark">Rp {order.bayar?.toLocaleString() || 0}</span>
+          </div>
+          <div className="d-flex justify-content-between mt-1 text-success">
+            <span className="fw-bold">Kembalian</span>
+            <span className="fw-bold">Rp {order.kembalian?.toLocaleString() || 0}</span>
           </div>
         </div>
       </div>
@@ -260,7 +269,8 @@ const OrderDetail = () => {
           </div>
         </>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

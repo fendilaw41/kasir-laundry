@@ -9,7 +9,28 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
   const qrUrl = `https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=${encodeURIComponent(`https://kasirlaundry.my.id/status/${order.invoiceId}`)}`;
 
   return (
-    <>
+    <div className="print-only-container">
+      <style>{`
+        @media screen {
+          .print-only-container { display: none !important; }
+        }
+        @media print {
+          @page { margin: 0; }
+          body * { visibility: hidden; }
+          .print-only-container, .print-only-container * { visibility: visible; }
+          .print-only-container { 
+            position: absolute !important; 
+            left: 0 !important; 
+            top: 0 !important; 
+            width: 100% !important; 
+            display: block !important;
+            background: white !important;
+            z-index: 9999;
+          }
+          /* Hide UI elements */
+          nav, footer, .btn, .navbar, .order-detail-wrapper { display: none !important; }
+        }
+      `}</style>
       {/* 1. Nota Thermal (58mm) */}
       {printType === 'thermal' && (
         <div id="thermal-receipt" className="print-section" style={{ width: '58mm', padding: '2mm', color: '#000', backgroundColor: '#fff', fontFamily: 'monospace' }}>
@@ -68,25 +89,25 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
           <table style={{ width: '100%', fontSize: '10px', borderCollapse: 'collapse' }}>
             <tbody>
               <tr>
-                <td>SUBTOTAL</td>
+                <td>Total Item</td>
                 <td style={{ textAlign: 'right' }}>{(order.subtotal || order.total).toLocaleString()}</td>
               </tr>
               {order.diskon > 0 && (
                 <tr>
-                  <td>DISKON</td>
+                  <td>Total Disc.</td>
                   <td style={{ textAlign: 'right' }}>- {order.diskon.toLocaleString()}</td>
                 </tr>
               )}
               <tr>
-                <td style={{ fontWeight: 'bold' }}>TOTAL AKHIR</td>
+                <td style={{ fontWeight: 'bold' }}>Total Belanja</td>
                 <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{order.total.toLocaleString()}</td>
               </tr>
               <tr>
-                <td>BAYAR</td>
+                <td>Tunai</td>
                 <td style={{ textAlign: 'right' }}>{(order.bayar || 0).toLocaleString()}</td>
               </tr>
               <tr>
-                <td>KEMBALI</td>
+                <td>Kembalian</td>
                 <td style={{ textAlign: 'right' }}>{(order.kembalian || 0).toLocaleString()}</td>
               </tr>
             </tbody>
@@ -131,24 +152,24 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
             </div>
           </div>
 
-          <table style={{ width: '100%', marginTop: '30px', borderCollapse: 'collapse' }}>
+          <table style={{ width: '100%', marginTop: '30px', borderCollapse: 'collapse', borderRadius: '8px', overflow: 'hidden' }}>
             <thead>
-              <tr style={{ backgroundColor: '#0134d4', color: '#fff' }}>
-                <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #0134d4' }}>Layanan / Produk</th>
-                <th style={{ padding: '12px', textAlign: 'center', border: '1px solid #0134d4', width: '100px' }}>Jumlah</th>
-                <th style={{ padding: '12px', textAlign: 'right', border: '1px solid #0134d4', width: '150px' }}>Harga</th>
-                <th style={{ padding: '12px', textAlign: 'right', border: '1px solid #0134d4', width: '150px' }}>Subtotal</th>
+              <tr style={{ backgroundColor: '#0134d4', color: '#fff', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                <th style={{ padding: '15px 12px', textAlign: 'left', border: '1px solid #0134d4', fontSize: '14px' }}>Layanan / Produk</th>
+                <th style={{ padding: '15px 12px', textAlign: 'center', border: '1px solid #0134d4', width: '80px', fontSize: '14px' }}>Jumlah</th>
+                <th style={{ padding: '15px 12px', textAlign: 'right', border: '1px solid #0134d4', width: '120px', fontSize: '14px' }}>Harga</th>
+                <th style={{ padding: '15px 12px', textAlign: 'right', border: '1px solid #0134d4', width: '140px', fontSize: '14px' }}>Subtotal</th>
               </tr>
             </thead>
             <tbody>
               {order.items?.map((item, idx) => (
                 <tr key={idx}>
-                  <td style={{ padding: '12px', border: '1px solid #ddd' }}>
-                    <div style={{ fontWeight: 'bold' }}>{item.name}</div>
+                  <td style={{ padding: '12px', border: '1px solid #eee', fontSize: '13px' }}>
+                    <div style={{ fontWeight: 'bold', color: '#333' }}>{item.name}</div>
                   </td>
-                  <td style={{ padding: '12px', border: '1px solid #ddd', textAlign: 'center' }}>{item.quantity}</td>
-                  <td style={{ padding: '12px', border: '1px solid #ddd', textAlign: 'right' }}>Rp {item.price.toLocaleString()}</td>
-                  <td style={{ padding: '12px', border: '1px solid #ddd', textAlign: 'right', fontWeight: 'bold' }}>Rp {(item.price * item.quantity).toLocaleString()}</td>
+                  <td style={{ padding: '12px', border: '1px solid #eee', textAlign: 'center', fontSize: '13px' }}>{item.quantity}</td>
+                  <td style={{ padding: '12px', border: '1px solid #eee', textAlign: 'right', fontSize: '13px' }}>Rp {item.price.toLocaleString()}</td>
+                  <td style={{ padding: '12px', border: '1px solid #eee', textAlign: 'right', fontWeight: 'bold', fontSize: '13px', color: '#0134d4' }}>Rp {(item.price * item.quantity).toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -212,7 +233,7 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
           <div style={{ fontSize: '9px', marginTop: '2px' }}>{settings.namaLaundry}</div>
         </div>
       )}
-    </>
+    </div>
   );
 };
 

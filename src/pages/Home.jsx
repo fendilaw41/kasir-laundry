@@ -172,14 +172,16 @@ const Home = ({ user }) => {
           </div>
           <small className="text-dark fw-bold" style={{ fontSize: '0.7rem' }}>Pelanggan</small>
         </div>
-        <div className="col-3 text-center">
-          <Link to="/reports" className="text-decoration-none">
-            <div className="bg-white shadow-sm rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style={{ width: '55px', height: '55px' }}>
-              <i className="bi bi-file-earmark-bar-graph fs-4 text-warning"></i>
-            </div>
-            <small className="text-dark fw-bold" style={{ fontSize: '0.7rem' }}>Report</small>
-          </Link>
-        </div>
+        {user.role !== 'kasir' && (
+          <div className="col-3 text-center">
+            <Link to="/reports" className="text-decoration-none">
+              <div className="bg-white shadow-sm rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style={{ width: '55px', height: '55px' }}>
+                <i className="bi bi-file-earmark-bar-graph fs-4 text-warning"></i>
+              </div>
+              <small className="text-dark fw-bold" style={{ fontSize: '0.7rem' }}>Report</small>
+            </Link>
+          </div>
+        )}
         <div className="col-3 text-center">
           <Link to="/setting" className="text-decoration-none">
             <div className="bg-white shadow-sm rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style={{ width: '55px', height: '55px' }}>
@@ -314,32 +316,34 @@ const Home = ({ user }) => {
                 </div>
                 <div className="modal-body p-3 p-sm-4">
                   {/* Tambah Stok Baru Quick Form */}
-                  <div className="bg-light p-3 rounded-4 mb-4">
-                    <form onSubmit={async (e) => {
-                      e.preventDefault();
-                      const form = e.target;
-                      const nama = form.nama.value;
-                      const stok = parseInt(form.stok.value);
-                      await db.inventory.add({ nama, stok });
-                      form.reset();
-                      toast.success('Barang baru telah ditambahkan');
-                    }}>
-                      <label className="small fw-bold text-muted mb-2 px-1">TAMBAH BARANG BARU</label>
-                      <div className="row g-2">
-                        <div className="col-8">
-                          <input type="text" name="nama" className="form-control border-0 py-2 rounded-3 shadow-sm" placeholder="Nama item..." required />
-                        </div>
-                        <div className="col-4">
-                          <div className="input-group shadow-sm rounded-3 overflow-hidden">
-                            <input type="number" name="stok" className="form-control border-0 py-2 px-2 text-center" placeholder="Qty" required />
-                            <button className="btn btn-success border-0 px-2" type="submit">
-                              <i className="bi bi-plus-lg"></i>
-                            </button>
+                  {user.role !== 'kasir' && (
+                    <div className="bg-light p-3 rounded-4 mb-4">
+                      <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        const form = e.target;
+                        const nama = form.nama.value;
+                        const stok = parseInt(form.stok.value);
+                        await db.inventory.add({ nama, stok });
+                        form.reset();
+                        toast.success('Barang baru telah ditambahkan');
+                      }}>
+                        <label className="small fw-bold text-muted mb-2 px-1">TAMBAH BARANG BARU</label>
+                        <div className="row g-2">
+                          <div className="col-8">
+                            <input type="text" name="nama" className="form-control border-0 py-2 rounded-3 shadow-sm" placeholder="Nama item..." required />
+                          </div>
+                          <div className="col-4">
+                            <div className="input-group shadow-sm rounded-3 overflow-hidden">
+                              <input type="number" name="stok" className="form-control border-0 py-2 px-2 text-center" placeholder="Qty" required />
+                              <button className="btn btn-success border-0 px-2" type="submit">
+                                <i className="bi bi-plus-lg"></i>
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </form>
-                  </div>
+                      </form>
+                    </div>
+                  )}
 
                   {/* Search Bar Inventory */}
                   <div className="position-relative mb-4">
@@ -370,23 +374,25 @@ const Home = ({ user }) => {
                             </div>
                           </div>
 
-                          <div className="d-flex align-items-center gap-2 bg-light rounded-pill p-1">
-                            <button
-                              className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
-                              style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
-                              onClick={() => handleUpdateStok(item.id, -1)}
-                            >
-                              <i className="bi bi-dash text-dark"></i>
-                            </button>
-                            <span className="fw-bold text-dark px-1" style={{ fontSize: '0.9rem', minWidth: '20px', textAlign: 'center' }}>{item.stok}</span>
-                            <button
-                              className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
-                              style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
-                              onClick={() => handleUpdateStok(item.id, 1)}
-                            >
-                              <i className="bi bi-plus text-dark"></i>
-                            </button>
-                          </div>
+                          {user.role !== 'kasir' && (
+                            <div className="d-flex align-items-center gap-2 bg-light rounded-pill p-1">
+                              <button
+                                className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
+                                style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
+                                onClick={() => handleUpdateStok(item.id, -1)}
+                              >
+                                <i className="bi bi-dash text-dark"></i>
+                              </button>
+                              <span className="fw-bold text-dark px-1" style={{ fontSize: '0.9rem', minWidth: '20px', textAlign: 'center' }}>{item.stok}</span>
+                              <button
+                                className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
+                                style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
+                                onClick={() => handleUpdateStok(item.id, 1)}
+                              >
+                                <i className="bi bi-plus text-dark"></i>
+                              </button>
+                            </div>
+                          )}
                         </div>
                         {/* Danger Indicator Line */}
                         {item.stok < 5 && <div style={{ height: '3px', backgroundColor: '#ff5252', width: '100%' }}></div>}

@@ -215,7 +215,14 @@ const Transaksi = () => {
             </div>
             <div className="col-12 col-sm-6">
               <label className="form-label small fw-bold text-muted px-1">Estimasi (Hari)</label>
-              <input type="number" className="form-control border-0 shadow-sm rounded-3 py-2" value={estimasi} onChange={e => setEstimasi(e.target.value)} />
+              <input
+                type="number"
+                className="form-control border-0 shadow-sm rounded-3 py-2"
+                value={estimasi}
+                onChange={e => setEstimasi(e.target.value)}
+                onFocus={(e) => e.target.select()}
+                required
+              />
             </div>
             <div className="col-12 col-sm-6">
               <label className="form-label small fw-bold text-muted px-1">Prioritas</label>
@@ -230,10 +237,24 @@ const Transaksi = () => {
         {/* Ringkasan Biaya & Diskon */}
         <div className="mb-4">
           <div className="d-flex justify-content-between align-items-center mb-3">
-            <label className="form-label small fw-bold text-muted text-uppercase mb-0">Potongan Harga / Diskon</label>
-            <div className="btn-group btn-group-sm shadow-sm rounded-pill overflow-hidden">
-              <button className={`btn btn-sm ${diskonTipe === 'Persentase' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setDiskonTipe('Persentase')}>%</button>
-              <button className={`btn btn-sm ${diskonTipe === 'Harga' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setDiskonTipe('Harga')}>Rp</button>
+            <label className="form-label small fw-bold text-muted text-uppercase mb-0">Diskon</label>
+            <div className="d-flex bg-white shadow-sm rounded-pill p-1" style={{ border: '1px solid #eee' }}>
+              <button
+                type="button"
+                className={`btn btn-sm rounded-pill px-3 fw-bold border-0 ${diskonTipe === 'Persentase' ? 'btn-primary shadow-sm' : 'btn-light bg-transparent text-muted'}`}
+                onClick={() => setDiskonTipe('Persentase')}
+                style={{ fontSize: '0.7rem' }}
+              >
+                %
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm rounded-pill px-3 fw-bold border-0 ${diskonTipe === 'Harga' ? 'btn-primary shadow-sm' : 'btn-light bg-transparent text-muted'}`}
+                onClick={() => setDiskonTipe('Harga')}
+                style={{ fontSize: '0.7rem' }}
+              >
+                Rp
+              </button>
             </div>
           </div>
           <div className="position-relative mb-3">
@@ -242,14 +263,15 @@ const Transaksi = () => {
             </span>
             <input
               type="number"
-              className="form-control form-control-lg border-0 bg-light rounded-4 shadow-sm ps-5 fw-bold"
+              className="form-control form-control-lg border-1 bg-light rounded-4 shadow-sm ps-5 fw-bold"
               placeholder="0"
               value={diskonNilai}
               onChange={e => setDiskonNilai(e.target.value)}
+              onFocus={(e) => e.target.select()}
             />
           </div>
 
-          <div className="bg-outline-primary p-4 rounded-4 shadow-sm">
+          <div className="bg-outline-primary text-black p-4 rounded-4 shadow-sm">
             <div className="d-flex justify-content-between mb-1 opacity-75">
               <span className="small">Subtotal</span>
               <span className="small">Rp {subtotal.toLocaleString()}</span>
@@ -259,8 +281,8 @@ const Transaksi = () => {
               <span className="small text-warning fw-bold">- Rp {nilaiDiskon.toLocaleString()}</span>
             </div>
             <div className="d-flex justify-content-between align-items-center border-top pt-2 mt-1">
-              <span className="fw-bold">TOTAL AKHIR</span>
-              <h3 className="fw-bold mb-0">Rp {total.toLocaleString()}</h3>
+              <span className="small">TOTAL AKHIR</span>
+              <span className="small fw-bold">Rp {total.toLocaleString()}</span>
             </div>
           </div>
         </div>

@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 
-const DataOrder = () => {
+const DataOrder = ({ user }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get('tab') || 'Proses';
@@ -14,7 +14,7 @@ const DataOrder = () => {
   const [filterAntar, setFilterAntar] = useState('Semua');
   const [filterBayar, setFilterBayar] = useState('Semua');
   const [filterPrioritas, setFilterPrioritas] = useState('Semua');
-  
+
   // State Modal Konfirmasi
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmData, setConfirmData] = useState({ id: null, type: '', message: '' });
@@ -88,7 +88,7 @@ const DataOrder = () => {
       <div className="card shadow-sm border-0 mb-3">
         <div className="card-body p-0">
           <ul className="nav nav-tabs nav-fill border-0">
-            {['Proses', 'Selesai', 'Ambil', 'Req Hapus'].map(tab => (
+            {['Proses', 'Selesai', 'Ambil', user.role === 'owner' ? 'Req Hapus' : null].filter(Boolean).map(tab => (
               <li className="nav-item" key={tab}>
                 <button
                   className={`nav-link border-0 fw-bold py-3 ${activeTab === tab ? 'active border-bottom border-primary text-primary' : 'text-muted'}`}
@@ -160,12 +160,16 @@ const DataOrder = () => {
                   <span className="small text-muted">{new Date(new Date(order.createdAt).getTime() + (order.estimasi * 86400000)).toLocaleDateString('id-ID')}</span>
                 </div>
 
+                {order.catatan && (
+                  <div className="mb-3 p-2 rounded-3 bg-light border-start border-3 border-info" style={{ fontSize: '0.7rem', backgroundColor: '#f0faff !important' }}>
+                    <i className="bi bi-pencil-square me-2 text-info"></i>
+                    <span className="text-dark">{order.catatan}</span>
+                  </div>
+                )}
+
                 <div className="d-flex gap-1 mb-3">
                   <span className={`badge rounded-pill ${order.statusBayar === 'Lunas' ? 'bg-success-light text-success' : 'bg-warning-light text-warning'}`} style={{ backgroundColor: '#d1f7e0', color: '#00a854', fontSize: '0.65rem' }}>
                     {order.statusBayar?.toLowerCase() || 'belum bayar'}
-                  </span>
-                  <span className="badge rounded-pill bg-info-light text-info" style={{ backgroundColor: '#e1f5fe', color: '#0288d1', fontSize: '0.65rem' }}>
-                    cuci
                   </span>
                   <span className="badge rounded-pill bg-warning-light text-warning" style={{ backgroundColor: '#fff9c4', color: '#fbc02d', fontSize: '0.65rem' }}>
                     {order.tipeLayanan?.toLowerCase()}
@@ -173,7 +177,7 @@ const DataOrder = () => {
                 </div>
 
                 <div className="row g-2 mt-2">
-                  <div className="col-4">
+                  <div className={user.role === 'owner' ? 'col-4' : 'col-6'}>
                     {activeTab === 'Proses' && (
                       <button className="btn btn-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => updateStatus(order.id, 'Selesai')}>Selesai</button>
                     )}
@@ -187,16 +191,16 @@ const DataOrder = () => {
                       <button className="btn btn-danger btn-sm w-100 fw-bold shadow-sm" onClick={() => hardDelete(order.id)}>Hapus</button>
                     )}
                   </div>
-                  <div className="col-4">
+                  <div className={user.role === 'owner' ? 'col-4' : 'col-6'}>
                     <button className="btn btn-outline-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => navigate(`/order/${order.id}`)}>Nota</button>
                   </div>
-                  <div className="col-4">
-                    {(activeTab === 'Proses' || activeTab === 'Selesai') ? (
-                      <button className="btn btn-outline-danger btn-sm w-100 fw-bold shadow-sm" onClick={() => requestDelete(order.id)}>Hapus</button>
-                    ) : (
-                      <button className="btn btn-light btn-sm w-100 fw-bold disabled opacity-50 border">Locked</button>
-                    )}
-                  </div>
+                  {user.role === 'owner' && (
+                    <div className="col-4 text-end">
+                      {(activeTab === 'Proses' || activeTab === 'Selesai') && (
+                        <button className="btn btn-outline-danger btn-sm w-100 fw-bold shadow-sm" onClick={() => requestDelete(order.id)}>Hapus</button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -217,11 +221,11 @@ const DataOrder = () => {
                   </div>
                   <h5 className="fw-bold mb-2">Konfirmasi Tindakan</h5>
                   <p className="text-muted small mb-4">{confirmData.message}</p>
-                  
+
                   <div className="d-flex gap-2">
                     <button className="btn btn-light w-100 rounded-pill fw-bold py-2" onClick={() => setShowConfirmModal(false)}>Batal</button>
-                    <button 
-                      className={`btn ${confirmData.type === 'hard' ? 'btn-danger' : 'btn-primary'} w-100 rounded-pill fw-bold py-2 shadow-sm`} 
+                    <button
+                      className={`btn ${confirmData.type === 'hard' ? 'btn-danger' : 'btn-primary'} w-100 rounded-pill fw-bold py-2 shadow-sm`}
                       onClick={handleExecuteAction}
                     >
                       {confirmData.type === 'hard' ? 'Hapus' : 'Ya, Ajukan'}

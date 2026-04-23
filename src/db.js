@@ -3,7 +3,7 @@ import Dexie from 'dexie';
 export const db = new Dexie('KasirLaundryDB');
 
 db.version(6).stores({
-  users: '++id, username, password, fullname',
+  users: '++id, username, password, fullname, role',
   products: '++id, name, price',
   orders: '++id, invoiceId, userId, total, createdAt, pelangganId, diskon, metodeBayar, estimasi, tipeLayanan, isPriority, bayar, kembalian, statusBayar, status, catatan',
   cart: '++id, productId, quantity',

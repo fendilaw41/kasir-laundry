@@ -39,14 +39,14 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route element={<Layout onLogout={handleLogout} />}>
           <Route path="/" element={user ? <Home user={user} /> : <Navigate to="/login" />} />
-          <Route path="/transaksi" element={user ? <Transaksi /> : <Navigate to="/login" />} />
-          <Route path="/cari" element={user ? <Cari /> : <Navigate to="/login" />} />
-          <Route path="/product" element={user ? <Product /> : <Navigate to="/login" />} />
-          <Route path="/pembayaran" element={user ? <Pembayaran /> : <Navigate to="/login" />} />
-          <Route path="/order/:id" element={user ? <OrderDetail /> : <Navigate to="/login" />} />
-          <Route path="/orders" element={user ? <DataOrder /> : <Navigate to="/login" />} />
-          <Route path="/reports" element={user ? <Reports /> : <Navigate to="/login" />} />
-          <Route path="/setting" element={user ? <Setting /> : <Navigate to="/login" />} />
+          <Route path="/transaksi" element={user ? <Transaksi user={user} /> : <Navigate to="/login" />} />
+          <Route path="/cari" element={user ? <Cari user={user} /> : <Navigate to="/login" />} />
+          <Route path="/product" element={user ? <Product user={user} /> : <Navigate to="/login" />} />
+          <Route path="/pembayaran" element={user ? <Pembayaran user={user} /> : <Navigate to="/login" />} />
+          <Route path="/order/:id" element={user ? <OrderDetail user={user} /> : <Navigate to="/login" />} />
+          <Route path="/orders" element={user ? <DataOrder user={user} /> : <Navigate to="/login" />} />
+          <Route path="/reports" element={user ? <Reports user={user} /> : <Navigate to="/login" />} />
+          <Route path="/setting" element={user ? <Setting user={user} /> : <Navigate to="/login" />} />
         </Route>
       </Routes>
     </Router>
