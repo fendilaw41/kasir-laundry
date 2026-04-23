@@ -5,7 +5,7 @@ export const formatWhatsAppMessage = (order, pelanggan) => {
   const formattedPhone = phone.startsWith('0') ? '62' + phone.slice(1) : phone;
   const tgl = new Date(order.createdAt).toLocaleString('id-ID');
   const estDate = new Date(new Date(order.createdAt).getTime() + (order.estimasi * 86400000)).toLocaleDateString('id-ID');
-  
+
   let itemsText = '';
   order.items.forEach(item => {
     itemsText += `${item.name} (Rp${item.price.toLocaleString()} x ${item.quantity})\nRp${(item.price * item.quantity).toLocaleString()}\n`;
@@ -13,7 +13,7 @@ export const formatWhatsAppMessage = (order, pelanggan) => {
 
   const text = `*Keenan Laundry*
 ------------------------------
-No Nota : #${order.invoiceId || 'KL'}/${order.id}
+No Nota : #${order.invoiceId || 'KL'}
 Tanggal : ${tgl}
 Pembayaran : ${order.statusBayar?.toLowerCase()}
 Status : ${order.status?.toLowerCase() || 'proses'}
@@ -22,8 +22,8 @@ Est : ${order.estimasi} Hari ${estDate}
 Note : ${order.catatan || '-'}
 ----------------------------
 ${itemsText}------------------------------
-SubTotal : Rp${order.subtotal?.toLocaleString() || 0}
-Total : Rp${order.total.toLocaleString()}
+SubTotal : Rp${(order.subtotal || order.total).toLocaleString()}
+${order.diskon > 0 ? `Diskon : -Rp${order.diskon.toLocaleString()}\n` : ''}Total : Rp${order.total.toLocaleString()}
 
 Nota ${order.status?.toLowerCase() === 'selesai' ? 'selesai' : 'diproses'}
 

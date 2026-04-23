@@ -124,7 +124,7 @@ const Pembayaran = () => {
         <button className="btn btn-primary btn-lg py-3 fw-bold" onClick={() => handleBayar(true)}>
           Bayar Sekarang
         </button>
-        <button className="btn btn-primary btn-lg py-3 fw-bold" onClick={() => handleBayar(false)}>
+        <button className="btn btn-danger btn-lg py-3 fw-bold" onClick={() => handleBayar(false)}>
           Bayar Nanti
         </button>
         <button className="btn btn-outline-secondary btn-lg py-3" onClick={() => navigate('/transaksi')}>

@@ -1,5 +1,10 @@
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../db';
+
 const PrintLayout = ({ order, pelanggan, printType }) => {
-  if (!order || !printType) return null;
+  const settings = useLiveQuery(() => db.settings.get(1));
+
+  if (!order || !printType || !settings) return null;
 
   const qrUrl = `https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=${encodeURIComponent(`https://kasirlaundry.my.id/status/${order.invoiceId}`)}`;
 
@@ -9,11 +14,11 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
       {printType === 'thermal' && (
         <div id="thermal-receipt" className="print-section" style={{ width: '58mm', padding: '2mm', color: '#000', backgroundColor: '#fff', fontFamily: 'monospace' }}>
           <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-            <h4 style={{ margin: '0', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase' }}>KEENAN LAUNDRY</h4>
-            <div style={{ fontSize: '10px' }}>Jl. Imam Bonjol 007</div>
-            <div style={{ fontSize: '10px' }}>NGANJUK</div>
-            <div style={{ fontSize: '10px' }}>Operasional: 08.00-17.00</div>
-            <div style={{ fontSize: '10px' }}>No. WA: 087853131099</div>
+            <h4 style={{ margin: '0', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase' }}>{settings.namaLaundry}</h4>
+            <div style={{ fontSize: '10px' }}>{settings.alamat}</div>
+            <div style={{ fontSize: '10px' }}>{settings.kota}</div>
+            <div style={{ fontSize: '10px' }}>Operasional: {settings.jamBuka}</div>
+            <div style={{ fontSize: '10px' }}>No. WA: {settings.telepon}</div>
           </div>
 
           <div style={{ borderTop: '1px dashed #000', margin: '5px 0' }}></div>
@@ -63,7 +68,17 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
           <table style={{ width: '100%', fontSize: '10px', borderCollapse: 'collapse' }}>
             <tbody>
               <tr>
-                <td style={{ fontWeight: 'bold' }}>TOTAL</td>
+                <td>SUBTOTAL</td>
+                <td style={{ textAlign: 'right' }}>{(order.subtotal || order.total).toLocaleString()}</td>
+              </tr>
+              {order.diskon > 0 && (
+                <tr>
+                  <td>DISKON</td>
+                  <td style={{ textAlign: 'right' }}>- {order.diskon.toLocaleString()}</td>
+                </tr>
+              )}
+              <tr>
+                <td style={{ fontWeight: 'bold' }}>TOTAL AKHIR</td>
                 <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{order.total.toLocaleString()}</td>
               </tr>
               <tr>
@@ -79,10 +94,9 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
 
           <div style={{ borderTop: '1px dashed #000', margin: '5px 0' }}></div>
 
-          <div style={{ textAlign: 'center', marginTop: '10px', fontSize: '10px' }}>
-            <div>Terima kasih atas kunjungan anda</div>
-            <div style={{ marginTop: '5px' }}>Kami menerima Cuci Karpet, Bedcover, Boneka, dan Satuan</div>
-            <div style={{ fontWeight: 'bold', marginTop: '5px' }}>kasirlaundry.my.id</div>
+          <div style={{ textAlign: 'center', marginTop: '10px', fontSize: '10px', whiteSpace: 'pre-line' }}>
+            <div>{settings.headerStruk}</div>
+            <div style={{ marginTop: '5px' }}>{settings.footerStruk}</div>
           </div>
         </div>
       )}
@@ -92,11 +106,11 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
         <div id="a4-receipt" className="print-section" style={{ width: '210mm', padding: '15mm', color: '#000', backgroundColor: '#fff', fontFamily: 'Arial, sans-serif' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '15px' }}>
             <div>
-              <h2 style={{ margin: 0, color: '#0134d4' }}>KEENAN LAUNDRY</h2>
+              <h2 style={{ margin: 0, color: '#0134d4' }}>{settings.namaLaundry}</h2>
               <div style={{ fontSize: '14px', marginTop: '5px' }}>
-                <div>Jl. Imam Bonjol 007, NGANJUK</div>
-                <div>Operasional: 08.00 - 17.00</div>
-                <div>No. WA: 087853131099</div>
+                <div>{settings.alamat}, {settings.kota}</div>
+                <div>Operasional: {settings.jamBuka}</div>
+                <div>No. WA: {settings.telepon}</div>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
@@ -144,7 +158,17 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
             <table style={{ width: '300px', borderCollapse: 'collapse' }}>
               <tbody>
                 <tr>
-                  <td style={{ padding: '8px', fontSize: '16px' }}>Total Akhir</td>
+                  <td style={{ padding: '8px', fontSize: '14px' }}>Subtotal</td>
+                  <td style={{ padding: '8px', textAlign: 'right', fontSize: '14px' }}>Rp {(order.subtotal || order.total).toLocaleString()}</td>
+                </tr>
+                {order.diskon > 0 && (
+                  <tr>
+                    <td style={{ padding: '8px', fontSize: '14px', color: 'red' }}>Diskon</td>
+                    <td style={{ padding: '8px', textAlign: 'right', fontSize: '14px', color: 'red' }}>- Rp {order.diskon.toLocaleString()}</td>
+                  </tr>
+                )}
+                <tr>
+                  <td style={{ padding: '8px', fontSize: '16px', fontWeight: 'bold' }}>Total Akhir</td>
                   <td style={{ padding: '8px', textAlign: 'right', fontSize: '20px', fontWeight: 'bold', color: '#0134d4' }}>Rp {order.total.toLocaleString()}</td>
                 </tr>
                 <tr>
@@ -163,16 +187,15 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <div style={{ fontSize: '14px' }}>
                 <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>Informasi Tambahan:</div>
-                <div>• Kami menerima Cuci Karpet, Bedcover, Boneka, dan Satuan.</div>
-                <div>• Cek status laundry Anda di: <strong>kasirlaundry.my.id</strong></div>
+                <div style={{ whiteSpace: 'pre-line' }}>{settings.footerStruk}</div>
               </div>
               <div style={{ textAlign: 'center', minWidth: '200px' }}>
                 <div style={{ marginBottom: '60px' }}>Hormat Kami,</div>
-                <div style={{ borderTop: '1px solid #000', width: '150px', margin: '0 auto' }}>Keenan Laundry</div>
+                <div style={{ borderTop: '1px solid #000', width: '150px', margin: '0 auto' }}>{settings.namaLaundry}</div>
               </div>
             </div>
             <div style={{ textAlign: 'center', marginTop: '40px', color: '#999', fontSize: '12px' }}>
-              Terima kasih atas kepercayaan Anda menggunakan jasa kami.
+              {settings.headerStruk}
             </div>
           </div>
         </div>
@@ -186,7 +209,7 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
           {printType === 'qr' && (
             <img src={qrUrl} alt="QR" style={{ width: '80px', height: '80px', marginTop: '5px' }} />
           )}
-          <div style={{ fontSize: '9px', marginTop: '2px' }}>Keenan Laundry</div>
+          <div style={{ fontSize: '9px', marginTop: '2px' }}>{settings.namaLaundry}</div>
         </div>
       )}
     </>

@@ -1,10 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 
 const Home = ({ user }) => {
+  const navigate = useNavigate();
   const [showPelangganModal, setShowPelangganModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
   const [showOmzet, setShowOmzet] = useState(false);
@@ -12,11 +13,20 @@ const Home = ({ user }) => {
   // State Form Pelanggan
   const [newPelanggan, setNewPelanggan] = useState({ nama: '', hp: '', alamat: '' });
 
-  // State Form Inventory
-  const [newInv, setNewInv] = useState({ nama: '', stok: '' });
-
   // Ambil data inventory
   const inventory = useLiveQuery(() => db.inventory.toArray());
+  const pelangganList = useLiveQuery(() => db.pelanggan.toArray());
+
+  const [searchPelanggan, setSearchPelanggan] = useState('');
+  const [searchInventory, setSearchInventory] = useState('');
+
+  // Update Stok Inventory
+  const handleUpdateStok = async (id, delta) => {
+    const item = await db.inventory.get(id);
+    if (item) {
+      await db.inventory.update(id, { stok: Math.max(0, item.stok + delta) });
+    }
+  };
 
   // Ambil statistik singkat
   const stats = useLiveQuery(async () => {
@@ -33,8 +43,14 @@ const Home = ({ user }) => {
       orderHariIni: todayOrders.length,
       pendingOrders,
       readyToPickUp
-    };
+    }
   });
+
+  const handleSelectPelanggan = (pelanggan) => {
+    localStorage.setItem('activePelanggan', JSON.stringify(pelanggan));
+    setShowPelangganModal(false);
+    navigate('/transaksi');
+  };
 
   const handleAddPelanggan = async (e) => {
     e.preventDefault();
@@ -54,34 +70,6 @@ const Home = ({ user }) => {
     toast.success('Pelanggan berhasil ditambahkan');
     setNewPelanggan({ nama: '', hp: '', alamat: '' });
     setShowPelangganModal(false);
-  };
-
-  const handleAddInventory = async (e) => {
-    e.preventDefault();
-
-    // Validasi Duplikat
-    const existing = await db.inventory
-      .where('nama').equalsIgnoreCase(newInv.nama)
-      .first();
-
-    if (existing) {
-      toast.error('Barang sudah ada di inventory!');
-      return;
-    }
-
-    await db.inventory.add({
-      nama: newInv.nama,
-      stok: parseInt(newInv.stok)
-    });
-    toast.success('Inventory berhasil ditambahkan');
-    setNewInv({ nama: '', stok: '' });
-  };
-
-  const deleteInventory = async (id) => {
-    if (window.confirm('Hapus item ini dari inventory?')) {
-      await db.inventory.delete(id);
-      toast.success('Item dihapus');
-    }
   };
 
   return (
@@ -123,8 +111,8 @@ const Home = ({ user }) => {
       <div className="row g-2 mb-4 px-1">
         <div className="col-4">
           <div className="card shadow-sm border-0 h-100 position-relative" style={{ borderRadius: '15px' }}>
-            <i 
-              className={`bi ${showOmzet ? 'bi-eye-slash' : 'bi-eye'} text-muted position-absolute`} 
+            <i
+              className={`bi ${showOmzet ? 'bi-eye-slash' : 'bi-eye'} text-muted position-absolute`}
               style={{ top: '8px', right: '8px', cursor: 'pointer', fontSize: '0.75rem', zIndex: 10 }}
               onClick={() => setShowOmzet(!showOmzet)}
             ></i>
@@ -172,14 +160,6 @@ const Home = ({ user }) => {
       {/* Menu Cepat / Shortcut */}
       <h6 className="fw-bold mb-3 px-1">Menu Utama</h6>
       <div className="row g-3 mb-4 px-1">
-        <div className="col-3 text-center">
-          <Link to="/cari" className="text-decoration-none">
-            <div className="bg-white shadow-sm rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style={{ width: '55px', height: '55px' }}>
-              <i className="bi bi-plus-lg fs-4 text-primary"></i>
-            </div>
-            <small className="text-dark fw-bold" style={{ fontSize: '0.7rem' }}>Baru</small>
-          </Link>
-        </div>
         <div className="col-3 text-center" onClick={() => setShowInventoryModal(true)} style={{ cursor: 'pointer' }}>
           <div className="bg-white shadow-sm rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style={{ width: '55px', height: '55px' }}>
             <i className="bi bi-box-seam fs-4 text-success"></i>
@@ -200,6 +180,14 @@ const Home = ({ user }) => {
             <small className="text-dark fw-bold" style={{ fontSize: '0.7rem' }}>Report</small>
           </Link>
         </div>
+        <div className="col-3 text-center">
+          <Link to="/setting" className="text-decoration-none">
+            <div className="bg-white shadow-sm rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style={{ width: '55px', height: '55px' }}>
+              <i className="bi bi-gear-fill fs-4 text-primary"></i>
+            </div>
+            <small className="text-dark fw-bold" style={{ fontSize: '0.7rem' }}>Setting</small>
+          </Link>
+        </div>
       </div>
 
       {/* Order dalam Proses Alert */}
@@ -213,79 +201,92 @@ const Home = ({ user }) => {
         </div>
       )}
 
-      {/* Modal Tambah Pelanggan */}
+      {/* Modal Pelanggan (Search & Add) */}
       {showPelangganModal && (
         <>
-          <div className="modal-backdrop fade show"></div>
+          <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(15px)', backgroundColor: 'rgba(255,255,255,0.7)' }}></div>
           <div className="modal fade show d-block" tabIndex="-1">
-            <div className="modal-dialog modal-dialog-centered mx-3">
-              <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px' }}>
-                <div className="modal-header border-0 pb-0">
-                  <h5 className="fw-bold mb-0">Tambah Pelanggan</h5>
+            <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable mx-2" style={{ maxWidth: '450px' }}>
+              <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '28px', height: '90vh' }}>
+                <div className="modal-header border-0 pb-0 pt-4 px-4">
+                  <div>
+                    <h5 className="fw-bold mb-0 text-success">Data Pelanggan</h5>
+                    <small className="text-muted">Manajemen pelanggan laundry anda</small>
+                  </div>
                   <button type="button" className="btn-close" onClick={() => setShowPelangganModal(false)}></button>
                 </div>
-                <div className="modal-body p-4">
-                  <form onSubmit={handleAddPelanggan}>
-                    <div className="mb-3">
-                      <label className="small fw-bold text-muted mb-1">Nama Lengkap</label>
-                      <input type="text" className="form-control" value={newPelanggan.nama} onChange={e => setNewPelanggan({ ...newPelanggan, nama: e.target.value })} required />
-                    </div>
-                    <div className="mb-3">
-                      <label className="small fw-bold text-muted mb-1">No. WhatsApp</label>
-                      <input type="tel" className="form-control" value={newPelanggan.hp} onChange={e => setNewPelanggan({ ...newPelanggan, hp: e.target.value })} required />
-                    </div>
-                    <div className="mb-4">
-                      <label className="small fw-bold text-muted mb-1">Alamat (Opsional)</label>
-                      <textarea className="form-control" rows="2" value={newPelanggan.alamat} onChange={e => setNewPelanggan({ ...newPelanggan, alamat: e.target.value })}></textarea>
-                    </div>
-                    <button type="submit" className="btn btn-primary w-100 py-2 fw-bold">SIMPAN PELANGGAN</button>
-                  </form>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Modal Inventory */}
-      {showInventoryModal && (
-        <>
-          <div className="modal-backdrop fade show"></div>
-          <div className="modal fade show d-block" tabIndex="-1">
-            <div className="modal-dialog modal-dialog-centered mx-3 modal-dialog-scrollable" style={{ maxHeight: '90vh' }}>
-              <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px' }}>
-                <div className="modal-header border-0 pb-0">
-                  <h5 className="fw-bold mb-0">Manajemen Inventory</h5>
-                  <button type="button" className="btn-close" onClick={() => setShowInventoryModal(false)}></button>
-                </div>
-                <div className="modal-body p-4">
-                  {/* Form Tambah */}
-                  <form onSubmit={handleAddInventory} className="bg-light p-3 rounded mb-4 border">
-                    <h6 className="small fw-bold mb-3">TAMBAH STOK BARANG</h6>
-                    <div className="mb-2">
-                      <input type="text" className="form-control form-control-sm" placeholder="Nama Barang (ex: Plastik)" value={newInv.nama} onChange={e => setNewInv({ ...newInv, nama: e.target.value })} required />
-                    </div>
-                    <div className="d-flex gap-2">
-                      <input type="number" className="form-control form-control-sm" placeholder="Stok" value={newInv.stok} onChange={e => setNewInv({ ...newInv, stok: e.target.value })} required />
-                      <button type="submit" className="btn btn-success btn-sm px-3">TAMBAH</button>
-                    </div>
-                  </form>
-
-                  {/* List Inventory */}
-                  <h6 className="small fw-bold mb-2">DAFTAR INVENTORY</h6>
-                  <div className="list-group list-group-flush">
-                    {inventory?.length === 0 ? (
-                      <p className="text-center text-muted py-3 small">Belum ada data barang</p>
-                    ) : (
-                      inventory?.map(inv => (
-                        <div key={inv.id} className="list-group-item px-0 py-2 d-flex justify-content-between align-items-center">
-                          <div>
-                            <div className="fw-bold small">{inv.nama}</div>
-                            <small className={`badge ${inv.stok <= 5 ? 'bg-danger' : 'bg-success'}`}>Stok: {inv.stok}</small>
+                <div className="modal-body p-3 p-sm-4">
+                  {/* Form Tambah Baru (Collapsible) */}
+                  <div className="mb-4">
+                    <button className="btn btn-success w-100 rounded-pill fw-bold py-2 mb-3 shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAddPelanggan">
+                      <i className="bi bi-person-plus me-2"></i> Pelanggan Baru
+                    </button>
+                    <div className="collapse" id="collapseAddPelanggan">
+                      <div className="card card-body border-0 bg-light rounded-4 p-3 mb-3 shadow-inner">
+                        <form onSubmit={handleAddPelanggan}>
+                          <div className="mb-2">
+                            <input type="text" className="form-control border-0 py-2 rounded-3" placeholder="Nama Lengkap" value={newPelanggan.nama} onChange={(e) => setNewPelanggan({ ...newPelanggan, nama: e.target.value })} required />
                           </div>
-                          <button className="btn btn-link text-danger p-0" onClick={() => deleteInventory(inv.id)}>
-                            <i className="bi bi-trash fs-5"></i>
-                          </button>
+                          <div className="mb-2">
+                            <input type="tel" className="form-control border-0 py-2 rounded-3" placeholder="No. WhatsApp" value={newPelanggan.hp} onChange={(e) => setNewPelanggan({ ...newPelanggan, hp: e.target.value })} required />
+                          </div>
+                          <div className="mb-3">
+                            <textarea className="form-control border-0 py-2 rounded-3" placeholder="Alamat (Kota)" rows="2" value={newPelanggan.alamat} onChange={(e) => setNewPelanggan({ ...newPelanggan, alamat: e.target.value })}></textarea>
+                          </div>
+                          <button type="submit" className="btn btn-primary w-100 rounded-pill fw-bold shadow-sm">SIMPAN DATA</button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Search Bar */}
+                  <div className="position-relative mb-4">
+                    <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted opacity-50"></i>
+                    <input
+                      type="text"
+                      className="form-control ps-5 border-0 bg-light rounded-pill py-2"
+                      placeholder="Cari nama atau no. whatsapp..."
+                      value={searchPelanggan}
+                      onChange={(e) => setSearchPelanggan(e.target.value)}
+                    />
+                  </div>
+
+                  {/* List Pelanggan Terdaftar */}
+                  <div className="pelanggan-list">
+                    {pelangganList?.filter(p =>
+                      p.nama.toLowerCase().includes(searchPelanggan.toLowerCase()) ||
+                      p.hp.includes(searchPelanggan)
+                    ).length === 0 ? (
+                      <div className="text-center py-5">
+                        <i className="bi bi-people text-muted opacity-25" style={{ fontSize: '3rem' }}></i>
+                        <p className="text-muted small mt-2">Tidak ada pelanggan ditemukan</p>
+                      </div>
+                    ) : (
+                      pelangganList?.filter(p =>
+                        p.nama.toLowerCase().includes(searchPelanggan.toLowerCase()) ||
+                        p.hp.includes(searchPelanggan)
+                      ).sort((a, b) => b.id - a.id).map(p => (
+                        <div
+                          key={p.id}
+                          className="card border-0 mb-3 rounded-4 shadow-sm customer-card-clickable"
+                          style={{ background: '#fff', cursor: 'pointer', transition: 'all 0.2s ease' }}
+                          onClick={() => handleSelectPelanggan(p)}
+                        >
+                          <div className="card-body p-3 d-flex align-items-center">
+                            <div className="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white me-3"
+                              style={{ width: '48px', height: '48px', background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)', fontSize: '1.2rem', boxShadow: '0 4px 10px rgba(1, 52, 212, 0.2)' }}>
+                              {p.nama.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-grow-1 overflow-hidden">
+                              <h6 className="mb-0 fw-bold text-dark text-truncate">{p.nama}</h6>
+                              <div className="text-muted d-flex align-items-center gap-1" style={{ fontSize: '0.75rem' }}>
+                                <i className="bi bi-whatsapp text-success"></i> {p.hp}
+                              </div>
+                            </div>
+                            <div className="ms-2">
+                              <i className="bi bi-arrow-right-circle text-primary fs-5 opacity-50"></i>
+                            </div>
+                          </div>
                         </div>
                       ))
                     )}
@@ -296,6 +297,109 @@ const Home = ({ user }) => {
           </div>
         </>
       )}
+
+      {/* Modal Inventory (Stock Management) */}
+      {showInventoryModal && (
+        <>
+          <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(15px)', backgroundColor: 'rgba(255,255,255,0.7)' }}></div>
+          <div className="modal fade show d-block" tabIndex="-1">
+            <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable mx-2" style={{ maxWidth: '450px' }}>
+              <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '28px', height: '90vh' }}>
+                <div className="modal-header border-0 pb-0 pt-4 px-4">
+                  <div>
+                    <h5 className="fw-bold mb-0 text-success">Inventaris Barang</h5>
+                    <small className="text-muted">Atur stok kebutuhan laundry</small>
+                  </div>
+                  <button type="button" className="btn-close" onClick={() => setShowInventoryModal(false)}></button>
+                </div>
+                <div className="modal-body p-3 p-sm-4">
+                  {/* Tambah Stok Baru Quick Form */}
+                  <div className="bg-light p-3 rounded-4 mb-4">
+                    <form onSubmit={async (e) => {
+                      e.preventDefault();
+                      const form = e.target;
+                      const nama = form.nama.value;
+                      const stok = parseInt(form.stok.value);
+                      await db.inventory.add({ nama, stok });
+                      form.reset();
+                      toast.success('Barang baru telah ditambahkan');
+                    }}>
+                      <label className="small fw-bold text-muted mb-2 px-1">TAMBAH BARANG BARU</label>
+                      <div className="row g-2">
+                        <div className="col-8">
+                          <input type="text" name="nama" className="form-control border-0 py-2 rounded-3 shadow-sm" placeholder="Nama item..." required />
+                        </div>
+                        <div className="col-4">
+                          <div className="input-group shadow-sm rounded-3 overflow-hidden">
+                            <input type="number" name="stok" className="form-control border-0 py-2 px-2 text-center" placeholder="Qty" required />
+                            <button className="btn btn-success border-0 px-2" type="submit">
+                              <i className="bi bi-plus-lg"></i>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </form>
+                  </div>
+
+                  {/* Search Bar Inventory */}
+                  <div className="position-relative mb-4">
+                    <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted opacity-50"></i>
+                    <input
+                      type="text"
+                      className="form-control ps-5 border-0 bg-light rounded-pill py-2"
+                      placeholder="Cari item barang..."
+                      value={searchInventory}
+                      onChange={(e) => setSearchInventory(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Daftar Item Inventory */}
+                  <div className="inventory-list">
+                    {inventory?.filter(item => item.nama.toLowerCase().includes(searchInventory.toLowerCase())).map(item => (
+                      <div key={item.id} className="card border-0 mb-3 rounded-4 shadow-sm overflow-hidden" style={{ background: '#fff' }}>
+                        <div className="card-body p-3 d-flex justify-content-between align-items-center">
+                          <div className="d-flex align-items-center">
+                            <div className="rounded-4 bg-light d-flex align-items-center justify-content-center me-3" style={{ width: '45px', height: '45px' }}>
+                              <i className={`bi ${item.nama.toLowerCase().includes('plastik') ? 'bi-box' : 'bi-archive'} text-success fs-4`}></i>
+                            </div>
+                            <div>
+                              <h6 className="fw-bold mb-1 text-dark">{item.nama}</h6>
+                              <span className={`badge rounded-pill ${item.stok < 5 ? 'bg-danger bg-opacity-10 text-white' : 'bg-success bg-opacity-10 text-white'}`} style={{ fontSize: '0.65rem' }}>
+                                Stok: {item.stok}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="d-flex align-items-center gap-2 bg-light rounded-pill p-1">
+                            <button
+                              className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
+                              style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
+                              onClick={() => handleUpdateStok(item.id, -1)}
+                            >
+                              <i className="bi bi-dash text-dark"></i>
+                            </button>
+                            <span className="fw-bold text-dark px-1" style={{ fontSize: '0.9rem', minWidth: '20px', textAlign: 'center' }}>{item.stok}</span>
+                            <button
+                              className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
+                              style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
+                              onClick={() => handleUpdateStok(item.id, 1)}
+                            >
+                              <i className="bi bi-plus text-dark"></i>
+                            </button>
+                          </div>
+                        </div>
+                        {/* Danger Indicator Line */}
+                        {item.stok < 5 && <div style={{ height: '3px', backgroundColor: '#ff5252', width: '100%' }}></div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
     </div>
   );
 };

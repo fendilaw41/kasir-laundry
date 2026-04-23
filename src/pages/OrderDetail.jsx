@@ -17,6 +17,7 @@ const OrderDetail = () => {
   const [catatan, setCatatan] = useState('');
   const [prevId, setPrevId] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showNoteModal, setShowNoteModal] = useState(false);
   const [printType, setPrintType] = useState(null);
 
   if (order && order.id !== prevId) {
@@ -42,6 +43,7 @@ const OrderDetail = () => {
   const updateCatatan = async () => {
     await db.orders.update(order.id, { catatan });
     toast.success('Catatan diperbarui!');
+    setShowNoteModal(false);
   };
 
   // const hapusTransaksi = async () => {
@@ -108,39 +110,41 @@ const OrderDetail = () => {
             <span>Estimasi Selesai :</span>
             <span className="fw-bold">({order.estimasi} Hari) {new Date(new Date(order.createdAt).getTime() + (order.estimasi * 86400000)).toLocaleDateString('id-ID')}</span>
           </div>
-          <div className="d-flex justify-content-between mt-1">
+          <div className="d-flex justify-content-between mt-1 align-items-center">
             <span>Metode Bayar :</span>
             <span className={`badge ${order.statusBayar === 'Lunas' ? 'bg-success' : 'bg-warning'} text-uppercase`}>{order.statusBayar} {order.metodeBayar}</span>
           </div>
+          <div className="d-flex justify-content-between mt-1 align-items-start" onClick={() => setShowNoteModal(true)} style={{ cursor: 'pointer' }}>
+            <span>Catatan :</span>
+            <div className="text-end">
+              <span className="fw-bold text-primary small d-block">{order.catatan || '-'}</span>
+              <small className="text-muted" style={{ fontSize: '0.65rem' }}><i className="bi bi-pencil-square me-1"></i>Edit Catatan</small>
+            </div>
+          </div>
         </div>
 
-        {/* Catatan */}
-        <div className="p-3 border-bottom">
-          <label className="small fw-bold text-muted text-uppercase mb-2">Catatan Pesanan</label>
-          <textarea className="form-control form-control-sm mb-2" value={catatan} onChange={(e) => setCatatan(e.target.value)} rows="2"></textarea>
-          <button className="btn btn-primary btn-sm w-100 fw-bold shadow-sm" onClick={updateCatatan}>UPDATE CATATAN</button>
-        </div>
+
 
         {/* Status Tracker */}
         <div className="p-3 border-bottom">
-          <div className="small fw-bold text-muted text-uppercase mb-3 text-center">Status Pengerjaan</div>
+          <div className="small fw-bold text-muted text-uppercase mb-3 text-center" style={{ letterSpacing: '1px', fontSize: '0.7rem' }}>Status Pengerjaan</div>
           <div className="row g-2 text-center">
             <div className="col-4" onClick={() => handleStatusClick('Proses')}>
-              <div className={`p-3 border rounded ${order.status === 'Proses' || !order.status ? 'bg-primary text-white shadow' : 'bg-light text-muted'}`}>
-                <i className="bi bi-gear-wide-connected fs-2 d-block mb-1"></i>
-                <span className="small fw-bold">PROSES</span>
+              <div className={`py-3 px-1 border rounded-4 ${order.status === 'Proses' || !order.status ? 'bg-primary text-white shadow-sm' : 'bg-light text-muted'}`} style={{ transition: 'all 0.3s' }}>
+                <i className={`bi bi-gear-wide-connected fs-3 d-block mb-1 ${order.status === 'Proses' || !order.status ? 'text-white' : 'text-primary opacity-50'}`}></i>
+                <span className="fw-bold" style={{ fontSize: '0.65rem' }}>PROSES</span>
               </div>
             </div>
             <div className="col-4" onClick={() => handleStatusClick('Selesai')}>
-              <div className={`p-3 border rounded ${order.status === 'Selesai' ? 'bg-success text-white shadow' : 'bg-light text-muted'}`}>
-                <i className="bi bi-check2-circle fs-2 d-block mb-1"></i>
-                <span className="small fw-bold">SELESAI</span>
+              <div className={`py-3 px-1 border rounded-4 ${order.status === 'Selesai' ? 'bg-success text-white shadow-sm' : 'bg-light text-muted'}`} style={{ transition: 'all 0.3s' }}>
+                <i className={`bi bi-check2-circle fs-3 d-block mb-1 ${order.status === 'Selesai' ? 'text-white' : 'text-success opacity-50'}`}></i>
+                <span className="fw-bold" style={{ fontSize: '0.65rem' }}>SELESAI</span>
               </div>
             </div>
             <div className="col-4" onClick={() => handleStatusClick('Ambil')}>
-              <div className={`p-3 border rounded ${order.status === 'Ambil' ? 'bg-dark text-white shadow' : 'bg-light text-muted'}`}>
-                <i className="bi bi-box-seam fs-2 d-block mb-1"></i>
-                <span className="small fw-bold">AMBIL</span>
+              <div className={`py-3 px-1 border rounded-4 ${order.status === 'Ambil' ? 'bg-dark text-white shadow-sm' : 'bg-light text-muted'}`} style={{ transition: 'all 0.3s' }}>
+                <i className={`bi bi-box-seam fs-3 d-block mb-1 ${order.status === 'Ambil' ? 'text-white' : 'text-dark opacity-50'}`}></i>
+                <span className="fw-bold" style={{ fontSize: '0.65rem' }}>AMBIL</span>
               </div>
             </div>
           </div>
@@ -152,9 +156,15 @@ const OrderDetail = () => {
             <span>Sub-total</span>
             <span>Rp {order.subtotal?.toLocaleString()}</span>
           </div>
+          {order.diskon > 0 && (
+            <div className="d-flex justify-content-between mb-1 text-danger">
+              <span>Diskon</span>
+              <span>- Rp {order.diskon.toLocaleString()}</span>
+            </div>
+          )}
           <div className="d-flex justify-content-between fw-bold border-top pt-2 mt-1">
-            <span>TOTAL</span>
-            <span className="text-primary">Rp {order.total.toLocaleString()}</span>
+            <span className="text-dark">TOTAL AKHIR</span>
+            <span className="text-primary fs-5">Rp {order.total.toLocaleString()}</span>
           </div>
         </div>
       </div>
@@ -198,6 +208,34 @@ const OrderDetail = () => {
           </button>
         </div>
       </div>
+
+      {/* Modal Edit Catatan */}
+      {showNoteModal && (
+        <>
+          <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(0,0,0,0.4)' }}></div>
+          <div className="modal fade show d-block" tabIndex="-1">
+            <div className="modal-dialog modal-dialog-centered mx-3">
+              <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '24px' }}>
+                <div className="modal-header border-0 pb-0 pt-4 px-4">
+                  <h5 className="fw-bold mb-0">Edit Catatan</h5>
+                  <button type="button" className="btn-close" onClick={() => setShowNoteModal(false)}></button>
+                </div>
+                <div className="modal-body p-4">
+                  <label className="small fw-bold text-muted text-uppercase mb-2">Pesan Tambahan</label>
+                  <textarea
+                    className="form-control border-0 bg-light rounded-4 p-3 mb-3"
+                    value={catatan}
+                    onChange={(e) => setCatatan(e.target.value)}
+                    rows="4"
+                    placeholder="Masukkan catatan pesanan di sini..."
+                  ></textarea>
+                  <button className="btn btn-outline-primary w-100 rounded-pill fw-bold py-3 shadow-sm" onClick={updateCatatan}>Lanjutkan</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Modal Konfirmasi */}
       {showConfirmModal && (

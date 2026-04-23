@@ -82,19 +82,35 @@ const Reports = () => {
         {/* Main Stats Card (Laundry Theme Style) */}
         <div className="card shadow-sm border-0 mb-4 overflow-hidden" style={{ borderRadius: '20px', background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)' }}>
           <div className="card-body p-4 text-white">
-            <div className="d-flex justify-content-between align-items-center">
+            <div className="d-flex justify-content-between align-items-start mb-3">
               <div>
-                <small className="opacity-75 d-block">Total Omzet {isTodayOnly ? 'Hari Ini' : ''}</small>
-                <h2 className="text-white fw-bold mb-0 me-3">
+                <small className="opacity-75 d-block mb-1">Total Omzet {isTodayOnly ? 'Hari Ini' : ''}</small>
+                <h2 className="text-white fw-bold mb-0">
                   {showBalance ? `Rp ${data?.reduce((acc, o) => acc + o.total, 0).toLocaleString()}` : 'Rp ••••••••'}
                 </h2>
               </div>
-              <i
-                className={`bi ${showBalance ? 'bi-eye-slash-fill' : 'bi-eye-fill'} opacity-50 fs-4`}
-                style={{ cursor: 'pointer' }}
+              <button 
+                className="btn btn-sm btn-white bg-white bg-opacity-25 border-0 text-white rounded-circle shadow-none"
                 onClick={() => setShowBalance(!showBalance)}
-              ></i>
+              >
+                <i className={`bi ${showBalance ? 'bi-eye-slash-fill' : 'bi-eye-fill'} fs-5`}></i>
+              </button>
             </div>
+            
+            {showBalance && (
+              <div className="d-flex gap-3 pt-2 border-top border-white border-opacity-25">
+                <div className="flex-fill">
+                  <small className="opacity-75 d-block" style={{ fontSize: '0.65rem' }}>TOTAL DISKON</small>
+                  <span className="fw-bold" style={{ fontSize: '0.9rem' }}>
+                    Rp {data?.reduce((acc, o) => acc + (o.diskon || 0), 0).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex-fill border-start ps-3 border-white border-opacity-25">
+                  <small className="opacity-75 d-block" style={{ fontSize: '0.65rem' }}>JUMLAH ORDER</small>
+                  <span className="fw-bold" style={{ fontSize: '0.9rem' }}>{data?.length || 0} Trx</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

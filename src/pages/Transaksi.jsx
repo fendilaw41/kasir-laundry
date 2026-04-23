@@ -175,7 +175,7 @@ const Transaksi = () => {
         {/* Inventory Horizontal Scroller */}
         <div className="mb-4">
           <label className="form-label small fw-bold text-muted text-uppercase mb-3 px-1">Gunakan Inventori</label>
-          <div className="d-flex overflow-auto pb-2 gap-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <div className="d-flex overflow-auto pb-3 gap-2 mx-n1 px-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             <style>{`.d-flex::-webkit-scrollbar { display: none; }`}</style>
             {inventory?.map(inv => {
               const isActive = selectedInventory.find(s => s.id === inv.id);
@@ -183,12 +183,12 @@ const Transaksi = () => {
                 <div
                   key={inv.id}
                   onClick={() => inv.stok > 0 && toggleInventory(inv)}
-                  className={`flex-shrink-0 p-3 rounded-4 border text-center transition-all ${isActive ? 'bg-success text-white border-success shadow-sm' : 'bg-white text-dark'}`}
-                  style={{ minWidth: '100px', cursor: inv.stok > 0 ? 'pointer' : 'not-allowed', opacity: inv.stok <= 0 ? 0.5 : 1 }}
+                  className={`flex-shrink-0 p-3 rounded-4 border text-center transition-all ${isActive ? 'bg-success text-white border-success shadow-sm' : 'bg-white text-dark shadow-xs'}`}
+                  style={{ minWidth: '110px', cursor: inv.stok > 0 ? 'pointer' : 'not-allowed', opacity: inv.stok <= 0 ? 0.5 : 1 }}
                 >
                   <i className={`bi ${isActive ? 'bi-check-circle-fill' : 'bi-box-seam'} d-block mb-1 fs-4`}></i>
-                  <div className="small fw-bold" style={{ fontSize: '0.7rem' }}>{inv.nama}</div>
-                  <small className="opacity-75" style={{ fontSize: '0.6rem' }}>Stok: {inv.stok}</small>
+                  <div className="small fw-bold text-truncate" style={{ fontSize: '0.75rem' }}>{inv.nama}</div>
+                  <small className="opacity-75" style={{ fontSize: '0.65rem' }}>Stok: {inv.stok}</small>
                 </div>
               );
             })}
@@ -196,30 +196,30 @@ const Transaksi = () => {
         </div>
 
         {/* Form Detail Tambahan - Grouped Card */}
-        <div className="bg-light p-3 rounded-4 border-0 mb-4 shadow-sm">
+        <div className="bg-light p-3 p-sm-4 rounded-4 border-0 mb-4 shadow-sm">
           <div className="row g-3">
-            <div className="col-6">
-              <label className="form-label small fw-bold text-muted">Metode Bayar</label>
-              <select className="form-select border-0 shadow-sm rounded-3" value={metodeBayar} onChange={e => setMetodeBayar(e.target.value)}>
+            <div className="col-12 col-sm-6">
+              <label className="form-label small fw-bold text-muted px-1">Metode Bayar</label>
+              <select className="form-select border-0 shadow-sm rounded-3 py-2" value={metodeBayar} onChange={e => setMetodeBayar(e.target.value)}>
                 <option value="Cash">Cash</option>
                 <option value="QRIS">QRIS</option>
                 <option value="Deposit">Deposit</option>
               </select>
             </div>
-            <div className="col-6">
-              <label className="form-label small fw-bold text-muted">Layanan</label>
-              <select className="form-select border-0 shadow-sm rounded-3" value={tipeLayanan} onChange={e => setTipeLayanan(e.target.value)}>
+            <div className="col-12 col-sm-6">
+              <label className="form-label small fw-bold text-muted px-1">Layanan</label>
+              <select className="form-select border-0 shadow-sm rounded-3 py-2" value={tipeLayanan} onChange={e => setTipeLayanan(e.target.value)}>
                 <option value="Datang Langsung">Datang Langsung</option>
                 <option value="Jemput/Antar">Antar Jemput</option>
               </select>
             </div>
-            <div className="col-6">
-              <label className="form-label small fw-bold text-muted">Estimasi (Hari)</label>
-              <input type="number" className="form-control border-0 shadow-sm rounded-3" value={estimasi} onChange={e => setEstimasi(e.target.value)} />
+            <div className="col-12 col-sm-6">
+              <label className="form-label small fw-bold text-muted px-1">Estimasi (Hari)</label>
+              <input type="number" className="form-control border-0 shadow-sm rounded-3 py-2" value={estimasi} onChange={e => setEstimasi(e.target.value)} />
             </div>
-            <div className="col-6">
-              <label className="form-label small fw-bold text-muted">Prioritas</label>
-              <select className="form-select border-0 shadow-sm rounded-3" value={isPriority} onChange={e => setIsPriority(e.target.value)}>
+            <div className="col-12 col-sm-6">
+              <label className="form-label small fw-bold text-muted px-1">Prioritas</label>
+              <select className="form-select border-0 shadow-sm rounded-3 py-2" value={isPriority} onChange={e => setIsPriority(e.target.value)}>
                 <option value="Tidak">Biasa</option>
                 <option value="Ya">Prioritas</option>
               </select>
@@ -230,17 +230,43 @@ const Transaksi = () => {
         {/* Ringkasan Biaya & Diskon */}
         <div className="mb-4">
           <div className="d-flex justify-content-between align-items-center mb-3">
-            <label className="form-label small fw-bold text-muted text-uppercase mb-0">Diskon</label>
-            <div className="btn-group btn-group-sm">
-              <button className={`btn btn-outline-primary ${diskonTipe === 'Persentase' ? 'active' : ''}`} onClick={() => setDiskonTipe('Persentase')}>%</button>
-              <button className={`btn btn-outline-primary ${diskonTipe === 'Harga' ? 'active' : ''}`} onClick={() => setDiskonTipe('Harga')}>Rp</button>
+            <label className="form-label small fw-bold text-muted text-uppercase mb-0">Potongan Harga / Diskon</label>
+            <div className="btn-group btn-group-sm shadow-sm rounded-pill overflow-hidden">
+              <button className={`btn btn-sm ${diskonTipe === 'Persentase' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setDiskonTipe('Persentase')}>%</button>
+              <button className={`btn btn-sm ${diskonTipe === 'Harga' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setDiskonTipe('Harga')}>Rp</button>
             </div>
           </div>
-          <input type="number" className="form-control form-control-lg border-0 bg-light rounded-4 shadow-sm mb-2" placeholder="0" value={diskonNilai} onChange={e => setDiskonNilai(e.target.value)} />
+          <div className="position-relative mb-3">
+            <span className="position-absolute top-50 start-0 translate-middle-y ms-3 fw-bold text-muted">
+              {diskonTipe === 'Persentase' ? '%' : 'Rp'}
+            </span>
+            <input
+              type="number"
+              className="form-control form-control-lg border-0 bg-light rounded-4 shadow-sm ps-5 fw-bold"
+              placeholder="0"
+              value={diskonNilai}
+              onChange={e => setDiskonNilai(e.target.value)}
+            />
+          </div>
+
+          <div className="bg-outline-primary p-4 rounded-4 shadow-sm">
+            <div className="d-flex justify-content-between mb-1 opacity-75">
+              <span className="small">Subtotal</span>
+              <span className="small">Rp {subtotal.toLocaleString()}</span>
+            </div>
+            <div className="d-flex justify-content-between mb-2 opacity-75">
+              <span className="small">Diskon</span>
+              <span className="small text-warning fw-bold">- Rp {nilaiDiskon.toLocaleString()}</span>
+            </div>
+            <div className="d-flex justify-content-between align-items-center border-top pt-2 mt-1">
+              <span className="fw-bold">TOTAL AKHIR</span>
+              <h3 className="fw-bold mb-0">Rp {total.toLocaleString()}</h3>
+            </div>
+          </div>
         </div>
 
-        <button className="btn btn-primary w-100 btn-lg shadow rounded-4 py-3 fw-bold mt-2" onClick={handleCheckout} disabled={cartItems?.length === 0}>
-          SIMPAN TRANSAKSI
+        <button className="btn btn-outline-primary w-100 btn-lg shadow rounded-4 py-3 fw-bold mt-2" onClick={handleCheckout} disabled={cartItems?.length === 0}>
+          LANJUTKAN
         </button>
       </div>
 

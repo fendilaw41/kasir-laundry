@@ -75,3 +75,46 @@ body {
         border: 1px solid #ccc;
     }
 }
+
+.btn:focus,
+.btn:active,
+.btn-close:focus,
+.form-control:focus,
+.form-select:focus,
+.nav-link:focus {
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* Subtle interactive feel for buttons */
+.btn {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.btn:active {
+    transform: scale(0.96);
+    /* Feels more like a real button press */
+}
+
+/* Clean up button group borders and focus states */
+.btn-group>.btn-check:focus+.btn,
+.btn-group>.btn:focus {
+    z-index: 0 !important;
+}
+
+/* Modern inputs */
+.form-control,
+.form-select {
+    transition: border-color 0.2s ease !important;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: rgba(1, 52, 212, 0.3) !important;
+    /* Soft subtle border instead of blue glow */
+}
+
+/* Smooth transitions for all cards and interactive elements */
+.card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
