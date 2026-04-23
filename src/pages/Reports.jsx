@@ -156,27 +156,35 @@ const Reports = () => {
                   {orders.map(order => (
                     <div
                       key={order.id}
-                      className="card border-0 shadow-sm mb-2"
-                      style={{ borderRadius: '15px' }}
+                      className="card border-0 shadow-sm mb-3"
+                      style={{ borderRadius: '20px', overflow: 'hidden' }}
                       onClick={() => navigate(`/order/${order.id}`)}
                     >
                       <div className="card-body p-3">
-                        <div className="d-flex justify-content-between align-items-center">
+                        <div className="d-flex justify-content-between align-items-start mb-2">
                           <div className="d-flex align-items-center">
-                            <div className={`rounded-circle d-flex align-items-center justify-content-center me-3 ${order.statusBayar === 'Lunas' ? 'bg-success-light text-success' : 'bg-warning-light text-warning'}`} style={{ width: '40px', height: '40px', backgroundColor: order.statusBayar === 'Lunas' ? '#d1f7e0' : '#fff9c4' }}>
-                              <i className={`bi ${order.statusBayar === 'Lunas' ? 'bi-check-circle' : 'bi-clock-history'} fs-5`}></i>
+                            <div className={`rounded-circle d-flex align-items-center justify-content-center me-3 ${order.statusBayar === 'Lunas' ? 'bg-success-light text-success' : 'bg-warning-light text-warning'}`} style={{ width: '45px', height: '45px', flexShrink: 0 }}>
+                              <i className={`bi ${order.statusBayar === 'Lunas' ? 'bi-check-lg' : 'bi-clock'} fs-4`}></i>
                             </div>
                             <div>
-                              <div className="fw-bold text-dark" style={{ fontSize: '0.9rem' }}>{order.pelangganNama || 'Umum'}</div>
-                              <div className="text-muted" style={{ fontSize: '0.7rem' }}>
-                                {order.invoiceId} • {new Date(order.createdAt).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })} • {new Date(order.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                              <div className="fw-bold text-dark mb-0" style={{ fontSize: '1rem', lineHeight: '1.2' }}>{order.pelangganNama || 'Umum'}</div>
+                              <div className="text-muted small mt-1">
+                                <span className="fw-medium text-primary">{order.invoiceId}</span>
                               </div>
                             </div>
                           </div>
                           <div className="text-end">
-                            <div className="fw-bold text-primary" style={{ fontSize: '0.95rem' }}>Rp {order.total.toLocaleString()}</div>
-                            <span className="badge rounded-pill bg-light text-dark border mt-1" style={{ fontSize: '0.6rem' }}>{order.tipeLayanan}</span>
+                            <div className="fw-bold text-primary" style={{ fontSize: '1.1rem' }}>Rp {order.total.toLocaleString()}</div>
                           </div>
+                        </div>
+                        
+                        <div className="d-flex justify-content-between align-items-center pt-2 border-top border-light mt-2">
+                          <div className="text-muted" style={{ fontSize: '0.7rem' }}>
+                            <i className="bi bi-calendar3 me-1"></i> {new Date(order.createdAt).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })} • {new Date(order.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                          <span className="badge rounded-pill bg-light text-primary border-0 px-3 py-2" style={{ fontSize: '0.65rem', fontWeight: '600' }}>
+                            <i className="bi bi-tag-fill me-1"></i> {order.tipeLayanan}
+                          </span>
                         </div>
                       </div>
                     </div>

@@ -10,19 +10,15 @@ export default defineConfig({
       registerType: 'autoUpdate',
       manifest: {
         name: 'Kasir Laundry',
-        short_name: 'Laundry',
+        short_name: 'Kasir Laundry',
         description: 'Aplikasi Kasir Laundry Berbasis PWA',
         theme_color: '#0134d4',
         icons: [
           {
-            src: 'img/icons/icon-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'img/icons/icon-512x512.png',
+            src: 'img/core-img/favicon.svg',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/svg+xml',
+            purpose: 'any maskable'
           }
         ]
       }

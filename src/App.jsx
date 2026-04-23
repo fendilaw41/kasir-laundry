@@ -15,7 +15,6 @@ import Reports from './pages/Reports';
 import Setting from './pages/Setting';
 
 function App() {
-  const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(() => {
     const loggedInUser = localStorage.getItem('user');
     return loggedInUser ? JSON.parse(loggedInUser) : null;
@@ -30,49 +29,6 @@ function App() {
     setUser(null);
     localStorage.removeItem('user');
   };
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="splash-screen d-flex align-items-center justify-content-center w-100 vh-100" style={{
-        backgroundColor: '#f8f9fa',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        zIndex: 9999,
-        transition: 'all 0.5s ease'
-      }}>
-        <div className="text-center px-4">
-          <div className="mx-auto d-flex align-items-center justify-content-center shadow" style={{ 
-            width: '100px', 
-            height: '100px', 
-            background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)', 
-            borderRadius: '28px',
-            marginBottom: '15px',
-            animation: 'pulse 2s infinite'
-          }}>
-            <span style={{ fontSize: '52px', fontWeight: '900', color: '#fff', letterSpacing: '-3px' }}>K</span>
-          </div>
-          <h1 className="fw-bold mb-0" style={{ letterSpacing: '2px', color: '#0134d4' }}>KASIR</h1>
-          <p className="text-muted small mb-3">Laundry Management System</p>
-          <div className="spinner-border spinner-border-sm text-primary opacity-50" role="status"></div>
-        </div>
-        <style>{`
-          @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-          }
-        `}</style>
-      </div>
-    );
-  }
 
   return (
     <Router>
