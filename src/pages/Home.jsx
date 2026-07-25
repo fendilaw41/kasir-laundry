@@ -1,114 +1,23 @@
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
-import { Link, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { useHome } from './hooks/useHome';
 
 const Home = ({ user }) => {
-  const navigate = useNavigate();
-  const [showPelangganModal, setShowPelangganModal] = useState(false);
-  const [showInventoryModal, setShowInventoryModal] = useState(false);
-  const [showOmzet, setShowOmzet] = useState(false);
-  const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
-  const [editPelanggan, setEditPelanggan] = useState({ show: false, data: { id: null, nama: '', hp: '', alamat: '' } });
-
-  // State Form Pelanggan
-  const [newPelanggan, setNewPelanggan] = useState({ nama: '', hp: '', alamat: '' });
-
-  // Ambil data inventory
-  const inventory = useLiveQuery(() => db.inventory.toArray());
-  const pelangganList = useLiveQuery(() => db.pelanggan.toArray());
-
-  const [searchPelanggan, setSearchPelanggan] = useState('');
-  const [searchInventory, setSearchInventory] = useState('');
-  const [inventoryTab, setInventoryTab] = useState('selesai');
-
-  // Update Stok Inventory
-  const handleUpdateStok = async (id, delta) => {
-    const item = await db.inventory.get(id);
-    if (item) {
-      const actionText = delta > 0 ? `tambah ${delta}` : `kurangi ${Math.abs(delta)}`;
-      setConfirmModal({
-        show: true,
-        message: `Apakah Anda yakin ingin ${actionText} stok ${item.nama}?`,
-        onConfirm: async () => {
-          await db.inventory.update(id, { stok: Math.max(0, item.stok + delta) });
-          setConfirmModal({ show: false, message: '', onConfirm: null });
-        }
-      });
-    }
-  };
-
-  const handleApproveInventory = async (item) => {
-    try {
-      await db.inventory.update(item.id, {
-        stok: item.stok + (item.qty || 0),
-        qty: 0,
-        status: 'approved'
-      });
-      toast.success(`${item.nama} berhasil disetujui`);
-    } catch (error) {
-      console.error(error);
-      toast.error('Gagal menyetujui');
-    }
-  };
-
-  const handleRejectInventory = async (item) => {
-    try {
-      await db.inventory.update(item.id, {
-        qty: 0,
-        status: 'rejected'
-      });
-      toast.success(`${item.nama} ditolak`);
-    } catch (error) {
-      console.error(error);
-      toast.error('Gagal menolak');
-    }
-  };
-
-  // Ambil statistik singkat
-  const stats = useLiveQuery(async () => {
-    const allOrders = await db.orders.toArray();
-    const today = new Date().toLocaleDateString();
-    const todayOrders = allOrders.filter(o => new Date(o.createdAt).toLocaleDateString() === today);
-
-    const totalOmzet = todayOrders.reduce((acc, o) => acc + o.total, 0);
-    const pendingOrders = allOrders.filter(o => o.status === 'Proses').length;
-    const readyToPickUp = allOrders.filter(o => o.status === 'Selesai').length;
-
-    return {
-      totalOmzet,
-      orderHariIni: todayOrders.length,
-      pendingOrders,
-      readyToPickUp
-    }
-  });
-
-  const handleSelectPelanggan = (pelanggan) => {
-    localStorage.setItem('activePelanggan', JSON.stringify(pelanggan));
-    setShowPelangganModal(false);
-    navigate('/transaksi');
-  };
-
-  const handleAddPelanggan = async (e) => {
-    e.preventDefault();
-
-    // Validasi Duplikat
-    const existing = await db.pelanggan
-      .where('nama').equalsIgnoreCase(newPelanggan.nama)
-      .or('hp').equals(newPelanggan.hp)
-      .first();
-
-    if (existing) {
-      toast.error('Gagal! Nama atau No. HP sudah terdaftar.');
-      return;
-    }
-
-    await db.pelanggan.add(newPelanggan);
-    toast.success('Pelanggan berhasil ditambahkan');
-    setNewPelanggan({ nama: '', hp: '', alamat: '' });
-    setShowPelangganModal(false);
-  };
+  const {
+    showPelangganModal, setShowPelangganModal,
+    showInventoryModal, setShowInventoryModal,
+    showOmzet, setShowOmzet,
+    confirmModal, setConfirmModal,
+    editPelanggan, setEditPelanggan,
+    newPelanggan, setNewPelanggan,
+    inventory, pelangganList,
+    searchPelanggan, setSearchPelanggan,
+    searchInventory, setSearchInventory,
+    inventoryTab, setInventoryTab,
+    handleUpdateStok, handleApproveInventory, handleRejectInventory,
+    stats, handleSelectPelanggan, handleAddPelanggan,
+    updatePelanggan, addInventoryManual
+  } = useHome();
 
   return (
     <div className="home-wrapper pb-5">
@@ -389,14 +298,18 @@ const Home = ({ user }) => {
                       show: true,
                       message: `Simpan perubahan data pelanggan ${editPelanggan.data.nama}?`,
                       onConfirm: async () => {
-                        await db.pelanggan.update(editPelanggan.data.id, {
-                          nama: editPelanggan.data.nama,
-                          hp: editPelanggan.data.hp,
-                          alamat: editPelanggan.data.alamat
-                        });
-                        toast.success('Data pelanggan diperbarui!');
-                        setConfirmModal({ show: false, message: '', onConfirm: null });
-                        setEditPelanggan({ show: false, data: { id: null, nama: '', hp: '', alamat: '' } });
+                        try {
+                          await updatePelanggan(editPelanggan.data.id, {
+                            nama: editPelanggan.data.nama,
+                            hp: editPelanggan.data.hp,
+                            alamat: editPelanggan.data.alamat
+                          });
+                          toast.success('Data pelanggan diperbarui!');
+                          setConfirmModal({ show: false, message: '', onConfirm: null });
+                          setEditPelanggan({ show: false, data: { id: null, nama: '', hp: '', alamat: '' } });
+                        } catch (e) {
+                          toast.error(e.message);
+                        }
                       }
                     });
                   }}>
@@ -449,20 +362,14 @@ const Home = ({ user }) => {
                           show: true,
                           message: `Konfirmasi penambahan stok manual:\n\nNama Barang: ${nama}\nJumlah: ${stok}\n\nApakah data sudah sesuai?`,
                           onConfirm: async () => {
-                            const existing = await db.inventory.toArray();
-                            const existingItem = existing.find(i => i.nama.toLowerCase() === nama.toLowerCase());
-                            
-                            if (existingItem) {
-                              await db.inventory.update(existingItem.id, { 
-                                stok: (existingItem.stok || 0) + stok 
-                              });
-                            } else {
-                              await db.inventory.add({ nama, stok, status: 'approved' });
+                            try {
+                              await addInventoryManual(nama, stok);
+                              form.reset();
+                              toast.success('Barang telah ditambahkan');
+                              setConfirmModal({ show: false, message: '', onConfirm: null });
+                            } catch (error) {
+                              toast.error(error.message);
                             }
-                            
-                            form.reset();
-                            toast.success('Barang telah ditambahkan');
-                            setConfirmModal({ show: false, message: '', onConfirm: null });
                           }
                         });
                       }}>
@@ -568,7 +475,7 @@ const Home = ({ user }) => {
                                 <button
                                   className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
                                   style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
-                                  onClick={() => handleUpdateStok(item.id, -1)}
+                                  onClick={() => handleUpdateStok(item, -1)}
                                 >
                                   <i className="bi bi-dash text-dark"></i>
                                 </button>
@@ -576,7 +483,7 @@ const Home = ({ user }) => {
                                 <button
                                   className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
                                   style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
-                                  onClick={() => handleUpdateStok(item.id, 1)}
+                                  onClick={() => handleUpdateStok(item, 1)}
                                 >
                                   <i className="bi bi-plus text-dark"></i>
                                 </button>

@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { db } from '../db';
+import { getSettingsQuery, updateSettings } from '../db/repositories/settings';
+import { getKasirUsersQuery, addUser, updateUser, deleteUser as deleteUserRepo } from '../db/repositories/users';
 import { useLiveQuery } from 'dexie-react-hooks';
 import toast from 'react-hot-toast';
 
 const Setting = ({ user }) => {
-  const settings = useLiveQuery(() => db.settings.get(1));
-  const users = useLiveQuery(() => db.users.where('role').equals('kasir').toArray());
+  const settings = useLiveQuery(getSettingsQuery);
+  const users = useLiveQuery(getKasirUsersQuery);
   const [isEditing, setIsEditing] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -29,7 +30,7 @@ const Setting = ({ user }) => {
   const handleSave = async (e) => {
     e.preventDefault();
     try {
-      await db.settings.put({ ...formData, id: 1 });
+      await updateSettings(formData);
       setIsEditing(false);
       toast.success('Pengaturan berhasil diperbarui');
     } catch (err) {
@@ -42,12 +43,10 @@ const Setting = ({ user }) => {
     e.preventDefault();
     try {
       if (editingUser) {
-        await db.users.update(editingUser.id, userFormData);
+        await updateUser(editingUser.id, userFormData);
         toast.success('Data kasir diperbarui');
       } else {
-        const existing = await db.users.where('username').equals(userFormData.username).first();
-        if (existing) return toast.error('Username sudah digunakan');
-        await db.users.add(userFormData);
+        await addUser(userFormData);
         toast.success('Kasir baru ditambahkan');
       }
       setShowUserModal(false);
@@ -60,7 +59,7 @@ const Setting = ({ user }) => {
 
   const deleteUser = async (id) => {
     if (window.confirm('Hapus akun kasir ini?')) {
-      await db.users.delete(id);
+      await deleteUserRepo(id);
       toast.success('Kasir berhasil dihapus');
     }
   };

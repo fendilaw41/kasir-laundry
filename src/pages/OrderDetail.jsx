@@ -1,6 +1,8 @@
 import { useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
+import { getOrderByIdQuery, updateOrder } from '../db/repositories/orders';
+import { getPelangganByIdQuery, updatePelanggan, addPelanggan } from '../db/repositories/pelanggan';
+import { getInventoryQuery, getInventoryById, updateInventory } from '../db/repositories/inventory';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { formatWhatsAppMessage } from '../utils/whatsapp';
@@ -9,8 +11,8 @@ import PrintLayout from '../components/PrintLayout';
 const OrderDetail = () => {
   const { id } = useParams();
   // const navigate = useNavigate();
-  const order = useLiveQuery(() => db.orders.get(parseInt(id)));
-  const pelanggan = useLiveQuery(() => order ? db.pelanggan.get(order.pelangganId) : null, [order]);
+  const order = useLiveQuery(() => getOrderByIdQuery(id), [id]);
+  const pelanggan = useLiveQuery(() => order ? getPelangganByIdQuery(order.pelangganId) : null, [order]);
 
   const [catatan, setCatatan] = useState('');
   const [prevId, setPrevId] = useState(null);
@@ -22,7 +24,7 @@ const OrderDetail = () => {
   const [newHp, setNewHp] = useState('');
   const [printType, setPrintType] = useState(null);
   
-  const allInventory = useLiveQuery(() => db.inventory.toArray());
+  const allInventory = useLiveQuery(getInventoryQuery);
 
   if (order && order.id !== prevId) {
     setPrevId(order.id);
@@ -41,12 +43,12 @@ const OrderDetail = () => {
   };
 
   const updateStatus = async (status) => {
-    await db.orders.update(order.id, { status });
+    await updateOrder(order.id, { status });
     setShowConfirmModal(false);
   };
 
   const updateCatatan = async () => {
-    await db.orders.update(order.id, { catatan });
+    await updateOrder(order.id, { catatan });
     toast.success('Catatan diperbarui!');
     setShowNoteModal(false);
   };
@@ -59,11 +61,11 @@ const OrderDetail = () => {
   // };
 
   const togglePriority = async () => {
-    await db.orders.update(order.id, { isPriority: !order.isPriority });
+    await updateOrder(order.id, { isPriority: !order.isPriority });
   };
 
   const setLunas = async () => {
-    await db.orders.update(order.id, { statusBayar: 'Lunas', bayar: order.total, kembalian: 0 });
+    await updateOrder(order.id, { statusBayar: 'Lunas', bayar: order.total, kembalian: 0 });
   };
 
   const sendWhatsApp = () => {
@@ -87,10 +89,10 @@ const OrderDetail = () => {
     }
     let updatedPelanggan = { ...pelanggan, hp: newHp };
     if (pelanggan && pelanggan.id) {
-      await db.pelanggan.update(pelanggan.id, { hp: newHp });
+      await updatePelanggan(pelanggan.id, { hp: newHp });
     } else {
-      const newPelangganId = await db.pelanggan.add({ nama: order.pelangganNama || 'Pelanggan Umum', hp: newHp, alamat: '-' });
-      await db.orders.update(order.id, { pelangganId: newPelangganId });
+      const newPelangganId = await addPelanggan({ nama: order.pelangganNama || 'Pelanggan Umum', hp: newHp, alamat: '-' });
+      await updateOrder(order.id, { pelangganId: newPelangganId });
       updatedPelanggan = { id: newPelangganId, nama: order.pelangganNama || 'Pelanggan Umum', hp: newHp, alamat: '-' };
     }
     setShowHpModal(false);
@@ -143,15 +145,15 @@ const OrderDetail = () => {
        
        const diff = newQty - oldQty; 
        if (diff !== 0) {
-          const invData = await db.inventory.get(id);
+          const invData = await getInventoryById(id);
           if (invData) {
              const newStok = Math.max(0, invData.stok - diff);
-             await db.inventory.update(id, { stok: newStok });
+             await updateInventory(id, { stok: newStok });
           }
        }
     }
     
-    await db.orders.update(order.id, { inventoryUsed: newInv });
+    await updateOrder(order.id, { inventoryUsed: newInv });
     toast.success('Inventory terpakai diperbarui!');
     setShowInventoryModal(false);
   };

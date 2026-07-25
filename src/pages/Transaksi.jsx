@@ -1,134 +1,22 @@
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
-import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useTransaksi } from './hooks/useTransaksi';
 
 const Transaksi = () => {
-  const cartItems = useLiveQuery(() => db.cart.toArray());
-  const daftarPelanggan = useLiveQuery(() => db.pelanggan.toArray());
-  const inventory = useLiveQuery(() => db.inventory.toArray());
-  const navigate = useNavigate();
-
-  const [selectedPelanggan, setSelectedPelanggan] = useState(() => {
-    const saved = localStorage.getItem('activePelanggan');
-    return saved ? JSON.parse(saved) : null;
-  });
-  const [showModal, setShowModal] = useState(false);
-  const [isAdding, setIsAdding] = useState(false);
-  const [newPelanggan, setNewPelanggan] = useState({ nama: '', hp: '', alamat: '' });
-
-  // Simpan pelanggan ke localStorage setiap kali berubah
-  useEffect(() => {
-    if (selectedPelanggan) {
-      localStorage.setItem('activePelanggan', JSON.stringify(selectedPelanggan));
-    } else {
-      localStorage.removeItem('activePelanggan');
-    }
-  }, [selectedPelanggan]);
-
-  // Munculkan modal otomatis jika pelanggan belum dipilih
-  useEffect(() => {
-    if (!selectedPelanggan) {
-      const timer = setTimeout(() => {
-        setShowModal(true);
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-  }, [selectedPelanggan]);
-
-  // State untuk detail transaksi tambahan
-  const [diskonTipe, setDiskonTipe] = useState('Persentase'); // Persentase atau Harga
-  const [diskonNilai, setDiskonNilai] = useState(0);
-  const [estimasi, setEstimasi] = useState(0);
-  const [metodeBayar, setMetodeBayar] = useState('Cash');
-  const [tipeLayanan, setTipeLayanan] = useState('Datang Langsung');
-  const [isPriority, setIsPriority] = useState('Tidak');
-  const [selectedInventory, setSelectedInventory] = useState(() => {
-    const saved = localStorage.getItem('activeInventory');
-    return saved ? JSON.parse(saved) : [];
-  }); // Array of {id, nama, stok, quantity}
-
-  // Simpan inventory ke localStorage
-  useEffect(() => {
-    localStorage.setItem('activeInventory', JSON.stringify(selectedInventory));
-  }, [selectedInventory]);
-
-  const subtotal = cartItems?.reduce((acc, item) => acc + (item.price * item.quantity), 0) || 0;
-
-  // Kalkulasi Diskon
-  const nilaiDiskon = diskonTipe === 'Persentase'
-    ? (subtotal * (diskonNilai / 100))
-    : parseInt(diskonNilai || 0);
-
-  const total = subtotal - nilaiDiskon;
-
-  const handleCheckout = async () => {
-    if (!cartItems || cartItems.length === 0) return;
-    if (!selectedPelanggan) {
-      setShowModal(true);
-      return;
-    }
-
-    const user = JSON.parse(localStorage.getItem('user'));
-
-    // Siapkan data untuk dikirim ke halaman pembayaran
-    const orderData = {
-      userId: user.id,
-      pelangganId: selectedPelanggan.id,
-      pelangganNama: selectedPelanggan.nama,
-      items: cartItems,
-      subtotal: subtotal,
-      diskon: nilaiDiskon,
-      total: total,
-      metodeBayar,
-      estimasi,
-      tipeLayanan,
-      isPriority: isPriority === 'Ya',
-      inventoryUsed: selectedInventory // Kirim array inventory yang digunakan
-    };
-
-    navigate('/pembayaran', { state: { orderData } });
-  };
-
-  const removeItem = async (id) => {
-    await db.cart.delete(id);
-  };
-
-  const toggleInventory = (inv) => {
-    setSelectedInventory(prev => {
-      const exists = prev.find(item => item.id === inv.id);
-      if (exists) {
-        return prev.filter(item => item.id !== inv.id);
-      } else {
-        return [...prev, { id: inv.id, nama: inv.nama, quantity: 1 }];
-      }
-    });
-  };
-
-  const updateInventoryQty = (invId, delta) => {
-    setSelectedInventory(prev => {
-      const existing = prev.find(item => item.id === invId);
-      if (existing) {
-        const newQty = (existing.quantity || 1) + delta;
-        if (newQty <= 0) {
-           return prev.filter(item => item.id !== invId);
-        } else {
-           return prev.map(item => item.id === invId ? { ...item, quantity: newQty } : item);
-        }
-      }
-      return prev;
-    });
-  };
-
-  const handleAddPelanggan = async (e) => {
-    e.preventDefault();
-    const id = await db.pelanggan.add(newPelanggan);
-    const created = { id, ...newPelanggan };
-    setSelectedPelanggan(created);
-    setIsAdding(false);
-    setNewPelanggan({ nama: '', hp: '', alamat: '' });
-    setShowModal(false);
-  };
+  const {
+    cartItems, daftarPelanggan, inventory, navigate,
+    selectedPelanggan, setSelectedPelanggan,
+    showModal, setShowModal,
+    isAdding, setIsAdding,
+    newPelanggan, setNewPelanggan,
+    diskonTipe, setDiskonTipe,
+    diskonNilai, setDiskonNilai,
+    estimasi, setEstimasi,
+    metodeBayar, setMetodeBayar,
+    tipeLayanan, setTipeLayanan,
+    isPriority, setIsPriority,
+    selectedInventory,
+    subtotal, nilaiDiskon, total,
+    handleCheckout, removeItem, toggleInventory, updateInventoryQty, handleAddPelanggan
+  } = useTransaksi();
 
   return (
     <div className="card shadow-sm mb-5 border-0" style={{ borderRadius: '28px' }}>

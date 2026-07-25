@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { db } from '../db';
+import { registerUser } from '../db/repositories/users';
 
 const Register = () => {
   const [fullname, setFullname] = useState('');
@@ -12,12 +12,7 @@ const Register = () => {
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      const existing = await db.users.where('username').equals(username).first();
-      if (existing) {
-        setMessage('Username sudah terdaftar');
-        return;
-      }
-      await db.users.add({ fullname, username, password, role: 'owner' });
+      await registerUser({ fullname, username, password });
       setMessage('Registrasi berhasil! Silakan login.');
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {

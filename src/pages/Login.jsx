@@ -1,7 +1,6 @@
-import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { db } from '../db';
+import { loginUser } from '../db/repositories/users';
 
 const Login = ({ onLogin }) => {
   const [username, setUsername] = useState('');
@@ -9,17 +8,14 @@ const Login = ({ onLogin }) => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  // Ambil daftar user untuk ditampilkan sebagai bantuan
-  const users = useLiveQuery(() => db.users.toArray());
-
   const handleLogin = async (e) => {
     e.preventDefault();
-    const user = await db.users.where('username').equals(username).first();
-    if (user && user.password === password) {
+    try {
+      const user = await loginUser(username, password);
       onLogin(user);
       navigate('/');
-    } else {
-      setError('Username atau password salah');
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -62,19 +58,6 @@ const Login = ({ onLogin }) => {
                 <div className="login-meta-data text-center mt-4">
                   <p className="mb-0 text-muted small">Belum punya akun? <Link to="/register" className="fw-bold text-primary text-decoration-none">Register sekarang</Link></p>
                 </div>
-
-                {/* Hint Akun Terdaftar */}
-                {users && users.length > 0 && (
-                  <div className="mt-4 p-3 rounded-3 bg-light border-0">
-                    <p className="small fw-bold text-muted mb-2 text-center">Akun Terdaftar (Demo):</p>
-                    {users.map(u => (
-                      <div key={u.id} className="small border-bottom py-2 d-flex justify-content-between border-light">
-                        <span className="text-muted">User: <strong className="text-dark">{u.username}</strong></span>
-                        <span className="text-muted">Pass: <strong className="text-dark">{u.password}</strong></span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           </div>

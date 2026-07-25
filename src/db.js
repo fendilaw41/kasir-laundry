@@ -2,7 +2,7 @@ import Dexie from 'dexie';
 
 export const db = new Dexie('KasirLaundryDB');
 
-db.version(8).stores({
+db.version(9).stores({
   users: '++id, username, password, fullname, role',
   products: '++id, name, price',
   orders: '++id, invoiceId, userId, total, createdAt, pelangganId, diskon, metodeBayar, estimasi, tipeLayanan, isPriority, bayar, kembalian, statusBayar, status, catatan',
@@ -10,7 +10,8 @@ db.version(8).stores({
   pelanggan: '++id, nama, hp, alamat',
   inventory: '++id, nama, stok, qty, unit, status, createdBy, createdAt',
   settings: 'id',
-  chatLog: '++id, intent, status, userId, timestamp'
+  chatLog: '++id, intent, status, userId, timestamp',
+  draftOrder: 'id'
 });
 
 // Seed initial data if empty
@@ -27,7 +28,8 @@ db.on('ready', async () => {
       jamBuka: '08.00 - 17.00',
       menerimaCucian: true,
       headerStruk: 'Terima kasih atas kunjungan anda',
-      footerStruk: 'Kami menerima Cuci Karpet, Bedcover, Boneka, dan Satuan\nkasirlaundry.my.id'
+      footerStruk: 'Kami menerima Cuci Karpet, Bedcover, Boneka, dan Satuan\nkasirlaundry.my.id',
+      lastInvoiceNumber: 0
     });
   }
   const pCount = await db.products.count();

@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
+import { getOrdersSortedByDateQuery } from '../db/repositories/orders';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 
@@ -17,8 +17,7 @@ const Reports = () => {
 
   // Query Data
   const data = useLiveQuery(async () => {
-    let collection = db.orders.orderBy('createdAt').reverse();
-    const allOrders = await collection.toArray();
+    const allOrders = await getOrdersSortedByDateQuery();
 
     const today = new Date().toLocaleDateString('id-ID');
 

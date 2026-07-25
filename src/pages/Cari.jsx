@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
+import { getOrdersQuery } from '../db/repositories/orders';
 import { useNavigate } from 'react-router-dom';
 
 const Cari = () => {
@@ -10,7 +10,7 @@ const Cari = () => {
   const searchResults = useLiveQuery(async () => {
     if (searchTerm.length < 2) return [];
 
-    const allOrders = await db.orders.toArray();
+    const allOrders = await getOrdersQuery();
     return allOrders.filter(order =>
       order.pelangganNama?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.invoiceId?.toLowerCase().includes(searchTerm.toLowerCase())

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
+import { getChatLogQuery } from '../db/repositories/chatLog';
 import { parseChatCommand } from '../utils/chatbot';
 
 const Chat = ({ user }) => {
@@ -10,7 +10,7 @@ const Chat = ({ user }) => {
 
   // Ambil history chat dari db
   const messages = useLiveQuery(
-    () => db.chatLog.orderBy('timestamp').toArray(),
+    () => getChatLogQuery(),
     []
   );
 

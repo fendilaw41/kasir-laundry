@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { db } from '../db';
+import { createOrderFromCheckout } from '../db/repositories/orders';
+import { clearDraftOrder } from '../db/repositories/draftOrder';
 import toast from 'react-hot-toast';
 
 const Pembayaran = () => {
@@ -25,50 +26,26 @@ const Pembayaran = () => {
   const kembalian = bayarNum - total;
 
   const handleBayar = async (isLunas) => {
-    const setting = await db.settings.get(1);
-    const namaLaundry = setting?.namaLaundry || 'INVOICE';
-    const words = namaLaundry.trim().split(' ').filter(Boolean);
-    const initials = words.length > 1 
-        ? words[0].charAt(0).toUpperCase() + words[1].charAt(0).toUpperCase()
-        : words[0].substring(0, 2).toUpperCase();
+    try {
+      const newId = await createOrderFromCheckout({
+        orderData,
+        bayarNum,
+        kembalian,
+        isLunas
+      });
 
-    // Ambil order terakhir untuk menentukan nomor urut
-    const lastOrder = await db.orders.orderBy('id').last();
-    const nextNumber = lastOrder ? (lastOrder.id + 1) : 1;
-    const invoiceId = `${initials}${nextNumber.toString().padStart(5, '0')}`;
-
-    const id = await db.orders.add({
-      ...orderData,
-      invoiceId,
-      bayar: bayarNum,
-      kembalian: kembalian > 0 ? kembalian : 0,
-      statusBayar: isLunas ? (bayarNum >= total ? 'Lunas' : 'DP') : 'Belum Bayar',
-      status: 'Proses',
-      createdAt: new Date()
-    });
-
-    // Kurangi stok untuk semua inventory yang dipilih
-    if (orderData.inventoryUsed && orderData.inventoryUsed.length > 0) {
-      for (const inv of orderData.inventoryUsed) {
-        const item = await db.inventory.get(inv.id);
-        const qty = inv.quantity || 1;
-        if (item && item.stok >= qty) {
-          await db.inventory.update(item.id, { stok: item.stok - qty });
-        }
-      }
+      await clearDraftOrder();
+      toast.success(`Transaksi berhasil dibuat`, {
+        style: {
+          borderRadius: '10px',
+          background: '#333',
+          color: '#fff',
+        },
+      });
+      navigate(`/order/${newId}`);
+    } catch (error) {
+      toast.error('Gagal membuat transaksi: ' + error.message);
     }
-
-    await db.cart.clear();
-    localStorage.removeItem('activePelanggan');
-    localStorage.removeItem('activeInventory');
-    toast.success(`Transaksi berhasil dibuat`, {
-      style: {
-        borderRadius: '10px',
-        background: '#333',
-        color: '#fff',
-      },
-    });
-    navigate(`/order/${id}`);
   };
 
   const setNominal = (val) => {

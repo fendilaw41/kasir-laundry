@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
+import { getOrdersSortedByDateQuery, updateOrder, deleteOrder } from '../db/repositories/orders';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
@@ -21,9 +21,7 @@ const DataOrder = ({ user }) => {
 
   // Query Data dengan Filter
   const orders = useLiveQuery(async () => {
-    let collection = db.orders.orderBy('createdAt').reverse();
-
-    const allOrders = await collection.toArray();
+    const allOrders = await getOrdersSortedByDateQuery();
 
     return allOrders.filter(order => {
       const matchTab = order.status === activeTab || (!order.status && activeTab === 'Proses') || (order.status === 'Baru' && activeTab === 'Proses');
@@ -82,16 +80,16 @@ const DataOrder = ({ user }) => {
     if (!confirmData.id) return;
 
     if (confirmData.type === 'request') {
-      await db.orders.update(confirmData.id, { status: 'Dibatalkan' });
+      await updateOrder(confirmData.id, { status: 'Dibatalkan' });
       toast.success('Permintaan hapus terkirim');
     } else if (confirmData.type === 'hard') {
-      await db.orders.delete(confirmData.id);
+      await deleteOrder(confirmData.id);
       toast.success('Order berhasil dihapus permanen');
     } else if (confirmData.type === 'selesai') {
-      await db.orders.update(confirmData.id, { status: 'Selesai' });
+      await updateOrder(confirmData.id, { status: 'Selesai' });
       toast.success('Status order diperbarui menjadi Selesai');
     } else if (confirmData.type === 'ambil') {
-      await db.orders.update(confirmData.id, { status: 'Ambil' });
+      await updateOrder(confirmData.id, { status: 'Ambil' });
       toast.success('Status order diperbarui menjadi Ambil');
     }
 

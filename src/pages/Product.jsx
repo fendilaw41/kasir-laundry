@@ -1,10 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
+import { getProductsQuery } from '../db/repositories/products';
+import { addProductToCart } from '../db/repositories/cart';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 
 const Product = () => {
-  const products = useLiveQuery(() => db.products.toArray());
+  const products = useLiveQuery(getProductsQuery);
   const [searchTerm, setSearchTerm] = useState('');
 
   // State untuk menyimpan jumlah qty sementara per produk
@@ -18,27 +19,20 @@ const Product = () => {
   };
 
   const addToCart = async (product) => {
-    const qty = quantities[product.id] || 1;
-    const existing = await db.cart.where('productId').equals(product.id).first();
+    try {
+      const qty = quantities[product.id] || 1;
+      await addProductToCart(product, qty);
 
-    if (existing) {
-      await db.cart.update(existing.id, { quantity: existing.quantity + qty });
-    } else {
-      await db.cart.add({
-        productId: product.id,
-        quantity: qty,
-        name: `${product.category} - ${product.name}`,
-        price: product.price
+      toast.success(`${qty}x ${product.name} ditambahkan`, {
+        position: 'top-center',
+        style: { borderRadius: '12px', background: '#333', color: '#fff', fontSize: '14px' }
       });
+
+      // Reset qty setelah tambah
+      setQuantities(prev => ({ ...prev, [product.id]: 1 }));
+    } catch (err) {
+      toast.error('Gagal menambahkan ke keranjang', err);
     }
-
-    toast.success(`${qty}x ${product.name} ditambahkan`, {
-      position: 'bottom-center',
-      style: { borderRadius: '12px', background: '#333', color: '#fff', fontSize: '14px' }
-    });
-
-    // Reset qty setelah tambah
-    setQuantities(prev => ({ ...prev, [product.id]: 1 }));
   };
 
   const filteredProducts = products?.filter(p =>

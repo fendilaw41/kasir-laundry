@@ -17,18 +17,19 @@ import Chat from './pages/Chat';
 
 function App() {
   const [user, setUser] = useState(() => {
-    const loggedInUser = localStorage.getItem('user');
+    const loggedInUser = sessionStorage.getItem('user');
     return loggedInUser ? JSON.parse(loggedInUser) : null;
   });
 
   const handleLogin = (userData) => {
-    setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
+    const { password: _, ...safeUser } = userData;
+    setUser(safeUser);
+    sessionStorage.setItem('user', JSON.stringify(safeUser));
   };
 
   const handleLogout = () => {
     setUser(null);
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('user');
   };
 
   return (
