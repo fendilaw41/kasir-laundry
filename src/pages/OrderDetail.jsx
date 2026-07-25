@@ -5,8 +5,6 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { formatWhatsAppMessage } from '../utils/whatsapp';
 import PrintLayout from '../components/PrintLayout';
-import { printViaRawBT } from '../utils/rawbt';
-import { printDirectBluetooth } from '../utils/bluetooth';
 
 const OrderDetail = () => {
   const { id } = useParams();
@@ -18,11 +16,18 @@ const OrderDetail = () => {
   const [prevId, setPrevId] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
+  const [showHpModal, setShowHpModal] = useState(false);
+  const [showInventoryModal, setShowInventoryModal] = useState(false);
+  const [selectedInventory, setSelectedInventory] = useState([]);
+  const [newHp, setNewHp] = useState('');
   const [printType, setPrintType] = useState(null);
+  
+  const allInventory = useLiveQuery(() => db.inventory.toArray());
 
   if (order && order.id !== prevId) {
     setPrevId(order.id);
     setCatatan(order.catatan || '');
+    setSelectedInventory(order.inventoryUsed || []);
   }
 
   if (!order) return <div className="p-3">Loading...</div>;
@@ -62,12 +67,93 @@ const OrderDetail = () => {
   };
 
   const sendWhatsApp = () => {
+    if (!pelanggan || !pelanggan.hp || pelanggan.hp === '-') {
+      setNewHp('');
+      setShowHpModal(true);
+      return;
+    }
     const waData = formatWhatsAppMessage(order, pelanggan);
     if (!waData) {
-      toast.error('Nomor HP pelanggan tidak ditemukan!');
+      toast.error('Gagal memformat pesan WhatsApp!');
       return;
     }
     window.open(waData.url, '_blank');
+  };
+
+  const saveHpAndSend = async () => {
+    if (!newHp.trim()) {
+      toast.error('Nomor HP tidak boleh kosong');
+      return;
+    }
+    let updatedPelanggan = { ...pelanggan, hp: newHp };
+    if (pelanggan && pelanggan.id) {
+      await db.pelanggan.update(pelanggan.id, { hp: newHp });
+    } else {
+      const newPelangganId = await db.pelanggan.add({ nama: order.pelangganNama || 'Pelanggan Umum', hp: newHp, alamat: '-' });
+      await db.orders.update(order.id, { pelangganId: newPelangganId });
+      updatedPelanggan = { id: newPelangganId, nama: order.pelangganNama || 'Pelanggan Umum', hp: newHp, alamat: '-' };
+    }
+    setShowHpModal(false);
+    toast.success('Nomor HP berhasil disimpan');
+    
+    setTimeout(() => {
+        const waData = formatWhatsAppMessage(order, updatedPelanggan);
+        if (waData) window.open(waData.url, '_blank');
+    }, 300);
+  };
+
+  const toggleInventory = (inv) => {
+    setSelectedInventory(prev => {
+      const exists = prev.find(item => item.id === inv.id);
+      if (exists) {
+        return prev.filter(item => item.id !== inv.id);
+      } else {
+        return [...prev, { id: inv.id, nama: inv.nama, quantity: 1 }];
+      }
+    });
+  };
+
+  const updateInventoryQty = (invId, delta) => {
+    setSelectedInventory(prev => {
+      const existing = prev.find(item => item.id === invId);
+      if (existing) {
+        const newQty = (existing.quantity || 1) + delta;
+        if (newQty <= 0) {
+           return prev.filter(item => item.id !== invId);
+        } else {
+           return prev.map(item => item.id === invId ? { ...item, quantity: newQty } : item);
+        }
+      }
+      return prev;
+    });
+  };
+
+  const saveInventory = async () => {
+    const oldInv = order.inventoryUsed || [];
+    const newInv = selectedInventory;
+    
+    const allIds = new Set([...oldInv.map(i => i.id), ...newInv.map(i => i.id)]);
+    
+    for (const id of allIds) {
+       const oldItem = oldInv.find(i => i.id === id);
+       const newItem = newInv.find(i => i.id === id);
+       
+       const oldQty = oldItem ? (oldItem.quantity || 1) : 0;
+       const newQty = newItem ? (newItem.quantity || 1) : 0;
+       
+       const diff = newQty - oldQty; 
+       if (diff !== 0) {
+          const invData = await db.inventory.get(id);
+          if (invData) {
+             const newStok = Math.max(0, invData.stok - diff);
+             await db.inventory.update(id, { stok: newStok });
+          }
+       }
+    }
+    
+    await db.orders.update(order.id, { inventoryUsed: newInv });
+    toast.success('Inventory terpakai diperbarui!');
+    setShowInventoryModal(false);
   };
 
   const triggerPrint = (type) => {
@@ -104,9 +190,8 @@ const OrderDetail = () => {
           </div>
           <div className="d-flex justify-content-between mb-1">
             <h6 className="mb-0 fw-bold">{pelanggan?.nama || 'Pelanggan Umum'}</h6>
-            <h6 className="mb-0 text-primary fw-bold">Rp {order.total.toLocaleString()}</h6>
+            <div className="text-muted mb-1"><i className="bi bi-telephone me-1"></i> {pelanggan?.hp || '-'}</div>
           </div>
-          <div className="text-muted mb-1"><i className="bi bi-telephone me-1"></i> {pelanggan?.hp || '-'}</div>
           <div className="d-flex justify-content-between">
             <span>Estimasi Selesai :</span>
             <span className="fw-bold">({order.estimasi} Hari) {new Date(new Date(order.createdAt).getTime() + (order.estimasi * 86400000)).toLocaleDateString('id-ID')}</span>
@@ -153,6 +238,37 @@ const OrderDetail = () => {
 
         {/* Rincian Harga */}
         <div className="p-3 bg-light small">
+          {order.items && order.items.length > 0 && (
+            <div className="mb-2 pb-2 border-bottom">
+              <div className="fw-bold text-muted mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>LAYANAN / PRODUK</div>
+              {order.items.map((item, idx) => (
+                <div key={idx} className="d-flex justify-content-between mb-1" style={{ fontSize: '0.75rem' }}>
+                  <span>{item.quantity}x <span className="text-dark">{item.name}</span></span>
+                  <span className="text-dark fw-bold">Rp {(item.price * item.quantity).toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="mb-2 pb-2 border-bottom">
+            <div className="d-flex justify-content-between align-items-center mb-1">
+              <div className="fw-bold text-muted" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>INVENTORY TERPAKAI</div>
+              {order.status === 'Proses' && (
+                <small className="text-primary" style={{ fontSize: '0.7rem', cursor: 'pointer' }} onClick={() => setShowInventoryModal(true)}><i className="bi bi-pencil-square me-1"></i>Edit</small>
+              )}
+            </div>
+            {order.inventoryUsed && order.inventoryUsed.length > 0 ? (
+              order.inventoryUsed.map((inv, idx) => (
+                <div key={idx} className="d-flex justify-content-between mb-1 text-muted" style={{ fontSize: '0.75rem' }}>
+                  <span>{inv.nama}</span>
+                  <span>{inv.quantity || 1}x</span>
+                </div>
+              ))
+            ) : (
+              <div className="text-muted fst-italic" style={{ fontSize: '0.75rem' }}>Belum ada inventory yang ditambahkan</div>
+            )}
+          </div>
+
           <div className="d-flex justify-content-between mb-1 text-muted">
             <span>Sub-total</span>
             <span>Rp {order.subtotal?.toLocaleString()}</span>
@@ -202,9 +318,9 @@ const OrderDetail = () => {
             <ul className="dropdown-menu dropdown-menu-end shadow border-0 w-100">
               <li><button className="dropdown-item py-2 small" onClick={setLunas}><i className="bi bi-check-circle me-2 text-success"></i> Jadikan Lunas</button></li>
               <li><button className="dropdown-item py-2 small" onClick={togglePriority}><i className={`bi ${order.isPriority ? 'bi-star-fill text-warning' : 'bi-star'} me-2`}></i> {order.isPriority ? 'Batal Prioritas' : 'Jadikan Prioritas'}</button></li>
-              <li><hr className="dropdown-divider" /></li>
+              {/* <li><hr className="dropdown-divider" /></li>
               <li className="bg-primary-light"><button className="dropdown-item py-2 small fw-bold text-primary" onClick={() => printViaRawBT(order, pelanggan)}><i className="bi bi-bluetooth me-2"></i> Cetak Bluetooth</button></li>
-              <li className="bg-success-light"><button className="dropdown-item py-2 small fw-bold text-success" onClick={() => printDirectBluetooth(order, pelanggan)}><i className="bi bi-lightning-fill me-2"></i> Direct Bluetooth</button></li>
+              <li className="bg-success-light"><button className="dropdown-item py-2 small fw-bold text-success" onClick={() => printDirectBluetooth(order, pelanggan)}><i className="bi bi-lightning-fill me-2"></i> Direct Bluetooth</button></li> */}
               {/* <li><hr className="dropdown-divider" /></li>
               <li><button className="dropdown-item py-2 small text-danger" onClick={hapusTransaksi}><i className="bi bi-trash me-2"></i> Hapus Order</button></li> */}
             </ul>
@@ -239,6 +355,92 @@ const OrderDetail = () => {
                     placeholder="Masukkan catatan pesanan di sini..."
                   ></textarea>
                   <button className="btn btn-outline-primary w-100 rounded-pill fw-bold py-3 shadow-sm" onClick={updateCatatan}>Lanjutkan</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Modal Edit Inventory */}
+      {showInventoryModal && (
+        <>
+          <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(0,0,0,0.4)' }}></div>
+          <div className="modal fade show d-block" tabIndex="-1">
+            <div className="modal-dialog modal-dialog-centered mx-3">
+              <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '24px' }}>
+                <div className="modal-header border-0 pb-0 pt-4 px-4">
+                  <h5 className="fw-bold mb-0">Edit Inventory</h5>
+                  <button type="button" className="btn-close" onClick={() => {
+                    setShowInventoryModal(false);
+                    setSelectedInventory(order.inventoryUsed || []);
+                  }}></button>
+                </div>
+                <div className="modal-body p-4">
+                  <label className="small fw-bold text-muted text-uppercase mb-3">Pilih Inventori & Jumlahnya</label>
+                  <div className="d-flex flex-column gap-2 mb-4 max-h-50 overflow-auto">
+                    {allInventory?.map(inv => {
+                      const activeItem = selectedInventory.find(s => s.id === inv.id);
+                      const isActive = !!activeItem;
+                      return (
+                        <div key={inv.id} className={`d-flex align-items-center justify-content-between p-3 rounded-4 border transition-all ${isActive ? 'bg-outline-success text-dark border-success shadow-sm' : 'bg-white text-dark shadow-sm'}`}>
+                          <div className="d-flex align-items-center gap-3 flex-grow-1" style={{ cursor: 'pointer' }} onClick={() => toggleInventory(inv)}>
+                            <i className={`bi ${isActive ? 'bi-check-circle-fill' : 'bi-box-seam'} fs-4`}></i>
+                            <div>
+                               <div className="fw-bold">{inv.nama}</div>
+                               <small className={isActive ? 'text-primary-50' : 'text-muted'}>Sisa Stok: {inv.stok}</small>
+                            </div>
+                          </div>
+                          {isActive && (
+                            <div className="d-flex align-items-center gap-2 bg-white rounded-pill p-1 shadow-sm" onClick={e => e.stopPropagation()}>
+                              <button className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center" style={{ width: '16px', height: '16px' }} onClick={() => updateInventoryQty(inv.id, -1)}>
+                                <i className="bi bi-dash text-dark"></i>
+                              </button>
+                              <span className="fw-bold text-dark px-1" style={{ fontSize: '0.9rem', minWidth: '20px', textAlign: 'center' }}>{activeItem.quantity || 1}</span>
+                              <button className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center" style={{ width: '16px', height: '16px' }} onClick={() => updateInventoryQty(inv.id, 1)}>
+                                <i className="bi bi-plus text-dark"></i>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {(!allInventory || allInventory.length === 0) && (
+                      <div className="w-100 text-center text-muted small p-3 bg-light rounded-4">Belum ada data inventory</div>
+                    )}
+                  </div>
+                  <button className="btn btn-outline-primary w-100 rounded-pill fw-bold py-3" onClick={saveInventory}>Simpan Perubahan</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Modal Edit HP WhatsApp */}
+      {showHpModal && (
+        <>
+          <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(0,0,0,0.4)' }}></div>
+          <div className="modal fade show d-block" tabIndex="-1">
+            <div className="modal-dialog modal-dialog-centered mx-3">
+              <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '24px' }}>
+                <div className="modal-header border-0 pb-0 pt-4 px-4">
+                  <h5 className="fw-bold mb-0">No. WhatsApp</h5>
+                  <button type="button" className="btn-close" onClick={() => setShowHpModal(false)}></button>
+                </div>
+                <div className="modal-body p-4">
+                  <p className="small text-muted mb-3">Pelanggan ini belum memiliki nomor HP. Silakan masukkan nomor HP untuk mengirim nota dan menyimpannya.</p>
+                  <input
+                    type="number"
+                    className="form-control bg-light border-0 rounded-pill px-4 py-3 mb-3 fw-bold"
+                    value={newHp}
+                    onChange={(e) => setNewHp(e.target.value)}
+                    placeholder="Contoh: 081234567890"
+                    autoFocus
+                  />
+                  <button className="btn btn-success w-100 rounded-pill fw-bold py-3 shadow-sm" onClick={saveHpAndSend}>
+                    <i className="bi bi-whatsapp me-2"></i>Simpan & Kirim
+                  </button>
                 </div>
               </div>
             </div>

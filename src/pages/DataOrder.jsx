@@ -26,8 +26,8 @@ const DataOrder = ({ user }) => {
     const allOrders = await collection.toArray();
 
     return allOrders.filter(order => {
-      const matchTab = order.status === activeTab || (!order.status && activeTab === 'Proses');
-      const matchAntar = filterAntar === 'Semua' || order.tipeLayanan === filterAntar;
+      const matchTab = order.status === activeTab || (!order.status && activeTab === 'Proses') || (order.status === 'Baru' && activeTab === 'Proses');
+      const matchAntar = filterAntar === 'Semua' || order.tipeLayanan === filterAntar || order.status === 'Baru';
       const matchBayar = filterBayar === 'Semua' || order.statusBayar === filterBayar;
       const matchPrioritas = filterPrioritas === 'Semua' || (filterPrioritas === 'Ya' ? order.isPriority : !order.isPriority);
 
@@ -35,9 +35,6 @@ const DataOrder = ({ user }) => {
     });
   }, [activeTab, filterAntar, filterBayar, filterPrioritas]);
 
-  const updateStatus = async (id, newStatus) => {
-    await db.orders.update(id, { status: newStatus });
-  };
 
   const handleCopy = (e, text) => {
     e.stopPropagation();
@@ -63,15 +60,39 @@ const DataOrder = ({ user }) => {
     setShowConfirmModal(true);
   };
 
+  const confirmSelesai = (id) => {
+    setConfirmData({
+      id,
+      type: 'selesai',
+      message: 'Apakah Anda yakin ingin mengubah status order ini menjadi Selesai?'
+    });
+    setShowConfirmModal(true);
+  };
+
+  const confirmAmbil = (id) => {
+    setConfirmData({
+      id,
+      type: 'ambil',
+      message: 'Apakah Anda yakin pesanan ini sudah diambil oleh pelanggan?'
+    });
+    setShowConfirmModal(true);
+  };
+
   const handleExecuteAction = async () => {
     if (!confirmData.id) return;
 
     if (confirmData.type === 'request') {
-      await db.orders.update(confirmData.id, { status: 'Req Hapus' });
+      await db.orders.update(confirmData.id, { status: 'Dibatalkan' });
       toast.success('Permintaan hapus terkirim');
     } else if (confirmData.type === 'hard') {
       await db.orders.delete(confirmData.id);
       toast.success('Order berhasil dihapus permanen');
+    } else if (confirmData.type === 'selesai') {
+      await db.orders.update(confirmData.id, { status: 'Selesai' });
+      toast.success('Status order diperbarui menjadi Selesai');
+    } else if (confirmData.type === 'ambil') {
+      await db.orders.update(confirmData.id, { status: 'Ambil' });
+      toast.success('Status order diperbarui menjadi Ambil');
     }
 
     setShowConfirmModal(false);
@@ -88,7 +109,7 @@ const DataOrder = ({ user }) => {
       <div className="card shadow-sm border-0 mb-3">
         <div className="card-body p-0">
           <ul className="nav nav-tabs nav-fill border-0">
-            {['Proses', 'Selesai', 'Ambil', user.role === 'owner' ? 'Req Hapus' : null].filter(Boolean).map(tab => (
+            {['Proses', 'Selesai', 'Ambil', 'Dibatalkan'].map(tab => (
               <li className="nav-item" key={tab}>
                 <button
                   className={`nav-link border-0 fw-bold py-3 ${activeTab === tab ? 'active border-bottom border-primary text-primary' : 'text-muted'}`}
@@ -177,22 +198,19 @@ const DataOrder = ({ user }) => {
                 </div>
 
                 <div className="row g-2 mt-2">
-                  <div className={user.role === 'owner' ? 'col-4' : 'col-6'}>
-                    {activeTab === 'Proses' && (
-                      <button className="btn btn-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => updateStatus(order.id, 'Selesai')}>Selesai</button>
-                    )}
-                    {activeTab === 'Selesai' && (
-                      <button className="btn btn-success btn-sm w-100 fw-bold shadow-sm" onClick={() => updateStatus(order.id, 'Ambil')}>Ambil</button>
-                    )}
-                    {activeTab === 'Ambil' && (
-                      <button className="btn btn-dark btn-sm w-100 fw-bold disabled opacity-50">Lunas</button>
-                    )}
-                    {activeTab === 'Req Hapus' && (
-                      <button className="btn btn-danger btn-sm w-100 fw-bold shadow-sm" onClick={() => hardDelete(order.id)}>Hapus</button>
-                    )}
+                   <div className={user.role === 'owner' ? 'col-4' : 'col-6'}>
+                    <button className="btn btn-outline-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => navigate(`/order/${order.id}`)}>Detail</button>
                   </div>
                   <div className={user.role === 'owner' ? 'col-4' : 'col-6'}>
-                    <button className="btn btn-outline-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => navigate(`/order/${order.id}`)}>Nota</button>
+                    {activeTab === 'Proses' && (
+                      <button className="btn btn-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => confirmSelesai(order.id)}>Selesai</button>
+                    )}
+                    {activeTab === 'Selesai' && (
+                      <button className="btn btn-success btn-sm w-100 fw-bold shadow-sm" onClick={() => confirmAmbil(order.id)}>Ambil</button>
+                    )}
+                    {activeTab === 'Dibatalkan' && (
+                      <button className="btn btn-danger btn-sm w-100 fw-bold shadow-sm" onClick={() => hardDelete(order.id)}>Hapus</button>
+                    )}
                   </div>
                   {user.role === 'owner' && (
                     <div className="col-4 text-end">
@@ -217,7 +235,7 @@ const DataOrder = ({ user }) => {
               <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '24px' }}>
                 <div className="modal-body p-4 text-center">
                   <div className="mb-3">
-                    <i className={`bi ${confirmData.type === 'hard' ? 'bi-exclamation-octagon text-danger' : 'bi-exclamation-circle text-warning'} `} style={{ fontSize: '3.5rem' }}></i>
+                    <i className={`bi ${confirmData.type === 'hard' ? 'bi-exclamation-octagon text-danger' : (confirmData.type === 'selesai' || confirmData.type === 'ambil') ? 'bi-check-circle text-success' : 'bi-exclamation-circle text-warning'} `} style={{ fontSize: '3.5rem' }}></i>
                   </div>
                   <h5 className="fw-bold mb-2">Konfirmasi Tindakan</h5>
                   <p className="text-muted small mb-4">{confirmData.message}</p>
@@ -228,7 +246,7 @@ const DataOrder = ({ user }) => {
                       className={`btn ${confirmData.type === 'hard' ? 'btn-danger' : 'btn-primary'} w-100 rounded-pill fw-bold py-2 shadow-sm`}
                       onClick={handleExecuteAction}
                     >
-                      {confirmData.type === 'hard' ? 'Hapus' : 'Ya, Ajukan'}
+                      {confirmData.type === 'hard' ? 'Hapus' : confirmData.type === 'selesai' ? 'Ya, Selesai' : confirmData.type === 'ambil' ? 'Ya, Ambil' : 'Ya, Ajukan'}
                     </button>
                   </div>
                 </div>

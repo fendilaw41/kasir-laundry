@@ -25,10 +25,17 @@ const Pembayaran = () => {
   const kembalian = bayarNum - total;
 
   const handleBayar = async (isLunas) => {
+    const setting = await db.settings.get(1);
+    const namaLaundry = setting?.namaLaundry || 'INVOICE';
+    const words = namaLaundry.trim().split(' ').filter(Boolean);
+    const initials = words.length > 1 
+        ? words[0].charAt(0).toUpperCase() + words[1].charAt(0).toUpperCase()
+        : words[0].substring(0, 2).toUpperCase();
+
     // Ambil order terakhir untuk menentukan nomor urut
     const lastOrder = await db.orders.orderBy('id').last();
     const nextNumber = lastOrder ? (lastOrder.id + 1) : 1;
-    const invoiceId = `KL${nextNumber.toString().padStart(5, '0')}`;
+    const invoiceId = `${initials}${nextNumber.toString().padStart(5, '0')}`;
 
     const id = await db.orders.add({
       ...orderData,
@@ -44,14 +51,16 @@ const Pembayaran = () => {
     if (orderData.inventoryUsed && orderData.inventoryUsed.length > 0) {
       for (const inv of orderData.inventoryUsed) {
         const item = await db.inventory.get(inv.id);
-        if (item && item.stok > 0) {
-          await db.inventory.update(item.id, { stok: item.stok - 1 });
+        const qty = inv.quantity || 1;
+        if (item && item.stok >= qty) {
+          await db.inventory.update(item.id, { stok: item.stok - qty });
         }
       }
     }
 
     await db.cart.clear();
     localStorage.removeItem('activePelanggan');
+    localStorage.removeItem('activeInventory');
     toast.success(`Transaksi berhasil dibuat`, {
       style: {
         borderRadius: '10px',

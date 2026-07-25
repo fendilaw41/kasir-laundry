@@ -43,7 +43,15 @@ const Transaksi = () => {
   const [metodeBayar, setMetodeBayar] = useState('Cash');
   const [tipeLayanan, setTipeLayanan] = useState('Datang Langsung');
   const [isPriority, setIsPriority] = useState('Tidak');
-  const [selectedInventory, setSelectedInventory] = useState([]); // Array of {id, nama, stok}
+  const [selectedInventory, setSelectedInventory] = useState(() => {
+    const saved = localStorage.getItem('activeInventory');
+    return saved ? JSON.parse(saved) : [];
+  }); // Array of {id, nama, stok, quantity}
+
+  // Simpan inventory ke localStorage
+  useEffect(() => {
+    localStorage.setItem('activeInventory', JSON.stringify(selectedInventory));
+  }, [selectedInventory]);
 
   const subtotal = cartItems?.reduce((acc, item) => acc + (item.price * item.quantity), 0) || 0;
 
@@ -92,8 +100,23 @@ const Transaksi = () => {
       if (exists) {
         return prev.filter(item => item.id !== inv.id);
       } else {
-        return [...prev, { id: inv.id, nama: inv.nama }];
+        return [...prev, { id: inv.id, nama: inv.nama, quantity: 1 }];
       }
+    });
+  };
+
+  const updateInventoryQty = (invId, delta) => {
+    setSelectedInventory(prev => {
+      const existing = prev.find(item => item.id === invId);
+      if (existing) {
+        const newQty = (existing.quantity || 1) + delta;
+        if (newQty <= 0) {
+           return prev.filter(item => item.id !== invId);
+        } else {
+           return prev.map(item => item.id === invId ? { ...item, quantity: newQty } : item);
+        }
+      }
+      return prev;
     });
   };
 
@@ -175,20 +198,38 @@ const Transaksi = () => {
         {/* Inventory Horizontal Scroller */}
         <div className="mb-4">
           <label className="form-label small fw-bold text-muted text-uppercase mb-3 px-1">Gunakan Inventori</label>
-          <div className="d-flex overflow-auto pb-3 gap-2 mx-n1 px-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-            <style>{`.d-flex::-webkit-scrollbar { display: none; }`}</style>
+          <div className="d-flex overflow-auto pb-3 gap-2 mx-n1 px-1 inventory-scroller">
+            <style>{`
+              .inventory-scroller::-webkit-scrollbar { height: 6px; }
+              .inventory-scroller::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+              .inventory-scroller::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+              .inventory-scroller::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+            `}</style>
             {inventory?.map(inv => {
-              const isActive = selectedInventory.find(s => s.id === inv.id);
+              const activeItem = selectedInventory.find(s => s.id === inv.id);
+              const isActive = !!activeItem;
               return (
                 <div
                   key={inv.id}
-                  onClick={() => inv.stok > 0 && toggleInventory(inv)}
-                  className={`flex-shrink-0 p-3 rounded-4 border text-center transition-all ${isActive ? 'bg-success text-white border-success shadow-sm' : 'bg-white text-dark shadow-xs'}`}
-                  style={{ minWidth: '110px', cursor: inv.stok > 0 ? 'pointer' : 'not-allowed', opacity: inv.stok <= 0 ? 0.5 : 1 }}
+                  className={`flex-shrink-0 p-3 rounded-4 border d-flex flex-column align-items-center justify-content-center transition-all ${isActive ? 'bg-outline-success text-dark border-success shadow-sm' : 'bg-white text-dark shadow-xs'}`}
+                  style={{ minWidth: '120px', height: '140px', opacity: inv.stok <= 0 && !isActive ? 0.5 : 1 }}
                 >
-                  <i className={`bi ${isActive ? 'bi-check-circle-fill' : 'bi-box-seam'} d-block mb-1 fs-4`}></i>
-                  <div className="small fw-bold text-truncate" style={{ fontSize: '0.75rem' }}>{inv.nama}</div>
-                  <small className="opacity-75" style={{ fontSize: '0.65rem' }}>Stok: {inv.stok}</small>
+                  <div className="text-center w-100" onClick={() => (inv.stok > 0 || isActive) && toggleInventory(inv)} style={{ cursor: inv.stok > 0 || isActive ? 'pointer' : 'not-allowed' }}>
+                    <i className={`bi ${isActive ? 'bi-check-circle-fill text-success' : 'bi-box-seam'} d-block mb-1 fs-4`}></i>
+                    <div className="small fw-bold text-truncate" style={{ fontSize: '0.75rem' }}>{inv.nama}</div>
+                    <small className="text-muted" style={{ fontSize: '0.65rem' }}>Stok: {inv.stok}</small>
+                  </div>
+                  {isActive && (
+                    <div className="d-flex align-items-center gap-2 bg-white rounded-pill p-1 shadow-sm mt-2 w-100 justify-content-center">
+                      <button className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center" style={{ width: '18px', height: '18px' }} onClick={(e) => { e.stopPropagation(); updateInventoryQty(inv.id, -1); }}>
+                        <i className="bi bi-dash text-dark"></i>
+                      </button>
+                      <span className="fw-bold text-dark px-1" style={{ fontSize: '0.8rem', minWidth: '16px', textAlign: 'center' }}>{activeItem.quantity || 1}</span>
+                      <button className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center" style={{ width: '18px', height: '18px' }} onClick={(e) => { e.stopPropagation(); updateInventoryQty(inv.id, 1); }}>
+                        <i className="bi bi-plus text-dark"></i>
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}

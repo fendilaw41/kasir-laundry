@@ -13,6 +13,7 @@ import Layout from './components/Layout';
 import DataOrder from './pages/DataOrder';
 import Reports from './pages/Reports';
 import Setting from './pages/Setting';
+import Chat from './pages/Chat';
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -37,7 +38,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login onLogin={handleLogin} />} />
         <Route path="/register" element={<Register />} />
-        <Route element={<Layout onLogout={handleLogout} />}>
+        <Route element={<Layout user={user} onLogout={handleLogout} />}>
           <Route path="/" element={user ? <Home user={user} /> : <Navigate to="/login" />} />
           <Route path="/transaksi" element={user ? <Transaksi user={user} /> : <Navigate to="/login" />} />
           <Route path="/cari" element={user ? <Cari user={user} /> : <Navigate to="/login" />} />
@@ -47,7 +48,9 @@ function App() {
           <Route path="/orders" element={user ? <DataOrder user={user} /> : <Navigate to="/login" />} />
           <Route path="/reports" element={user ? <Reports user={user} /> : <Navigate to="/login" />} />
           <Route path="/setting" element={user ? <Setting user={user} /> : <Navigate to="/login" />} />
+          <Route path="/chat" element={user ? <Chat user={user} /> : <Navigate to="/login" />} />
         </Route>
+        <Route path="*" element={<Navigate to={user ? "/" : "/login"} replace />} />
       </Routes>
     </Router>
   );

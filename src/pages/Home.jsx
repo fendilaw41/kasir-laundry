@@ -9,6 +9,8 @@ const Home = ({ user }) => {
   const [showPelangganModal, setShowPelangganModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
   const [showOmzet, setShowOmzet] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
+  const [editPelanggan, setEditPelanggan] = useState({ show: false, data: { id: null, nama: '', hp: '', alamat: '' } });
 
   // State Form Pelanggan
   const [newPelanggan, setNewPelanggan] = useState({ nama: '', hp: '', alamat: '' });
@@ -19,12 +21,48 @@ const Home = ({ user }) => {
 
   const [searchPelanggan, setSearchPelanggan] = useState('');
   const [searchInventory, setSearchInventory] = useState('');
+  const [inventoryTab, setInventoryTab] = useState('selesai');
 
   // Update Stok Inventory
   const handleUpdateStok = async (id, delta) => {
     const item = await db.inventory.get(id);
     if (item) {
-      await db.inventory.update(id, { stok: Math.max(0, item.stok + delta) });
+      const actionText = delta > 0 ? `tambah ${delta}` : `kurangi ${Math.abs(delta)}`;
+      setConfirmModal({
+        show: true,
+        message: `Apakah Anda yakin ingin ${actionText} stok ${item.nama}?`,
+        onConfirm: async () => {
+          await db.inventory.update(id, { stok: Math.max(0, item.stok + delta) });
+          setConfirmModal({ show: false, message: '', onConfirm: null });
+        }
+      });
+    }
+  };
+
+  const handleApproveInventory = async (item) => {
+    try {
+      await db.inventory.update(item.id, {
+        stok: item.stok + (item.qty || 0),
+        qty: 0,
+        status: 'approved'
+      });
+      toast.success(`${item.nama} berhasil disetujui`);
+    } catch (error) {
+      console.error(error);
+      toast.error('Gagal menyetujui');
+    }
+  };
+
+  const handleRejectInventory = async (item) => {
+    try {
+      await db.inventory.update(item.id, {
+        qty: 0,
+        status: 'rejected'
+      });
+      toast.success(`${item.nama} ditolak`);
+    } catch (error) {
+      console.error(error);
+      toast.error('Gagal menolak');
     }
   };
 
@@ -74,6 +112,25 @@ const Home = ({ user }) => {
 
   return (
     <div className="home-wrapper pb-5">
+      {/* Modal Konfirmasi Bawaan */}
+      {confirmModal.show && (
+        <>
+          <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1075 }}></div>
+          <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1080 }}>
+            <div className="modal-dialog modal-dialog-centered mx-auto" style={{ maxWidth: '320px' }}>
+              <div className="modal-content border-0 shadow-lg text-center p-4" style={{ borderRadius: '24px' }}>
+                <h6 className="fw-bold mb-2">Konfirmasi</h6>
+                <p className="text-muted small mb-4" style={{ whiteSpace: 'pre-wrap' }}>{confirmModal.message}</p>
+                <div className="d-flex gap-2">
+                  <button className="btn btn-light rounded-pill flex-fill fw-bold" onClick={() => setConfirmModal({ show: false, message: '', onConfirm: null })}>Batal</button>
+                  <button className="btn btn-primary rounded-pill flex-fill fw-bold" onClick={confirmModal.onConfirm}>Ya, Lanjutkan</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Kartu Profil & Welcome */}
       <div className="card shadow-sm border-0 mb-4 overflow-hidden" style={{ borderRadius: '20px', background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)' }}>
         <div className="card-body p-4 text-white">
@@ -279,20 +336,84 @@ const Home = ({ user }) => {
                               style={{ width: '48px', height: '48px', background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)', fontSize: '1.2rem', boxShadow: '0 4px 10px rgba(1, 52, 212, 0.2)' }}>
                               {p.nama.charAt(0).toUpperCase()}
                             </div>
-                            <div className="flex-grow-1 overflow-hidden">
+                            <div className="flex-grow-1 overflow-hidden" onClick={() => handleSelectPelanggan(p)}>
                               <h6 className="mb-0 fw-bold text-dark text-truncate">{p.nama}</h6>
                               <div className="text-muted d-flex align-items-center gap-1" style={{ fontSize: '0.75rem' }}>
-                                <i className="bi bi-whatsapp text-success"></i> {p.hp}
+                                <i className="bi bi-whatsapp text-success flex-shrink-0"></i> 
+                                <span className="text-truncate">{p.hp}</span>
                               </div>
                             </div>
-                            <div className="ms-2">
-                              <i className="bi bi-arrow-right-circle text-primary fs-5 opacity-50"></i>
+                            <div className="ms-1 d-flex gap-1 flex-shrink-0">
+                              <button 
+                                className="btn btn-sm btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center"
+                                style={{ width: '32px', height: '32px' }}
+                                onClick={(e) => { e.stopPropagation(); setEditPelanggan({ show: true, data: { ...p } }); }}
+                              >
+                                <i className="bi bi-pencil-square text-primary"></i>
+                              </button>
+                              <button 
+                                className="btn btn-sm btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center"
+                                style={{ width: '32px', height: '32px' }}
+                                onClick={(e) => { e.stopPropagation(); handleSelectPelanggan(p); }}
+                              >
+                                <i className="bi bi-arrow-right text-success"></i>
+                              </button>
                             </div>
                           </div>
                         </div>
                       ))
                     )}
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Modal Edit Pelanggan */}
+      {editPelanggan.show && (
+        <>
+          <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1065 }}></div>
+          <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1070 }}>
+            <div className="modal-dialog modal-dialog-centered mx-3">
+              <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '24px' }}>
+                <div className="modal-header border-0 pb-0 pt-4 px-4">
+                  <h5 className="fw-bold mb-0 text-primary">Edit Pelanggan</h5>
+                  <button type="button" className="btn-close" onClick={() => setEditPelanggan({ show: false, data: { id: null, nama: '', hp: '', alamat: '' } })}></button>
+                </div>
+                <div className="modal-body p-4">
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    setConfirmModal({
+                      show: true,
+                      message: `Simpan perubahan data pelanggan ${editPelanggan.data.nama}?`,
+                      onConfirm: async () => {
+                        await db.pelanggan.update(editPelanggan.data.id, {
+                          nama: editPelanggan.data.nama,
+                          hp: editPelanggan.data.hp,
+                          alamat: editPelanggan.data.alamat
+                        });
+                        toast.success('Data pelanggan diperbarui!');
+                        setConfirmModal({ show: false, message: '', onConfirm: null });
+                        setEditPelanggan({ show: false, data: { id: null, nama: '', hp: '', alamat: '' } });
+                      }
+                    });
+                  }}>
+                    <div className="mb-3">
+                      <label className="small fw-bold text-muted mb-1">Nama Lengkap</label>
+                      <input type="text" className="form-control border-0 bg-light rounded-3 py-2" value={editPelanggan.data.nama} onChange={(e) => setEditPelanggan({ ...editPelanggan, data: { ...editPelanggan.data, nama: e.target.value } })} required />
+                    </div>
+                    <div className="mb-3">
+                      <label className="small fw-bold text-muted mb-1">No. WhatsApp</label>
+                      <input type="tel" className="form-control border-0 bg-light rounded-3 py-2" value={editPelanggan.data.hp} onChange={(e) => setEditPelanggan({ ...editPelanggan, data: { ...editPelanggan.data, hp: e.target.value } })} required />
+                    </div>
+                    <div className="mb-4">
+                      <label className="small fw-bold text-muted mb-1">Alamat</label>
+                      <textarea className="form-control border-0 bg-light rounded-3 py-2" rows="2" value={editPelanggan.data.alamat || ''} onChange={(e) => setEditPelanggan({ ...editPelanggan, data: { ...editPelanggan.data, alamat: e.target.value } })}></textarea>
+                    </div>
+                    <button type="submit" className="btn btn-primary w-100 rounded-pill fw-bold shadow-sm py-2">Simpan Perubahan</button>
+                  </form>
                 </div>
               </div>
             </div>
@@ -323,9 +444,27 @@ const Home = ({ user }) => {
                         const form = e.target;
                         const nama = form.nama.value;
                         const stok = parseInt(form.stok.value);
-                        await db.inventory.add({ nama, stok });
-                        form.reset();
-                        toast.success('Barang baru telah ditambahkan');
+                        
+                        setConfirmModal({
+                          show: true,
+                          message: `Konfirmasi penambahan stok manual:\n\nNama Barang: ${nama}\nJumlah: ${stok}\n\nApakah data sudah sesuai?`,
+                          onConfirm: async () => {
+                            const existing = await db.inventory.toArray();
+                            const existingItem = existing.find(i => i.nama.toLowerCase() === nama.toLowerCase());
+                            
+                            if (existingItem) {
+                              await db.inventory.update(existingItem.id, { 
+                                stok: (existingItem.stok || 0) + stok 
+                              });
+                            } else {
+                              await db.inventory.add({ nama, stok, status: 'approved' });
+                            }
+                            
+                            form.reset();
+                            toast.success('Barang telah ditambahkan');
+                            setConfirmModal({ show: false, message: '', onConfirm: null });
+                          }
+                        });
                       }}>
                         <label className="small fw-bold text-muted mb-2 px-1">TAMBAH BARANG BARU</label>
                         <div className="row g-2">
@@ -357,9 +496,29 @@ const Home = ({ user }) => {
                     />
                   </div>
 
+                  {/* Tab Inventory */}
+                  <div className="d-flex bg-white rounded-pill p-1 shadow-sm mb-3">
+                    <button 
+                      className={`btn flex-fill rounded-pill py-2 border-0 ${inventoryTab === 'selesai' ? 'btn-primary' : 'btn-light text-muted bg-transparent'}`}
+                      onClick={() => setInventoryTab('selesai')}
+                    >
+                      Selesai
+                    </button>
+                    <button 
+                      className={`btn flex-fill rounded-pill py-2 border-0 ${inventoryTab === 'pending' ? 'btn-primary' : 'btn-light text-muted bg-transparent'}`}
+                      onClick={() => setInventoryTab('pending')}
+                    >
+                      Pending
+                    </button>
+                  </div>
+
                   {/* Daftar Item Inventory */}
                   <div className="inventory-list">
-                    {inventory?.filter(item => item.nama.toLowerCase().includes(searchInventory.toLowerCase())).map(item => (
+                    {inventory?.filter(item => {
+                      const matchSearch = item.nama.toLowerCase().includes(searchInventory.toLowerCase());
+                      const matchTab = inventoryTab === 'pending' ? item.status === 'pending' : (item.status === 'approved' || item.status === undefined);
+                      return matchSearch && matchTab;
+                    }).map(item => (
                       <div key={item.id} className="card border-0 mb-3 rounded-4 shadow-sm overflow-hidden" style={{ background: '#fff' }}>
                         <div className="card-body p-3 d-flex justify-content-between align-items-center">
                           <div className="d-flex align-items-center">
@@ -367,31 +526,62 @@ const Home = ({ user }) => {
                               <i className={`bi ${item.nama.toLowerCase().includes('plastik') ? 'bi-box' : 'bi-archive'} text-success fs-4`}></i>
                             </div>
                             <div>
-                              <h6 className="fw-bold mb-1 text-dark">{item.nama}</h6>
-                              <span className={`badge rounded-pill ${item.stok < 5 ? 'bg-danger bg-opacity-10 text-white' : 'bg-success bg-opacity-10 text-white'}`} style={{ fontSize: '0.65rem' }}>
-                                Stok: {item.stok}
-                              </span>
+                              <h6 className="fw-bold mb-1 text-dark text-truncate" style={{ maxWidth: '140px' }}>{item.nama}</h6>
+                              <div className="d-flex flex-wrap gap-1">
+                                <span className={`badge rounded-pill ${item.stok < 5 ? 'bg-danger bg-opacity-10' : 'bg-success bg-opacity-10'}`} style={{ fontSize: '0.65rem' }}>
+                                  Stok: {item.stok}
+                                </span>
+                                {item.status === 'pending' && (
+                                  <span className="badge bg-warning text-dark rounded-pill" style={{ fontSize: '0.65rem' }}>
+                                    +{item.qty} {item.unit || 'pcs'}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
 
-                          {user.role !== 'kasir' && (
-                            <div className="d-flex align-items-center gap-2 bg-light rounded-pill p-1">
-                              <button
-                                className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
-                                style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
-                                onClick={() => handleUpdateStok(item.id, -1)}
-                              >
-                                <i className="bi bi-dash text-dark"></i>
-                              </button>
-                              <span className="fw-bold text-dark px-1" style={{ fontSize: '0.9rem', minWidth: '20px', textAlign: 'center' }}>{item.stok}</span>
-                              <button
-                                className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
-                                style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
-                                onClick={() => handleUpdateStok(item.id, 1)}
-                              >
-                                <i className="bi bi-plus text-dark"></i>
-                              </button>
-                            </div>
+                          {item.status === 'pending' ? (
+                            user.role !== 'kasir' && (
+                              <div className="d-flex gap-2">
+                                <button
+                                  className="btn btn-sm btn-danger rounded-circle shadow-sm d-flex align-items-center justify-content-center"
+                                  style={{ width: '32px', height: '32px' }}
+                                  onClick={() => handleRejectInventory(item)}
+                                  title="Tolak"
+                                >
+                                  <i className="bi bi-x fs-6"></i>
+                                </button>
+                                <button
+                                  className="btn btn-sm btn-success rounded-circle shadow-sm d-flex align-items-center justify-content-center"
+                                  style={{ width: '32px', height: '32px' }}
+                                  onClick={() => handleApproveInventory(item)}
+                                  title="Setujui"
+                                >
+                                  <i className="bi bi-check2 fs-6"></i>
+                                </button>
+                              </div>
+                            )
+                          ) : (
+
+                            user.role !== 'kasir' && (
+                              <div className="d-flex align-items-center gap-2 bg-light rounded-pill p-1">
+                                <button
+                                  className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
+                                  style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
+                                  onClick={() => handleUpdateStok(item.id, -1)}
+                                >
+                                  <i className="bi bi-dash text-dark"></i>
+                                </button>
+                                <span className="fw-bold text-dark px-1" style={{ fontSize: '0.9rem', minWidth: '20px', textAlign: 'center' }}>{item.stok}</span>
+                                <button
+                                  className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
+                                  style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
+                                  onClick={() => handleUpdateStok(item.id, 1)}
+                                >
+                                  <i className="bi bi-plus text-dark"></i>
+                                </button>
+                              </div>
+                            )
                           )}
                         </div>
                         {/* Danger Indicator Line */}

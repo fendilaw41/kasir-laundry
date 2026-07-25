@@ -24,53 +24,59 @@ const Login = ({ onLogin }) => {
   };
 
   return (
-    <div className="login-wrapper d-flex align-items-center justify-content-center w-100" style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
+    <div className="login-wrapper d-flex align-items-center justify-content-center w-100" style={{ minHeight: '100vh', backgroundColor: '#f4f7f6' }}>
       <div className="container">
         <div className="row justify-content-center">
-          <div className="col-12 col-sm-9 col-md-7 col-lg-5 col-xl-4">
-            <div className="text-center px-4">
-              <div className="text-center px-4 mb-4">
-                <div className="mx-auto d-flex align-items-center justify-content-center shadow-sm" style={{
-                  width: '80px',
-                  height: '80px',
-                  background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)',
-                  borderRadius: '22px',
-                  marginBottom: '15px'
-                }}>
-                  <span style={{ fontSize: '42px', fontWeight: '900', color: '#fff', letterSpacing: '-2px' }}>K</span>
-                </div>
-                <h2 className="fw-bold mb-0" style={{ letterSpacing: '1px', color: '#0134d4' }}>KASIR</h2>
-                <p className="text-muted small">Laundry Management System</p>
-              </div>
-            </div>
-            <div className="register-form mt-4 px-4">
-              {error && <div className="alert alert-danger">{error}</div>}
-              <form onSubmit={handleLogin}>
-                <div className="form-group text-start mb-3">
-                  <input className="form-control" type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
-                </div>
-                <div className="form-group text-start mb-3">
-                  <input className="form-control" type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-                </div>
-                <button className="btn btn-primary w-100" type="submit">Log In</button>
-              </form>
-            </div>
-            <div className="login-meta-data text-center mt-3">
-              <p className="mb-0">Belum punya akun? <Link to="/register">Register sekarang</Link></p>
-            </div>
-
-            {/* Hint Akun Terdaftar */}
-            {users && users.length > 0 && (
-              <div className="mt-4 p-3 border rounded bg-white shadow-sm mx-4">
-                <p className="small fw-bold text-muted mb-2 text-center">Akun Terdaftar (Demo):</p>
-                {users.map(u => (
-                  <div key={u.id} className="small border-bottom py-1 d-flex justify-content-between">
-                    <span>User: <strong>{u.username}</strong></span>
-                    <span>Pass: <strong>{u.password}</strong></span>
+          <div className="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
+            <div className="card shadow-lg border-0 rounded-4 p-4 p-md-5">
+              <div className="card-body p-0">
+                <div className="text-center mb-4">
+                  <div className="mx-auto d-flex align-items-center justify-content-center shadow-sm" style={{
+                    width: '80px',
+                    height: '80px',
+                    background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)',
+                    borderRadius: '22px',
+                    marginBottom: '20px'
+                  }}>
+                    <span style={{ fontSize: '42px', fontWeight: '900', color: '#fff', letterSpacing: '-2px' }}>K</span>
                   </div>
-                ))}
+                  <h2 className="fw-bold mb-1" style={{ letterSpacing: '1px', color: '#0134d4' }}>KASIR</h2>
+                  <p className="text-muted small mb-0">Laundry Management System</p>
+                </div>
+                
+                <div className="register-form mt-4">
+                  {error && <div className="alert alert-danger rounded-3">{error}</div>}
+                  <form onSubmit={handleLogin}>
+                    <div className="form-group mb-3">
+                      <label className="form-label small fw-bold text-muted">Username</label>
+                      <input className="form-control form-control-lg bg-light border-0" style={{ fontSize: '15px' }} type="text" placeholder="Masukkan username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+                    </div>
+                    <div className="form-group mb-4">
+                      <label className="form-label small fw-bold text-muted">Password</label>
+                      <input className="form-control form-control-lg bg-light border-0" style={{ fontSize: '15px' }} type="password" placeholder="Masukkan password " value={password} onChange={(e) => setPassword(e.target.value)} required />
+                    </div>
+                    <button className="btn btn-primary btn-lg w-100 fw-bold shadow-sm" style={{ background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)', border: 'none', borderRadius: '12px' }} type="submit">Log In</button>
+                  </form>
+                </div>
+
+                <div className="login-meta-data text-center mt-4">
+                  <p className="mb-0 text-muted small">Belum punya akun? <Link to="/register" className="fw-bold text-primary text-decoration-none">Register sekarang</Link></p>
+                </div>
+
+                {/* Hint Akun Terdaftar */}
+                {users && users.length > 0 && (
+                  <div className="mt-4 p-3 rounded-3 bg-light border-0">
+                    <p className="small fw-bold text-muted mb-2 text-center">Akun Terdaftar (Demo):</p>
+                    {users.map(u => (
+                      <div key={u.id} className="small border-bottom py-2 d-flex justify-content-between border-light">
+                        <span className="text-muted">User: <strong className="text-dark">{u.username}</strong></span>
+                        <span className="text-muted">Pass: <strong className="text-dark">{u.password}</strong></span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
