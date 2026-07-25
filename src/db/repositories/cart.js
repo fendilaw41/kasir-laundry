@@ -23,3 +23,16 @@ export const removeProductFromCart = async (id) => {
   if (!id) throw new Error('ID tidak valid');
   return await db.cart.delete(id);
 };
+
+export const updateCartItemQty = async (id, delta) => {
+  if (!id) throw new Error('ID tidak valid');
+  const item = await db.cart.get(id);
+  if (!item) throw new Error('Item tidak ditemukan');
+  
+  const newQty = item.quantity + delta;
+  if (newQty <= 0) {
+    return await db.cart.delete(id);
+  } else {
+    return await db.cart.update(id, { quantity: newQty });
+  }
+};

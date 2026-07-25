@@ -43,8 +43,13 @@ const OrderDetail = () => {
   };
 
   const updateStatus = async (status) => {
-    await updateOrder(order.id, { status });
-    setShowConfirmModal(false);
+    try {
+      await updateOrder(order.id, { status });
+      setShowConfirmModal(false);
+    } catch (error) {
+      toast.error(error.message);
+      setShowConfirmModal(false);
+    }
   };
 
   const updateCatatan = async () => {

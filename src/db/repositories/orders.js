@@ -62,6 +62,29 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
 
 export const updateOrder = async (id, data) => {
   if (!id) throw new Error('ID Order tidak valid');
+  
+  if (data.status === 'Ambil' || data.status === 'Selesai') {
+    const order = await db.orders.get(parseInt(id));
+    if (!order) throw new Error('Order tidak ditemukan');
+    
+    if (data.status === 'Ambil') {
+      // Check payment status from database, or from the incoming data if it's being updated simultaneously
+      const currentStatusBayar = data.statusBayar || order.statusBayar;
+      if (currentStatusBayar !== 'Lunas') {
+        throw new Error('Pesanan belum lunas! Tidak bisa diambil.');
+      }
+    }
+    
+    const inventory = data.inventoryUsed || order.inventoryUsed || [];
+    const hasDeterjen = inventory.some(item => 
+      item.nama && item.nama.toLowerCase().includes('deterjen') && item.quantity >= 1
+    );
+    
+    if (!hasDeterjen) {
+      throw new Error(`Inventory terpakai minimal harus ada Deterjen 1x untuk dipindah ke status ${data.status}.`);
+    }
+  }
+
   return await db.orders.update(parseInt(id), data);
 };
 

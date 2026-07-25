@@ -15,7 +15,7 @@ const Transaksi = () => {
     isPriority, setIsPriority,
     selectedInventory,
     subtotal, nilaiDiskon, total,
-    handleCheckout, removeItem, toggleInventory, updateInventoryQty, handleAddPelanggan
+    handleCheckout, removeItem, updateItemQty, toggleInventory, updateInventoryQty, handleAddPelanggan
   } = useTransaksi();
 
   return (
@@ -70,7 +70,16 @@ const Transaksi = () => {
                     </div>
                     <div>
                       <div className="fw-bold small">{item.name}</div>
-                      <small className="text-muted">{item.quantity} x Rp {item.price.toLocaleString()}</small>
+                      <div className="d-flex align-items-center gap-2 mt-1">
+                        <button className="btn btn-sm btn-light border p-0 d-flex align-items-center justify-content-center" style={{ width: '24px', height: '24px' }} onClick={() => updateItemQty(item.id, -1)}>
+                          <i className="bi bi-dash"></i>
+                        </button>
+                        <small className="fw-bold px-1">{item.quantity}</small>
+                        <button className="btn btn-sm btn-light border p-0 d-flex align-items-center justify-content-center" style={{ width: '24px', height: '24px' }} onClick={() => updateItemQty(item.id, 1)}>
+                          <i className="bi bi-plus"></i>
+                        </button>
+                        <small className="text-muted ms-2">x Rp {item.price.toLocaleString()}</small>
+                      </div>
                     </div>
                   </div>
                   <div className="text-end">

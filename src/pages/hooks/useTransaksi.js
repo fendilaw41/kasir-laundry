@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { getCartQuery, removeProductFromCart } from '../../db/repositories/cart';
+import { getCartQuery, removeProductFromCart, updateCartItemQty } from '../../db/repositories/cart';
 import { getPelangganQuery, addPelanggan } from '../../db/repositories/pelanggan';
 import { getInventoryQuery } from '../../db/repositories/inventory';
 import { getDraftOrderQuery, updateDraftOrder } from '../../db/repositories/draftOrder';
@@ -90,6 +90,10 @@ export const useTransaksi = () => {
     await removeProductFromCart(id);
   };
 
+  const updateItemQty = async (id, delta) => {
+    await updateCartItemQty(id, delta);
+  };
+
   const toggleInventory = async (inv) => {
     const prev = selectedInventory;
     const exists = prev.find(item => item.id === inv.id);
@@ -145,6 +149,6 @@ export const useTransaksi = () => {
     isPriority, setIsPriority,
     selectedInventory,
     subtotal, nilaiDiskon, total,
-    handleCheckout, removeItem, toggleInventory, updateInventoryQty, handleAddPelanggan
+    handleCheckout, removeItem, updateItemQty, toggleInventory, updateInventoryQty, handleAddPelanggan
   };
 };

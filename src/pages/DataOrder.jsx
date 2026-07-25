@@ -79,21 +79,25 @@ const DataOrder = ({ user }) => {
   const handleExecuteAction = async () => {
     if (!confirmData.id) return;
 
-    if (confirmData.type === 'request') {
-      await updateOrder(confirmData.id, { status: 'Dibatalkan' });
-      toast.success('Permintaan hapus terkirim');
-    } else if (confirmData.type === 'hard') {
-      await deleteOrder(confirmData.id);
-      toast.success('Order berhasil dihapus permanen');
-    } else if (confirmData.type === 'selesai') {
-      await updateOrder(confirmData.id, { status: 'Selesai' });
-      toast.success('Status order diperbarui menjadi Selesai');
-    } else if (confirmData.type === 'ambil') {
-      await updateOrder(confirmData.id, { status: 'Ambil' });
-      toast.success('Status order diperbarui menjadi Ambil');
+    try {
+      if (confirmData.type === 'request') {
+        await updateOrder(confirmData.id, { status: 'Dibatalkan' });
+        toast.success('Permintaan hapus terkirim');
+      } else if (confirmData.type === 'hard') {
+        await deleteOrder(confirmData.id);
+        toast.success('Order berhasil dihapus permanen');
+      } else if (confirmData.type === 'selesai') {
+        await updateOrder(confirmData.id, { status: 'Selesai' });
+        toast.success('Status order diperbarui menjadi Selesai');
+      } else if (confirmData.type === 'ambil') {
+        await updateOrder(confirmData.id, { status: 'Ambil' });
+        toast.success('Status order diperbarui menjadi Ambil');
+      }
+      setShowConfirmModal(false);
+    } catch (error) {
+      toast.error(error.message);
+      setShowConfirmModal(false);
     }
-
-    setShowConfirmModal(false);
   };
 
   return (
