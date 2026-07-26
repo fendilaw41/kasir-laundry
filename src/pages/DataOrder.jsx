@@ -205,13 +205,13 @@ const DataOrder = ({ user }) => {
                   </div>
                   <div className={user.role === 'owner' ? 'col-4' : 'col-6'}>
                     {activeTab === 'Proses' && (
-                      <button className="btn btn-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => confirmSelesai(order.id)}>Selesai</button>
+                      <button className="btn btn-outline-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => confirmSelesai(order.id)}>Selesai</button>
                     )}
                     {activeTab === 'Selesai' && (
-                      <button className="btn btn-success btn-sm w-100 fw-bold shadow-sm" onClick={() => confirmAmbil(order.id)}>Ambil</button>
+                      <button className="btn btn-outline-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => confirmAmbil(order.id)}>Ambil</button>
                     )}
                     {activeTab === 'Dibatalkan' && (
-                      <button className="btn btn-danger btn-sm w-100 fw-bold shadow-sm" onClick={() => hardDelete(order.id)}>Hapus</button>
+                      <button className="btn btn-outline-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => hardDelete(order.id)}>Hapus</button>
                     )}
                   </div>
                   {user.role === 'owner' && (
@@ -243,9 +243,9 @@ const DataOrder = ({ user }) => {
                   <p className="text-muted small mb-4">{confirmData.message}</p>
 
                   <div className="d-flex gap-2">
-                    <button className="btn btn-light w-100 rounded-pill fw-bold py-2" onClick={() => setShowConfirmModal(false)}>Batal</button>
+                    <button className="btn btn-outline-primary w-100 rounded-pill fw-bold py-2" onClick={() => setShowConfirmModal(false)}>Batal</button>
                     <button
-                      className={`btn ${confirmData.type === 'hard' ? 'btn-danger' : 'btn-primary'} w-100 rounded-pill fw-bold py-2 shadow-sm`}
+                      className="btn btn-outline-primary w-100 rounded-pill fw-bold py-2 shadow-sm"
                       onClick={handleExecuteAction}
                     >
                       {confirmData.type === 'hard' ? 'Hapus' : confirmData.type === 'selesai' ? 'Ya, Selesai' : confirmData.type === 'ambil' ? 'Ya, Ambil' : 'Ya, Ajukan'}

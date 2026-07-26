@@ -50,7 +50,7 @@ const Transaksi = () => {
             <div className={`rounded-circle mb-3 d-flex align-items-center justify-content-center ${selectedPelanggan ? 'bg-primary-light text-primary' : 'bg-secondary text-white'}`} style={{ width: '60px', height: '60px', backgroundColor: selectedPelanggan ? '#e3f2fd' : '#eee' }}>
               <i className="bi bi-plus-circle-fill fs-1"></i>
             </div>
-            <h6 className="fw-bold mb-1">Tambah Layanan</h6>
+            <h6 className="fw-bold mb-1">New Layanan</h6>
             <small className="text-muted">Klik untuk memilih jenis cuci/setrika</small>
           </div>
         ) : (
@@ -58,16 +58,13 @@ const Transaksi = () => {
             <div className="d-flex justify-content-between align-items-center mb-2 px-1">
               <h6 className="fw-bold mb-0 text-muted small text-uppercase">Layanan Dipilih</h6>
               <button className="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 small fw-bold" onClick={() => navigate('/product')}>
-                <i className="bi bi-plus-lg me-1"></i> Tambah
+                <i className="bi bi-plus-lg me-1"></i> New
               </button>
             </div>
             <div className="d-grid gap-2">
               {cartItems.map(item => (
                 <div key={item.id} className="bg-white p-3 rounded-4 shadow-sm border d-flex justify-content-between align-items-center">
                   <div className="d-flex align-items-center">
-                    <div className="bg-primary-light text-primary rounded-3 p-2 me-3" style={{ backgroundColor: '#e3f2fd' }}>
-                      <i className="bi bi-tsunami fs-4"></i>
-                    </div>
                     <div>
                       <div className="fw-bold small">{item.name}</div>
                       <div className="d-flex align-items-center gap-2 mt-1">
@@ -108,11 +105,11 @@ const Transaksi = () => {
               return (
                 <div
                   key={inv.id}
-                  className={`flex-shrink-0 p-3 rounded-4 border d-flex flex-column align-items-center justify-content-center transition-all ${isActive ? 'bg-outline-success text-dark border-success shadow-sm' : 'bg-white text-dark shadow-xs'}`}
+                  className={`flex-shrink-0 p-3 rounded-4 border d-flex flex-column align-items-center justify-content-center transition-all ${isActive ? 'bg-outline-primary text-dark border-primary shadow-sm' : 'bg-white text-dark shadow-xs'}`}
                   style={{ minWidth: '120px', height: '140px', opacity: inv.stok <= 0 && !isActive ? 0.5 : 1 }}
                 >
                   <div className="text-center w-100" onClick={() => (inv.stok > 0 || isActive) && toggleInventory(inv)} style={{ cursor: inv.stok > 0 || isActive ? 'pointer' : 'not-allowed' }}>
-                    <i className={`bi ${isActive ? 'bi-check-circle-fill text-success' : 'bi-box-seam'} d-block mb-1 fs-4`}></i>
+                    <i className={`bi ${isActive ? 'bi-check-circle-fill text-primary' : 'bi-box-seam'} d-block mb-1 fs-4`}></i>
                     <div className="small fw-bold text-truncate" style={{ fontSize: '0.75rem' }}>{inv.nama}</div>
                     <small className="text-muted" style={{ fontSize: '0.65rem' }}>Stok: {inv.stok}</small>
                   </div>
@@ -145,7 +142,7 @@ const Transaksi = () => {
               </select>
             </div>
             <div className="col-12 col-sm-6">
-              <label className="form-label small fw-bold text-muted px-1">Layanan</label>
+              <label className="form-label small fw-bold text-muted px-1">Delivery</label>
               <select className="form-select border-0 shadow-sm rounded-3 py-2" value={tipeLayanan} onChange={e => setTipeLayanan(e.target.value)}>
                 <option value="Datang Langsung">Datang Langsung</option>
                 <option value="Jemput/Antar">Antar Jemput</option>
@@ -252,12 +249,12 @@ const Transaksi = () => {
                       <div className="mb-3">
                         <textarea className="form-control" placeholder="Alamat" value={newPelanggan.alamat} onChange={e => setNewPelanggan({ ...newPelanggan, alamat: e.target.value })}></textarea>
                       </div>
-                      <button type="submit" className="btn btn-primary w-100">Simpan & Pilih</button>
-                      <button type="button" className="btn btn-link w-100 mt-2" onClick={() => setIsAdding(false)}>Batal</button>
+                      <button type="submit" className="btn btn-outline-primary w-100">Simpan & Pilih</button>
+                      <button type="button" className="btn btn-outline-primary w-100 mt-2" onClick={() => setIsAdding(false)}>Batal</button>
                     </form>
                   ) : (
                     <>
-                      <button className="btn btn-outline-success w-100 mb-3" onClick={() => setIsAdding(true)}>
+                      <button className="btn btn-outline-primary w-100 mb-3" onClick={() => setIsAdding(true)}>
                         <i className="bi bi-plus-lg me-1"></i> Pelanggan Baru
                       </button>
                       <div className="list-group list-group-flush">

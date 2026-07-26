@@ -84,22 +84,23 @@ const Chat = ({ user }) => {
             
             {messages && messages.map((msg) => (
               <div key={msg.id} className={`d-flex mb-4 ${!msg.isBot ? 'justify-content-end' : 'justify-content-start'}`}>
-                {msg.isBot && (
+                {/* {msg.isBot && (
                   <div className="me-3 mt-1 bg-white shadow-sm border rounded-circle d-flex align-items-center justify-content-center" style={{ width: '36px', height: '36px', flexShrink: 0 }}>
                     <i className="bi bi-stars text-primary" style={{ fontSize: '18px' }}></i>
                   </div>
-                )}
+                )} */}
                 
                 <div 
                   className={`p-3 shadow-sm ${!msg.isBot ? 'text-white' : 'text-dark'}`} 
                   style={{ 
-                    maxWidth: '85%', 
-                    backgroundColor: !msg.isBot ? '#155dfc' : '1px solid #ffffff', 
+                    maxWidth: !msg.isBot ? '85%' : '95%',
+                    width: 'fit-content',
+                    backgroundColor: !msg.isBot ? '#155dfc' : '#ffffff', 
                     border: '1px solid #eef0f2',
                     borderRadius: !msg.isBot ? '16px 16px 4px 16px' : '16px 16px 16px 4px'
                   }}
                 >
-                  <p className="mb-0" style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', fontSize: '14px', color: !msg.isBot ? 'white' : 'grey' }}>{msg.pesan}</p>
+                  <p className="mb-0" style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', fontSize: '13px', color: !msg.isBot ? 'white' : 'grey' }}>{msg.pesan}</p>
                 </div>
               </div>
             ))}
@@ -132,7 +133,7 @@ const Chat = ({ user }) => {
               onKeyDown={handleKeyDown}
               disabled={isProcessing}
               style={{ 
-                fontSize: '15px', 
+                fontSize: '13px', 
                 borderRadius: '24px', 
                 padding: '16px 60px 16px 24px', 
                 backgroundColor: '#f0f4f9',

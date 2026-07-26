@@ -165,7 +165,7 @@ const Reports = () => {
                 value={filterMonth === 'All' ? '' : filterMonth}
                 onChange={(e) => setFilterMonth(e.target.value || 'All')}
               />
-              <button className="btn btn-primary px-3" onClick={() => setFilterMonth('All')}>Semua</button>
+              <button className="btn btn-outline-primary px-3" onClick={() => setFilterMonth('All')}>Semua</button>
             </div>
           </div>
         )}

@@ -31,8 +31,8 @@ const Home = ({ user }) => {
                 <h6 className="fw-bold mb-2">Konfirmasi</h6>
                 <p className="text-muted small mb-4" style={{ whiteSpace: 'pre-wrap' }}>{confirmModal.message}</p>
                 <div className="d-flex gap-2">
-                  <button className="btn btn-light rounded-pill flex-fill fw-bold" onClick={() => setConfirmModal({ show: false, message: '', onConfirm: null })}>Batal</button>
-                  <button className="btn btn-primary rounded-pill flex-fill fw-bold" onClick={confirmModal.onConfirm}>Ya, Lanjutkan</button>
+                  <button className="btn btn-outline-primary rounded-pill flex-fill fw-bold" onClick={() => setConfirmModal({ show: false, message: '', onConfirm: null })}>Batal</button>
+                  <button className="btn btn-outline-primary rounded-pill flex-fill fw-bold" onClick={confirmModal.onConfirm}>Ya, Lanjutkan</button>
                 </div>
               </div>
             </div>
@@ -40,131 +40,191 @@ const Home = ({ user }) => {
         </>
       )}
 
-      {/* Kartu Profil & Welcome */}
-      <div className="card shadow-sm border-0 mb-4 overflow-hidden" style={{ borderRadius: '20px', background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)' }}>
-        <div className="card-body p-4 text-white">
-          <div className="d-flex align-items-center mb-3">
-            <div className="avatar-wrapper me-3">
-              <div className="bg-white rounded-circle d-flex align-items-center justify-content-center" style={{ width: '60px', height: '60px' }}>
-                <i className="bi bi-person-fill text-primary fs-2"></i>
-              </div>
+      {/* Top Background Section (ShopeePay Style) */}
+      <div style={{ background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)', padding: '24px 20px 65px 20px', borderBottomLeftRadius: '32px', borderBottomRightRadius: '32px' }}>
+        {/* Header Compact */}
+        <div className="d-flex justify-content-between align-items-center mb-0">
+          <div className="d-flex align-items-center">
+            <div className="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center me-3 shadow-sm flex-shrink-0" style={{ width: '48px', height: '48px' }}>
+              <i className="bi bi-person-fill fs-3"></i>
             </div>
             <div>
-              <small className="opacity-75 d-block">Selamat Datang,</small>
-              <h4 className="text-white fw-bold mb-0">{user.fullname}</h4>
-              <small className="opacity-50">@{user.username}</small>
+              <h5 className="fw-bold mb-0 text-white">{user.fullname}</h5>
+              <small className="text-white opacity-75">@{user.username}</small>
             </div>
           </div>
-          <div className="row g-2 mt-2">
-            <div className="col-6">
-              <div className="bg-white bg-opacity-10 rounded p-2 text-center">
-                <small className="d-block opacity-75">Status</small>
-                <span className="fw-bold"><i className="bi bi-patch-check-fill me-1"></i> Aktif</span>
-              </div>
+          <div className="bg-white text-success px-3 py-1 rounded-pill fw-bold d-flex align-items-center shadow-sm" style={{ fontSize: '0.8rem' }}>
+            <i className="bi bi-patch-check-fill me-1"></i> Aktif
+          </div>
+        </div>
+      </div>
+
+      {/* Overlapping Cards (Omzet & Status) */}
+      <div style={{ marginTop: '-45px', position: 'relative', zIndex: 5 }}>
+        <div className="row g-2 px-3">
+          {/* Omzet Card */}
+          <div className="col-6">
+            <div className="card shadow-sm border-0 h-100 position-relative" style={{ borderRadius: '16px', background: '#fff' }}>
+              <i
+                className={`bi ${showOmzet ? 'bi-eye-slash' : 'bi-eye'} text-muted position-absolute`}
+                style={{ top: '12px', right: '12px', cursor: 'pointer', fontSize: '1rem', zIndex: 10 }}
+                onClick={() => setShowOmzet(!showOmzet)}
+              ></i>
+              <Link to="/reports?today=true" className="text-decoration-none text-dark h-100">
+                <div className="card-body p-3">
+                  <div className="d-flex align-items-center mb-1">
+                    <i className="bi bi-wallet2 text-success me-2"></i>
+                    <small className="text-muted fw-bold" style={{ fontSize: '0.7rem' }}>Omzet</small>
+                  </div>
+                  <h6 className="fw-bold mb-0 text-dark mt-2" style={{ letterSpacing: '-0.5px' }}>
+                    {showOmzet ? `Rp ${stats?.totalOmzet.toLocaleString() || 0}` : 'Rp ••••••'}
+                  </h6>
+                </div>
+              </Link>
             </div>
-            <div className="col-6">
-              <div className="bg-white bg-opacity-10 rounded p-2 text-center">
-                <small className="d-block opacity-75">Shift</small>
-                <span className="fw-bold">{new Date().getHours() >= 18 ? 'Malam' : 'Siang'}</span>
+          </div>
+          {/* Status Order Card */}
+          <div className="col-6">
+            <div className="card shadow-sm border-0 h-100" style={{ borderRadius: '16px', background: '#fff' }}>
+              <div className="card-body p-3">
+                <div className="d-flex align-items-center mb-1">
+                  <i className="bi bi-clipboard-data text-primary me-2"></i>
+                  <small className="text-muted fw-bold" style={{ fontSize: '0.7rem' }}>Status</small>
+                </div>
+                <div className="d-flex justify-content-between mt-2">
+                  <div className="text-center">
+                    <h6 className="fw-bold mb-0 text-dark">{stats?.pendingOrders || 0}</h6>
+                    <small className="text-muted" style={{ fontSize: '0.65rem' }}>Proses</small>
+                  </div>
+                  <div className="text-center">
+                    <h6 className="fw-bold mb-0 text-dark">{stats?.readyToPickUp || 0}</h6>
+                    <small className="text-muted" style={{ fontSize: '0.65rem' }}>Siap</small>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Statistik Ringkas */}
-      <h6 className="fw-bold mb-3 px-1">Ringkasan Hari Ini</h6>
-      <div className="row g-2 mb-4 px-1">
-        <div className="col-4">
-          <div className="card shadow-sm border-0 h-100 position-relative" style={{ borderRadius: '15px' }}>
-            <i
-              className={`bi ${showOmzet ? 'bi-eye-slash' : 'bi-eye'} text-muted position-absolute`}
-              style={{ top: '8px', right: '8px', cursor: 'pointer', fontSize: '0.75rem', zIndex: 10 }}
-              onClick={() => setShowOmzet(!showOmzet)}
-            ></i>
-            <Link to="/reports?today=true" className="text-decoration-none text-dark h-100">
-              <div className="card-body p-2 text-center">
-                <div className="icon-circle bg-success-light text-success mb-2 mx-auto" style={{ width: '35px', height: '35px', backgroundColor: '#d1f7e0', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <i className="bi bi-wallet2 fs-5"></i>
-                </div>
-                <small className="text-muted d-block" style={{ fontSize: '0.65rem' }}>Omzet</small>
-                <h6 className="fw-bold mb-0" style={{ fontSize: '0.8rem' }}>
-                  {showOmzet ? `Rp ${stats?.totalOmzet.toLocaleString() || 0}` : 'Rp ••••••'}
-                </h6>
-              </div>
-            </Link>
-          </div>
-        </div>
-        <div className="col-4">
-          <Link to="/orders?tab=Proses" className="text-decoration-none text-dark">
-            <div className="card shadow-sm border-0 h-100" style={{ borderRadius: '15px' }}>
-              <div className="card-body p-2 text-center">
-                <div className="icon-circle bg-primary-light text-primary mb-2 mx-auto" style={{ width: '35px', height: '35px', backgroundColor: '#e1f5fe', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {/* Grid Menu Icons (White Area) */}
+      <div className="card shadow-sm border-0 mt-4 mx-3" style={{ borderRadius: '20px', background: '#fff' }}>
+        <div className="card-body p-4">
+          <div className="row g-2 text-center align-items-start">
+            
+            {/* Proses */}
+            <div className="col-3">
+              <Link to="/orders?tab=Proses" className="text-decoration-none customer-card-clickable d-block">
+                <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
                   <i className="bi bi-bag-check fs-5"></i>
                 </div>
-                <small className="text-muted d-block" style={{ fontSize: '0.65rem' }}>Proses</small>
-                <h6 className="fw-bold mb-0" style={{ fontSize: '0.8rem' }}>{stats?.pendingOrders || 0} Item</h6>
-              </div>
+                <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Order<br/>Proses</span>
+              </Link>
             </div>
-          </Link>
-        </div>
-        <div className="col-4">
-          <Link to="/orders?tab=Selesai" className="text-decoration-none text-dark">
-            <div className="card shadow-sm border-0 h-100" style={{ borderRadius: '15px' }}>
-              <div className="card-body p-2 text-center">
-                <div className="icon-circle bg-warning-light text-warning mb-2 mx-auto" style={{ width: '35px', height: '35px', backgroundColor: '#fff9c4', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+
+            {/* Siap Ambil */}
+            <div className="col-3">
+              <Link to="/orders?tab=Selesai" className="text-decoration-none customer-card-clickable d-block">
+                <div className="mx-auto text-primary rounded-1 border-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
                   <i className="bi bi-box-seam fs-5"></i>
                 </div>
-                <small className="text-muted d-block" style={{ fontSize: '0.65rem' }}>Siap</small>
-                <h6 className="fw-bold mb-0" style={{ fontSize: '0.8rem' }}>{stats?.readyToPickUp || 0} Item</h6>
-              </div>
+                <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Siap<br/>Ambil</span>
+              </Link>
             </div>
-          </Link>
-        </div>
-      </div>
 
-      {/* Menu Cepat / Shortcut */}
-      <h6 className="fw-bold mb-3 px-1">Menu Utama</h6>
-      <div className="row g-3 mb-4 px-1">
-        <div className="col-3 text-center" onClick={() => setShowInventoryModal(true)} style={{ cursor: 'pointer' }}>
-          <div className="bg-white shadow-sm rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style={{ width: '55px', height: '55px' }}>
-            <i className="bi bi-box-seam fs-4 text-success"></i>
-          </div>
-          <small className="text-dark fw-bold" style={{ fontSize: '0.7rem' }}>Inventory</small>
-        </div>
-        <div className="col-3 text-center" onClick={() => setShowPelangganModal(true)} style={{ cursor: 'pointer' }}>
-          <div className="bg-white shadow-sm rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style={{ width: '55px', height: '55px' }}>
-            <i className="bi bi-person-plus fs-4 text-info"></i>
-          </div>
-          <small className="text-dark fw-bold" style={{ fontSize: '0.7rem' }}>Pelanggan</small>
-        </div>
-        {user.role !== 'kasir' && (
-          <div className="col-3 text-center">
-            <Link to="/reports" className="text-decoration-none">
-              <div className="bg-white shadow-sm rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style={{ width: '55px', height: '55px' }}>
-                <i className="bi bi-file-earmark-bar-graph fs-4 text-warning"></i>
+            {/* Inventory */}
+            <div className="col-3">
+              <div className="text-decoration-none customer-card-clickable d-block" onClick={() => setShowInventoryModal(true)} style={{ cursor: 'pointer' }}>
+                <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
+                  <i className="bi bi-archive fs-5"></i>
+                </div>
+                <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Stok</span>
               </div>
-              <small className="text-dark fw-bold" style={{ fontSize: '0.7rem' }}>Report</small>
-            </Link>
-          </div>
-        )}
-        <div className="col-3 text-center">
-          <Link to="/setting" className="text-decoration-none">
-            <div className="bg-white shadow-sm rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style={{ width: '55px', height: '55px' }}>
-              <i className="bi bi-gear-fill fs-4 text-primary"></i>
             </div>
-            <small className="text-dark fw-bold" style={{ fontSize: '0.7rem' }}>Setting</small>
-          </Link>
+
+            {/* Pelanggan */}
+            <div className="col-3">
+              <div className="text-decoration-none customer-card-clickable d-block" onClick={() => setShowPelangganModal(true)} style={{ cursor: 'pointer' }}>
+                <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
+                  <i className="bi bi-people fs-5"></i>
+                </div>
+                <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Cust.</span>
+              </div>
+            </div>
+
+            {/* Report */}
+              <div className="col-3">
+                <Link to="/reports" className="text-decoration-none customer-card-clickable d-block">
+                  <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
+                    <i className="bi bi-bar-chart-fill fs-5"></i>
+                  </div>
+                  <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Laporan</span>
+                </Link>
+              </div>
+
+            {/* Setting */}
+            <div className="col-3">
+              <Link to="/setting" className="text-decoration-none customer-card-clickable d-block">
+                <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
+                  <i className="bi bi-gear-fill fs-5"></i>
+                </div>
+                <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Setting</span>
+              </Link>
+            </div>
+
+            {/* Layanan (Hanya Owner) */}
+            {user?.role === 'owner' && (
+              <div className="col-3">
+                <div className="text-decoration-none customer-card-clickable d-block" onClick={() => toast('Fitur Layanan/Produk segera hadir!', { icon: '🚀' })} style={{ cursor: 'pointer' }}>
+                  <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
+                    <i className="bi bi-grid fs-5"></i>
+                  </div>
+                  <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Layanan</span>
+                </div>
+              </div>
+            )}
+
+            {/* Promo (Hanya Owner) */}
+            {user?.role === 'owner' && (
+              <div className="col-3">
+                <div className="text-decoration-none customer-card-clickable d-block" onClick={() => toast('Fitur Promo segera hadir!', { icon: '🚀' })} style={{ cursor: 'pointer' }}>
+                  <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
+                    <i className="bi bi-percent fs-5"></i>
+                  </div>
+                  <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Promo</span>
+                </div>
+              </div>
+            )}
+
+          </div>
         </div>
       </div>
 
       {/* Order dalam Proses Alert */}
       {stats?.pendingOrders > 0 && (
-        <div className="alert alert-warning border-0 shadow-sm d-flex align-items-center mx-1" style={{ borderRadius: '12px' }}>
+        <div className="alert alert-warning border-0 shadow-sm d-flex align-items-center mx-3 mt-3" style={{ borderRadius: '12px' }}>
           <i className="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
           <div>
             <h6 className="alert-heading mb-1 fw-bold">Ada {stats.pendingOrders} Order Tertunda</h6>
             <p className="small mb-0">Segera selesaikan pengerjaan laundry hari ini.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Inventory Pending Alert (Khusus Owner) */}
+      {user?.role === 'owner' && inventory?.filter(i => i.status === 'pending').length > 0 && (
+        <div 
+          className="alert alert-info border-0 shadow-sm d-flex align-items-center mx-3 mt-3" 
+          style={{ borderRadius: '12px', cursor: 'pointer', backgroundColor: '#e3f2fd' }}
+          onClick={() => {
+            setInventoryTab('pending');
+            setShowInventoryModal(true);
+          }}
+        >
+          <i className="bi bi-box-seam fs-4 me-3 text-primary"></i>
+          <div>
+            <h6 className="alert-heading mb-1 fw-bold text-primary">Ada {inventory.filter(i => i.status === 'pending').length} Pengajuan Stok</h6>
+            <p className="small mb-0 text-primary opacity-75">Klik untuk meninjau dan menyetujui stok baru.</p>
           </div>
         </div>
       )}
@@ -186,7 +246,7 @@ const Home = ({ user }) => {
                 <div className="modal-body p-3 p-sm-4">
                   {/* Form Tambah Baru (Collapsible) */}
                   <div className="mb-4">
-                    <button className="btn btn-success w-100 rounded-pill fw-bold py-2 mb-3 shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAddPelanggan">
+                    <button className="btn btn-outline-primary w-100 rounded-pill fw-bold py-2 mb-3 shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAddPelanggan">
                       <i className="bi bi-person-plus me-2"></i> Pelanggan Baru
                     </button>
                     <div className="collapse" id="collapseAddPelanggan">
@@ -201,7 +261,7 @@ const Home = ({ user }) => {
                           <div className="mb-3">
                             <textarea className="form-control border-0 py-2 rounded-3" placeholder="Alamat (Kota)" rows="2" value={newPelanggan.alamat} onChange={(e) => setNewPelanggan({ ...newPelanggan, alamat: e.target.value })}></textarea>
                           </div>
-                          <button type="submit" className="btn btn-primary w-100 rounded-pill fw-bold shadow-sm">SIMPAN DATA</button>
+                          <button type="submit" className="btn btn-outline-primary w-100 rounded-pill fw-bold shadow-sm">SIMPAN DATA</button>
                         </form>
                       </div>
                     </div>
@@ -325,7 +385,7 @@ const Home = ({ user }) => {
                       <label className="small fw-bold text-muted mb-1">Alamat</label>
                       <textarea className="form-control border-0 bg-light rounded-3 py-2" rows="2" value={editPelanggan.data.alamat || ''} onChange={(e) => setEditPelanggan({ ...editPelanggan, data: { ...editPelanggan.data, alamat: e.target.value } })}></textarea>
                     </div>
-                    <button type="submit" className="btn btn-primary w-100 rounded-pill fw-bold shadow-sm py-2">Simpan Perubahan</button>
+                    <button type="submit" className="btn btn-outline-primary w-100 rounded-pill fw-bold shadow-sm py-2">Simpan Perubahan</button>
                   </form>
                 </div>
               </div>
@@ -373,7 +433,7 @@ const Home = ({ user }) => {
                           }
                         });
                       }}>
-                        <label className="small fw-bold text-muted mb-2 px-1">TAMBAH BARANG BARU</label>
+                        <label className="small fw-bold text-muted mb-2 px-1">Tambah Stok Barang Baru</label>
                         <div className="row g-2">
                           <div className="col-8">
                             <input type="text" name="nama" className="form-control border-0 py-2 rounded-3 shadow-sm" placeholder="Nama item..." required />
@@ -381,7 +441,7 @@ const Home = ({ user }) => {
                           <div className="col-4">
                             <div className="input-group shadow-sm rounded-3 overflow-hidden">
                               <input type="number" name="stok" className="form-control border-0 py-2 px-2 text-center" placeholder="Qty" required />
-                              <button className="btn btn-success border-0 px-2" type="submit">
+                              <button className="btn btn-outline-primary border-0 px-2" type="submit">
                                 <i className="bi bi-plus-lg"></i>
                               </button>
                             </div>
@@ -433,7 +493,18 @@ const Home = ({ user }) => {
                               <i className={`bi ${item.nama.toLowerCase().includes('plastik') ? 'bi-box' : 'bi-archive'} text-success fs-4`}></i>
                             </div>
                             <div>
-                              <h6 className="fw-bold mb-1 text-dark text-truncate" style={{ maxWidth: '140px' }}>{item.nama}</h6>
+                              <div className="d-flex align-items-center mb-1">
+                                <h6 className="fw-bold mb-0 text-dark" style={{ maxWidth: '140px', fontSize: '12px', wordWrap: 'break-word' }}>{item.nama}</h6>
+                                <i 
+                                  className="bi bi-copy text-muted ms-2" 
+                                  style={{ cursor: 'pointer', fontSize: '0.8rem' }}
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(item.nama);
+                                    toast.success('Nama disalin!');
+                                  }}
+                                  title="Copy nama stok"
+                                ></i>
+                              </div>
                               <div className="d-flex flex-wrap gap-1">
                                 <span className={`badge rounded-pill ${item.stok < 5 ? 'bg-danger bg-opacity-10' : 'bg-success bg-opacity-10'}`} style={{ fontSize: '0.65rem' }}>
                                   Stok: {item.stok}

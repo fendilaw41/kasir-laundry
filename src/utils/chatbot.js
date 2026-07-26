@@ -33,6 +33,20 @@ const generateInvoiceId = async () => {
   return `${initials}${nextNumber.toString().padStart(5, '0')}`;
 };
 
+// Format tanggal friendly
+function formatFriendlyDate(dateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString;
+  const today = new Date();
+  const isToday = date.getDate() === today.getDate() && 
+                  date.getMonth() === today.getMonth() && 
+                  date.getFullYear() === today.getFullYear();
+  const time = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  if (isToday) return `Hari ini jam ${time}`;
+  return `${date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} jam ${time}`;
+}
+
 export async function parseChatCommand(message, user) {
   const msg = message.trim().toLowerCase();
   let intent = 'unknown';
@@ -42,40 +56,180 @@ export async function parseChatCommand(message, user) {
 
   try {
     // 1. Cek intent: Transaksi -> "trx <layanan> <berat>kg [<nama>] [<statusBayar>]"
-    const trxMatch = msg.match(/^trx\s+(.+?)\s+(\d+(?:\.\d+)?)\s*kg(?:\s+(.+))?$/i);
     const editTrxMatch = msg.match(/^edit\s+trx(?:\s+terakhir)?\s+(\d+(?:\.\d+)?)\s*kg$/);
     
-    if (trxMatch) {
+    if (msg === 'trx') {
+      intent = 'help_trx';
+      responseText = 'Panduan perintah Transaksi (Bisa Multi Layanan):\nKetik: trx <layanan1> <berat1>kg, <layanan2> <berat2>kg [info tambahan]\n\nContoh:\n- trx CLR 5kg, CLE 2kg agus lunas besok AJ\n- trx karpet 3kg budi DP 2hari DL';
+      status = 'success';
+    }
+    else if (msg === 'tambah') {
+      intent = 'help_tambah';
+      responseText = 'Panduan perintah Tambah Inventory:\nKetik: tambah <barang> <qty><unit>[, ...]\n\nContoh:\n- tambah plastik 100pcs\n- tambah molto 5botol, deterjen 10kg';
+      status = 'success';
+    }
+    else if (msg === 'cek') {
+      intent = 'help_cek';
+      responseText = 'Daftar perintah Cek:\n- cek order proses\n- cek order selesai\n- cek order diambil\n- cek pelanggan <nama pelanggan>\n- cek inventory\n- cek inventory molto\n- cek layanan';
+      status = 'success';
+    }
+    else if (msg.startsWith('cek ')) {
+      intent = 'cek_data';
+      if (msg.startsWith('cek order ')) {
+        let statusFilter = msg.substring(10).trim().toLowerCase();
+        if (statusFilter === 'diambil') statusFilter = 'ambil';
+        
+        const orders = await db.orders.toArray();
+        const filteredOrders = orders.filter(o => o.status.toLowerCase() === statusFilter);
+        
+        if (filteredOrders.length === 0) {
+          responseText = `Tidak ada order dengan status "${statusFilter}".`;
+        } else {
+          const sorted = filteredOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
+          responseText = `Ditemukan ${filteredOrders.length} order "${statusFilter}". Menampilkan maks 5 terbaru:\n` + 
+            sorted.map(o => `- ${o.invoiceId} (${o.pelangganNama} ${formatFriendlyDate(o.createdAt)}) ${o.catatan ? '['+o.catatan+'] ' : ''}`).join('\n');
+        }
+        status = 'success';
+      }
+      else if (msg.startsWith('cek pelanggan ')) {
+        const query = msg.substring(14).trim().toLowerCase();
+        const pelanggans = await db.pelanggan.toArray();
+        const filtered = pelanggans.filter(p => p.nama.toLowerCase().includes(query) || p.hp.includes(query));
+        
+        if (filtered.length === 0) {
+          responseText = `Pelanggan "${query}" tidak ditemukan.`;
+        } else {
+          const sorted = filtered.reverse().slice(0, 5);
+          const orders = await db.orders.toArray();
+          
+          let resultText = `Ditemukan ${filtered.length} pelanggan. Menampilkan maks 5 terbaru:\n`;
+          for (const p of sorted) {
+            const userOrders = orders.filter(o => o.pelangganId === p.id || o.pelangganNama.toLowerCase() === p.nama.toLowerCase());
+            if (userOrders.length === 0) {
+              resultText += `- ${p.nama}: Belum ada orderan\n`;
+            } else {
+              const lastOrder = userOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+              const itemsStr = lastOrder.items ? lastOrder.items.map(i => `${i.name} ${i.quantity}kg`).join(', ') : 'Order Kosong';
+              resultText += `- ${p.nama} ${formatFriendlyDate(lastOrder.createdAt)}: ${itemsStr}\n`;
+            }
+          }
+          responseText = resultText.trim();
+        }
+        status = 'success';
+      }
+      else if (msg === 'cek layanan') {
+        const products = await db.products.toArray();
+        if (products.length === 0) {
+          responseText = 'Belum ada layanan yang tersedia.';
+        } else {
+          responseText = 'Daftar Layanan Tersedia:\n' + products.map(p => `- ${p.name}: Rp${p.price.toLocaleString('id-ID')} (${p.code || '-'})`).join('\n');
+        }
+        status = 'success';
+      }
+      else if (msg.startsWith('cek inventory')) {
+        const query = msg.substring(13).trim().toLowerCase();
+        const invs = await db.inventory.filter(i => i.status !== 'pending' && i.status !== 'rejected').toArray();
+        
+        let filtered = invs;
+        if (query) {
+          filtered = invs.filter(i => i.nama.toLowerCase().includes(query));
+        }
+        
+        if (filtered.length === 0) {
+          responseText = query ? `Inventory "${query}" tidak ditemukan.` : 'Inventory kosong.';
+        } else {
+          const sorted = filtered.slice(0, 5);
+          responseText = `Ditemukan ${filtered.length} inventory. Menampilkan maks 5:\n` + 
+            sorted.map(i => `- ${i.nama}: ${i.stok || 0} ${i.unit || 'pcs'}`).join('\n');
+        }
+        status = 'success';
+      }
+      else {
+        responseText = 'Perintah "cek" tidak dikenali. Ketik "cek" untuk panduan.';
+        status = 'failed';
+      }
+    }
+    else if (msg.startsWith('trx ') && msg !== 'trx') {
       intent = 'trx';
-      const layananInput = trxMatch[1];
-      const berat = parseFloat(trxMatch[2]);
+      const body = msg.substring(4).trim();
+      const parts = body.split(',');
       
-      if (berat <= 0) {
-        responseText = 'Berat cucian harus lebih dari 0 kg.';
+      const parsedItems = [];
+      let extraInfo = '';
+      let formatValid = true;
+      let errorMsg = '';
+      
+      for (let i = 0; i < parts.length; i++) {
+        let part = parts[i].trim();
+        if (i === parts.length - 1) {
+            const match = part.match(/^(.+?)\s+(\d+(?:\.\d+)?)\s*kg(?:\s+(.+))?$/i);
+            if (match) {
+                parsedItems.push({ layanan: match[1].trim(), berat: parseFloat(match[2]) });
+                if (match[3]) extraInfo = match[3].trim();
+            } else {
+                formatValid = false;
+                errorMsg = `Format salah pada bagian: "${part}". Gunakan format: layanan beratkg`;
+                break;
+            }
+        } else {
+            const match = part.match(/^(.+?)\s+(\d+(?:\.\d+)?)\s*kg$/i);
+            if (match) {
+                parsedItems.push({ layanan: match[1].trim(), berat: parseFloat(match[2]) });
+            } else {
+                formatValid = false;
+                errorMsg = `Format salah pada bagian: "${part}". Gunakan format: layanan beratkg`;
+                break;
+            }
+        }
+      }
+      
+      if (!formatValid) {
+        responseText = errorMsg;
       } else {
         const products = await db.products.toArray();
-        const matchedProduct = findBestMatch(layananInput, products, ['code', 'name'], 0.4);
+        const validOrderItems = [];
+        let totalAll = 0;
+        let notFound = null;
         
-        if (matchedProduct) {
-          const total = matchedProduct.price * berat;
+        for (const pi of parsedItems) {
+            if (pi.berat <= 0) {
+                notFound = `Berat untuk "${pi.layanan}" harus > 0 kg.`;
+                break;
+            }
+            const matchedProduct = findBestMatch(pi.layanan, products, ['code', 'name'], 0.4);
+            if (matchedProduct) {
+                const subtotalItem = matchedProduct.price * pi.berat;
+                totalAll += subtotalItem;
+                validOrderItems.push({ 
+                    category: matchedProduct.category, 
+                    name: matchedProduct.name, 
+                    price: matchedProduct.price, 
+                    quantity: pi.berat 
+                });
+            } else {
+                notFound = `Layanan "${pi.layanan}" tidak ditemukan.`;
+                break;
+            }
+        }
+        
+        if (notFound) {
+            responseText = notFound;
+        } else {
           const invoiceId = await generateInvoiceId();
-          
           let pelangganNama = 'Via Chat';
           let statusBayar = 'Belum Lunas';
           let estimasi = 0;
           let tipeLayanan = 'Datang Langsung';
           
-          let rawExtra = trxMatch[3];
-          
-          if (rawExtra) {
+          if (extraInfo) {
             // Ekstrak tipe layanan (DL/AJ)
-            rawExtra = rawExtra.replace(/\b(dl|aj)\b/i, (match) => {
+            extraInfo = extraInfo.replace(/\b(dl|aj)\b/i, (match) => {
                 tipeLayanan = match.toUpperCase() === 'AJ' ? 'Jemput/Antar' : 'Datang Langsung';
                 return '';
             });
             
             // Ekstrak estimasi (besok, besok lusa, X hari, Xhari)
-            rawExtra = rawExtra.replace(/\b(besok lusa|besok|\d+\s*hari)\b/i, (match) => {
+            extraInfo = extraInfo.replace(/\b(besok lusa|besok|\d+\s*hari)\b/i, (match) => {
                 const estStr = match.toLowerCase().replace(/\s+/g, '');
                 if (estStr === 'besok') estimasi = 1;
                 else if (estStr === 'besoklusa') estimasi = 2;
@@ -84,7 +238,7 @@ export async function parseChatCommand(message, user) {
             });
             
             // Ekstrak status bayar
-            rawExtra = rawExtra.replace(/\b(lunas|dp|belum bayar|belum lunas)\b/i, (match) => {
+            extraInfo = extraInfo.replace(/\b(lunas|dp|belum bayar|belum lunas)\b/i, (match) => {
                 const s = match.toLowerCase().replace(/\s+/g, ' ');
                 if (s === 'lunas') statusBayar = 'Lunas';
                 else if (s === 'dp') statusBayar = 'DP';
@@ -92,9 +246,10 @@ export async function parseChatCommand(message, user) {
                 return '';
             });
             
-            rawExtra = rawExtra.replace(/\s+/g, ' ').trim();
-            if (rawExtra) pelangganNama = rawExtra;
+            extraInfo = extraInfo.replace(/\s+/g, ' ').trim();
+            if (extraInfo) pelangganNama = extraInfo;
           }
+          
           if (!pelangganNama) pelangganNama = 'Via Chat';
           
           let hp = '-';
@@ -123,28 +278,26 @@ export async function parseChatCommand(message, user) {
             invoiceId,
             userId: user.id,
             pelangganNama: pelangganNama,
-            items: [{ name: matchedProduct.name, price: matchedProduct.price, quantity: berat }],
+            items: validOrderItems,
             tipeLayanan: tipeLayanan,
             estimasi: estimasi,
-            subtotal: total,
-            total: total,
+            subtotal: totalAll,
+            total: totalAll,
             diskon: 0,
             createdAt: new Date().toISOString(),
             status: 'Proses',
             statusBayar: statusBayar,
-            bayar: statusBayar === 'Lunas' ? total : 0,
+            bayar: statusBayar === 'Lunas' ? totalAll : 0,
             kembalian: 0
           };
           if (pelangganId) orderData.pelangganId = pelangganId;
           
           await db.orders.add(orderData);
           
-          responseText = `Transaksi "${matchedProduct.name}" ${berat}kg = Rp${total.toLocaleString('id-ID')} berhasil dibuat dengan invoice ${invoiceId}.`;
+          const itemsResponseStr = validOrderItems.map(i => `${i.category} ${i.name} ${i.quantity}kg`).join(', ');
+          responseText = `Transaksi "${itemsResponseStr}" = Rp${totalAll.toLocaleString('id-ID')} berhasil dibuat dengan invoice ${invoiceId}.`;
           status = 'success';
-          payload = { matchedProduct, berat, total, invoiceId };
-        } else {
-          const productNames = products.map(p => p.name).join(', ');
-          responseText = `Layanan "${layananInput}" tidak ditemukan. Layanan tersedia: ${productNames}.`;
+          payload = { items: validOrderItems, total: totalAll, invoiceId };
         }
       }
     }
@@ -214,7 +367,7 @@ export async function parseChatCommand(message, user) {
       payload = { addedItems, failedItems };
     }
     // 3. Cek intent: Approve Semua Inventory -> "acc semua inventory"
-    else if (msg === 'acc semua inventory') {
+    else if (msg === 'acc semua stok') {
       intent = 'approve_all';
       if (user.role === 'owner') {
         const pendingItems = await db.inventory.filter(i => i.status === 'pending').toArray();
@@ -266,8 +419,8 @@ export async function parseChatCommand(message, user) {
         responseText = 'Akses ditolak. Hanya owner yang dapat menyetujui penambahan inventory.';
       }
     }
-    // 5. Cek intent: Reject Semua Inventory -> "tolak semua"
-    else if (msg === 'tolak semua' || msg === 'tolak semua inventory') {
+    // 5. Cek intent: Reject Semua Stok -> "tolak semua"
+    else if (msg === 'tolak semua stok') {
       intent = 'reject_all';
       if (user.role === 'owner') {
         const pendingItems = await db.inventory.filter(i => i.status === 'pending').toArray();
@@ -315,6 +468,36 @@ export async function parseChatCommand(message, user) {
         }
       } else {
         responseText = 'Akses ditolak. Hanya owner yang dapat menolak penambahan inventory.';
+      }
+    }
+    // 7. Cek intent: Hapus Stok Baru -> "hapus stok <barang>"
+    else if (msg.startsWith('hapus stok ')) {
+      intent = 'hapus_inventory';
+      if (user.role === 'owner') {
+        const itemName = msg.substring(11).trim();
+        const inventories = await db.inventory.toArray();
+        const matchedInv = findBestMatch(itemName, inventories, ['nama'], 0.4);
+        
+        if (matchedInv) {
+          // Cek apakah item sudah digunakan di transaksi
+          const orders = await db.orders.toArray();
+          const isUsed = orders.some(o => 
+            o.inventoryUsed && o.inventoryUsed.some(inv => inv.nama === matchedInv.nama || inv.id === matchedInv.id)
+          );
+          
+          if (isUsed) {
+            responseText = `Gagal menghapus: Stok "${matchedInv.nama}" tidak boleh dihapus karena sudah pernah digunakan pada transaksi.`;
+          } else {
+            await db.inventory.delete(matchedInv.id);
+            responseText = `Stok "${matchedInv.nama}" berhasil dihapus dari sistem.`;
+            status = 'success';
+            payload = { deletedItem: matchedInv };
+          }
+        } else {
+          responseText = `Item "${itemName}" tidak ditemukan di daftar stok.`;
+        }
+      } else {
+        responseText = 'Akses ditolak. Hanya owner yang dapat menghapus stok.';
       }
     }
     // 6. Cek intent: Undo Transaksi Terakhir -> "undo trx terakhir"
@@ -395,7 +578,7 @@ export async function parseChatCommand(message, user) {
     }
     // 9. Intent tidak dikenali
     else {
-      responseText = 'Maaf, perintah tidak dikenali.\n Contoh perintah:\n• Format: trx [layanan] [berat]kg [nama] [bayar] [estimasi] [tipe layanan] \n `trx CLR 5kg agus lunas besok DL`\n• `tambah plastik 100pcs`\n• `acc semua inventory` / `tolak semua`\n• `acc plastik` / `tolak plastik`\n• `undo trx terakhir`\n• `edit trx terakhir 4kg`';
+      responseText = 'Maaf, perintah tidak dikenali.\n\nKetik kata kunci berikut untuk panduan:\n• trx (Panduan Transaksi)\n• tambah (Panduan Tambah Inventory)\n• cek (Panduan Pencarian Data)\n\nPerintah Lainnya:\n• acc semua stok / tolak semua stok\n• undo trx terakhir\n• edit trx terakhir 4kg\n• hapus stok <nama>';
     }
     
   } catch (err) {

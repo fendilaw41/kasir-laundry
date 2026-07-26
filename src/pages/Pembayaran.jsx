@@ -16,7 +16,7 @@ const Pembayaran = () => {
     return (
       <div className="text-center py-5">
         <p>Data transaksi tidak ditemukan.</p>
-        <button className="btn btn-primary" onClick={() => navigate('/transaksi')}>Kembali</button>
+        <button className="btn btn-outline-primary" onClick={() => navigate('/transaksi')}>Kembali</button>
       </div>
     );
   }
@@ -107,10 +107,10 @@ const Pembayaran = () => {
       </div>
 
       <div className="d-grid gap-3 mb-5">
-        <button className="btn btn-primary btn-lg py-3 fw-bold" onClick={() => handleBayar(true)}>
-          Bayar Sekarang
+        <button className="btn btn-outline-primary btn-lg py-3 fw-bold" onClick={() => handleBayar(true)}>
+          <i className="bi bi-wallet2 me-2"></i> Bayar Lunas
         </button>
-        <button className="btn btn-danger btn-lg py-3 fw-bold" onClick={() => handleBayar(false)}>
+        <button className="btn btn-outline-primary btn-lg py-3 fw-bold" onClick={() => handleBayar(false)}>
           Bayar Nanti
         </button>
         <button className="btn btn-outline-secondary btn-lg py-3" onClick={() => navigate('/transaksi')}>

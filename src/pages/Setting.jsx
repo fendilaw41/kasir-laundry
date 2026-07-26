@@ -89,7 +89,7 @@ const Setting = ({ user }) => {
             <div className="d-flex justify-content-between align-items-center mb-3 px-1">
               <h6 className="fw-bold mb-0 text-dark small text-uppercase" style={{ letterSpacing: '1px' }}>Pengaturan Toko</h6>
               {!isEditing && user.role === 'owner' && (
-                <button type="button" className="btn btn-primary btn-sm rounded-pill px-3 fw-bold" onClick={startEditing}>
+                <button type="button" className="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold" onClick={startEditing}>
                   <i className="bi bi-pencil-square me-1"></i> Edit
                 </button>
               )}
@@ -220,10 +220,10 @@ const Setting = ({ user }) => {
 
           {isEditing && (
             <div className="d-flex gap-2 px-1">
-              <button type="button" className="btn btn-light w-100 rounded-pill fw-bold py-2 shadow-sm" onClick={() => { setIsEditing(false); setFormData(settings); }}>
+              <button type="button" className="btn btn-outline-primary w-100 rounded-pill fw-bold py-2 shadow-sm" onClick={() => { setIsEditing(false); setFormData(settings); }}>
                 Batal
               </button>
-              <button type="submit" className="btn btn-primary w-100 rounded-pill fw-bold py-2 shadow-sm">
+              <button type="submit" className="btn btn-outline-primary w-100 rounded-pill fw-bold py-2 shadow-sm">
                 Simpan
               </button>
             </div>
@@ -235,7 +235,7 @@ const Setting = ({ user }) => {
           <div className="mt-5 mb-5">
             <div className="d-flex justify-content-between align-items-center mb-3 px-1">
               <h6 className="fw-bold mb-0 text-dark small text-uppercase" style={{ letterSpacing: '1px' }}>Manajemen Kasir</h6>
-              <button className="btn btn-success btn-sm rounded-pill px-3 fw-bold" onClick={() => openUserModal()}>
+              <button className="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold" onClick={() => openUserModal()}>
                 Tambah
               </button>
 

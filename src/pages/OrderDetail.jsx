@@ -250,7 +250,7 @@ const OrderDetail = () => {
               <div className="fw-bold text-muted mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>LAYANAN / PRODUK</div>
               {order.items.map((item, idx) => (
                 <div key={idx} className="d-flex justify-content-between mb-1" style={{ fontSize: '0.75rem' }}>
-                  <span>{item.quantity}x <span className="text-dark">{item.name}</span></span>
+                  <span>{item.quantity}x <span className="text-dark text-capitalize">{(item.category || '').toLowerCase()} <span className="d-inline-block">{item.name}</span></span></span>
                   <span className="text-dark fw-bold">Rp {(item.price * item.quantity).toLocaleString()}</span>
                 </div>
               ))}
@@ -305,7 +305,7 @@ const OrderDetail = () => {
       <div className="row g-2 px-1">
         <div className="col-6">
           <div className="dropdown">
-            <button className="btn btn-info w-100 py-3 fw-bold text-white dropdown-toggle shadow-sm" type="button" data-bs-toggle="dropdown">
+            <button className="btn btn-outline-primary w-100 py-3 fw-bold dropdown-toggle shadow-sm" type="button" data-bs-toggle="dropdown">
               <i className="bi bi-printer me-2"></i>Cetak
             </button>
             <ul className="dropdown-menu shadow border-0 w-100">
@@ -319,7 +319,7 @@ const OrderDetail = () => {
 
         <div className="col-6">
           <div className="dropdown">
-            <button className="btn btn-warning w-100 py-3 fw-bold dropdown-toggle shadow-sm" type="button" data-bs-toggle="dropdown">
+            <button className="btn btn-outline-primary w-100 py-3 fw-bold dropdown-toggle shadow-sm" type="button" data-bs-toggle="dropdown">
               <i className="bi bi-gear-fill me-2"></i>Aksi
             </button>
             <ul className="dropdown-menu dropdown-menu-end shadow border-0 w-100">
@@ -335,7 +335,7 @@ const OrderDetail = () => {
         </div>
 
         <div className="col-12">
-          <button className="btn btn-success w-100 py-3 fw-bold shadow-sm mb-1" onClick={sendWhatsApp}>
+          <button className="btn btn-outline-primary w-100 py-3 fw-bold shadow-sm mb-1" onClick={sendWhatsApp}>
             <i className="bi bi-whatsapp me-2"></i>Kirim WhatsApp
           </button>
         </div>
@@ -390,9 +390,9 @@ const OrderDetail = () => {
                       const activeItem = selectedInventory.find(s => s.id === inv.id);
                       const isActive = !!activeItem;
                       return (
-                        <div key={inv.id} className={`d-flex align-items-center justify-content-between p-3 rounded-4 border transition-all ${isActive ? 'bg-outline-success text-dark border-success shadow-sm' : 'bg-white text-dark shadow-sm'}`}>
+                        <div key={inv.id} className={`d-flex align-items-center justify-content-between p-3 rounded-4 border transition-all ${isActive ? 'bg-outline-primary text-dark border-primary shadow-sm' : 'bg-white text-dark shadow-sm'}`}>
                           <div className="d-flex align-items-center gap-3 flex-grow-1" style={{ cursor: 'pointer' }} onClick={() => toggleInventory(inv)}>
-                            <i className={`bi ${isActive ? 'bi-check-circle-fill' : 'bi-box-seam'} fs-4`}></i>
+                            <i className={`bi ${isActive ? 'bi-check-circle-fill text-primary' : 'bi-box-seam'} fs-4`}></i>
                             <div>
                                <div className="fw-bold">{inv.nama}</div>
                                <small className={isActive ? 'text-primary-50' : 'text-muted'}>Sisa Stok: {inv.stok}</small>
@@ -401,11 +401,11 @@ const OrderDetail = () => {
                           {isActive && (
                             <div className="d-flex align-items-center gap-2 bg-white rounded-pill p-1 shadow-sm" onClick={e => e.stopPropagation()}>
                               <button className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center" style={{ width: '16px', height: '16px' }} onClick={() => updateInventoryQty(inv.id, -1)}>
-                                <i className="bi bi-dash text-dark"></i>
+                                <i className="bi bi-dash text-primary"></i>
                               </button>
-                              <span className="fw-bold text-dark px-1" style={{ fontSize: '0.9rem', minWidth: '20px', textAlign: 'center' }}>{activeItem.quantity || 1}</span>
+                              <span className="fw-bold text-primary px-1" style={{ fontSize: '0.9rem', minWidth: '20px', textAlign: 'center' }}>{activeItem.quantity || 1}</span>
                               <button className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center" style={{ width: '16px', height: '16px' }} onClick={() => updateInventoryQty(inv.id, 1)}>
-                                <i className="bi bi-plus text-dark"></i>
+                                <i className="bi bi-plus text-primary"></i>
                               </button>
                             </div>
                           )}
@@ -445,7 +445,7 @@ const OrderDetail = () => {
                     placeholder="Contoh: 081234567890"
                     autoFocus
                   />
-                  <button className="btn btn-success w-100 rounded-pill fw-bold py-3 shadow-sm" onClick={saveHpAndSend}>
+                  <button className="btn btn-outline-primary w-100 rounded-pill fw-bold py-3 shadow-sm" onClick={saveHpAndSend}>
                     <i className="bi bi-whatsapp me-2"></i>Simpan & Kirim
                   </button>
                 </div>
@@ -469,8 +469,8 @@ const OrderDetail = () => {
                   <h5 className="fw-bold mb-2">Konfirmasi Status</h5>
                   <p className="text-muted small mb-4">Apakah Anda yakin ingin mengembalikan status order ini ke <strong>PROSES</strong>?</p>
                   <div className="d-flex gap-2">
-                    <button className="btn btn-light w-100 fw-bold py-2" onClick={() => setShowConfirmModal(false)} style={{ borderRadius: '10px' }}>Batal</button>
-                    <button className="btn btn-primary w-100 fw-bold py-2" onClick={() => updateStatus('Proses')} style={{ borderRadius: '10px' }}>Ya, Proses</button>
+                    <button className="btn btn-outline-primary w-100 fw-bold py-2" onClick={() => setShowConfirmModal(false)} style={{ borderRadius: '10px' }}>Batal</button>
+                    <button className="btn btn-outline-primary w-100 fw-bold py-2" onClick={() => updateStatus('Proses')} style={{ borderRadius: '10px' }}>Ya, Proses</button>
                   </div>
                 </div>
               </div>

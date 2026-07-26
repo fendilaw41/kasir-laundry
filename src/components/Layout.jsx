@@ -154,8 +154,8 @@ const Layout = ({ user, onLogout }) => {
                 <h6 className="fw-bold mb-2">Konfirmasi</h6>
                 <p className="text-muted small mb-4" style={{ whiteSpace: 'pre-wrap' }}>{confirmModal.message}</p>
                 <div className="d-flex gap-2">
-                  <button className="btn btn-light rounded-pill w-50 fw-bold" onClick={() => setConfirmModal({ show: false, message: '', onConfirm: null })}>Batal</button>
-                  <button className="btn btn-primary rounded-pill w-50 fw-bold" onClick={() => { if(confirmModal.onConfirm) confirmModal.onConfirm(); }}>Lanjutkan</button>
+                  <button className="btn btn-outline-primary rounded-pill w-50 fw-bold" onClick={() => setConfirmModal({ show: false, message: '', onConfirm: null })}>Batal</button>
+                  <button className="btn btn-outline-primary rounded-pill w-50 fw-bold" onClick={() => { if(confirmModal.onConfirm) confirmModal.onConfirm(); }}>Lanjutkan</button>
                 </div>
               </div>
             </div>

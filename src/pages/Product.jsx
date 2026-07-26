@@ -65,12 +65,13 @@ const Product = () => {
               {/* Product Image/Icon Area */}
               <div className="p-3 bg-light m-2 rounded-4 text-center position-relative" style={{ height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span className="badge bg-warning position-absolute top-0 end-0 m-2 shadow-sm" style={{ fontSize: '0.65rem' }}>{product.category}</span>
+                <span className="badge bg-warning position-absolute bottom-0 end-0 m-2 shadow-sm" style={{ fontSize: '0.65rem' }}>{product.code}</span>
                 <i className={`bi ${product.category.includes('SETRIKA') ? 'bi-fire' : 'bi-water'} text-primary opacity-25`} style={{ fontSize: '3.5rem' }}></i>
               </div>
 
               <div className="card-body p-3 pt-0">
                 {/* Product Info */}
-                <h6 className="fw-bold mb-1 text-dark text-truncate" style={{ fontSize: '0.7rem' }}>{product.name.split(' (')[0]} {product.code}</h6>
+                <h6 className="fw-bold mb-1 text-dark text-truncate" style={{ fontSize: '0.7rem' }}>{product.name.split(' (')[0]}</h6>
                 <div className="d-flex align-items-baseline gap-2 mb-3">
                   <span className="fw-bold text-primary" style={{ fontSize: '1rem' }}>
                     Rp {product.price.toLocaleString()}
