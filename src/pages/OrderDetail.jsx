@@ -211,7 +211,7 @@ const OrderDetail = () => {
             <span>Catatan :</span>
             <div className="text-end">
               <span className="fw-bold text-primary small d-block">{order.catatan || '-'}</span>
-              <small className="text-muted" style={{ fontSize: '0.65rem' }}><i className="bi bi-pencil-square me-1"></i>Edit Catatan</small>
+              <small className="text-muted" style={{ fontSize: '0.65rem' }}><i className="bi bi-pencil-square me-1"></i>Catatan</small>
             </div>
           </div>
         </div>
@@ -349,7 +349,7 @@ const OrderDetail = () => {
             <div className="modal-dialog modal-dialog-centered mx-3">
               <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '24px' }}>
                 <div className="modal-header border-0 pb-0 pt-4 px-4">
-                  <h5 className="fw-bold mb-0">Edit Catatan</h5>
+                  <h5 className="fw-bold mb-0">Catatan</h5>
                   <button type="button" className="btn-close" onClick={() => setShowNoteModal(false)}></button>
                 </div>
                 <div className="modal-body p-4">
