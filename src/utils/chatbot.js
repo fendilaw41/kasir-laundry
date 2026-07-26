@@ -217,7 +217,7 @@ export async function parseChatCommand(message, user) {
         } else {
           const invoiceId = await generateInvoiceId();
           let pelangganNama = 'Via Chat';
-          let statusBayar = 'Belum Lunas';
+          let statusBayar = 'Belum Bayar';
           let estimasi = 0;
           let tipeLayanan = 'Datang Langsung';
           
@@ -242,7 +242,8 @@ export async function parseChatCommand(message, user) {
                 const s = match.toLowerCase().replace(/\s+/g, ' ');
                 if (s === 'lunas') statusBayar = 'Lunas';
                 else if (s === 'dp') statusBayar = 'DP';
-                else statusBayar = 'Belum Lunas';
+                else if (s === 'belum lunas') statusBayar = 'Belum Lunas';
+                else statusBayar = 'Belum Bayar';
                 return '';
             });
             
