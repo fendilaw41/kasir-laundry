@@ -2,8 +2,7 @@
  * Utilitas untuk mencetak langsung ke printer Bluetooth menggunakan Web Bluetooth API
  * Mengirimkan perintah ESC/POS biner
  */
-
-export const printDirectBluetooth = async (order, pelanggan) => {
+export const printDirectBluetooth = async (order, pelanggan, settings = null) => {
   if (!order) return;
 
   try {
@@ -15,14 +14,14 @@ export const printDirectBluetooth = async (order, pelanggan) => {
 
     // 2. Hubungkan ke GATT Server
     const server = await device.gatt.connect();
-    
+
     // 3. Dapatkan service dan karakteristik untuk menulis data
     const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
     const characteristic = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
 
     // 4. Siapkan perintah ESC/POS
     const encoder = new TextEncoder();
-    
+
     // Helper untuk biner
     const ESC = 0x1B;
     const GS = 0x1D;
@@ -51,14 +50,16 @@ export const printDirectBluetooth = async (order, pelanggan) => {
       ...commands.reset,
       ...commands.center,
       ...commands.boldOn,
-      ...encoder.encode("KEENAN LAUNDRY\n"),
+      ...commands.boldOn,
+      ...encoder.encode(`${(settings?.namaLaundry || 'TOKO LAUNDRY').toUpperCase()}\n`),
       ...commands.boldOff,
-      ...encoder.encode("Jl. Imam Bonjol 007\n"),
-      ...encoder.encode("NGANJUK\n"),
-      ...encoder.encode("Telp: 087853131099\n"),
+      ...encoder.encode(`${settings?.motto || 'Solusi Laundry Bersih & Cepat'}\n`),
+      ...encoder.encode(`${settings?.alamat || 'Jl. Imam Bonjol 007'}\n`),
+      ...encoder.encode(`${settings?.kota || 'NGANJUK'}\n`),
+      ...encoder.encode(`Telp: ${settings?.telepon || '087853131099'}\n`),
       ...encoder.encode("--------------------------------\n"),
       ...commands.left,
-      ...encoder.encode(`Tgl     : ${new Date(order.createdAt).toLocaleDateString('id-ID')} ${new Date(order.createdAt).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})}\n`),
+      ...encoder.encode(`Tgl     : ${new Date(order.createdAt).toLocaleDateString('id-ID')} ${new Date(order.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}\n`),
       ...encoder.encode(`Nota    : ${order.invoiceId}\n`),
       ...encoder.encode(`Customer: ${pelanggan?.nama || 'Umum'}\n`),
       ...encoder.encode("--------------------------------\n"),
@@ -96,8 +97,8 @@ export const printDirectBluetooth = async (order, pelanggan) => {
       ...encoder.encode(formatRow("KEMBALI", (order.kembalian || 0).toLocaleString())),
       ...encoder.encode("--------------------------------\n"),
       ...commands.center,
-      ...encoder.encode("Terima kasih atas kunjungan anda\n"),
-      ...encoder.encode("kasirlaundry.my.id\n"),
+      ...encoder.encode(`${settings?.headerStruk || 'Terima kasih atas kunjungan anda'}\n`),
+      ...encoder.encode(`${settings?.footerStruk || 'kasirlaundry.my.id'}\n`),
       ...commands.feed,
       ...commands.cut
     ]);
@@ -109,9 +110,9 @@ export const printDirectBluetooth = async (order, pelanggan) => {
   } catch (error) {
     console.error("Bluetooth Print Error: ", error);
     if (error.name === 'NotFoundError') {
-       // User membatalkan pemilihan device
+      // User membatalkan pemilihan device
     } else {
-       alert("Gagal terhubung ke printer. Pastikan Bluetooth aktif dan printer dalam mode pairing.");
+      alert("Gagal terhubung ke printer. Pastikan Bluetooth aktif dan printer dalam mode pairing.");
     }
   }
 };

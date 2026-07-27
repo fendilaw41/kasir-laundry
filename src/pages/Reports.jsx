@@ -56,14 +56,15 @@ const Reports = () => {
   const handleDownload = () => {
     if (!data || data.length === 0) return alert('Tidak ada data untuk didownload');
 
-    const headers = ['Tanggal', 'Invoice', 'Pelanggan', 'Layanan', 'Total', 'Status Bayar'];
+    const headers = ['Tanggal', 'Invoice', 'Pelanggan', 'Layanan', 'Total', 'Status Bayar', 'Metode Bayar'];
     const rows = data.map(o => [
       new Date(o.createdAt).toLocaleString('id-ID'),
       o.invoiceId,
       o.pelangganNama || 'Umum',
       o.tipeLayanan,
       o.total,
-      o.statusBayar
+      o.statusBayar,
+      o.metodeBayar || '-'
     ]);
 
     let content = headers.join(',') + '\n' + rows.map(r => r.join(',')).join('\n');
@@ -227,9 +228,14 @@ const Reports = () => {
                             <i className="bi bi-calendar3 me-1"></i> {new Date(order.createdAt).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })} • {new Date(order.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                           </div>
                           <div>
-                            <span className="badge rounded-pill bg-light text-primary border-0 px-3 py-2" style={{ fontSize: '0.65rem', fontWeight: '600' }}>
+                            <span className="badge rounded-pill bg-light text-primary border-0 px-2 py-1 me-1 mb-1" style={{ fontSize: '0.65rem', fontWeight: '600' }}>
                               <i className="bi bi-tag-fill me-1"></i> {order.tipeLayanan}
                             </span>
+                            {order.metodeBayar && (
+                              <span className="badge rounded-pill bg-light text-success border-0 px-2 py-1 mb-1" style={{ fontSize: '0.65rem', fontWeight: '600' }}>
+                                <i className="bi bi-wallet2 me-1"></i> {order.metodeBayar}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>

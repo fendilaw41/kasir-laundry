@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { createOrderFromCheckout } from '../db/repositories/orders';
+import { createOrderFromCheckout, updateOrder } from '../db/repositories/orders';
 import { clearDraftOrder } from '../db/repositories/draftOrder';
 import toast from 'react-hot-toast';
 
@@ -8,6 +8,7 @@ const Pembayaran = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const orderData = location.state?.orderData;
+  const isPaymentOnly = location.state?.isPaymentOnly;
 
   const [jumlahBayar, setJumlahBayar] = useState('');
   const [metodeBayar, setMetodeBayar] = useState(orderData?.metodeBayar || 'Tunai');
@@ -22,35 +23,50 @@ const Pembayaran = () => {
   }
 
   const total = orderData.total;
+  const currentSisa = isPaymentOnly ? (total - (orderData.bayar || 0)) : total;
   const bayarNum = parseInt(jumlahBayar || 0);
-  const kembalian = bayarNum - total;
+  const kembalian = bayarNum - currentSisa;
 
   const handleBayar = async (isLunas) => {
     try {
-      const newId = await createOrderFromCheckout({
-        orderData,
-        bayarNum,
-        kembalian,
-        isLunas
-      });
+      if (isPaymentOnly) {
+        const newBayar = (orderData.bayar || 0) + bayarNum;
+        await updateOrder(orderData.id, {
+          statusBayar: isLunas ? 'Lunas' : 'Belum Lunas',
+          metodeBayar,
+          bayar: isLunas ? Math.max(total, newBayar) : newBayar,
+          kembalian: isLunas ? Math.max(0, newBayar - total) : 0
+        });
+        toast.success('Pembayaran berhasil diperbarui!', {
+          style: { borderRadius: '10px', background: '#333', color: '#fff' }
+        });
+        navigate(`/order/${orderData.id}`);
+      } else {
+        const newId = await createOrderFromCheckout({
+          orderData,
+          bayarNum,
+          kembalian,
+          isLunas
+        });
 
-      await clearDraftOrder();
-      toast.success(`Transaksi berhasil dibuat`, {
-        style: {
-          borderRadius: '10px',
-          background: '#333',
-          color: '#fff',
-        },
-      });
-      navigate(`/order/${newId}`);
+        await clearDraftOrder();
+        toast.success(`Transaksi berhasil dibuat`, {
+          style: {
+            borderRadius: '10px',
+            background: '#333',
+            color: '#fff',
+          },
+        });
+        navigate(`/order/${newId}`);
+      }
     } catch (error) {
-      toast.error('Gagal membuat transaksi: ' + error.message);
+      toast.error(isPaymentOnly ? 'Gagal memperbarui pembayaran: ' + error.message : 'Gagal membuat transaksi: ' + error.message);
     }
   };
 
   const setNominal = (val) => {
     if (val === 'pas') {
-      setJumlahBayar(total.toString());
+      setJumlahBayar(currentSisa.toString());
     } else {
       setJumlahBayar(val.toString());
     }
@@ -59,7 +75,7 @@ const Pembayaran = () => {
   return (
     <div className="pembayaran-wrapper py-4">
       <div className="text-center mb-4">
-        <h4 className="fw-bold">Subtotal : Rp {total.toLocaleString()}</h4>
+        <h4 className="fw-bold">{isPaymentOnly ? 'Sisa Tagihan' : 'Subtotal'} : Rp {currentSisa.toLocaleString()}</h4>
       </div>
 
       <div className="mb-4">
@@ -113,7 +129,7 @@ const Pembayaran = () => {
         <button className="btn btn-outline-primary btn-lg py-3 fw-bold" onClick={() => handleBayar(false)}>
           Bayar Nanti
         </button>
-        <button className="btn btn-outline-secondary btn-lg py-3" onClick={() => navigate('/transaksi')}>
+        <button className="btn btn-outline-secondary btn-lg py-3" onClick={() => isPaymentOnly ? navigate(`/order/${orderData.id}`) : navigate('/transaksi')}>
           Kembali
         </button>
       </div>

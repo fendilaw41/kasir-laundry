@@ -1,4 +1,4 @@
-export const formatWhatsAppMessage = (order, pelanggan) => {
+export const formatWhatsAppMessage = (order, pelanggan, settings = null) => {
   const phone = pelanggan?.hp || '';
   if (!phone) return null;
 
@@ -11,7 +11,11 @@ export const formatWhatsAppMessage = (order, pelanggan) => {
     itemsText += `${item.name} (Rp${item.price.toLocaleString()} x ${item.quantity})\nRp${(item.price * item.quantity).toLocaleString()}\n`;
   });
 
-  const text = `*Keenan Laundry*
+  const laundryName = settings?.namaLaundry || 'Kasir Laundry';
+  const motto = settings?.motto || 'Solusi Laundry Bersih & Cepat';
+
+  const text = `*${laundryName}*
+${motto}
 ------------------------------
 No Nota : #${order.invoiceId || 'KL'}
 Tanggal : ${tgl}

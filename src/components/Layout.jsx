@@ -1,11 +1,16 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { getSettingsQuery } from '../db/repositories/settings';
 
 const Layout = ({ user, onLogout }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [showChatOptions, setShowChatOptions] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
+  const settings = useLiveQuery(getSettingsQuery);
+
+  const titleApp = settings?.namaLaundry || 'Kasir Laundry';
 
   // Daftar menu utama (yang ada di footer)
   const mainMenus = ['/', '/product', '/transaksi', '/orders'];
@@ -18,7 +23,7 @@ const Layout = ({ user, onLogout }) => {
     if (path.startsWith('/order/')) return 'Detail Order';
     if (path === '/product') return 'Pilih Layanan';
     if (path === '/chat') return 'Assisten Chat';
-    return 'Kasir Laundry';
+    return titleApp;
   };
 
   return (
@@ -31,7 +36,7 @@ const Layout = ({ user, onLogout }) => {
               {/* Tampilan Menu Utama (Logo & Toggler) */}
               <div className="logo-wrapper">
                 <Link to="/">
-                  <h5 className="mb-0 fw-bold text-primary">Kasir Laundry</h5>
+                  <h5 className="mb-0 fw-bold text-primary">{titleApp}</h5>
                 </Link>
               </div>
               <div className="navbar--toggler" id="affanNavbarToggler" onClick={onLogout} style={{ cursor: 'pointer' }}>

@@ -1,12 +1,21 @@
-export const printViaRawBT = (order, pelanggan) => {
+export const printViaRawBT = (order, pelanggan, settings = null) => {
   if (!order) return;
 
   // Header & Info Laundry
+  const centerText = (str, width = 32) => {
+    if (!str) return ' '.repeat(width);
+    const padding = Math.max(0, width - str.length);
+    const padLeft = Math.floor(padding / 2);
+    const padRight = padding - padLeft;
+    return ' '.repeat(padLeft) + str + ' '.repeat(padRight);
+  };
+
   let text = "";
-  text += "      KEENAN LAUNDRY      \n"; // 26 chars
-  text += "  Jl. Imam Bonjol 007    \n";
-  text += "        NGANJUK          \n";
-  text += "  Telp: 087853131099     \n";
+  text += centerText((settings?.namaLaundry || "KASIR LAUNDRY").toUpperCase()) + "\n";
+  text += centerText(settings?.motto || "Solusi Laundry Bersih & Cepat") + "\n";
+  text += centerText(settings?.alamat || "Jl. Imam Bonjol 007") + "\n";
+  text += centerText(settings?.kota || "NGANJUK") + "\n";
+  text += centerText(`Telp: ${settings?.telepon || '087853131099'}`) + "\n";
   text += "--------------------------------\n"; // 32 chars (standard 58mm)
 
   // Info Transaksi
@@ -44,11 +53,17 @@ export const printViaRawBT = (order, pelanggan) => {
 
   // Footer
   text += "--------------------------------\n";
-  text += "   Terima kasih atas kunjungan  \n";
-  text += "              anda              \n";
-  text += "   Kami menerima Cuci Karpet,   \n";
-  text += "   Bedcover, Boneka, Satuan     \n";
-  text += "      kasirlaundry.my.id        \n";
+
+  const footerLines = (settings?.headerStruk || "Terima kasih atas kunjungan anda").split('\n');
+  footerLines.forEach(line => {
+    text += centerText(line) + "\n";
+  });
+
+  const footerStruk = (settings?.footerStruk || "kasirlaundry.my.id").split('\n');
+  footerStruk.forEach(line => {
+    text += centerText(line) + "\n";
+  });
+
   text += "\n\n\n\n"; // Feed paper
 
   // Convert to Base64 (UTF-8 safe)

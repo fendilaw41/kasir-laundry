@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { getSettingsQuery } from './db/repositories/settings';
 import { Toaster } from 'react-hot-toast';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -20,6 +22,14 @@ function App() {
     const loggedInUser = sessionStorage.getItem('user');
     return loggedInUser ? JSON.parse(loggedInUser) : null;
   });
+
+  const settings = useLiveQuery(getSettingsQuery);
+
+  useEffect(() => {
+    if (settings && settings.namaLaundry) {
+      document.title = settings.namaLaundry;
+    }
+  }, [settings]);
 
   const handleLogin = (userData) => {
     const { password: _, ...safeUser } = userData;
