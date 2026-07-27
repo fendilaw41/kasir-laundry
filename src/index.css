@@ -119,18 +119,36 @@ body {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* Cegah popup select/cari Google saat long-press di elemen interaktif */
-button, .btn, .card, .icon-circle, [role="button"], a {
-  -webkit-touch-callout: none;   /* blok context menu iOS Safari */
-  -webkit-user-select: none;     /* blok select teks Safari/Chrome iOS */
-  -khtml-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;             /* blok select teks standar */
-  touch-action: manipulation;    /* hilangkan delay/gesture ganda */
+/* Blokir semua seleksi teks dan popup (termasuk di dalam modal/popup) secara global */
+* {
+    -webkit-touch-callout: none; /* blok context menu iOS Safari */
+    -webkit-user-select: none;   /* blok select teks Safari/Chrome iOS */
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;           /* blok select teks standar */
+    -webkit-tap-highlight-color: transparent; /* hilangkan highlight saat tap di Android */
 }
 
-/* Opsional: hilangkan highlight biru/abu saat tap di Android */
-* {
-  -webkit-tap-highlight-color: transparent;
+/* Kembalikan kemampuan seleksi teks pada input dan textarea agar tetap bisa diisi */
+input,
+textarea,
+select,
+[contenteditable="true"] {
+    -webkit-touch-callout: default;
+    -webkit-user-select: auto;
+    -khtml-user-select: auto;
+    -moz-user-select: auto;
+    -ms-user-select: auto;
+    user-select: auto;
+}
+
+/* Pertahankan touch-action manipulation untuk elemen interaktif agar tidak ada delay tap */
+button,
+.btn,
+.card,
+.icon-circle,
+[role="button"],
+a {
+    touch-action: manipulation;
 }
