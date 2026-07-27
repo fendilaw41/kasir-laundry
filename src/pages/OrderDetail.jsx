@@ -405,7 +405,7 @@ const OrderDetail = () => {
                   <div className="modal-body p-4">
                     <label className="small fw-bold text-muted text-uppercase mb-3">Pilih Inventori & Jumlahnya</label>
                     <div className="d-flex flex-column gap-2 mb-4 max-h-50 overflow-auto">
-                      {allInventory?.map(inv => {
+                      {allInventory?.filter(inv => !(inv.status === 'pending' && inv.stok === 0)).map(inv => {
                         const activeItem = selectedInventory.find(s => s.id === inv.id);
                         const isActive = !!activeItem;
                         return (

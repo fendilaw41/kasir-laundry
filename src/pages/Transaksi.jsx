@@ -99,7 +99,7 @@ const Transaksi = () => {
               .inventory-scroller::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
               .inventory-scroller::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
             `}</style>
-            {inventory?.map(inv => {
+            {inventory?.filter(inv => !(inv.status === 'pending' && inv.stok === 0)).map(inv => {
               const activeItem = selectedInventory.find(s => s.id === inv.id);
               const isActive = !!activeItem;
               return (

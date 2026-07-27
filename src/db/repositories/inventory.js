@@ -32,20 +32,20 @@ export const rejectInventory = async (item) => {
   if (!item || !item.id) throw new Error('Item tidak valid');
   return await db.inventory.update(item.id, {
     qty: 0,
-    status: 'rejected'
+    status: 'approved' // Kembali ke approved agar item tidak hilang dari daftar Selesai
   });
 };
 
 export const addInventoryManual = async (nama, stok) => {
   if (!nama) throw new Error('Nama barang wajib diisi');
   const qty = Number(stok) || 0;
-  
+
   const existing = await db.inventory.toArray();
   const existingItem = existing.find(i => i.nama.toLowerCase() === nama.toLowerCase());
-  
+
   if (existingItem) {
-    return await db.inventory.update(existingItem.id, { 
-      stok: (existingItem.stok || 0) + qty 
+    return await db.inventory.update(existingItem.id, {
+      stok: (existingItem.stok || 0) + qty
     });
   } else {
     return await db.inventory.add({ nama, stok: qty, status: 'approved' });

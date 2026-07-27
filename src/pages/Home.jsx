@@ -111,14 +111,14 @@ const Home = ({ user }) => {
       <div className="card shadow-sm border-0 mt-4 mx-3" style={{ borderRadius: '20px', background: '#fff' }}>
         <div className="card-body p-4">
           <div className="row g-2 text-center align-items-start">
-            
+
             {/* Proses */}
             <div className="col-3">
               <Link to="/orders?tab=Proses" className="text-decoration-none customer-card-clickable d-block">
                 <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
                   <i className="bi bi-bag-check fs-5"></i>
                 </div>
-                <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Order<br/>Proses</span>
+                <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Order<br />Proses</span>
               </Link>
             </div>
 
@@ -128,7 +128,7 @@ const Home = ({ user }) => {
                 <div className="mx-auto text-primary rounded-1 border-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
                   <i className="bi bi-box-seam fs-5"></i>
                 </div>
-                <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Siap<br/>Ambil</span>
+                <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Siap<br />Ambil</span>
               </Link>
             </div>
 
@@ -153,14 +153,14 @@ const Home = ({ user }) => {
             </div>
 
             {/* Report */}
-              <div className="col-3">
-                <Link to="/reports" className="text-decoration-none customer-card-clickable d-block">
-                  <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
-                    <i className="bi bi-bar-chart-fill fs-5"></i>
-                  </div>
-                  <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Laporan</span>
-                </Link>
-              </div>
+            <div className="col-3">
+              <Link to="/reports" className="text-decoration-none customer-card-clickable d-block">
+                <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
+                  <i className="bi bi-bar-chart-fill fs-5"></i>
+                </div>
+                <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Laporan</span>
+              </Link>
+            </div>
 
             {/* Setting */}
             <div className="col-3">
@@ -213,8 +213,8 @@ const Home = ({ user }) => {
 
       {/* Inventory Pending Alert (Khusus Owner) */}
       {user?.role === 'owner' && inventory?.filter(i => i.status === 'pending').length > 0 && (
-        <div 
-          className="alert alert-info border-0 shadow-sm d-flex align-items-center mx-3 mt-3" 
+        <div
+          className="alert alert-info border-0 shadow-sm d-flex align-items-center mx-3 mt-3"
           style={{ borderRadius: '12px', cursor: 'pointer', backgroundColor: '#e3f2fd' }}
           onClick={() => {
             setInventoryTab('pending');
@@ -308,19 +308,19 @@ const Home = ({ user }) => {
                             <div className="flex-grow-1 overflow-hidden" onClick={() => handleSelectPelanggan(p)}>
                               <h6 className="mb-0 fw-bold text-dark text-truncate">{p.nama}</h6>
                               <div className="text-muted d-flex align-items-center gap-1" style={{ fontSize: '0.75rem' }}>
-                                <i className="bi bi-whatsapp text-success flex-shrink-0"></i> 
+                                <i className="bi bi-whatsapp text-success flex-shrink-0"></i>
                                 <span className="text-truncate">{p.hp}</span>
                               </div>
                             </div>
                             <div className="ms-1 d-flex gap-1 flex-shrink-0">
-                              <button 
+                              <button
                                 className="btn btn-sm btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center"
                                 style={{ width: '32px', height: '32px' }}
                                 onClick={(e) => { e.stopPropagation(); setEditPelanggan({ show: true, data: { ...p } }); }}
                               >
                                 <i className="bi bi-pencil-square text-primary"></i>
                               </button>
-                              <button 
+                              <button
                                 className="btn btn-sm btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center"
                                 style={{ width: '32px', height: '32px' }}
                                 onClick={(e) => { e.stopPropagation(); handleSelectPelanggan(p); }}
@@ -417,7 +417,7 @@ const Home = ({ user }) => {
                         const form = e.target;
                         const nama = form.nama.value;
                         const stok = parseInt(form.stok.value);
-                        
+
                         setConfirmModal({
                           show: true,
                           message: `Konfirmasi penambahan stok manual:\n\nNama Barang: ${nama}\nJumlah: ${stok}\n\nApakah data sudah sesuai?`,
@@ -465,13 +465,13 @@ const Home = ({ user }) => {
 
                   {/* Tab Inventory */}
                   <div className="d-flex bg-white rounded-pill p-1 shadow-sm mb-3">
-                    <button 
+                    <button
                       className={`btn flex-fill rounded-pill py-2 border-0 ${inventoryTab === 'selesai' ? 'btn-primary' : 'btn-light text-muted bg-transparent'}`}
                       onClick={() => setInventoryTab('selesai')}
                     >
                       Selesai
                     </button>
-                    <button 
+                    <button
                       className={`btn flex-fill rounded-pill py-2 border-0 ${inventoryTab === 'pending' ? 'btn-primary' : 'btn-light text-muted bg-transparent'}`}
                       onClick={() => setInventoryTab('pending')}
                     >
@@ -483,7 +483,7 @@ const Home = ({ user }) => {
                   <div className="inventory-list">
                     {inventory?.filter(item => {
                       const matchSearch = item.nama.toLowerCase().includes(searchInventory.toLowerCase());
-                      const matchTab = inventoryTab === 'pending' ? item.status === 'pending' : (item.status === 'approved' || item.status === undefined);
+                      const matchTab = inventoryTab === 'pending' ? item.status === 'pending' : (item.status !== 'rejected' && !(item.status === 'pending' && item.stok === 0));
                       return matchSearch && matchTab;
                     }).map(item => (
                       <div key={item.id} className="card border-0 mb-3 rounded-4 shadow-sm overflow-hidden" style={{ background: '#fff' }}>
@@ -495,8 +495,8 @@ const Home = ({ user }) => {
                             <div>
                               <div className="d-flex align-items-center mb-1">
                                 <h6 className="fw-bold mb-0 text-dark" style={{ maxWidth: '140px', fontSize: '12px', wordWrap: 'break-word' }}>{item.nama}</h6>
-                                <i 
-                                  className="bi bi-copy text-muted ms-2" 
+                                <i
+                                  className="bi bi-copy text-muted ms-2"
                                   style={{ cursor: 'pointer', fontSize: '0.8rem' }}
                                   onClick={() => {
                                     navigator.clipboard.writeText(item.nama);
@@ -509,7 +509,7 @@ const Home = ({ user }) => {
                                 <span className={`badge rounded-pill ${item.stok < 5 ? 'bg-danger bg-opacity-10' : 'bg-success bg-opacity-10'}`} style={{ fontSize: '0.65rem' }}>
                                   Stok: {item.stok}
                                 </span>
-                                {item.status === 'pending' && (
+                                {inventoryTab === 'pending' && item.status === 'pending' && (
                                   <span className="badge bg-warning text-dark rounded-pill" style={{ fontSize: '0.65rem' }}>
                                     +{item.qty} {item.unit || 'pcs'}
                                   </span>
@@ -518,7 +518,7 @@ const Home = ({ user }) => {
                             </div>
                           </div>
 
-                          {item.status === 'pending' ? (
+                          {inventoryTab === 'pending' ? (
                             user.role !== 'kasir' && (
                               <div className="d-flex gap-2">
                                 <button
