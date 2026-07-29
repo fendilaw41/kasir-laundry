@@ -1,4 +1,5 @@
 import { db } from '../../db.js';
+import { withNewSyncMeta, withUpdatedSyncMeta } from '../syncMeta.js';
 
 export const getPelangganQuery = () => db.pelanggan.toArray();
 
@@ -20,10 +21,10 @@ export const addPelanggan = async (pelangganData) => {
     throw new Error('Gagal! Nama atau No. HP sudah terdaftar.');
   }
 
-  return await db.pelanggan.add({ nama, hp, alamat: alamat || '' });
+  return await db.pelanggan.add(withNewSyncMeta({ nama, hp, alamat: alamat || '' }));
 };
 
 export const updatePelanggan = async (id, pelangganData) => {
   if (!id) throw new Error('ID Pelanggan tidak valid');
-  return await db.pelanggan.update(id, pelangganData);
+  return await db.pelanggan.update(id, withUpdatedSyncMeta(pelangganData));
 };

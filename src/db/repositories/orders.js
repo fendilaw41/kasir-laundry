@@ -1,4 +1,5 @@
 import { db } from '../../db.js';
+import { withNewSyncMeta, withUpdatedSyncMeta } from '../syncMeta.js';
 export const getOrdersQuery = () => db.orders.toArray();
 export const getOrderByIdQuery = (id) => db.orders.get(parseInt(id));
 export const getOrdersSortedByDateQuery = () => db.orders.orderBy('createdAt').reverse().toArray();
@@ -18,18 +19,13 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
 
   let newId;
 
-  await db.transaction('rw', [db.orders, db.inventory, db.cart, db.settings], async () => {
+  await db.transaction('rw', [db.orders, db.inventory, db.inventoryEvents, db.cart, db.settings], async () => {
     const setting = await db.settings.get(1);
-    const namaLaundry = setting?.namaLaundry || 'INVOICE';
-    const words = namaLaundry.trim().split(' ').filter(Boolean);
-    const initials = words.length > 1 
-        ? words[0].charAt(0).toUpperCase() + words[1].charAt(0).toUpperCase()
-        : words[0].substring(0, 2).toUpperCase();
-
+    const deviceId = setting?.deviceId || crypto.randomUUID().substring(0, 4).toUpperCase();
     const nextNumber = (setting?.lastInvoiceNumber || 0) + 1;
-    const invoiceId = `${initials}${nextNumber.toString().padStart(5, '0')}`;
+    const invoiceId = `${deviceId}-${nextNumber.toString().padStart(5, '0')}`;
 
-    newId = await db.orders.add({
+    newId = await db.orders.add(withNewSyncMeta({
       ...orderData,
       invoiceId,
       bayar: bayar,
@@ -37,23 +33,29 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
       statusBayar: isLunas ? (bayar >= total ? 'Lunas' : 'DP') : 'Belum Bayar',
       status: 'Proses',
       createdAt: new Date()
-    });
+    }));
 
-    // Kurangi stok untuk semua inventory yang dipilih
+    // Kurangi stok untuk semua inventory yang dipilih melalui event log
     if (orderData.inventoryUsed && orderData.inventoryUsed.length > 0) {
       for (const inv of orderData.inventoryUsed) {
         const item = await db.inventory.get(inv.id);
         const qty = Number(inv.quantity) || 1;
-        if (item && item.stok >= qty) {
-          await db.inventory.update(item.id, { stok: item.stok - qty });
+        if (item) {
+          await db.inventoryEvents.add(withNewSyncMeta({
+            inventoryId: item.id,
+            type: 'SUBTRACT',
+            qty: qty,
+            note: `Checkout order ${invoiceId}`,
+            createdBy: orderData.userId || 'system'
+          }));
         }
       }
     }
 
     await db.cart.clear();
-    
+
     if (setting) {
-      await db.settings.update(1, { lastInvoiceNumber: nextNumber });
+      await db.settings.update(1, withUpdatedSyncMeta({ lastInvoiceNumber: nextNumber }));
     }
   });
 
@@ -62,11 +64,11 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
 
 export const updateOrder = async (id, data) => {
   if (!id) throw new Error('ID Order tidak valid');
-  
+
   if (data.status === 'Ambil' || data.status === 'Selesai') {
     const order = await db.orders.get(parseInt(id));
     if (!order) throw new Error('Order tidak ditemukan');
-    
+
     if (data.status === 'Ambil') {
       // Check payment status from database, or from the incoming data if it's being updated simultaneously
       const currentStatusBayar = data.statusBayar || order.statusBayar;
@@ -74,21 +76,22 @@ export const updateOrder = async (id, data) => {
         throw new Error('Pesanan belum lunas! Tidak bisa diambil.');
       }
     }
-    
+
     const inventory = data.inventoryUsed || order.inventoryUsed || [];
-    const hasDeterjen = inventory.some(item => 
+    const hasDeterjen = inventory.some(item =>
       item.nama && item.nama.toLowerCase().includes('deterjen') && item.quantity >= 1
     );
-    
+
     if (!hasDeterjen) {
       throw new Error(`Inventory terpakai minimal harus ada Deterjen 1x untuk dipindah ke status ${data.status}.`);
     }
   }
 
-  return await db.orders.update(parseInt(id), data);
+  return await db.orders.update(parseInt(id), withUpdatedSyncMeta(data));
 };
 
 export const deleteOrder = async (id) => {
   if (!id) throw new Error('ID Order tidak valid');
-  return await db.orders.delete(parseInt(id));
+  // Soft delete supaya penghapusan order ikut ter-sync (tombstone), bukan hard delete.
+  return await db.orders.update(parseInt(id), withUpdatedSyncMeta({ deletedAt: new Date() }));
 };

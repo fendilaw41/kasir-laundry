@@ -26,7 +26,7 @@ describe('orders repository', () => {
     });
 
     it('should proceed and add order if valid', async () => {
-      db.settings.get.mockResolvedValue({ namaLaundry: 'KASIR TEST', lastInvoiceNumber: 10 });
+      db.settings.get.mockResolvedValue({ deviceId: 'TEST', namaLaundry: 'KASIR TEST', lastInvoiceNumber: 10 });
       db.orders.add.mockResolvedValue(1);
 
       const orderData = { total: 50000, cartItems: [{ id: 1, name: 'Cuci', price: 50000, qty: 1 }] };
@@ -38,7 +38,7 @@ describe('orders repository', () => {
       
       const addedOrder = db.orders.add.mock.calls[0][0];
       expect(addedOrder.statusBayar).toBe('Lunas');
-      expect(addedOrder.invoiceId).toBe('KT00011');
+      expect(addedOrder.invoiceId).toBe('TEST-00011');
     });
   });
 

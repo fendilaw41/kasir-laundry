@@ -2,15 +2,18 @@ import Dexie from 'dexie';
 
 export const db = new Dexie('KasirLaundryDB');
 
-db.version(9).stores({
-  users: '++id, username, password, fullname, role',
-  products: '++id, name, price',
-  orders: '++id, invoiceId, userId, total, createdAt, pelangganId, diskon, metodeBayar, estimasi, tipeLayanan, isPriority, bayar, kembalian, statusBayar, status, catatan',
-  cart: '++id, productId, quantity',
-  pelanggan: '++id, nama, hp, alamat',
-  inventory: '++id, nama, stok, qty, unit, status, createdBy, createdAt',
-  settings: 'id',
-  chatLog: '++id, intent, status, userId, timestamp',
+// Schema versi 1: offline-first sync ready (dengan UUID, updatedAt, deletedAt, isDirty)
+// + tabel inventoryEvents untuk event-sourcing stok
+db.version(1).stores({
+  users: '++id, &uuid, username, password, fullname, role, updatedAt, deletedAt, isDirty',
+  products: '++id, &uuid, name, price, updatedAt, deletedAt, isDirty',
+  orders: '++id, &uuid, invoiceId, userId, total, createdAt, pelangganId, diskon, metodeBayar, estimasi, tipeLayanan, isPriority, bayar, kembalian, statusBayar, status, catatan, updatedAt, deletedAt, isDirty',
+  cart: '++id, &uuid, productId, quantity, updatedAt, isDirty',
+  pelanggan: '++id, &uuid, nama, hp, alamat, updatedAt, deletedAt, isDirty',
+  inventory: '++id, &uuid, nama, stok, qty, unit, status, createdBy, createdAt, updatedAt, deletedAt, isDirty',
+  inventoryEvents: '++id, &uuid, inventoryId, type, qty, note, createdBy, createdAt, updatedAt, deletedAt, isDirty',
+  settings: 'id, updatedAt, isDirty',
+  chatLog: '++id, &uuid, intent, status, userId, timestamp, updatedAt, isDirty',
   draftOrder: 'id'
 });
 
@@ -21,6 +24,7 @@ db.on('ready', async () => {
   if (sCount === 0) {
     await db.settings.add({
       id: 1,
+      deviceId: crypto.randomUUID().substring(0, 4).toUpperCase(),
       namaLaundry: 'KEENAN LAUNDRY',
       alamat: 'Jl. Imam Bonjol 007',
       kota: 'KARAWANG',
