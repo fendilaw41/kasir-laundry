@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Store {
+  id        String   @id @default(uuid())
+  name      String
+  address   String?
+  city      String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users      User[]
+  products   Product[]
+  orders     Order[]
+  pelanggan  Pelanggan[]
+  inventory  Inventory[]
+  settings   Settings?
+}
+
+model User {
+  id        String    @id @default(uuid())
+  storeId   String
+  store     Store     @relation(fields: [storeId], references: [id])
+  username  String
+  password  String    // hash bcrypt
+  fullname  String
+  role      String    // 'owner' | 'kasir'
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  orders    Order[]
+
+  @@unique([storeId, username])
+  @@index([storeId, updatedAt])
+}
+
+model Product {
+  id        String    @id @default(uuid())
+  storeId   String
+  store     Store     @relation(fields: [storeId], references: [id])
+  code      String?
+  category  String?
+  name      String
+  price     Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([storeId, updatedAt])
+}
+
+model Pelanggan {
+  id        String    @id @default(uuid())
+  storeId   String
+  store     Store     @relation(fields: [storeId], references: [id])
+  nama      String
+  hp        String
+  alamat    String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  orders    Order[]
+
+  @@index([storeId, updatedAt])
+}
+
+model Inventory {
+  id        String    @id @default(uuid())
+  storeId   String
+  store     Store     @relation(fields: [storeId], references: [id])
+  nama      String
+  stok      Int       @default(0)
+  qty       Int       @default(0)
+  unit      String?
+  status    String?
+  createdBy String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([storeId, updatedAt])
+}
+
+model Order {
+  id            String    @id @default(uuid())
+  storeId       String
+  store         Store     @relation(fields: [storeId], references: [id])
+  invoiceId     String    
+  userId        String?
+  user          User?     @relation(fields: [userId], references: [id])
+  pelangganId   String?
+  pelanggan     Pelanggan? @relation(fields: [pelangganId], references: [id])
+  total         Int
+  diskon        Int       @default(0)
+  bayar         Int       @default(0)
+  kembalian     Int       @default(0)
+  metodeBayar   String?
+  estimasi      String?
+  tipeLayanan   String?
+  isPriority    String?
+  statusBayar   String?
+  status        String?
+  catatan       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  @@unique([storeId, invoiceId])
+  @@index([storeId, updatedAt])
+}
+
+model Settings {
+  storeId           String   @id
+  store             Store    @relation(fields: [storeId], references: [id])
+  namaLaundry       String?
+  alamat            String?
+  kota              String?
+  telepon           String?
+  jamBuka           String?
+  menerimaCucian    Boolean  @default(true)
+  headerStruk       String?
+  footerStruk       String?
+  updatedAt         DateTime @updatedAt
+}
