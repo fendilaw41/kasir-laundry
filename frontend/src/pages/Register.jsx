@@ -40,7 +40,7 @@ const Register = () => {
                   <h2 className="fw-bold mb-1" style={{ letterSpacing: '1px', color: '#0134d4' }}>KASIR</h2>
                   <p className="text-muted small mb-0">Laundry Management System</p>
                 </div>
-                
+
                 <div className="register-form mt-4">
                   <h4 className="mb-4 text-center">Register Akun</h4>
                   {message && <div className={`alert ${message.includes('berhasil') ? 'alert-success' : 'alert-danger'} rounded-3`}>{message}</div>}

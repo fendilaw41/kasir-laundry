@@ -107,7 +107,7 @@ const Setting = ({ user }) => {
                 <div className="row g-3">
                   <div className="col-12">
                     <label className="small text-muted fw-bold mb-2">Nama Laundry</label>
-                    <input type="text" className="form-control rounded-4 bg-light border-0 px-3 py-3 fw-bold text-dark" id="namaLaundry" placeholder="Contoh: Keenan Laundry" value={formData.namaLaundry} onChange={(e) => setFormData({ ...formData, namaLaundry: e.target.value })} required />
+                    <input type="text" className="form-control rounded-4 bg-light border-0 px-3 py-3 fw-bold text-dark" id="namaLaundry" placeholder="Contoh: Kasir Laundry" value={formData.namaLaundry} onChange={(e) => setFormData({ ...formData, namaLaundry: e.target.value })} required />
                   </div>
                   <div className="col-12">
                     <label className="small text-muted fw-bold mb-2">Motto</label>

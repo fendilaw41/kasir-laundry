@@ -2,6 +2,11 @@ import { describe, it, expect, vi } from 'vitest';
 import { createOrderFromCheckout, updateOrder } from './orders';
 import { db } from '../../db.js';
 
+vi.mock('../../services/syncService.js', () => ({
+  syncOrderToBackend: vi.fn().mockResolvedValue(true),
+  syncDirtyOrders: vi.fn().mockResolvedValue(true)
+}));
+
 vi.mock('../../db.js', () => ({
   db: {
     orders: { add: vi.fn(), get: vi.fn(), toArray: vi.fn(), update: vi.fn() },
@@ -68,7 +73,8 @@ describe('orders repository', () => {
       const res = await updateOrder(1, { status: 'Ambil' });
       
       expect(res).toBe(1);
-      expect(db.orders.update).toHaveBeenCalledWith(1, { status: 'Ambil' });
+      expect(db.orders.update).toHaveBeenCalledWith(1, expect.objectContaining({ status: 'Ambil' }));
     });
   });
 });
+

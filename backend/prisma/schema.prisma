@@ -21,6 +21,7 @@ model Store {
   pelanggan  Pelanggan[]
   inventory  Inventory[]
   settings   Settings?
+  syncLogs   SyncLog[]
 }
 
 model User {
@@ -52,6 +53,8 @@ model Product {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
+
+  orderItems OrderItem[]
 
   @@index([storeId, updatedAt])
 }
@@ -90,31 +93,50 @@ model Inventory {
 }
 
 model Order {
-  id            String    @id @default(uuid())
+  id            String      @id @default(uuid())
   storeId       String
-  store         Store     @relation(fields: [storeId], references: [id])
+  store         Store       @relation(fields: [storeId], references: [id])
   invoiceId     String    
   userId        String?
-  user          User?     @relation(fields: [userId], references: [id])
+  user          User?       @relation(fields: [userId], references: [id])
   pelangganId   String?
-  pelanggan     Pelanggan? @relation(fields: [pelangganId], references: [id])
+  pelanggan     Pelanggan?  @relation(fields: [pelangganId], references: [id])
   total         Int
-  diskon        Int       @default(0)
-  bayar         Int       @default(0)
-  kembalian     Int       @default(0)
+  diskon        Int         @default(0)
+  bayar         Int         @default(0)
+  kembalian     Int         @default(0)
   metodeBayar   String?
   estimasi      String?
   tipeLayanan   String?
-  isPriority    String?
+  isPriority    Boolean     @default(false)
   statusBayar   String?
   status        String?
   catatan       String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  inventoryUsed Json?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
   deletedAt     DateTime?
+
+  items         OrderItem[]
 
   @@unique([storeId, invoiceId])
   @@index([storeId, updatedAt])
+}
+
+model OrderItem {
+  id          String    @id @default(uuid())
+  orderId     String
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product?  @relation(fields: [productId], references: [id])
+  name        String
+  quantity    Float
+  price       Int
+  subtotal    Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([orderId])
 }
 
 model Settings {
@@ -130,3 +152,19 @@ model Settings {
   footerStruk       String?
   updatedAt         DateTime @updatedAt
 }
+
+model SyncLog {
+  id          String   @id @default(uuid())
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id])
+  tableName   String   // 'Order' | 'User' | 'Product' | 'Settings' | 'Pelanggan'
+  action      String   // 'CREATE' | 'UPDATE' | 'DELETE'
+  recordId    String?
+  username    String?
+  beforeData  Json?
+  afterData   Json?
+  createdAt   DateTime @default(now())
+
+  @@index([storeId, tableName, createdAt])
+}
+

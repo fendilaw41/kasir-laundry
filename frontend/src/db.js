@@ -24,21 +24,24 @@ db.on('ready', async () => {
   if (sCount === 0) {
     await db.settings.add({
       id: 1,
+      storeId: null,
       deviceId: crypto.randomUUID().substring(0, 4).toUpperCase(),
-      namaLaundry: 'KEENAN LAUNDRY',
+      namaLaundry: 'KASIR LAUNDRY',
       alamat: 'Jl. Imam Bonjol 007',
       kota: 'KARAWANG',
-      telepon: '087853131099',
+      telepon: '08888888888',
       jamBuka: '08.00 - 17.00',
       menerimaCucian: true,
       headerStruk: 'Terima kasih atas kunjungan anda',
       footerStruk: 'Kami menerima Cuci Karpet, Bedcover, Boneka, dan Satuan\nkasirlaundry.my.id',
-      lastInvoiceNumber: 0
+      lastInvoiceNumber: 0,
+      updatedAt: new Date(),
+      isDirty: 0
     });
   }
   const pCount = await db.products.count();
   if (pCount === 0) {
-    await db.products.bulkAdd([
+    const rawProducts = [
       // Cuci Lipat
       { code: 'CLR', category: 'CUCI LIPAT', name: 'Reguler (2-3 hari)', price: 5000 },
       { code: 'CLE', category: 'CUCI LIPAT', name: 'Express (1 Hari)', price: 7000 },
@@ -56,7 +59,13 @@ db.on('ready', async () => {
       { code: 'SSE', category: 'SETRIKA SAJA', name: 'Express (1 Hari)', price: 7000 },
       { code: 'SSP', category: 'SETRIKA SAJA', name: 'Pagi Sore (8 Jam)', price: 9000 },
       { code: 'SSK', category: 'SETRIKA SAJA', name: 'Kilat (4 Jam)', price: 12000 },
-    ]);
+    ];
+    await db.products.bulkAdd(rawProducts.map(p => ({
+      ...p,
+      uuid: crypto.randomUUID(),
+      updatedAt: new Date(),
+      isDirty: 1
+    })));
   }
 
   const iCount = await db.inventory.count();

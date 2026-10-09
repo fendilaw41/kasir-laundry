@@ -1,5 +1,7 @@
 import { db } from '../../db.js';
 import { withNewSyncMeta, withUpdatedSyncMeta } from '../syncMeta.js';
+import { syncOrderToBackend } from '../../services/syncService.js';
+
 export const getOrdersQuery = () => db.orders.toArray();
 export const getOrderByIdQuery = (id) => db.orders.get(parseInt(id));
 export const getOrdersSortedByDateQuery = () => db.orders.orderBy('createdAt').reverse().toArray();
@@ -59,6 +61,11 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
     }
   });
 
+  // Trigger sync ke backend secara asynchronous
+  if (newId) {
+    syncOrderToBackend(newId).catch(err => console.warn('Sync order failed:', err));
+  }
+
   return newId;
 };
 
@@ -87,11 +94,21 @@ export const updateOrder = async (id, data) => {
     }
   }
 
-  return await db.orders.update(parseInt(id), withUpdatedSyncMeta(data));
+  const result = await db.orders.update(parseInt(id), withUpdatedSyncMeta(data));
+  
+  // Trigger sync ke backend secara asynchronous
+  syncOrderToBackend(id).catch(err => console.warn('Sync update order failed:', err));
+
+  return result;
 };
 
 export const deleteOrder = async (id) => {
   if (!id) throw new Error('ID Order tidak valid');
   // Soft delete supaya penghapusan order ikut ter-sync (tombstone), bukan hard delete.
-  return await db.orders.update(parseInt(id), withUpdatedSyncMeta({ deletedAt: new Date() }));
+  const result = await db.orders.update(parseInt(id), withUpdatedSyncMeta({ deletedAt: new Date() }));
+  
+  // Trigger sync ke backend secara asynchronous
+  syncOrderToBackend(id).catch(err => console.warn('Sync delete order failed:', err));
+
+  return result;
 };
