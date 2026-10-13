@@ -490,6 +490,132 @@ export const syncDirtyOrders = async (forceAll = false) => {
   }
 };
 
+let isPullingOrders = false;
+let lastOrderPullTime = 0;
+const ORDER_PULL_COOLDOWN_MS = 15000; // Cooldown 15 detik untuk mencegah spam request berulang
+
+/**
+ * Tarik seluruh daftar order dari backend PostgreSQL untuk toko yang aktif (Pull Sync)
+ * @param {boolean} force - jika true, abaikan cooldown 15 detik (misal saat klik refresh manual)
+ */
+export const pullOrdersFromBackend = async (force = false) => {
+  const now = Date.now();
+
+  // 1. Concurrency Lock: Jangan panggil jika sedang berjalan
+  if (isPullingOrders) return false;
+
+  // 2. Cooldown Guard: Skip jika baru saja ditarik kurang dari 15 detik lalu
+  if (!force && (now - lastOrderPullTime < ORDER_PULL_COOLDOWN_MS)) {
+    return false;
+  }
+
+  isPullingOrders = true;
+
+  try {
+    const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const setting = await db.settings.get(1);
+    const storeId = storedUser.storeId || setting?.storeId;
+    if (!storeId) return false;
+
+    const response = await fetch(`${API_BASE_URL}/orders?storeId=${encodeURIComponent(storeId)}`);
+    if (!response.ok) return false;
+
+    lastOrderPullTime = Date.now();
+
+    const result = await response.json();
+    const serverOrders = result.data || [];
+    if (!Array.isArray(serverOrders)) return false;
+
+    for (const so of serverOrders) {
+      // 1. Cari apakah order sudah ada di Dexie berdasarkan uuid atau invoiceId
+      let localOrder = null;
+      if (so.id) {
+        localOrder = await db.orders.where('uuid').equals(so.id).first();
+      }
+      if (!localOrder && so.invoiceId) {
+        localOrder = await db.orders.where('invoiceId').equals(so.invoiceId).first();
+      }
+
+      // 2. Format items
+      const serverItems = (so.items || []).map(item => ({
+        id: item.id,
+        productId: item.productId,
+        name: item.name,
+        price: Number(item.price) || 0,
+        quantity: Number(item.quantity) || 1,
+        subtotal: Number(item.subtotal) || 0,
+      }));
+
+      // 3. Siapkan payload
+      const orderPayload = {
+        uuid: so.id,
+        storeId: so.storeId || storeId,
+        invoiceId: so.invoiceId,
+        userId: so.userId,
+        pelangganId: so.pelangganId,
+        pelangganNama: so.pelanggan?.nama || so.pelangganNama || 'Pelanggan',
+        total: Number(so.total) || 0,
+        diskon: Number(so.diskon) || 0,
+        bayar: Number(so.bayar) || 0,
+        kembalian: Number(so.kembalian) || 0,
+        metodeBayar: so.metodeBayar || 'Tunai',
+        estimasi: so.estimasi !== null && so.estimasi !== undefined ? String(so.estimasi) : '0',
+        tipeLayanan: so.tipeLayanan || 'Datang Langsung',
+        isPriority: Boolean(so.isPriority),
+        statusBayar: so.statusBayar || 'Lunas',
+        status: so.status || 'Proses',
+        catatan: so.catatan || null,
+        inventoryUsed: so.inventoryUsed || [],
+        items: serverItems,
+        createdAt: so.createdAt ? new Date(so.createdAt) : new Date(),
+        updatedAt: so.updatedAt ? new Date(so.updatedAt) : new Date(),
+        deletedAt: so.deletedAt ? new Date(so.deletedAt) : null,
+        isDirty: 0,
+      };
+
+      // 4. Pastikan data pelanggan tersimpan di db.pelanggan lokal juga jika ada
+      if (so.pelanggan && so.pelanggan.id) {
+        let localPel = await db.pelanggan.where('uuid').equals(so.pelanggan.id).first();
+        if (!localPel && so.pelanggan.hp && so.pelanggan.hp !== '-') {
+          localPel = await db.pelanggan.where('hp').equals(so.pelanggan.hp).first();
+        }
+        const pelPayload = {
+          uuid: so.pelanggan.id,
+          storeId: so.storeId || storeId,
+          nama: so.pelanggan.nama,
+          hp: so.pelanggan.hp || '-',
+          alamat: so.pelanggan.alamat || '-',
+          updatedAt: new Date(so.pelanggan.updatedAt || new Date()),
+          isDirty: 0,
+        };
+        if (localPel) {
+          await db.pelanggan.update(localPel.id, pelPayload);
+        } else {
+          await db.pelanggan.add(pelPayload);
+        }
+      }
+
+      // 5. Simpan ke db.orders
+      if (localOrder) {
+        // Jangan timpa jika data lokal memiliki perubahan yang belum di-sync
+        if (localOrder.isDirty !== 1) {
+          await db.orders.update(localOrder.id, orderPayload);
+        }
+      } else {
+        await db.orders.add(orderPayload);
+      }
+    }
+
+    console.log(`[Sync] Berhasil menarik ${serverOrders.length} order dari server.`);
+    return true;
+  } catch (err) {
+    console.warn('[Sync] Gagal menarik order dari server (offline):', err.message);
+    return false;
+  } finally {
+    isPullingOrders = false;
+  }
+};
+
 // Inisialisasi auto-sync saat koneksi kembali online dan interval background
 if (typeof window !== 'undefined') {
   const isAutoSyncEnabled = import.meta.env.VITE_ENABLE_AUTO_SYNC !== 'false';
@@ -498,24 +624,27 @@ if (typeof window !== 'undefined') {
 
   if (isAutoSyncEnabled) {
     // 1. Sync instan saat internet kembali menyala
-    window.addEventListener('online', () => {
+    window.addEventListener('online', async () => {
       console.log('[Sync] Jaringan online terdeteksi, memulai sinkronisasi...');
-      syncDirtyOrders();
+      await syncDirtyOrders();
+      await pullOrdersFromBackend();
     });
 
-    // 2. Cek sekali saat pertama kali aplikasi dibuka (Hanya sinkronkan data yang kotor/belum tersinkron)
+    // 2. Cek sekali saat pertama kali aplikasi dibuka (Hanya sinkronkan data yang kotor/belum tersinkron lalu tarik order)
     if (navigator.onLine) {
       setTimeout(async () => {
         await syncAllDirtyMasterData(false);
         await syncDirtyOrders(false);
+        await pullOrdersFromBackend();
       }, 2000);
     }
 
     // 3. Periodic background sync (Hanya berjalan jika tab aktif & browser online)
     if (syncInterval > 0) {
-      setInterval(() => {
+      setInterval(async () => {
         if (navigator.onLine && (!document.hidden || document.visibilityState === 'visible')) {
-          syncDirtyOrders();
+          await syncDirtyOrders();
+          await pullOrdersFromBackend();
         }
       }, syncInterval);
     }

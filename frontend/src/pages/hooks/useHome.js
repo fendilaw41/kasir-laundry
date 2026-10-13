@@ -1,14 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getPelangganQuery, addPelanggan, updatePelanggan } from '../../db/repositories/pelanggan';
 import { getInventoryQuery, updateInventoryStok, approveInventory, rejectInventory, addInventoryManual } from '../../db/repositories/inventory';
 import { getOrdersQuery } from '../../db/repositories/orders';
 import { updateDraftOrder } from '../../db/repositories/draftOrder';
+import { pullOrdersFromBackend } from '../../services/syncService';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 export const useHome = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    pullOrdersFromBackend().catch(err => console.warn('[Home] Auto pull orders error:', err));
+  }, []);
   const [showPelangganModal, setShowPelangganModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
   const [showOmzet, setShowOmzet] = useState(false);

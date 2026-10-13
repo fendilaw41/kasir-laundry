@@ -1,7 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getOrdersSortedByDateQuery, updateOrder, deleteOrder } from '../db/repositories/orders';
+import { pullOrdersFromBackend } from '../services/syncService';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 
 const DataOrder = ({ user }) => {
@@ -9,6 +10,25 @@ const DataOrder = ({ user }) => {
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get('tab') || 'Proses';
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Tarik data order terbaru dari backend saat membuka halaman
+  useEffect(() => {
+    pullOrdersFromBackend().catch(err => console.warn('[DataOrder] Auto pull error:', err));
+  }, []);
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await pullOrdersFromBackend(true);
+      toast.success('Data order di perbarui');
+    } catch (err) {
+      toast.error('Gagal sinkronkan order: ' + err.message);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // State Filter
   const [filterAntar, setFilterAntar] = useState('Semua');
@@ -104,7 +124,12 @@ const DataOrder = ({ user }) => {
     <div className="data-order-wrapper pb-5">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h5 className="mb-0 fw-bold">Data Order</h5>
-        <i className="bi bi-arrow-clockwise fs-5" onClick={() => window.location.reload()} style={{ cursor: 'pointer' }}></i>
+        <i
+          className={`bi bi-arrow-clockwise fs-5 ${isRefreshing ? 'opacity-50' : ''}`}
+          onClick={handleRefresh}
+          title="Tarik data order terbaru dari server"
+          style={{ cursor: 'pointer' }}
+        ></i>
       </div>
 
       {/* Tabs */}
@@ -200,7 +225,7 @@ const DataOrder = ({ user }) => {
                 </div>
 
                 <div className="row g-2 mt-2">
-                   <div className={user.role === 'owner' ? 'col-4' : 'col-6'}>
+                  <div className={user.role === 'owner' ? 'col-4' : 'col-6'}>
                     <button className="btn btn-outline-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => navigate(`/order/${order.id}`)}>Detail</button>
                   </div>
                   <div className={user.role === 'owner' ? 'col-4' : 'col-6'}>

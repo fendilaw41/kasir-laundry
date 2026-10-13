@@ -2,9 +2,25 @@ import { db } from '../../db.js';
 import { withNewSyncMeta, withUpdatedSyncMeta } from '../syncMeta.js';
 import { syncOrderToBackend } from '../../services/syncService.js';
 
-export const getOrdersQuery = () => db.orders.toArray();
+export const getOrdersQuery = async () => {
+  const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+  const setting = await db.settings.get(1);
+  const storeId = storedUser.storeId || setting?.storeId;
+  const all = await db.orders.toArray();
+  if (!storeId) return all;
+  return all.filter(o => o.storeId === storeId);
+};
+
 export const getOrderByIdQuery = (id) => db.orders.get(parseInt(id));
-export const getOrdersSortedByDateQuery = () => db.orders.orderBy('createdAt').reverse().toArray();
+
+export const getOrdersSortedByDateQuery = async () => {
+  const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+  const setting = await db.settings.get(1);
+  const storeId = storedUser.storeId || setting?.storeId;
+  const all = await db.orders.orderBy('createdAt').reverse().toArray();
+  if (!storeId) return all;
+  return all.filter(o => o.storeId === storeId);
+};
 
 export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, isLunas }) => {
   if (!orderData || typeof orderData.total === 'undefined') {
@@ -24,11 +40,14 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
 
   await db.transaction('rw', [db.orders, db.inventory, db.inventoryEvents, db.cart, db.settings], async () => {
     const setting = await db.settings.get(1);
+    const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const storeId = orderData.storeId || storedUser.storeId || setting?.storeId || undefined;
     const deviceId = setting?.deviceId || crypto.randomUUID().substring(0, 4).toUpperCase();
     const nextNumber = (setting?.lastInvoiceNumber || 0) + 1;
     const invoiceId = `${deviceId}-${nextNumber.toString().padStart(5, '0')}`;
 
     newId = await db.orders.add(withNewSyncMeta({
+      storeId,
       ...orderData,
       invoiceId,
       bayar: bayar,

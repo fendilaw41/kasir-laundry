@@ -1,7 +1,7 @@
 import { db } from '../../db.js';
 import bcrypt from 'bcryptjs';
 import { withNewSyncMeta, withUpdatedSyncMeta } from '../syncMeta.js';
-import { syncAllDirtyMasterData, syncUsersToBackend } from '../../services/syncService.js';
+import { syncAllDirtyMasterData, syncUsersToBackend, pullOrdersFromBackend } from '../../services/syncService.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -236,8 +236,9 @@ export const loginUser = async (username, password, storeCode) => {
             storeId: payload.user.storeId,
             storeCode: payload.user.storeCode,
           };
-          // Master data sudah sinkron setelah hidrasi. Hanya sinkronkan data yang kotor (forceAll = false)
+          // Master data & order sudah sinkron setelah hidrasi.
           syncAllDirtyMasterData(false).catch(err => console.warn('Sync master data failed:', err));
+          pullOrdersFromBackend().catch(err => console.warn('Pull orders on login failed:', err));
           return finalUser;
         }
       } else if (response.status === 401 || response.status === 404) {
