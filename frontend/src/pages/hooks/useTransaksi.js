@@ -69,7 +69,7 @@ export const useTransaksi = () => {
 
     // Siapkan data untuk dikirim ke halaman pembayaran
     const orderData = {
-      userId: user.id,
+      userId: user.uuid || user.id,
       pelangganId: selectedPelanggan.id,
       pelangganNama: selectedPelanggan.nama,
       items: cartItems,

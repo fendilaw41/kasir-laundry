@@ -3,9 +3,9 @@
 
 export const withNewSyncMeta = (data) => ({
   ...data,
-  uuid: crypto.randomUUID(),
-  updatedAt: new Date(),
-  isDirty: 1,
+  uuid: data?.uuid || crypto.randomUUID(),
+  updatedAt: data?.updatedAt || new Date(),
+  isDirty: typeof data?.isDirty !== 'undefined' ? data.isDirty : 1,
 });
 
 export const withUpdatedSyncMeta = (data) => ({

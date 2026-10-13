@@ -1,4 +1,6 @@
 import 'dotenv/config';
+process.env.TZ = 'Asia/Jakarta';
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
@@ -16,6 +18,66 @@ async function bootstrap() {
 
   // Global Prefix
   app.setGlobalPrefix('api');
+
+  // HTTP Operations Logger (GET, STORE, UPDATE, DELETE)
+  const httpLogger = new Logger('HTTP');
+  app.use((req: any, res: any, next: any) => {
+    const { method, originalUrl, query } = req;
+    const startTime = Date.now();
+
+    let operation = 'REQUEST';
+    if (method === 'GET') operation = 'GET';
+    else if (method === 'POST') operation = 'STORE';
+    else if (method === 'PUT' || method === 'PATCH') operation = 'UPDATE';
+    else if (method === 'DELETE') operation = 'DELETE';
+
+    res.on('finish', () => {
+      const { statusCode } = res;
+      const duration = Date.now() - startTime;
+      const queryStr = Object.keys(query || {}).length > 0 ? ` ?${JSON.stringify(query)}` : '';
+
+      let bodySummary = '';
+      if (['POST', 'PUT', 'PATCH'].includes(method) && req.body && Object.keys(req.body).length > 0) {
+        try {
+          const maskSensitive = (data: any): any => {
+            if (Array.isArray(data)) {
+              return data.map(maskSensitive);
+            }
+            if (data && typeof data === 'object') {
+              const clone = { ...data };
+              if (clone.password) {
+                clone.password = '***';
+              }
+              for (const key of Object.keys(clone)) {
+                if (clone[key] && typeof clone[key] === 'object') {
+                  clone[key] = maskSensitive(clone[key]);
+                }
+              }
+              return clone;
+            }
+            return data;
+          };
+
+          const sanitized = maskSensitive(req.body);
+          bodySummary = ` | Body: ${JSON.stringify(sanitized)}`;
+        } catch {
+          // ignore
+        }
+      }
+
+      const logMsg = `[${operation}] ${method} ${originalUrl}${queryStr} -> ${statusCode} (${duration}ms)${bodySummary}`;
+
+      if (statusCode >= 500) {
+        httpLogger.error(logMsg);
+      } else if (statusCode >= 400) {
+        httpLogger.warn(logMsg);
+      } else {
+        httpLogger.log(logMsg);
+      }
+    });
+
+    next();
+  });
 
   // Swagger Documentation Setup
   const config = new DocumentBuilder()

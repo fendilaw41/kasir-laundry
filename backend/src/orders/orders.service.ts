@@ -22,6 +22,7 @@ export class OrdersService {
     return await this.prisma.store.create({
       data: {
         id: storeId,
+        code: `STORE-${storeId.substring(0, 6).toUpperCase()}`,
         name: 'Laundry Store',
       },
     });
@@ -84,16 +85,37 @@ export class OrdersService {
       let finalUserId: string | null = null;
       if (dto.userId) {
         const userExists = await tx.user.findFirst({
-          where: { id: dto.userId },
+          where: {
+            OR: [
+              { id: dto.userId },
+              { username: dto.userId, storeId },
+            ],
+          },
         });
         if (userExists) {
           finalUserId = userExists.id;
         }
       }
 
-      // 3. Ambil data sebelum berubah (Before Data) untuk audit log
-      const beforeOrder = await tx.order.findUnique({
-        where: { id: dto.id },
+      // Fallback: Jika userId tidak dikirim / tidak valid, kaitkan ke owner atau kasir aktif di toko ini
+      if (!finalUserId && storeId) {
+        const defaultStoreUser = await tx.user.findFirst({
+          where: { storeId, deletedAt: null },
+          orderBy: { role: 'asc' }, // Prioritaskan 'owner' terlebih dahulu
+        });
+        if (defaultStoreUser) {
+          finalUserId = defaultStoreUser.id;
+        }
+      }
+
+      // 3. Ambil data sebelum berubah (Before Data) untuk audit log (cek by ID atau storeId + invoiceId)
+      const beforeOrder = await tx.order.findFirst({
+        where: {
+          OR: [
+            { id: dto.id },
+            { storeId, invoiceId: dto.invoiceId },
+          ],
+        },
         include: { items: true, pelanggan: true },
       });
 
@@ -112,45 +134,97 @@ export class OrdersService {
         bayar: Math.max(0, parseInt(String(dto.bayar || 0), 10)),
         kembalian: Math.max(0, parseInt(String(dto.kembalian || 0), 10)),
         metodeBayar: dto.metodeBayar || 'Tunai',
-        estimasi: dto.estimasi || null,
-        tipeLayanan: dto.tipeLayanan || 'AJ',
+        estimasi: dto.estimasi !== undefined && dto.estimasi !== null ? String(dto.estimasi) : null,
+        tipeLayanan: dto.tipeLayanan ? String(dto.tipeLayanan) : 'AJ',
         isPriority: Boolean(dto.isPriority),
-        statusBayar: dto.statusBayar || 'Belum Bayar',
-        status: dto.status || 'Proses',
-        catatan: dto.catatan || null,
+        statusBayar: dto.statusBayar ? String(dto.statusBayar) : 'Belum Bayar',
+        status: dto.status ? String(dto.status) : 'Proses',
+        catatan: dto.catatan ? String(dto.catatan) : null,
         inventoryUsed: dto.inventoryUsed || undefined,
         createdAt,
         updatedAt,
         deletedAt,
       };
 
-      const order = await tx.order.upsert({
-        where: { id: dto.id },
-        update: orderData,
-        create: {
-          id: dto.id,
-          ...orderData,
-        },
-      });
+      let order;
+      if (beforeOrder) {
+        order = await tx.order.update({
+          where: { id: beforeOrder.id },
+          data: orderData,
+        });
+      } else {
+        order = await tx.order.create({
+          data: {
+            id: dto.id,
+            ...orderData,
+          },
+        });
+      }
 
       // 5. Upsert Order Items
-      if (items.length > 0) {
+      if (items && items.length > 0) {
         // Hapus item lama untuk order ini jika ada
         await tx.orderItem.deleteMany({
           where: { orderId: order.id },
         });
 
+        // Validasi apakah productId benar-benar ada di tabel Product agar tidak melanggar foreign key constraint
+        const rawProductIds = items
+          .map((item) => item.productId)
+          .filter((id): id is string => Boolean(id));
+
+        const existingProducts = rawProductIds.length > 0
+          ? await tx.product.findMany({
+            where: { id: { in: rawProductIds } },
+            select: { id: true },
+          })
+          : [];
+        const validProductIds = new Set(existingProducts.map((p) => p.id));
+
+        // Ambil semua produk toko untuk fallback matching nama jika productId null / belum terhubung
+        const storeProducts = await tx.product.findMany({
+          where: { storeId: order.storeId, deletedAt: null },
+        });
+
         // Insert item baru
         await tx.orderItem.createMany({
-          data: items.map((item) => ({
-            id: item.id || undefined,
-            orderId: order.id,
-            productId: item.productId || null,
-            name: item.name || 'Layanan Laundry',
-            quantity: Number(item.quantity) || 1,
-            price: Number(item.price) || 0,
-            subtotal: Number(item.subtotal) || (Number(item.quantity) || 1) * (Number(item.price) || 0),
-          })),
+          data: items.map((item) => {
+            let finalProductId: string | null = null;
+            let itemName = item.name || 'Layanan Laundry';
+
+            if (item.productId && validProductIds.has(item.productId)) {
+              finalProductId = item.productId;
+            } else if (item.name && storeProducts.length > 0) {
+              const cleanName = item.name.trim().toLowerCase();
+              const matched = storeProducts.find((p) => {
+                const fullName = `${p.category || ''} - ${p.name || ''}`.trim().toLowerCase();
+                const spaceName = `${p.category || ''} ${p.name || ''}`.trim().toLowerCase();
+                const pureName = (p.name || '').trim().toLowerCase();
+                return (
+                  fullName === cleanName ||
+                  spaceName === cleanName ||
+                  pureName === cleanName ||
+                  (p.code && p.code.toLowerCase() === cleanName)
+                );
+              });
+              if (matched) {
+                finalProductId = matched.id;
+                if (matched.category && !itemName.includes('-')) {
+                  itemName = `${matched.category} - ${matched.name}`;
+                }
+              }
+            }
+
+            return {
+              id: item.id || undefined,
+              orderId: order.id,
+              productId: finalProductId,
+              name: itemName,
+              quantity: Number(item.quantity) || 1,
+              price: Number(item.price) || 0,
+              subtotal: Number(item.subtotal) || (Number(item.quantity) || 1) * (Number(item.price) || 0),
+            };
+          }),
         });
       }
 

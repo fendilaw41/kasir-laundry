@@ -15,7 +15,8 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
   const bayar = Math.max(0, parseInt(Number(bayarNum)) || 0);
   const kembalianNum = Math.max(0, parseInt(Number(kembalian)) || 0);
 
-  if (total <= 0 && (!orderData.cartItems || orderData.cartItems.length === 0)) {
+  const orderItems = orderData.items || orderData.cartItems || [];
+  if (total <= 0 && orderItems.length === 0) {
     throw new Error('Total order tidak valid');
   }
 

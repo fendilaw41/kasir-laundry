@@ -1,30 +1,146 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
-   * Login user secara online dan ambil initial hydration data (Store, Settings, Products, Users, Pelanggan, Inventory)
+   * Registrasi user baru (Owner atau Kasir)
+   * ATURAN: Hanya boleh 1 Owner untuk 1 Store!
+   */
+  async register(dto: RegisterDto) {
+    const { storeCode, fullname, username, password, role = 'owner' } = dto;
+
+    if (!storeCode || !fullname || !username || !password) {
+      throw new BadRequestException('Kode Toko, Nama Lengkap, Username, dan Password wajib diisi.');
+    }
+
+    const cleanStoreCode = storeCode.trim();
+    const cleanUsername = username.trim();
+    const cleanFullname = fullname.trim();
+    const normalizedRole = role.toLowerCase().trim();
+
+    // 1. Validasi keberadaan Store berdasarkan storeCode
+    const store = await this.prisma.store.findUnique({
+      where: { code: cleanStoreCode },
+    });
+
+    if (!store) {
+      throw new NotFoundException('Store tidak ditemukan.');
+    }
+
+    // 2. ATURAN: Batasi role owner HANYA boleh 1 owner per store
+    if (normalizedRole === 'owner') {
+      const existingOwner = await this.prisma.user.findFirst({
+        where: {
+          storeId: store.id,
+          role: 'owner',
+          deletedAt: null,
+        },
+      });
+
+      if (existingOwner) {
+        throw new BadRequestException('Store tidak ditemukan.');
+      }
+    }
+
+    // 3. Cek apakah username sudah digunakan di store ini
+    const existingUser = await this.prisma.user.findFirst({
+      where: {
+        storeId: store.id,
+        username: cleanUsername,
+        deletedAt: null,
+      },
+    });
+
+    if (existingUser) {
+      throw new ConflictException(
+        `Username "${cleanUsername}" sudah digunakan di toko "${store.name}". Silakan gunakan username lain.`,
+      );
+    }
+
+    // 4. Hash password & simpan ke database
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await this.prisma.user.create({
+      data: {
+        storeId: store.id,
+        username: cleanUsername,
+        password: hashedPassword,
+        fullname: cleanFullname,
+        role: normalizedRole,
+      },
+    });
+
+    // 5. Audit Log di SyncLog
+    await this.prisma.syncLog.create({
+      data: {
+        storeId: store.id,
+        tableName: 'User',
+        action: 'CREATE',
+        recordId: user.id,
+        username: user.username,
+        afterData: JSON.parse(JSON.stringify(user)),
+      },
+    });
+
+    this.logger.log(`User ${user.username} (${user.role}) berhasil didaftarkan ke store ${store.code}`);
+
+    return {
+      message: 'Registrasi berhasil',
+      user: {
+        id: user.id,
+        storeId: user.storeId,
+        storeCode: store.code,
+        storeName: store.name,
+        username: user.username,
+        fullname: user.fullname,
+        role: user.role,
+      },
+    };
+  }
+
+  /**
+   * Login user secara online dan ambil initial hydration data
    */
   async login(dto: LoginDto) {
-    const { username, password, storeId } = dto;
+    const { username, password, storeCode, storeId } = dto;
 
     if (!username || !password) {
       throw new UnauthorizedException('Username dan password wajib diisi');
     }
 
-    // Cari user berdasarkan username
+    let targetStoreId = storeId;
+
+    // Jika storeCode diberikan, cari storeId dari storeCode
+    if (storeCode) {
+      const store = await this.prisma.store.findUnique({
+        where: { code: storeCode.trim() },
+      });
+      if (!store) {
+        throw new UnauthorizedException(`Kode Toko "${storeCode.trim()}" tidak ditemukan.`);
+      }
+      targetStoreId = store.id;
+    }
+
+    // Cari user berdasarkan username (dan store jika ditentukan)
     const users = await this.prisma.user.findMany({
       where: {
-        username,
+        username: username.trim(),
         deletedAt: null,
-        ...(storeId ? { storeId } : {}),
+        ...(targetStoreId ? { storeId: targetStoreId } : {}),
       },
       include: {
         store: true,
@@ -60,12 +176,14 @@ export class AuthService {
       this.prisma.inventory.findMany({ where: { storeId: currentStoreId, deletedAt: null } }),
     ]);
 
-    this.logger.log(`User ${matchedUser.username} berhasil login online ke store ${currentStoreId}`);
+    this.logger.log(`User ${matchedUser.username} berhasil login online ke store ${matchedUser.store.code || currentStoreId}`);
 
     return {
       user: {
         id: matchedUser.id,
         storeId: matchedUser.storeId,
+        storeCode: matchedUser.store.code,
+        storeName: matchedUser.store.name,
         username: matchedUser.username,
         fullname: matchedUser.fullname,
         role: matchedUser.role,
@@ -74,6 +192,7 @@ export class AuthService {
       store: matchedUser.store,
       settings: settings || {
         storeId: currentStoreId,
+        storeCode: matchedUser.store.code,
         namaLaundry: matchedUser.store.name,
         alamat: matchedUser.store.address || '',
         kota: matchedUser.store.city || '',
@@ -83,7 +202,7 @@ export class AuthService {
         headerStruk: 'Terima kasih atas kunjungan anda',
         footerStruk: 'kasirlaundry.my.id',
       },
-      products: products.map(p => ({
+      products: products.map((p) => ({
         id: p.id,
         storeId: p.storeId,
         code: p.code,
@@ -93,7 +212,7 @@ export class AuthService {
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
       })),
-      users: storeUsers.map(u => ({
+      users: storeUsers.map((u) => ({
         id: u.id,
         storeId: u.storeId,
         username: u.username,
@@ -103,7 +222,7 @@ export class AuthService {
         createdAt: u.createdAt,
         updatedAt: u.updatedAt,
       })),
-      pelanggan: pelanggan.map(pel => ({
+      pelanggan: pelanggan.map((pel) => ({
         id: pel.id,
         storeId: pel.storeId,
         nama: pel.nama,
@@ -112,7 +231,7 @@ export class AuthService {
         createdAt: pel.createdAt,
         updatedAt: pel.updatedAt,
       })),
-      inventory: inventory.map(inv => ({
+      inventory: inventory.map((inv) => ({
         id: inv.id,
         storeId: inv.storeId,
         nama: inv.nama,

@@ -8,12 +8,13 @@ datasource db {
 
 model Store {
   id        String   @id @default(uuid())
+  code      String   @unique
   name      String
   address   String?
   city      String?
   phone     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   users      User[]
   products   Product[]
@@ -32,9 +33,9 @@ model User {
   password  String    // hash bcrypt
   fullname  String
   role      String    // 'owner' | 'kasir'
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   orders    Order[]
 
@@ -50,9 +51,9 @@ model Product {
   category  String?
   name      String
   price     Int
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   orderItems OrderItem[]
 
@@ -66,9 +67,9 @@ model Pelanggan {
   nama      String
   hp        String
   alamat    String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   orders    Order[]
 
@@ -85,9 +86,9 @@ model Inventory {
   unit      String?
   status    String?
   createdBy String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   @@index([storeId, updatedAt])
 }
@@ -113,9 +114,9 @@ model Order {
   status        String?
   catatan       String?
   inventoryUsed Json?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  deletedAt     DateTime?
+  createdAt     DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime    @updatedAt @db.Timestamptz(3)
+  deletedAt     DateTime?   @db.Timestamptz(3)
 
   items         OrderItem[]
 
@@ -133,8 +134,8 @@ model OrderItem {
   quantity    Float
   price       Int
   subtotal    Int
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
 
   @@index([orderId])
 }
@@ -150,7 +151,7 @@ model Settings {
   menerimaCucian    Boolean  @default(true)
   headerStruk       String?
   footerStruk       String?
-  updatedAt         DateTime @updatedAt
+  updatedAt         DateTime @updatedAt @db.Timestamptz(3)
 }
 
 model SyncLog {
@@ -163,8 +164,7 @@ model SyncLog {
   username    String?
   beforeData  Json?
   afterData   Json?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([storeId, tableName, createdAt])
 }
-

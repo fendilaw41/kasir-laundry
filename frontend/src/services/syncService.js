@@ -16,19 +16,100 @@ const formatOrderPayload = async (order) => {
   const setting = await db.settings.get(1);
   const storeId = order.storeId || storedUser.storeId || setting?.storeId || undefined;
 
-  const items = (order.cartItems || []).map(item => ({
-    productId: item.uuid || (item.id ? String(item.id) : undefined),
-    name: item.name,
-    quantity: Number(item.quantity) || 1,
-    price: Number(item.price) || 0,
-    subtotal: (Number(item.quantity) || 1) * (Number(item.price) || 0)
-  }));
+  const rawItems = order.items || order.cartItems || [];
+  const items = [];
+
+  for (const item of rawItems) {
+    let finalProductId = item.productId || null;
+
+    // Jika productId berupa number atau integer string (data lokal Dexie lama), lookup UUID produk
+    if (finalProductId && typeof finalProductId === 'number') {
+      const prod = await db.products.get(finalProductId);
+      if (prod?.uuid) {
+        finalProductId = prod.uuid;
+      }
+    } else if (finalProductId && typeof finalProductId === 'string' && !finalProductId.includes('-')) {
+      const numId = parseInt(finalProductId, 10);
+      if (!isNaN(numId)) {
+        const prod = await db.products.get(numId);
+        if (prod?.uuid) {
+          finalProductId = prod.uuid;
+        }
+      }
+    }
+
+    // Resolusi fallback jika productId belum terisi: cocokkan nama produk dengan db.products lokal
+    let itemName = item.name || 'Layanan Laundry';
+    if (!finalProductId && item.name) {
+      const allProds = await db.products.toArray();
+      const cleanItemName = item.name.trim().toLowerCase();
+      const matchedProd = allProds.find((p) => {
+        const full = `${p.category || ''} - ${p.name || ''}`.trim().toLowerCase();
+        const space = `${p.category || ''} ${p.name || ''}`.trim().toLowerCase();
+        const pure = (p.name || '').trim().toLowerCase();
+        return (
+          full === cleanItemName ||
+          space === cleanItemName ||
+          pure === cleanItemName ||
+          (p.code && p.code.toLowerCase() === cleanItemName)
+        );
+      });
+
+      if (matchedProd) {
+        if (!matchedProd.uuid) {
+          matchedProd.uuid = crypto.randomUUID();
+          await db.products.update(matchedProd.id, { uuid: matchedProd.uuid });
+        }
+        finalProductId = matchedProd.uuid;
+        if (matchedProd.category && !itemName.includes('-')) {
+          itemName = `${matchedProd.category} - ${matchedProd.name}`;
+        }
+      }
+    }
+
+    const qty = Number(item.quantity) || 1;
+    const price = Number(item.price) || 0;
+    const subtotal = Number(item.subtotal) || (qty * price);
+
+    items.push({
+      id: item.uuid || undefined,
+      productId: finalProductId || undefined,
+      name: itemName,
+      quantity: qty,
+      price: price,
+      subtotal: subtotal,
+    });
+  }
+
+  // Resolve userId: pastikan yang dikirim adalah UUID user di PostgreSQL
+  let finalUserId = order.userId || storedUser.uuid;
+  if (finalUserId && typeof finalUserId === 'number') {
+    const localU = await db.users.get(finalUserId);
+    if (localU?.uuid) finalUserId = localU.uuid;
+  } else if (finalUserId && typeof finalUserId === 'string' && !finalUserId.includes('-')) {
+    const numId = parseInt(finalUserId, 10);
+    if (!isNaN(numId)) {
+      const localU = await db.users.get(numId);
+      if (localU?.uuid) finalUserId = localU.uuid;
+    }
+  }
+
+  if ((!finalUserId || typeof finalUserId !== 'string' || !finalUserId.includes('-')) && storedUser?.uuid) {
+    finalUserId = storedUser.uuid;
+  }
+
+  if (!finalUserId || typeof finalUserId !== 'string' || !finalUserId.includes('-')) {
+    const firstLocalUser = (storeId ? await db.users.where('storeId').equals(storeId).first() : null) || await db.users.first();
+    if (firstLocalUser?.uuid) {
+      finalUserId = firstLocalUser.uuid;
+    }
+  }
 
   return {
     id: order.uuid || crypto.randomUUID(),
     storeId,
     invoiceId: order.invoiceId,
-    userId: storedUser.uuid || (order.userId ? String(order.userId) : undefined),
+    userId: finalUserId || undefined,
     pelangganId: pelanggan?.uuid || undefined,
     pelanggan: pelanggan ? {
       id: pelanggan.uuid,
@@ -45,7 +126,7 @@ const formatOrderPayload = async (order) => {
     bayar: order.bayar || 0,
     kembalian: order.kembalian || 0,
     metodeBayar: order.metodeBayar || 'Tunai',
-    estimasi: order.estimasi,
+    estimasi: order.estimasi !== undefined && order.estimasi !== null ? String(order.estimasi) : null,
     tipeLayanan: order.tipeLayanan,
     isPriority: Boolean(order.isPriority),
     statusBayar: order.statusBayar,
@@ -101,13 +182,14 @@ export const syncOrderToBackend = async (orderId) => {
 };
 
 let isSyncing = false;
+let isMasterSyncing = false;
 
 /**
  * Sinkronisasi User/Kasir yang berubah (isDirty: 1) ke Backend
  */
 export const syncUsersToBackend = async () => {
   try {
-    const dirtyUsers = await db.users.filter(u => u.isDirty === 1 || !u.uuid).toArray();
+    const dirtyUsers = await db.users.filter(u => u.isDirty === 1).toArray();
     if (dirtyUsers.length === 0) return;
 
     const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
@@ -140,8 +222,15 @@ export const syncUsersToBackend = async () => {
     });
 
     if (response.ok) {
+      const serverUsers = await response.json().catch(() => []);
       for (const u of dirtyUsers) {
-        await db.users.update(u.id, { isDirty: 0 });
+        const match = Array.isArray(serverUsers)
+          ? serverUsers.find(su => su.id === u.uuid || su.username === u.username)
+          : null;
+        await db.users.update(u.id, {
+          isDirty: 0,
+          ...(match ? { uuid: match.id } : {}),
+        });
       }
       console.log(`[Sync] ${dirtyUsers.length} user berhasil disinkronkan ke BE.`);
     }
@@ -151,13 +240,13 @@ export const syncUsersToBackend = async () => {
 };
 
 /**
- * Sinkronisasi Produk/Layanan ke Backend (Bisa dipaksa semua produk saat start awal)
+ * Sinkronisasi Produk/Layanan ke Backend (Bisa dipaksa semua produk saat start awal jika DB server masih kosong)
  */
 export const syncProductsToBackend = async (forceAll = false) => {
   try {
     const productsToSync = forceAll
       ? await db.products.toArray()
-      : await db.products.filter(p => p.isDirty === 1 || !p.uuid || typeof p.isDirty === 'undefined').toArray();
+      : await db.products.filter(p => p.isDirty === 1).toArray();
 
     if (productsToSync.length === 0) return;
 
@@ -195,8 +284,15 @@ export const syncProductsToBackend = async (forceAll = false) => {
     });
 
     if (response.ok) {
+      const serverProducts = await response.json().catch(() => []);
       for (const p of productsToSync) {
-        await db.products.update(p.id, { isDirty: 0 });
+        const match = Array.isArray(serverProducts)
+          ? serverProducts.find(sp => sp.id === p.uuid || (p.code && sp.code === p.code) || sp.name === p.name)
+          : null;
+        await db.products.update(p.id, {
+          isDirty: 0,
+          ...(match ? { uuid: match.id } : {}),
+        });
       }
       console.log(`[Sync] ${productsToSync.length} produk berhasil disinkronkan ke BE.`);
     }
@@ -212,7 +308,7 @@ export const syncPelangganToBackend = async (forceAll = false) => {
   try {
     const pelangganList = forceAll
       ? await db.pelanggan.toArray()
-      : await db.pelanggan.filter(p => p.isDirty === 1 || !p.uuid || typeof p.isDirty === 'undefined').toArray();
+      : await db.pelanggan.filter(p => p.isDirty === 1).toArray();
 
     if (pelangganList.length === 0) return;
 
@@ -247,8 +343,16 @@ export const syncPelangganToBackend = async (forceAll = false) => {
     });
 
     if (response.ok) {
+      const serverResult = await response.json().catch(() => ({}));
+      const serverPelanggan = serverResult.data || serverResult || [];
       for (const p of pelangganList) {
-        await db.pelanggan.update(p.id, { isDirty: 0 });
+        const match = Array.isArray(serverPelanggan)
+          ? serverPelanggan.find(sp => sp.id === p.uuid || (p.hp && sp.hp === p.hp) || sp.nama === p.nama)
+          : null;
+        await db.pelanggan.update(p.id, {
+          isDirty: 0,
+          ...(match ? { uuid: match.id } : {}),
+        });
       }
       console.log(`[Sync] ${pelangganList.length} pelanggan berhasil disinkronkan ke BE.`);
     }
@@ -266,8 +370,10 @@ export const syncSettingsToBackend = async () => {
     const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
     const storeId = setting?.storeId || storedUser.storeId;
 
-    // Jangan push settings ke server jika belum punya storeId (belum login / belum register)
-    if (!storeId || (setting.isDirty !== 1 && setting.storeId)) return;
+    // HANYA sinkronkan jika setting berstatus kotor (isDirty: 1) dan memiliki storeId
+    if (!storeId || setting?.isDirty !== 1) {
+      return;
+    }
 
     const payload = {
       storeId,
@@ -304,40 +410,47 @@ export const syncSettingsToBackend = async () => {
  * Sinkronisasi seluruh master data (Users, Products, Pelanggan, Settings)
  */
 export const syncAllDirtyMasterData = async (forceAll = false) => {
-  const setting = await db.settings.get(1);
-  const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
-  // Hanya jalankan sync jika sudah memiliki storeId resmi
-  if (!setting?.storeId && !storedUser?.storeId) {
-    return;
-  }
+  if (isMasterSyncing) return;
 
-  await syncSettingsToBackend();
-  await syncUsersToBackend();
-  await syncProductsToBackend(forceAll);
-  await syncPelangganToBackend(forceAll);
+  try {
+    isMasterSyncing = true;
+    const setting = await db.settings.get(1);
+    const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+    // Hanya jalankan sync jika sudah memiliki storeId resmi
+    if (!setting?.storeId && !storedUser?.storeId) {
+      return;
+    }
+
+    await syncSettingsToBackend();
+    await syncUsersToBackend();
+    await syncProductsToBackend(forceAll);
+    await syncPelangganToBackend(forceAll);
+  } finally {
+    isMasterSyncing = false;
+  }
 };
 
 /**
- * Sinkronisasi seluruh order yang belum ter-sync (isDirty: 1)
+ * Sinkronisasi seluruh order yang belum ter-sync (isDirty: 1) atau forceAll untuk re-sync
  */
-export const syncDirtyOrders = async () => {
+export const syncDirtyOrders = async (forceAll = false) => {
   // Cegah multiple sync bersamaan (Concurrency Lock)
   if (isSyncing) return;
 
   try {
     isSyncing = true;
 
-    // Sinkronkan master data (Users, Products, Settings) dulu jika ada perubahan
-    await syncAllDirtyMasterData();
+    // Cek dulu apakah ada order yang kotor atau paksa semua jika forceAll
+    const dirtyOrders = forceAll
+      ? await db.orders.toArray()
+      : await db.orders.filter(o => o.isDirty === 1).toArray();
 
-    // Cek dulu apakah ada order yang kotor (Early exit jika tidak ada, 0 overhead)
-    const dirtyOrders = await db.orders.filter(o => o.isDirty === 1 || typeof o.isDirty === 'undefined').toArray();
     if (dirtyOrders.length === 0) {
       isSyncing = false;
       return;
     }
 
-    console.log(`[Sync] Menemukan ${dirtyOrders.length} order pending untuk disinkronkan...`);
+    console.log(`[Sync] Menemukan ${dirtyOrders.length} order untuk disinkronkan...`);
 
     const payloads = [];
     for (const order of dirtyOrders) {
@@ -390,11 +503,11 @@ if (typeof window !== 'undefined') {
       syncDirtyOrders();
     });
 
-    // 2. Cek sekali saat pertama kali aplikasi dibuka (Paksa sync seluruh master data termasuk Produk & Pelanggan)
+    // 2. Cek sekali saat pertama kali aplikasi dibuka (Hanya sinkronkan data yang kotor/belum tersinkron)
     if (navigator.onLine) {
-      setTimeout(() => {
-        syncAllDirtyMasterData(true);
-        syncDirtyOrders();
+      setTimeout(async () => {
+        await syncAllDirtyMasterData(false);
+        await syncDirtyOrders(false);
       }, 2000);
     }
 

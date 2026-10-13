@@ -30,6 +30,7 @@ export class SyncService {
         },
         create: {
           id: storeId,
+          code: `STORE-${storeId.substring(0, 6).toUpperCase()}`,
           name: storeInfo?.name || 'Laundry Store',
           address: storeInfo?.address || null,
           city: storeInfo?.city || null,
@@ -71,8 +72,17 @@ export class SyncService {
       }
       const store = await this.getOrCreateStoreFromClient(storeId);
 
-      // Ambil data sebelum berubah
-      const beforeUser = await this.prisma.user.findUnique({ where: { id: u.id } });
+      // Cari apakah user sudah ada di database (berdasarkan ID atau kombinasi unik storeId + username)
+      const existingUser = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { id: u.id },
+            { storeId: store.id, username: u.username },
+          ],
+        },
+      });
+
+      const beforeUser = existingUser;
 
       const createdAt = u.createdAt ? new Date(u.createdAt) : new Date();
       const updatedAt = u.updatedAt ? new Date(u.updatedAt) : new Date();
@@ -89,14 +99,38 @@ export class SyncService {
         deletedAt,
       };
 
-      const user = await this.prisma.user.upsert({
-        where: { id: u.id },
-        update: userData,
-        create: {
-          id: u.id,
-          ...userData,
-        },
-      });
+      // Validasi: hanya boleh 1 owner per store
+      if (userData.role === 'owner' && !userData.deletedAt) {
+        const existingOwner = await this.prisma.user.findFirst({
+          where: {
+            storeId: store.id,
+            role: 'owner',
+            deletedAt: null,
+            ...(existingUser ? { id: { not: existingUser.id } } : { id: { not: u.id } }),
+            username: { not: u.username },
+          },
+        });
+        if (existingOwner) {
+          throw new BadRequestException(
+            `Store ${store.name} (${store.code}) sudah memiliki Owner (${existingOwner.username}). Hanya boleh 1 Owner per Store.`,
+          );
+        }
+      }
+
+      let user;
+      if (existingUser) {
+        user = await this.prisma.user.update({
+          where: { id: existingUser.id },
+          data: userData,
+        });
+      } else {
+        user = await this.prisma.user.create({
+          data: {
+            id: u.id,
+            ...userData,
+          },
+        });
+      }
 
       // Simpan log perubahan
       const action = !beforeUser ? 'CREATE' : u.deletedAt ? 'DELETE' : 'UPDATE';
@@ -131,8 +165,18 @@ export class SyncService {
       }
       const store = await this.getOrCreateStoreFromClient(storeId);
 
-      // Ambil data sebelum berubah
-      const beforeProduct = await this.prisma.product.findUnique({ where: { id: p.id } });
+      // Cari produk yang sudah ada berdasarkan ID atau (storeId + code) atau (storeId + category + name)
+      const existingProduct = await this.prisma.product.findFirst({
+        where: {
+          OR: [
+            { id: p.id },
+            ...(p.code ? [{ storeId: store.id, code: p.code }] : []),
+            ...(p.category ? [{ storeId: store.id, category: p.category, name: p.name }] : []),
+          ],
+        },
+      });
+
+      const beforeProduct = existingProduct;
 
       const createdAt = p.createdAt ? new Date(p.createdAt) : new Date();
       const updatedAt = p.updatedAt ? new Date(p.updatedAt) : new Date();
@@ -149,14 +193,20 @@ export class SyncService {
         deletedAt,
       };
 
-      const product = await this.prisma.product.upsert({
-        where: { id: p.id },
-        update: productData,
-        create: {
-          id: p.id,
-          ...productData,
-        },
-      });
+      let product;
+      if (existingProduct) {
+        product = await this.prisma.product.update({
+          where: { id: existingProduct.id },
+          data: productData,
+        });
+      } else {
+        product = await this.prisma.product.create({
+          data: {
+            id: p.id,
+            ...productData,
+          },
+        });
+      }
 
       // Simpan log perubahan
       const action = !beforeProduct ? 'CREATE' : p.deletedAt ? 'DELETE' : 'UPDATE';
@@ -252,7 +302,16 @@ export class SyncService {
       }
       const store = await this.getOrCreateStoreFromClient(storeId);
 
-      const beforePelanggan = await this.prisma.pelanggan.findUnique({ where: { id: pel.id } });
+      const existingPelanggan = await this.prisma.pelanggan.findFirst({
+        where: {
+          OR: [
+            { id: pel.id },
+            ...(pel.hp ? [{ storeId: store.id, hp: pel.hp }] : []),
+          ],
+        },
+      });
+
+      const beforePelanggan = existingPelanggan;
 
       const createdAt = pel.createdAt ? new Date(pel.createdAt) : new Date();
       const updatedAt = pel.updatedAt ? new Date(pel.updatedAt) : new Date();
@@ -268,14 +327,20 @@ export class SyncService {
         deletedAt,
       };
 
-      const saved = await this.prisma.pelanggan.upsert({
-        where: { id: pel.id },
-        update: pelangganData,
-        create: {
-          id: pel.id,
-          ...pelangganData,
-        },
-      });
+      let saved;
+      if (existingPelanggan) {
+        saved = await this.prisma.pelanggan.update({
+          where: { id: existingPelanggan.id },
+          data: pelangganData,
+        });
+      } else {
+        saved = await this.prisma.pelanggan.create({
+          data: {
+            id: pel.id,
+            ...pelangganData,
+          },
+        });
+      }
 
       const action = !beforePelanggan ? 'CREATE' : pel.deletedAt ? 'DELETE' : 'UPDATE';
       await this.prisma.syncLog.create({

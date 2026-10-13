@@ -69,7 +69,7 @@ export class SyncOrderDto {
   metodeBayar?: string;
 
   @ApiPropertyOptional({ description: 'Estimasi pengerjaan', example: 'Besok (24 Jam)' })
-  estimasi?: string;
+  estimasi?: any;
 
   @ApiPropertyOptional({ description: 'Tipe Layanan (DL: Diantar / AJ: Ambil Sendiri)', example: 'AJ' })
   tipeLayanan?: string;

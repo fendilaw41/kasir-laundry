@@ -1,5 +1,6 @@
 import { db } from '../db';
 import { withNewSyncMeta, withUpdatedSyncMeta } from '../../src/db/syncMeta.js';
+import { syncOrderToBackend } from '../services/syncService.js';
 import Fuse from 'fuse.js';
 
 // Cari yang paling mirip dari list menggunakan Fuse.js
@@ -195,13 +196,22 @@ export async function parseChatCommand(message, user) {
           }
           const matchedProduct = findBestMatch(pi.layanan, products, ['code', 'name'], 0.4);
           if (matchedProduct) {
+            let pUuid = matchedProduct.uuid;
+            if (!pUuid) {
+              pUuid = crypto.randomUUID();
+              await db.products.update(matchedProduct.id, { uuid: pUuid });
+              matchedProduct.uuid = pUuid;
+            }
             const subtotalItem = matchedProduct.price * pi.berat;
             totalAll += subtotalItem;
             validOrderItems.push({
-              category: matchedProduct.category,
-              name: matchedProduct.name,
+              productId: pUuid,
+              code: matchedProduct.code || null,
+              category: matchedProduct.category || null,
+              name: matchedProduct.category ? `${matchedProduct.category} - ${matchedProduct.name}` : matchedProduct.name,
               price: matchedProduct.price,
-              quantity: pi.berat
+              quantity: pi.berat,
+              subtotal: subtotalItem
             });
           } else {
             notFound = `Layanan "${pi.layanan}" tidak ditemukan.`;
@@ -274,7 +284,7 @@ export async function parseChatCommand(message, user) {
 
           const orderData = {
             invoiceId,
-            userId: user.id,
+            userId: user?.uuid || user?.id,
             pelangganNama: pelangganNama,
             items: validOrderItems,
             tipeLayanan: tipeLayanan,
@@ -290,9 +300,10 @@ export async function parseChatCommand(message, user) {
           };
           if (pelangganId) orderData.pelangganId = pelangganId;
 
-          await db.orders.add(withNewSyncMeta(orderData));
+          const newOrderId = await db.orders.add(withNewSyncMeta(orderData));
+          syncOrderToBackend(newOrderId).catch(err => console.warn('Sync chatbot order failed:', err));
 
-          const itemsResponseStr = validOrderItems.map(i => `${i.category} ${i.name} ${i.quantity}kg`).join(', ');
+          const itemsResponseStr = validOrderItems.map(i => `${i.name} ${i.quantity}kg`).join(', ');
           responseText = `Transaksi "${itemsResponseStr}" = Rp${totalAll.toLocaleString('id-ID')} berhasil dibuat dengan invoice ${invoiceId}.`;
           status = 'success';
           payload = { items: validOrderItems, total: totalAll, invoiceId };
@@ -521,12 +532,14 @@ export async function parseChatCommand(message, user) {
     // 6. Cek intent: Undo Transaksi Terakhir -> "undo trx terakhir"
     else if (msg.match(/^undo\s+trx(?:\s+terakhir)?$/)) {
       intent = 'undo_trx';
-      const allUserOrders = await db.orders.filter(o => o.userId === user.id).toArray();
+      const currentUserId = user?.uuid || user?.id;
+      const allUserOrders = await db.orders.filter(o => o.userId === currentUserId || o.userId === user?.id || o.userId === user?.uuid).toArray();
       const lastOrder = allUserOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
 
       if (lastOrder) {
         if (lastOrder.status === 'Proses') {
           await db.orders.update(lastOrder.id, withUpdatedSyncMeta({ status: 'Dibatalkan' }));
+          syncOrderToBackend(lastOrder.id).catch(err => console.warn('Sync undo order failed:', err));
           responseText = `Transaksi terakhir dengan invoice ${lastOrder.invoiceId} berhasil dibatalkan.`;
           status = 'success';
           payload = { undoneOrder: lastOrder };
@@ -545,7 +558,8 @@ export async function parseChatCommand(message, user) {
       if (newBerat <= 0) {
         responseText = 'Berat cucian harus lebih dari 0 kg.';
       } else {
-        const allUserOrders = await db.orders.filter(o => o.userId === user.id).toArray();
+        const currentUserId = user?.uuid || user?.id;
+        const allUserOrders = await db.orders.filter(o => o.userId === currentUserId || o.userId === user?.id || o.userId === user?.uuid).toArray();
         const lastOrder = allUserOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
 
         if (lastOrder && lastOrder.items && lastOrder.items.length > 0) {
@@ -555,16 +569,32 @@ export async function parseChatCommand(message, user) {
           const matchedProduct = findBestMatch(layananName, products, ['code', 'name'], 0.4);
 
           if (matchedProduct) {
+            let pUuid = matchedProduct.uuid;
+            if (!pUuid) {
+              pUuid = crypto.randomUUID();
+              await db.products.update(matchedProduct.id, { uuid: pUuid });
+              matchedProduct.uuid = pUuid;
+            }
             const newTotal = matchedProduct.price * newBerat;
 
             const updatedItems = [...lastOrder.items];
-            updatedItems[0] = { ...updatedItems[0], quantity: newBerat };
+            updatedItems[0] = {
+              ...updatedItems[0],
+              productId: pUuid,
+              code: matchedProduct.code || updatedItems[0].code || null,
+              category: matchedProduct.category || updatedItems[0].category || null,
+              name: matchedProduct.category ? `${matchedProduct.category} - ${matchedProduct.name}` : matchedProduct.name,
+              price: matchedProduct.price,
+              quantity: newBerat,
+              subtotal: newTotal
+            };
 
             await db.orders.update(lastOrder.id, withUpdatedSyncMeta({
               items: updatedItems,
               subtotal: newTotal,
               total: newTotal
             }));
+            syncOrderToBackend(lastOrder.id).catch(err => console.warn('Sync edit order failed:', err));
             responseText = `Transaksi ${lastOrder.invoiceId} berhasil diubah menjadi ${newBerat}kg. Total baru: Rp${newTotal.toLocaleString('id-ID')}.`;
             status = 'success';
             payload = { updatedOrder: lastOrder, newBerat, newTotal };

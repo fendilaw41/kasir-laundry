@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 require("dotenv/config");
+process.env.TZ = 'Asia/Jakarta';
+const common_1 = require("@nestjs/common");
 const core_1 = require("@nestjs/core");
 const swagger_1 = require("@nestjs/swagger");
 const app_module_1 = require("./app.module");
@@ -13,6 +15,63 @@ async function bootstrap() {
         credentials: true,
     });
     app.setGlobalPrefix('api');
+    const httpLogger = new common_1.Logger('HTTP');
+    app.use((req, res, next) => {
+        const { method, originalUrl, query } = req;
+        const startTime = Date.now();
+        let operation = 'REQUEST';
+        if (method === 'GET')
+            operation = 'GET';
+        else if (method === 'POST')
+            operation = 'STORE';
+        else if (method === 'PUT' || method === 'PATCH')
+            operation = 'UPDATE';
+        else if (method === 'DELETE')
+            operation = 'DELETE';
+        res.on('finish', () => {
+            const { statusCode } = res;
+            const duration = Date.now() - startTime;
+            const queryStr = Object.keys(query || {}).length > 0 ? ` ?${JSON.stringify(query)}` : '';
+            let bodySummary = '';
+            if (['POST', 'PUT', 'PATCH'].includes(method) && req.body && Object.keys(req.body).length > 0) {
+                try {
+                    const maskSensitive = (data) => {
+                        if (Array.isArray(data)) {
+                            return data.map(maskSensitive);
+                        }
+                        if (data && typeof data === 'object') {
+                            const clone = { ...data };
+                            if (clone.password) {
+                                clone.password = '***';
+                            }
+                            for (const key of Object.keys(clone)) {
+                                if (clone[key] && typeof clone[key] === 'object') {
+                                    clone[key] = maskSensitive(clone[key]);
+                                }
+                            }
+                            return clone;
+                        }
+                        return data;
+                    };
+                    const sanitized = maskSensitive(req.body);
+                    bodySummary = ` | Body: ${JSON.stringify(sanitized)}`;
+                }
+                catch {
+                }
+            }
+            const logMsg = `[${operation}] ${method} ${originalUrl}${queryStr} -> ${statusCode} (${duration}ms)${bodySummary}`;
+            if (statusCode >= 500) {
+                httpLogger.error(logMsg);
+            }
+            else if (statusCode >= 400) {
+                httpLogger.warn(logMsg);
+            }
+            else {
+                httpLogger.log(logMsg);
+            }
+        });
+        next();
+    });
     const config = new swagger_1.DocumentBuilder()
         .setTitle('Kasir Laundry API')
         .setDescription('Dokumentasi REST API & Sinkronisasi Data Kasir Laundry (Offline-First)')

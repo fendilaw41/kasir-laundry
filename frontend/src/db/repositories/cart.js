@@ -3,16 +3,37 @@ import { withNewSyncMeta, withUpdatedSyncMeta } from '../syncMeta.js';
 export const getCartQuery = () => db.cart.toArray();
 
 export const addProductToCart = async (product, qty = 1) => {
-  if (!product || !product.id) throw new Error('Produk tidak valid');
+  if (!product || (!product.id && !product.uuid)) throw new Error('Produk tidak valid');
   const parsedQty = parseInt(Number(qty));
   const validQty = isNaN(parsedQty) || parsedQty < 1 ? 1 : parsedQty;
 
-  const existing = await db.cart.where('productId').equals(product.id).first();
+  // Pastikan product memiliki uuid yang sesuai dengan database PostgreSQL
+  let productUuid = product.uuid;
+  if (!productUuid) {
+    if (product.id) {
+      productUuid = crypto.randomUUID();
+      await db.products.update(product.id, { uuid: productUuid });
+    } else {
+      productUuid = crypto.randomUUID();
+    }
+  }
+
+  const targetProductId = productUuid;
+
+  // Cari item di keranjang berdasarkan productId (UUID postgres) atau fallback id lokal lama
+  let existing = await db.cart.where('productId').equals(targetProductId).first();
+  if (!existing && product.id) {
+    existing = await db.cart.where('productId').equals(product.id).first();
+  }
+
   if (existing) {
-    return await db.cart.update(existing.id, withUpdatedSyncMeta({ quantity: existing.quantity + validQty }));
+    return await db.cart.update(existing.id, withUpdatedSyncMeta({
+      productId: targetProductId,
+      quantity: existing.quantity + validQty
+    }));
   } else {
     return await db.cart.add(withNewSyncMeta({
-      productId: product.id,
+      productId: targetProductId,
       quantity: validQty,
       name: `${product.category} - ${product.name}`,
       price: product.price

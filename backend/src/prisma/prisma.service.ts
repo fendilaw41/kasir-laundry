@@ -13,7 +13,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     if (!connectionString) {
       throw new Error('DATABASE_URL environment variable is missing in .env!');
     }
-    const pool = new Pool({ connectionString });
+    const pool = new Pool({
+      connectionString,
+      options: '-c timezone=UTC',
+    });
     const adapter = new PrismaPg(pool);
     super({ adapter });
   }
