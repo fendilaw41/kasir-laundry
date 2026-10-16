@@ -17,6 +17,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       connectionString,
       options: '-c timezone=UTC',
     });
+
+    // Cegah crash Node.js jika koneksi idle PostgreSQL terputus
+    pool.on('error', (err) => {
+      this.logger.error(`PostgreSQL pool client error: ${err.message}`);
+    });
+
     const adapter = new PrismaPg(pool);
     super({ adapter });
   }
@@ -26,7 +32,21 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       await this.$connect();
       this.logger.log('Prisma connected to database successfully.');
     } catch (error: any) {
-      this.logger.error(`Prisma connection error: ${error.message}`);
+      this.logger.error(
+        `Prisma database connection error: ${error.message}. Server tetap aktif, namun request ke DB akan mengembalikan status 500 sampai PostgreSQL kembali berjalan.`,
+      );
+    }
+  }
+
+  /**
+   * Cek status koneksi database secara aman tanpa melempar exception
+   */
+  async isHealthy(): Promise<boolean> {
+    try {
+      await this.$queryRaw`SELECT 1`;
+      return true;
+    } catch {
+      return false;
     }
   }
 

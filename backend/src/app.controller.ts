@@ -15,5 +15,13 @@ export class AppController {
   getHello(): string {
     return this.appService.getHello();
   }
+
+  @Public()
+  @Get('health')
+  @ApiOperation({ summary: 'Status kesehatan server dan koneksi database' })
+  @ApiResponse({ status: 200, description: 'Status kesehatan sistem' })
+  async getHealth() {
+    return this.appService.getHealth();
+  }
 }
 

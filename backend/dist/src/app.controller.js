@@ -22,6 +22,9 @@ let AppController = class AppController {
     getHello() {
         return this.appService.getHello();
     }
+    async getHealth() {
+        return this.appService.getHealth();
+    }
 };
 exports.AppController = AppController;
 __decorate([
@@ -33,6 +36,15 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", String)
 ], AppController.prototype, "getHello", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Get)('health'),
+    (0, swagger_1.ApiOperation)({ summary: 'Status kesehatan server dan koneksi database' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Status kesehatan sistem' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AppController.prototype, "getHealth", null);
 exports.AppController = AppController = __decorate([
     (0, swagger_1.ApiTags)('App'),
     (0, common_1.Controller)(),

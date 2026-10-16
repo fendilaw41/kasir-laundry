@@ -16,6 +16,7 @@ const orders_module_1 = require("./orders/orders.module");
 const sync_module_1 = require("./sync/sync.module");
 const auth_module_1 = require("./auth/auth.module");
 const jwt_auth_guard_1 = require("./auth/jwt-auth.guard");
+const all_exceptions_filter_1 = require("./common/filters/all-exceptions.filter");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -28,6 +29,10 @@ exports.AppModule = AppModule = __decorate([
             {
                 provide: core_1.APP_GUARD,
                 useClass: jwt_auth_guard_1.JwtAuthGuard,
+            },
+            {
+                provide: core_1.APP_FILTER,
+                useClass: all_exceptions_filter_1.AllExceptionsFilter,
             },
         ],
     })
