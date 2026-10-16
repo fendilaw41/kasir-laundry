@@ -40,7 +40,23 @@ function App() {
   const handleLogout = () => {
     setUser(null);
     sessionStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    localStorage.removeItem('auth_token');
   };
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      console.warn('[Auth] Sesi berakhir atau token tidak valid (401 Unauthorized)');
+      setUser(null);
+      sessionStorage.removeItem('user');
+      sessionStorage.removeItem('token');
+      localStorage.removeItem('auth_token');
+    };
+
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+  }, []);
+
 
   return (
     <Router>

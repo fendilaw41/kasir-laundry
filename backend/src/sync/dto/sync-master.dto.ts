@@ -131,4 +131,43 @@ export class SyncMasterDataDto {
 
   @ApiPropertyOptional({ description: 'Data setting outlet yang perlu di-sync', type: SyncSettingsDto })
   settings?: SyncSettingsDto;
+
+  @ApiPropertyOptional({ description: 'Daftar inventory / stok yang perlu di-sync', type: () => [SyncInventoryDto] })
+  inventory?: SyncInventoryDto[];
 }
+
+export class SyncInventoryDto {
+  @ApiProperty({ description: 'UUID dari Inventory', example: 'd3f81e69-0268-4a94-bfbe-d45e12f672fa' })
+  id: string;
+
+  @ApiPropertyOptional({ description: 'ID Toko (Store ID)', example: 'fbfe9436-b120-4fc4-bf30-85659c3cc56f' })
+  storeId?: string;
+
+  @ApiProperty({ description: 'Nama barang / perlengkapan inventory', example: 'Deterjen Liquid' })
+  nama: string;
+
+  @ApiProperty({ description: 'Jumlah stok saat ini', example: 10 })
+  stok: number;
+
+  @ApiPropertyOptional({ description: 'Jumlah stok yang diajukan / penambahan pending', example: 0 })
+  qty?: number;
+
+  @ApiPropertyOptional({ description: 'Satuan barang (kg, pcs, botol)', example: 'kg' })
+  unit?: string;
+
+  @ApiPropertyOptional({ description: 'Status persetujuan (pending/approved/rejected)', example: 'approved' })
+  status?: string;
+
+  @ApiPropertyOptional({ description: 'Pembuat/Pengaju data', example: 'Owner' })
+  createdBy?: string;
+
+  @ApiPropertyOptional({ description: 'Waktu pembuatan di client', example: '2026-10-09T07:20:00.000Z' })
+  createdAt?: string | Date;
+
+  @ApiPropertyOptional({ description: 'Waktu update di client', example: '2026-10-09T07:20:00.000Z' })
+  updatedAt?: string | Date;
+
+  @ApiPropertyOptional({ description: 'Waktu dihapus di client (Soft Delete)', example: null })
+  deletedAt?: string | Date | null;
+}
+

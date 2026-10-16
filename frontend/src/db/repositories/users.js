@@ -1,7 +1,7 @@
 import { db } from '../../db.js';
 import bcrypt from 'bcryptjs';
 import { withNewSyncMeta, withUpdatedSyncMeta } from '../syncMeta.js';
-import { syncAllDirtyMasterData, syncUsersToBackend, pullOrdersFromBackend } from '../../services/syncService.js';
+import { syncAllDirtyMasterData, syncUsersToBackend, syncInventoryToBackend, pullOrdersFromBackend } from '../../services/syncService.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -174,15 +174,16 @@ const hydrateFromBackend = async (data) => {
         existingInv = await db.inventory.where('uuid').equals(inv.id).first();
       }
       if (!existingInv && inv.nama) {
-        existingInv = await db.inventory.where('nama').equals(inv.nama).first();
+        existingInv = await db.inventory.filter(i => i.nama && i.nama.toLowerCase() === inv.nama.toLowerCase()).first();
       }
       const invPayload = {
         uuid: inv.id,
         nama: inv.nama,
-        stok: inv.stok,
-        qty: inv.qty,
-        unit: inv.unit,
-        status: inv.status,
+        stok: Number(inv.stok) || 0,
+        qty: Number(inv.qty) || 0,
+        unit: inv.unit || null,
+        status: inv.status || 'approved',
+        createdBy: inv.createdBy || null,
         updatedAt: new Date(inv.updatedAt || new Date()),
         isDirty: 0,
       };
@@ -191,6 +192,12 @@ const hydrateFromBackend = async (data) => {
       } else {
         await db.inventory.add(invPayload);
       }
+    }
+  } else if (inventory && inventory.length === 0) {
+    const localInvCount = await db.inventory.count();
+    if (localInvCount > 0) {
+      console.log('[Sync] Inventory di server masih kosong. Menginisialisasi inventory ke DB...');
+      syncInventoryToBackend(true).catch(err => console.warn('[Hydrate] Init inventory failed:', err));
     }
   }
 };
@@ -220,6 +227,13 @@ export const loginUser = async (username, password, storeCode) => {
         const result = await response.json();
         const payload = result.data || result;
         if (payload && payload.user) {
+          // Simpan token JWT Bearer dari backend ke storage browser
+          const token = payload.token || payload.access_token || payload.user?.token;
+          if (token) {
+            sessionStorage.setItem('token', token);
+            localStorage.setItem('auth_token', token);
+          }
+
           try {
             await hydrateFromBackend(payload);
           } catch (hydrateErr) {
@@ -236,6 +250,9 @@ export const loginUser = async (username, password, storeCode) => {
             storeId: payload.user.storeId,
             storeCode: payload.user.storeCode,
           };
+          if (token) {
+            finalUser.token = token;
+          }
           // Master data & order sudah sinkron setelah hidrasi.
           syncAllDirtyMasterData(false).catch(err => console.warn('Sync master data failed:', err));
           pullOrdersFromBackend().catch(err => console.warn('Pull orders on login failed:', err));
@@ -320,7 +337,13 @@ export const registerUser = async ({ storeCode, fullname, username, password, ro
     }
 
     const result = await response.json();
-    const registeredUser = result.data;
+    const regData = result.data || {};
+    const registeredUser = regData.user || regData;
+    const token = regData.token || registeredUser.token;
+    if (token) {
+      sessionStorage.setItem('token', token);
+      localStorage.setItem('auth_token', token);
+    }
 
     // Simpan ke Dexie lokal
     const hashedPassword = await bcrypt.hash(password, 10);

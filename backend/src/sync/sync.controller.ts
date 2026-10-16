@@ -1,9 +1,11 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SyncService } from './sync.service';
-import { SyncMasterDataDto, SyncPelangganDto, SyncProductDto, SyncSettingsDto, SyncUserDto } from './dto/sync-master.dto';
+import { SyncInventoryDto, SyncMasterDataDto, SyncPelangganDto, SyncProductDto, SyncSettingsDto, SyncUserDto } from './dto/sync-master.dto';
 
 @ApiTags('Master Sync & Audit Logs')
+@ApiBearerAuth('bearer')
+@ApiResponse({ status: 401, description: 'Unauthorized - Bearer token tidak valid atau tidak disertakan.' })
 @Controller('sync')
 export class SyncController {
   constructor(private readonly syncService: SyncService) {}
@@ -84,6 +86,37 @@ export class SyncController {
     return {
       success: true,
       message: 'Pengaturan outlet berhasil disinkronkan',
+      data,
+    };
+  }
+
+  @Post('inventory')
+  @ApiOperation({
+    summary: 'Sinkronisasi Data Inventory / Stok (Upsert)',
+    description: 'Menyimpan atau memperbarui daftar inventory / stok bahan dari Dexie lokal.',
+  })
+  @ApiBody({ type: [SyncInventoryDto] })
+  @ApiResponse({ status: 201, description: 'Inventory berhasil disinkronkan.' })
+  async syncInventory(@Body() dtos: SyncInventoryDto[]) {
+    const data = await this.syncService.upsertInventory(dtos);
+    return {
+      success: true,
+      message: `${data.length} item inventory berhasil disinkronkan`,
+      data,
+    };
+  }
+
+  @Get('inventory')
+  @ApiOperation({
+    summary: 'Mendapatkan Daftar Inventory Toko',
+    description: 'Mengambil daftar seluruh stok bahan/inventory berdasarkan ID Toko.',
+  })
+  @ApiQuery({ name: 'storeId', required: true, description: 'Filter berdasarkan ID Toko' })
+  @ApiResponse({ status: 200, description: 'Daftar inventory berhasil dimuat.' })
+  async getInventory(@Query('storeId') storeId: string) {
+    const data = await this.syncService.getInventory(storeId);
+    return {
+      success: true,
       data,
     };
   }

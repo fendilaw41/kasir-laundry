@@ -236,14 +236,40 @@ export class OrdersService {
         },
       });
 
-      // 6. Dapatkan username pengubah
+      // 6. Kurangi stok inventory jika ada inventory yang digunakan pada order baru
+      if (!beforeOrder && dto.inventoryUsed && Array.isArray(dto.inventoryUsed) && dto.inventoryUsed.length > 0) {
+        for (const inv of dto.inventoryUsed) {
+          const qty = Number(inv.quantity) || 1;
+          const targetInv = await tx.inventory.findFirst({
+            where: {
+              storeId,
+              deletedAt: null,
+              OR: [
+                ...(inv.id ? [{ id: String(inv.id) }] : []),
+                ...(inv.uuid ? [{ id: String(inv.uuid) }] : []),
+                ...(inv.nama ? [{ nama: { equals: String(inv.nama), mode: 'insensitive' as const } }] : []),
+              ],
+            },
+          });
+
+          if (targetInv) {
+            const newStok = Math.max(0, targetInv.stok - qty);
+            await tx.inventory.update({
+              where: { id: targetInv.id },
+              data: { stok: newStok },
+            });
+          }
+        }
+      }
+
+      // 7. Dapatkan username pengubah
       let actorUsername = 'system';
       if (finalUserId) {
         const u = await tx.user.findUnique({ where: { id: finalUserId } });
         if (u) actorUsername = u.username;
       }
 
-      // 7. Simpan Log Perubahan ke SyncLog
+      // 8. Simpan Log Perubahan ke SyncLog
       const action = !beforeOrder ? 'CREATE' : (dto.deletedAt ? 'DELETE' : 'UPDATE');
       await tx.syncLog.create({
         data: {
@@ -293,6 +319,17 @@ export class OrdersService {
         pelanggan: true,
       },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Ambil daftar inventory untuk store tertentu
+   */
+  async findInventory(storeId: string) {
+    if (!storeId) return [];
+    return await this.prisma.inventory.findMany({
+      where: { storeId, deletedAt: null },
+      orderBy: { updatedAt: 'desc' },
     });
   }
 

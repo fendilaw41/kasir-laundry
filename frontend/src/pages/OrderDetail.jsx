@@ -13,7 +13,7 @@ const OrderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const order = useLiveQuery(() => getOrderByIdQuery(id), [id]);
-  const pelanggan = useLiveQuery(() => order ? getPelangganByIdQuery(order.pelangganId) : null, [order]);
+  const pelanggan = useLiveQuery(() => order ? getPelangganByIdQuery(order.pelangganId, order.pelangganNama) : null, [order]);
   const settings = useLiveQuery(getSettingsQuery);
 
   const [catatan, setCatatan] = useState('');
@@ -179,7 +179,7 @@ const OrderDetail = () => {
   return (
     <>
       {/* Komponen Cetak Standar */}
-      <PrintLayout order={order} pelanggan={pelanggan} printType={printType} />
+      <PrintLayout order={order} pelanggan={pelanggan || { nama: order.pelangganNama, hp: order.pelangganHp }} printType={printType} />
 
       <div className="order-detail-wrapper pb-5">
 
@@ -202,8 +202,8 @@ const OrderDetail = () => {
               <span className="text-muted">{new Date(order.createdAt).toLocaleString('id-ID')}</span>
             </div>
             <div className="d-flex justify-content-between mb-1">
-              <h6 className="mb-0 fw-bold">{pelanggan?.nama || 'Pelanggan Umum'}</h6>
-              <div className="text-muted mb-1"><i className="bi bi-telephone me-1"></i> {pelanggan?.hp || '-'}</div>
+              <h6 className="mb-0 fw-bold">{pelanggan?.nama || order.pelangganNama || 'Pelanggan Umum'}</h6>
+              <div className="text-muted mb-1"><i className="bi bi-telephone me-1"></i> {pelanggan?.hp || order.pelangganHp || '-'}</div>
             </div>
             <div className="d-flex justify-content-between">
               <span>Estimasi Selesai :</span>

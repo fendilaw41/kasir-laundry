@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { withNewSyncMeta, withUpdatedSyncMeta } from '../../src/db/syncMeta.js';
-import { syncOrderToBackend } from '../services/syncService.js';
+import { syncOrderToBackend, syncInventoryToBackend } from '../services/syncService.js';
 import Fuse from 'fuse.js';
 
 // Cari yang paling mirip dari list menggunakan Fuse.js
@@ -367,6 +367,7 @@ export async function parseChatCommand(message, user) {
       if (addedItems.length > 0) {
         responseText = `Diajukan: ${addedItems.join(', ')}. Menunggu approval owner. Cek di menu Inventory pending`;
         status = 'success';
+        syncInventoryToBackend().catch(err => console.warn('[Chatbot] Sync inventory addition failed:', err));
       }
       if (failedItems.length > 0) {
         responseText += `\nBeberapa item gagal diproses: ${failedItems.join(' | ')}`;
@@ -386,21 +387,26 @@ export async function parseChatCommand(message, user) {
         } else {
           await db.transaction('rw', [db.inventory, db.inventoryEvents], async () => {
             for (const item of pendingItems) {
+              const currentStok = Number(item.stok) || 0;
+              const pendingQty = Number(item.qty) || 0;
+              const newStok = currentStok + pendingQty;
               await db.inventory.update(item.id, withUpdatedSyncMeta({
                 status: 'approved',
+                stok: newStok,
                 qty: 0
               }));
-              if (item.qty > 0) {
+              if (pendingQty > 0) {
                 await db.inventoryEvents.add(withNewSyncMeta({
                   inventoryId: item.id,
                   type: 'ADD',
-                  qty: item.qty,
+                  qty: pendingQty,
                   note: 'Approved inventory request via Chatbot',
                   createdBy: user.fullname || user.username
                 }));
               }
             }
           });
+          syncInventoryToBackend().catch(err => console.warn('[Chatbot] Sync inventory approve all failed:', err));
           responseText = `${pendingItems.length} item inventory di-approve dan stok berhasil ditambahkan.`;
           status = 'success';
           payload = { approvedCount: pendingItems.length };
@@ -422,20 +428,25 @@ export async function parseChatCommand(message, user) {
           const matchedItem = findBestMatch(itemName, pendingItems, ['nama'], 0.4);
           if (matchedItem) {
             await db.transaction('rw', [db.inventory, db.inventoryEvents], async () => {
+              const currentStok = Number(matchedItem.stok) || 0;
+              const pendingQty = Number(matchedItem.qty) || 0;
+              const newStok = currentStok + pendingQty;
               await db.inventory.update(matchedItem.id, withUpdatedSyncMeta({
                 status: 'approved',
+                stok: newStok,
                 qty: 0
               }));
-              if (matchedItem.qty > 0) {
+              if (pendingQty > 0) {
                 await db.inventoryEvents.add(withNewSyncMeta({
                   inventoryId: matchedItem.id,
                   type: 'ADD',
-                  qty: matchedItem.qty,
+                  qty: pendingQty,
                   note: 'Approved inventory request via Chatbot',
                   createdBy: user.fullname || user.username
                 }));
               }
             });
+            syncInventoryToBackend().catch(err => console.warn('[Chatbot] Sync inventory partial approve failed:', err));
             responseText = `Inventory "${matchedItem.nama}" berhasil di-approve.`;
             status = 'success';
             payload = { approvedItem: matchedItem };

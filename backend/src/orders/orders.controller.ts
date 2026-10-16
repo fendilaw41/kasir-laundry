@@ -1,9 +1,11 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { SyncOrderDto } from './dto/sync-order.dto';
 
 @ApiTags('Orders')
+@ApiBearerAuth('bearer')
+@ApiResponse({ status: 401, description: 'Unauthorized - Bearer token tidak valid atau tidak disertakan.' })
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
@@ -62,9 +64,11 @@ export class OrdersController {
   @ApiResponse({ status: 200, description: 'Daftar order berhasil dimuat.' })
   async findAll(@Query('storeId') storeId?: string) {
     const data = await this.ordersService.findAll(storeId);
+    const inventory = storeId ? await this.ordersService.findInventory(storeId) : [];
     return {
       success: true,
       data,
+      inventory,
     };
   }
 

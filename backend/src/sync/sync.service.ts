@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { SyncMasterDataDto, SyncPelangganDto, SyncProductDto, SyncSettingsDto, SyncUserDto } from './dto/sync-master.dto';
+import { SyncInventoryDto, SyncMasterDataDto, SyncPelangganDto, SyncProductDto, SyncSettingsDto, SyncUserDto } from './dto/sync-master.dto';
 
 @Injectable()
 export class SyncService {
@@ -379,6 +379,7 @@ export class SyncService {
     let syncedUsers: any[] = [];
     let syncedProducts: any[] = [];
     let syncedPelanggan: any[] = [];
+    let syncedInventory: any[] = [];
     let syncedSettings = null;
 
     if (dto.users && dto.users.length > 0) {
@@ -393,6 +394,10 @@ export class SyncService {
       syncedPelanggan = await this.upsertPelanggan(dto.pelanggan, storeId);
     }
 
+    if (dto.inventory && dto.inventory.length > 0) {
+      syncedInventory = await this.upsertInventory(dto.inventory, storeId);
+    }
+
     if (dto.settings) {
       syncedSettings = await this.upsertSettings({ ...dto.settings, storeId });
     }
@@ -402,9 +407,100 @@ export class SyncService {
       usersSynced: syncedUsers.length,
       productsSynced: syncedProducts.length,
       pelangganSynced: syncedPelanggan.length,
+      inventorySynced: syncedInventory.length,
       settingsSynced: Boolean(syncedSettings),
     };
   }
+
+  /**
+   * Upsert Inventory dari Dexie ke PostgreSQL dengan pencatatan audit log
+   */
+  async upsertInventory(inventory: SyncInventoryDto[], fallbackStoreId?: string) {
+    if (!inventory || inventory.length === 0) return [];
+
+    const results = [];
+    for (const inv of inventory) {
+      const storeId = inv.storeId || fallbackStoreId;
+      if (!storeId) {
+        this.logger.warn(`Inventory ID ${inv.id} diabaikan: Tidak memiliki storeId.`);
+        continue;
+      }
+      const store = await this.getOrCreateStoreFromClient(storeId);
+
+      // Cari apakah inventory sudah ada di database (by ID atau storeId + nama)
+      const existingInventory = await this.prisma.inventory.findFirst({
+        where: {
+          storeId: store.id,
+          OR: [
+            { id: inv.id },
+            { nama: { equals: inv.nama, mode: 'insensitive' } },
+          ],
+        },
+      });
+
+      const beforeInventory = existingInventory;
+
+      const createdAt = inv.createdAt ? new Date(inv.createdAt) : new Date();
+      const updatedAt = inv.updatedAt ? new Date(inv.updatedAt) : new Date();
+      const deletedAt = inv.deletedAt ? new Date(inv.deletedAt) : null;
+
+      const inventoryData = {
+        storeId: store.id,
+        nama: inv.nama,
+        stok: Math.max(0, parseInt(String(inv.stok || 0), 10)),
+        qty: Math.max(0, parseInt(String(inv.qty || 0), 10)),
+        unit: inv.unit || null,
+        status: inv.status || 'approved',
+        createdBy: inv.createdBy || null,
+        createdAt,
+        updatedAt,
+        deletedAt,
+      };
+
+      let saved;
+      if (existingInventory) {
+        saved = await this.prisma.inventory.update({
+          where: { id: existingInventory.id },
+          data: inventoryData,
+        });
+      } else {
+        saved = await this.prisma.inventory.create({
+          data: {
+            id: inv.id,
+            ...inventoryData,
+          },
+        });
+      }
+
+      const action = !beforeInventory ? 'CREATE' : inv.deletedAt ? 'DELETE' : 'UPDATE';
+      await this.prisma.syncLog.create({
+        data: {
+          storeId: store.id,
+          tableName: 'Inventory',
+          action,
+          recordId: saved.id,
+          username: inv.createdBy || 'owner',
+          beforeData: beforeInventory ? JSON.parse(JSON.stringify(beforeInventory)) : null,
+          afterData: JSON.parse(JSON.stringify(saved)),
+        },
+      });
+
+      results.push(saved);
+    }
+    return results;
+  }
+
+  /**
+   * Mengambil daftar inventory untuk toko tertentu
+   */
+  async getInventory(storeId: string) {
+    if (!storeId) return [];
+    return await this.prisma.inventory.findMany({
+      where: { storeId, deletedAt: null },
+      orderBy: { nama: 'asc' },
+    });
+  }
+
 
   /**
    * Mengambil riwayat log sinkronisasi & audit trail

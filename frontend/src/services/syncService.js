@@ -3,6 +3,38 @@ import { db } from '../db.js';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 /**
+ * Mengambil JWT Bearer Token dari storage browser (sessionStorage / localStorage / user)
+ */
+export const getAuthToken = () => {
+  try {
+    return (
+      sessionStorage.getItem('token') ||
+      localStorage.getItem('auth_token') ||
+      JSON.parse(sessionStorage.getItem('user') || '{}')?.token ||
+      null
+    );
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Helper pembentuk HTTP Headers lengkap dengan Authorization: Bearer <token>
+ */
+export const getAuthHeaders = (extraHeaders = {}) => {
+  const token = getAuthToken();
+  const headers = {
+    'Content-Type': 'application/json',
+    ...extraHeaders,
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+};
+
+
+/**
  * Format order Dexie menjadi payload DTO NestJS
  */
 const formatOrderPayload = async (order) => {
@@ -159,9 +191,7 @@ export const syncOrderToBackend = async (orderId) => {
 
     const response = await fetch(`${API_BASE_URL}/orders/sync`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     });
 
@@ -171,7 +201,12 @@ export const syncOrderToBackend = async (orderId) => {
       console.log(`[Sync] Order ${order.invoiceId} berhasil disinkronkan ke BE.`);
       return true;
     } else {
-      console.warn(`[Sync] Gagal sync order ${order.invoiceId}: HTTP ${response.status}`);
+      if (response.status === 401) {
+        console.warn(`[Sync] Gagal sync order ${order.invoiceId}: 401 Unauthorized (Bearer token tidak valid / kedaluwarsa)`);
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+      } else {
+        console.warn(`[Sync] Gagal sync order ${order.invoiceId}: HTTP ${response.status}`);
+      }
       return false;
     }
   } catch (error) {
@@ -217,7 +252,7 @@ export const syncUsersToBackend = async () => {
 
     const response = await fetch(`${API_BASE_URL}/sync/users`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(payloads),
     });
 
@@ -279,7 +314,7 @@ export const syncProductsToBackend = async (forceAll = false) => {
 
     const response = await fetch(`${API_BASE_URL}/sync/products`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(payloads),
     });
 
@@ -338,7 +373,7 @@ export const syncPelangganToBackend = async (forceAll = false) => {
 
     const response = await fetch(`${API_BASE_URL}/sync/pelanggan`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(payloads),
     });
 
@@ -391,7 +426,7 @@ export const syncSettingsToBackend = async () => {
 
     const response = await fetch(`${API_BASE_URL}/sync/settings`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     });
 
@@ -407,7 +442,70 @@ export const syncSettingsToBackend = async () => {
 };
 
 /**
- * Sinkronisasi seluruh master data (Users, Products, Pelanggan, Settings)
+ * Sinkronisasi Inventory / Stok Bahan yang berubah (isDirty: 1) ke Backend
+ */
+export const syncInventoryToBackend = async (forceAll = false) => {
+  try {
+    const dirtyInventory = forceAll
+      ? await db.inventory.toArray()
+      : await db.inventory.filter(i => i.isDirty === 1).toArray();
+
+    if (dirtyInventory.length === 0) return;
+
+    const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const setting = await db.settings.get(1);
+    const storeId = storedUser.storeId || setting?.storeId;
+
+    if (!storeId) return;
+
+    const payloads = [];
+    for (const inv of dirtyInventory) {
+      if (!inv.uuid) {
+        inv.uuid = crypto.randomUUID();
+        await db.inventory.update(inv.id, { uuid: inv.uuid });
+      }
+      payloads.push({
+        id: inv.uuid,
+        storeId,
+        nama: inv.nama,
+        stok: Number(inv.stok) || 0,
+        qty: Number(inv.qty) || 0,
+        unit: inv.unit || null,
+        status: inv.status || 'approved',
+        createdBy: inv.createdBy || null,
+        createdAt: inv.createdAt ? new Date(inv.createdAt).toISOString() : new Date().toISOString(),
+        updatedAt: inv.updatedAt ? new Date(inv.updatedAt).toISOString() : new Date().toISOString(),
+        deletedAt: inv.deletedAt ? new Date(inv.deletedAt).toISOString() : null,
+      });
+    }
+
+    const response = await fetch(`${API_BASE_URL}/sync/inventory`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payloads),
+    });
+
+    if (response.ok) {
+      const serverResult = await response.json().catch(() => ({}));
+      const serverItems = serverResult.data || serverResult || [];
+      for (const inv of dirtyInventory) {
+        const match = Array.isArray(serverItems)
+          ? serverItems.find(si => si.id === inv.uuid || si.nama.toLowerCase() === inv.nama.toLowerCase())
+          : null;
+        await db.inventory.update(inv.id, {
+          isDirty: 0,
+          ...(match ? { uuid: match.id } : {}),
+        });
+      }
+      console.log(`[Sync] ${dirtyInventory.length} item inventory berhasil disinkronkan ke BE.`);
+    }
+  } catch (err) {
+    console.warn(`[Sync] Gagal sync inventory (offline): ${err.message}`);
+  }
+};
+
+/**
+ * Sinkronisasi seluruh master data (Users, Products, Pelanggan, Settings, Inventory)
  */
 export const syncAllDirtyMasterData = async (forceAll = false) => {
   if (isMasterSyncing) return;
@@ -425,6 +523,7 @@ export const syncAllDirtyMasterData = async (forceAll = false) => {
     await syncUsersToBackend();
     await syncProductsToBackend(forceAll);
     await syncPelangganToBackend(forceAll);
+    await syncInventoryToBackend(forceAll);
   } finally {
     isMasterSyncing = false;
   }
@@ -463,9 +562,7 @@ export const syncDirtyOrders = async (forceAll = false) => {
 
     const response = await fetch(`${API_BASE_URL}/orders/sync-batch`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(payloads),
     });
 
@@ -517,8 +614,16 @@ export const pullOrdersFromBackend = async (force = false) => {
     const storeId = storedUser.storeId || setting?.storeId;
     if (!storeId) return false;
 
-    const response = await fetch(`${API_BASE_URL}/orders?storeId=${encodeURIComponent(storeId)}`);
-    if (!response.ok) return false;
+    const response = await fetch(`${API_BASE_URL}/orders?storeId=${encodeURIComponent(storeId)}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      if (response.status === 401) {
+        console.warn('[Sync] Gagal pull orders: 401 Unauthorized');
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+      }
+      return false;
+    }
 
     lastOrderPullTime = Date.now();
 
@@ -606,6 +711,44 @@ export const pullOrdersFromBackend = async (force = false) => {
       }
     }
 
+    // 6. Tarik dan Sinkronkan Inventory dari Response GET /orders?storeId=...
+    const serverInventory = result.inventory || [];
+    if (Array.isArray(serverInventory) && serverInventory.length > 0) {
+      for (const sinv of serverInventory) {
+        let localInv = null;
+        if (sinv.id) {
+          localInv = await db.inventory.where('uuid').equals(sinv.id).first();
+        }
+        if (!localInv && sinv.nama) {
+          localInv = await db.inventory.filter(i => i.nama && i.nama.toLowerCase() === sinv.nama.toLowerCase()).first();
+        }
+
+        const invPayload = {
+          uuid: sinv.id,
+          nama: sinv.nama,
+          stok: Number(sinv.stok) || 0,
+          qty: Number(sinv.qty) || 0,
+          unit: sinv.unit || null,
+          status: sinv.status || 'approved',
+          createdBy: sinv.createdBy || null,
+          createdAt: sinv.createdAt ? new Date(sinv.createdAt) : new Date(),
+          updatedAt: sinv.updatedAt ? new Date(sinv.updatedAt) : new Date(),
+          deletedAt: sinv.deletedAt ? new Date(sinv.deletedAt) : null,
+          isDirty: 0,
+        };
+
+        if (localInv) {
+          // Jangan timpa jika item lokal masih memiliki perubahan lokal yang belum di-sync
+          if (localInv.isDirty !== 1) {
+            await db.inventory.update(localInv.id, invPayload);
+          }
+        } else {
+          await db.inventory.add(invPayload);
+        }
+      }
+      console.log(`[Sync] Berhasil memperbarui ${serverInventory.length} inventory dari server.`);
+    }
+
     console.log(`[Sync] Berhasil menarik ${serverOrders.length} order dari server.`);
     return true;
   } catch (err) {
@@ -626,6 +769,7 @@ if (typeof window !== 'undefined') {
     // 1. Sync instan saat internet kembali menyala
     window.addEventListener('online', async () => {
       console.log('[Sync] Jaringan online terdeteksi, memulai sinkronisasi...');
+      await syncAllDirtyMasterData();
       await syncDirtyOrders();
       await pullOrdersFromBackend();
     });
@@ -643,6 +787,7 @@ if (typeof window !== 'undefined') {
     if (syncInterval > 0) {
       setInterval(async () => {
         if (navigator.onLine && (!document.hidden || document.visibilityState === 'visible')) {
+          await syncAllDirtyMasterData();
           await syncDirtyOrders();
           await pullOrdersFromBackend();
         }
@@ -650,6 +795,7 @@ if (typeof window !== 'undefined') {
     }
   }
 }
+
 
 
 

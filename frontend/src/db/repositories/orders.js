@@ -1,6 +1,6 @@
 import { db } from '../../db.js';
 import { withNewSyncMeta, withUpdatedSyncMeta } from '../syncMeta.js';
-import { syncOrderToBackend } from '../../services/syncService.js';
+import { syncOrderToBackend, syncInventoryToBackend } from '../../services/syncService.js';
 
 export const getOrdersQuery = async () => {
   const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
@@ -57,12 +57,27 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
       createdAt: new Date()
     }));
 
-    // Kurangi stok untuk semua inventory yang dipilih melalui event log
+    // Kurangi stok untuk semua inventory yang dipilih melalui event log dan update stok di db.inventory
     if (orderData.inventoryUsed && orderData.inventoryUsed.length > 0) {
       for (const inv of orderData.inventoryUsed) {
-        const item = await db.inventory.get(inv.id);
+        let item = null;
+        if (inv.id) {
+          item = await db.inventory.get(parseInt(inv.id));
+        }
+        if (!item && inv.uuid) {
+          item = await db.inventory.where('uuid').equals(inv.uuid).first();
+        }
+        if (!item && inv.nama) {
+          item = await db.inventory.filter(i => i.nama && i.nama.toLowerCase() === inv.nama.toLowerCase()).first();
+        }
+
         const qty = Number(inv.quantity) || 1;
         if (item) {
+          const currentStok = Number(item.stok) || 0;
+          const newStok = Math.max(0, currentStok - qty);
+          await db.inventory.update(item.id, withUpdatedSyncMeta({
+            stok: newStok
+          }));
           await db.inventoryEvents.add(withNewSyncMeta({
             inventoryId: item.id,
             type: 'SUBTRACT',
@@ -84,6 +99,9 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
   // Trigger sync ke backend secara asynchronous
   if (newId) {
     syncOrderToBackend(newId).catch(err => console.warn('Sync order failed:', err));
+    if (orderData.inventoryUsed && orderData.inventoryUsed.length > 0) {
+      syncInventoryToBackend().catch(err => console.warn('Sync inventory after checkout failed:', err));
+    }
   }
 
   return newId;

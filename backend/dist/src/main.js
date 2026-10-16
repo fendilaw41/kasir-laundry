@@ -76,7 +76,17 @@ async function bootstrap() {
         .setTitle('Kasir Laundry API')
         .setDescription('Dokumentasi REST API & Sinkronisasi Data Kasir Laundry (Offline-First)')
         .setVersion('1.0.0')
-        .addTag('Orders', 'Manajemen & Sinkronisasi Pesanan')
+        .addBearerAuth({
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'Authorization',
+        description: 'Masukkan JWT Bearer token Anda untuk mengakses endpoint yang dilindungi.',
+        in: 'header',
+    }, 'bearer')
+        .addTag('Authentication', 'Autentikasi & Registrasi (Public)')
+        .addTag('Orders', 'Manajemen & Sinkronisasi Pesanan (Memerlukan Bearer Token)')
+        .addTag('Master Sync & Audit Logs', 'Sinkronisasi Master Data & Audit Logs (Memerlukan Bearer Token)')
         .build();
     const document = swagger_1.SwaggerModule.createDocument(app, config);
     swagger_1.SwaggerModule.setup('api/docs', app, document);

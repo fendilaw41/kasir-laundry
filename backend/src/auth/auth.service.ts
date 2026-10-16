@@ -6,6 +6,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -15,7 +16,10 @@ import * as bcrypt from 'bcryptjs';
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   /**
    * Registrasi user baru (Owner atau Kasir)
@@ -98,8 +102,19 @@ export class AuthService {
 
     this.logger.log(`User ${user.username} (${user.role}) berhasil didaftarkan ke store ${store.code}`);
 
+    const token = await this.jwtService.signAsync({
+      sub: user.id,
+      userId: user.id,
+      username: user.username,
+      fullname: user.fullname,
+      role: user.role,
+      storeId: user.storeId,
+      storeCode: store.code,
+    });
+
     return {
       message: 'Registrasi berhasil',
+      token,
       user: {
         id: user.id,
         storeId: user.storeId,
@@ -108,6 +123,7 @@ export class AuthService {
         username: user.username,
         fullname: user.fullname,
         role: user.role,
+        token,
       },
     };
   }
@@ -178,7 +194,18 @@ export class AuthService {
 
     this.logger.log(`User ${matchedUser.username} berhasil login online ke store ${matchedUser.store.code || currentStoreId}`);
 
+    const token = await this.jwtService.signAsync({
+      sub: matchedUser.id,
+      userId: matchedUser.id,
+      username: matchedUser.username,
+      fullname: matchedUser.fullname,
+      role: matchedUser.role,
+      storeId: matchedUser.storeId,
+      storeCode: matchedUser.store.code,
+    });
+
     return {
+      token,
       user: {
         id: matchedUser.id,
         storeId: matchedUser.storeId,
@@ -187,6 +214,7 @@ export class AuthService {
         username: matchedUser.username,
         fullname: matchedUser.fullname,
         role: matchedUser.role,
+        token,
         password: matchedUser.password, // Hash disimpan ke Dexie lokal agar device bisa login offline selanjutnya
       },
       store: matchedUser.store,
