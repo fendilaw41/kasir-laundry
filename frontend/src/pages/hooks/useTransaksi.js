@@ -12,7 +12,7 @@ export const useTransaksi = () => {
   const daftarPelanggan = useLiveQuery(getPelangganQuery);
   const inventory = useLiveQuery(getInventoryQuery);
   const draftOrder = useLiveQuery(getDraftOrderQuery);
-  
+
   const navigate = useNavigate();
 
   const selectedPelanggan = draftOrder?.pelanggan || null;
@@ -113,9 +113,9 @@ export const useTransaksi = () => {
       const newQty = (existing.quantity || 1) + delta;
       let newInventory;
       if (newQty <= 0) {
-         newInventory = prev.filter(item => item.id !== invId);
+        newInventory = prev.filter(item => item.id !== invId);
       } else {
-         newInventory = prev.map(item => item.id === invId ? { ...item, quantity: newQty } : item);
+        newInventory = prev.map(item => item.id === invId ? { ...item, quantity: newQty } : item);
       }
       await updateDraftOrder({ inventory: newInventory });
     }

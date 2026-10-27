@@ -1,25 +1,40 @@
 import { db } from '../../db.js';
 import { withNewSyncMeta, withUpdatedSyncMeta } from '../syncMeta.js';
 import { syncOrderToBackend, syncInventoryToBackend } from '../../services/syncService.js';
+import { getActiveStoreId } from './storeHelper.js';
 
 export const getOrdersQuery = async () => {
-  const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
-  const setting = await db.settings.get(1);
-  const storeId = storedUser.storeId || setting?.storeId;
+  const storeId = await getActiveStoreId();
   const all = await db.orders.toArray();
-  if (!storeId) return all;
-  return all.filter(o => o.storeId === storeId);
+  const nonDeleted = all.filter(o => !o.deletedAt);
+  if (!storeId) return nonDeleted;
+  return nonDeleted.filter(o => !o.storeId || o.storeId === storeId);
 };
 
-export const getOrderByIdQuery = (id) => db.orders.get(parseInt(id));
+export const getOrderByIdQuery = async (id) => {
+  if (!id) return null;
+  const storeId = await getActiveStoreId();
+  let order = null;
+  if (typeof id === 'string' && id.includes('-')) {
+    order = await db.orders.where('uuid').equals(id).first();
+  }
+  if (!order) {
+    const numId = parseInt(id, 10);
+    if (!isNaN(numId)) {
+      order = await db.orders.get(numId);
+    }
+  }
+  if (!order || order.deletedAt) return null;
+  if (storeId && order.storeId && order.storeId !== storeId) return null;
+  return order;
+};
 
 export const getOrdersSortedByDateQuery = async () => {
-  const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
-  const setting = await db.settings.get(1);
-  const storeId = storedUser.storeId || setting?.storeId;
+  const storeId = await getActiveStoreId();
   const all = await db.orders.orderBy('createdAt').reverse().toArray();
-  if (!storeId) return all;
-  return all.filter(o => o.storeId === storeId);
+  const nonDeleted = all.filter(o => !o.deletedAt);
+  if (!storeId) return nonDeleted;
+  return nonDeleted.filter(o => !o.storeId || o.storeId === storeId);
 };
 
 export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, isLunas }) => {

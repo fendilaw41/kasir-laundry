@@ -17,6 +17,17 @@ db.version(1).stores({
   draftOrder: 'id'
 });
 
+// Schema versi 2: indeks storeId untuk multi-tenant per-store scoping
+db.version(2).stores({
+  users: '++id, &uuid, storeId, username, password, fullname, role, updatedAt, deletedAt, isDirty',
+  products: '++id, &uuid, storeId, name, price, updatedAt, deletedAt, isDirty',
+  orders: '++id, &uuid, storeId, invoiceId, userId, total, createdAt, pelangganId, diskon, metodeBayar, estimasi, tipeLayanan, isPriority, bayar, kembalian, statusBayar, status, catatan, updatedAt, deletedAt, isDirty',
+  pelanggan: '++id, &uuid, storeId, nama, hp, alamat, updatedAt, deletedAt, isDirty',
+  inventory: '++id, &uuid, storeId, nama, stok, qty, unit, status, createdBy, createdAt, updatedAt, deletedAt, isDirty',
+  inventoryEvents: '++id, &uuid, storeId, inventoryId, type, qty, note, createdBy, createdAt, updatedAt, deletedAt, isDirty',
+  chatLog: '++id, &uuid, storeId, intent, status, userId, timestamp, updatedAt, isDirty',
+});
+
 // Seed initial data if empty
 db.on('ready', async () => {
   // Seed Settings

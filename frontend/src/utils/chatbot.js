@@ -2,6 +2,11 @@ import { db } from '../db';
 import { withNewSyncMeta, withUpdatedSyncMeta } from '../../src/db/syncMeta.js';
 import { syncOrderToBackend, syncInventoryToBackend } from '../services/syncService.js';
 import Fuse from 'fuse.js';
+import { getPelangganQuery, addPelanggan } from '../db/repositories/pelanggan.js';
+import { getOrdersQuery } from '../db/repositories/orders.js';
+import { getProductsQuery } from '../db/repositories/products.js';
+import { getInventoryQuery } from '../db/repositories/inventory.js';
+import { getActiveStoreId } from '../db/repositories/storeHelper.js';
 
 // Cari yang paling mirip dari list menggunakan Fuse.js
 function findBestMatch(input, items, keys, threshold = 0.4) {
@@ -91,14 +96,14 @@ export async function parseChatCommand(message, user) {
       }
       else if (msg.startsWith('cek pelanggan ')) {
         const query = msg.substring(14).trim().toLowerCase();
-        const pelanggans = await db.pelanggan.toArray();
+        const pelanggans = await getPelangganQuery();
         const filtered = pelanggans.filter(p => p.nama.toLowerCase().includes(query) || p.hp.includes(query));
 
         if (filtered.length === 0) {
           responseText = `Pelanggan "${query}" tidak ditemukan.`;
         } else {
           const sorted = filtered.reverse().slice(0, 5);
-          const orders = await db.orders.toArray();
+          const orders = await getOrdersQuery();
 
           let resultText = `Ditemukan ${filtered.length} pelanggan. Menampilkan maks 5 terbaru:\n`;
           for (const p of sorted) {
@@ -116,7 +121,7 @@ export async function parseChatCommand(message, user) {
         status = 'success';
       }
       else if (msg === 'cek layanan') {
-        const products = await db.products.toArray();
+        const products = await getProductsQuery();
         if (products.length === 0) {
           responseText = 'Belum ada layanan yang tersedia.';
         } else {
@@ -126,7 +131,7 @@ export async function parseChatCommand(message, user) {
       }
       else if (msg.startsWith('cek inventory')) {
         const query = msg.substring(13).trim().toLowerCase();
-        const invs = await db.inventory.filter(i => i.status !== 'pending' && i.status !== 'rejected').toArray();
+        const invs = await getInventoryQuery();
 
         let filtered = invs;
         if (query) {
@@ -184,7 +189,7 @@ export async function parseChatCommand(message, user) {
       if (!formatValid) {
         responseText = errorMsg;
       } else {
-        const products = await db.products.toArray();
+        const products = await getProductsQuery();
         const validOrderItems = [];
         let totalAll = 0;
         let notFound = null;
@@ -269,20 +274,22 @@ export async function parseChatCommand(message, user) {
 
           let pelangganId = null;
           if (pelangganNama !== 'Via Chat') {
-            let existingPelanggan = await db.pelanggan.where('nama').equalsIgnoreCase(pelangganNama).first();
+            const pList = await getPelangganQuery();
+            let existingPelanggan = pList.find(p => p.nama && p.nama.toLowerCase() === pelangganNama.toLowerCase());
             if (!existingPelanggan && hp !== '-') {
-              const pList = await db.pelanggan.toArray();
               existingPelanggan = pList.find(p => p.hp === hp);
             }
             if (existingPelanggan) {
               pelangganId = existingPelanggan.id;
               pelangganNama = existingPelanggan.nama;
             } else {
-              pelangganId = await db.pelanggan.add(withNewSyncMeta({ nama: pelangganNama, hp: hp, alamat: '-' }));
+              pelangganId = await addPelanggan({ nama: pelangganNama, hp: hp, alamat: '-' });
             }
           }
 
+          const storeId = (await getActiveStoreId()) || user?.storeId || undefined;
           const orderData = {
+            storeId,
             invoiceId,
             userId: user?.uuid || user?.id,
             pelangganNama: pelangganNama,
@@ -624,15 +631,13 @@ export async function parseChatCommand(message, user) {
       const nama = addPelangganMatch[1].trim();
       const hp = addPelangganMatch[2].trim();
 
-      const existing = await db.pelanggan.filter(p => p.nama.toLowerCase() === nama.toLowerCase() || p.hp === hp).first();
-
-      if (existing) {
-        responseText = `Pelanggan dengan nama "${nama}" atau nomor HP "${hp}" sudah terdaftar sebelumnya.`;
-      } else {
-        await db.pelanggan.add(withNewSyncMeta({ nama, hp, alamat: '-' }));
+      try {
+        await addPelanggan({ nama, hp, alamat: '-' });
         responseText = `Pelanggan "${nama}" dengan No. HP ${hp} berhasil didaftarkan.`;
         status = 'success';
         payload = { nama, hp };
+      } catch (err) {
+        responseText = err.message || `Pelanggan dengan nama "${nama}" atau nomor HP "${hp}" sudah terdaftar sebelumnya.`;
       }
     }
     // 9. Intent tidak dikenali

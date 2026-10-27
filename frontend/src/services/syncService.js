@@ -326,6 +326,7 @@ export const syncProductsToBackend = async (forceAll = false) => {
           : null;
         await db.products.update(p.id, {
           isDirty: 0,
+          storeId,
           ...(match ? { uuid: match.id } : {}),
         });
       }
@@ -386,6 +387,7 @@ export const syncPelangganToBackend = async (forceAll = false) => {
           : null;
         await db.pelanggan.update(p.id, {
           isDirty: 0,
+          storeId,
           ...(match ? { uuid: match.id } : {}),
         });
       }
@@ -494,6 +496,7 @@ export const syncInventoryToBackend = async (forceAll = false) => {
           : null;
         await db.inventory.update(inv.id, {
           isDirty: 0,
+          storeId,
           ...(match ? { uuid: match.id } : {}),
         });
       }
@@ -725,6 +728,7 @@ export const pullOrdersFromBackend = async (force = false) => {
 
         const invPayload = {
           uuid: sinv.id,
+          storeId: sinv.storeId || storeId,
           nama: sinv.nama,
           stok: Number(sinv.stok) || 0,
           qty: Number(sinv.qty) || 0,

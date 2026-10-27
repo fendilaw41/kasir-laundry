@@ -2,6 +2,7 @@ import { db } from '../../db.js';
 import bcrypt from 'bcryptjs';
 import { withNewSyncMeta, withUpdatedSyncMeta } from '../syncMeta.js';
 import { syncAllDirtyMasterData, syncUsersToBackend, syncInventoryToBackend, pullOrdersFromBackend } from '../../services/syncService.js';
+import { getActiveStoreId } from './storeHelper.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -10,6 +11,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
  */
 const hydrateFromBackend = async (data) => {
   const { user, store, settings, products, users, pelanggan, inventory } = data;
+  const targetStoreId = store?.id || settings?.storeId || user?.storeId;
 
   // 1. Simpan / Update Settings & Store
   if (settings || store) {
@@ -82,6 +84,7 @@ const hydrateFromBackend = async (data) => {
       }
       const prodPayload = {
         uuid: p.id,
+        storeId: p.storeId || targetStoreId,
         code: p.code || null,
         category: p.category || null,
         name: p.name,
@@ -140,6 +143,7 @@ const hydrateFromBackend = async (data) => {
       }
       const pelPayload = {
         uuid: pel.id,
+        storeId: pel.storeId || targetStoreId,
         nama: pel.nama,
         hp: pel.hp,
         alamat: pel.alamat,
@@ -178,6 +182,7 @@ const hydrateFromBackend = async (data) => {
       }
       const invPayload = {
         uuid: inv.id,
+        storeId: inv.storeId || targetStoreId,
         nama: inv.nama,
         stok: Number(inv.stok) || 0,
         qty: Number(inv.qty) || 0,
@@ -380,7 +385,13 @@ export const registerUser = async ({ storeCode, fullname, username, password, ro
     throw new Error('Pendaftaran akun membutuhkan koneksi internet untuk memvalidasi Kode Toko.');
   }
 };
-export const getKasirUsersQuery = () => db.users.where('role').equals('kasir').toArray();
+export const getKasirUsersQuery = async () => {
+  const storeId = await getActiveStoreId();
+  const kasirList = await db.users.where('role').equals('kasir').toArray();
+  const nonDeleted = kasirList.filter(u => !u.deletedAt);
+  if (!storeId) return nonDeleted;
+  return nonDeleted.filter(u => !u.storeId || u.storeId === storeId);
+};
 
 export const addUser = async (userData) => {
   return registerUser(userData);
