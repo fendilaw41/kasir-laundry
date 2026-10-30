@@ -577,6 +577,18 @@ export class ChatService {
       },
     });
 
+    await this.prisma.message.updateMany({
+      where: {
+        conversationId,
+        senderId: { not: currentUser.userId },
+        status: { not: 'READ' },
+        deletedAt: null,
+      },
+      data: {
+        status: 'READ',
+      },
+    });
+
     return { success: true };
   }
 

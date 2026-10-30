@@ -52,8 +52,14 @@ export class JwtAuthGuard implements CanActivate {
 
   private extractTokenFromHeader(request: Request): string | undefined {
     const authHeader = request.headers.authorization;
-    if (!authHeader) return undefined;
-    const [type, token] = authHeader.split(' ');
-    return type === 'Bearer' ? token : undefined;
+    if (authHeader) {
+      const [type, token] = authHeader.split(' ');
+      if (type === 'Bearer') return token;
+    }
+    // Izinkan token dari query param untuk akses stream media/gambar tag <img>
+    if (request.query && typeof (request.query as any).token === 'string') {
+      return (request.query as any).token;
+    }
+    return undefined;
   }
 }

@@ -187,12 +187,7 @@ export const ChatInboxList = ({
                       </h6>
                       {isCrossStore && (
                         <span className="badge bg-purple-subtle text-purple border rounded-pill px-2 py-0" style={{ fontSize: '0.65rem' }}>
-                          Lintas Cabang
-                        </span>
-                      )}
-                      {!isCrossStore && isGroup && (
-                        <span className="badge bg-info-subtle text-info border rounded-pill px-2 py-0" style={{ fontSize: '0.65rem' }}>
-                          Grup
+                          Komunitas
                         </span>
                       )}
                     </div>

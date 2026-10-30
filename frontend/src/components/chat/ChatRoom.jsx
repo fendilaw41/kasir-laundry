@@ -6,6 +6,7 @@ import {
   joinConversationRoom,
   leaveConversationRoom,
   emitTyping,
+  getAuthToken,
 } from '../../services/chatService';
 import { compressImage } from '../../utils/imageCompressor';
 import { isOfflineExceeded3Days } from '../../utils/offlineGuard';
@@ -29,17 +30,66 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
   const SERVER_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 
   const isGroup = conversation?.type === 'GROUP' || conversation?.type === 'CROSS_STORE';
+  // Pastikan data pengguna aktif teresolusi secara akurat (dari props atau fallback storage)
+  const resolvedCurrentUser = currentUser || (() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('user') || localStorage.getItem('user') || '{}');
+    } catch {
+      return {};
+    }
+  })();
+
+  // Fungsi pengecekan akurat apakah pesan ini dikirim oleh pengguna saat ini (Sender)
+  const checkIsMe = (msg) => {
+    if (!msg) return false;
+
+    // Kumpulan seluruh kemungkinan ID user aktif
+    const myIds = [
+      resolvedCurrentUser?.uuid,
+      resolvedCurrentUser?.id,
+      resolvedCurrentUser?.userId,
+      resolvedCurrentUser?.sub,
+      resolvedCurrentUser?._id,
+    ].filter(Boolean).map(String);
+
+    // Kumpulan seluruh ID sender pada objek pesan
+    const senderIds = [
+      msg.senderId,
+      msg.sender?.id,
+      msg.sender?.uuid,
+      msg.sender?.userId,
+    ].filter(Boolean).map(String);
+
+    // 1. Cocokkan ID jika ada yang sama
+    if (myIds.some((myId) => senderIds.includes(myId))) {
+      return true;
+    }
+
+    // 2. Cocokkan Username jika ID tidak cocok (misal Dexie integer vs Server UUID)
+    const myUsername = (resolvedCurrentUser?.username || '').toLowerCase().trim();
+    const msgUsername = (msg.sender?.username || msg.username || '').toLowerCase().trim();
+    if (myUsername && msgUsername && myUsername === msgUsername) {
+      return true;
+    }
+
+    // 3. Cocokkan Nama Lengkap sebagai cadangan
+    const myFullname = (resolvedCurrentUser?.fullname || '').toLowerCase().trim();
+    const msgFullname = (msg.sender?.fullname || msg.senderName || '').toLowerCase().trim();
+    if (myFullname && msgFullname && myFullname === msgFullname) {
+      return true;
+    }
+
+    return false;
+  };
 
   useEffect(() => {
-    if (onUpdateSubtitle) {
-      if (typingUser) {
-        onUpdateSubtitle(`${typingUser} sedang mengetik...`);
-      } else {
-        const isGrp = conversation?.type === 'GROUP' || conversation?.type === 'CROSS_STORE';
-        onUpdateSubtitle(isGrp ? `${conversation?.members?.length || 0} anggota` : 'Obrolan Langsung');
-      }
+    if (!onUpdateSubtitle) return;
+    if (typingUser) {
+      onUpdateSubtitle(`${typingUser} sedang mengetik...`);
+    } else {
+      const isGrp = conversation?.type === 'GROUP' || conversation?.type === 'CROSS_STORE';
     }
-  }, [typingUser, conversation, onUpdateSubtitle]);
+  }, [typingUser]);
 
   // Muat pesan saat pertama kali masuk ke percakapan
   const loadMessages = async () => {
@@ -58,13 +108,19 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
     markConversationAsRead(conversation.id);
     joinConversationRoom(conversation.id);
 
-    // Listener saat ada sinkronisasi pesan offline
-    const handleSynced = () => loadMessages();
-    window.addEventListener('chatMessagesSynced', handleSynced);
+    // Listener saat ada sinkronisasi, pesan masuk, terkirim, atau dibaca
+    const handleRefresh = () => loadMessages();
+    window.addEventListener('chatMessagesSynced', handleRefresh);
+    window.addEventListener('chatNewMessage', handleRefresh);
+    window.addEventListener('chatMessageDelivered', handleRefresh);
+    window.addEventListener('chatMessagesRead', handleRefresh);
 
     return () => {
       leaveConversationRoom(conversation.id);
-      window.removeEventListener('chatMessagesSynced', handleSynced);
+      window.removeEventListener('chatMessagesSynced', handleRefresh);
+      window.removeEventListener('chatNewMessage', handleRefresh);
+      window.removeEventListener('chatMessageDelivered', handleRefresh);
+      window.removeEventListener('chatMessagesRead', handleRefresh);
     };
   }, [conversation?.id]);
 
@@ -153,7 +209,7 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
         imageBlob: imgData ? imgData.blob : null,
         imageWidth: imgData ? imgData.width : null,
         imageHeight: imgData ? imgData.height : null,
-        currentUser,
+        currentUser: resolvedCurrentUser,
       });
 
       // Tambahkan ke state lokal agar pesan langsung muncul di antarmuka
@@ -182,13 +238,22 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
   // Resolve URL gambar untuk rendering
   const getRenderImageUrl = (msg) => {
     if (msg.imageBlob) {
-      return URL.createObjectURL(msg.imageBlob);
+      try {
+        return URL.createObjectURL(msg.imageBlob);
+      } catch (err) {
+        console.warn('Gagal membuat objectURL blob:', err);
+      }
     }
     if (msg.imageUrl) {
-      if (msg.imageUrl.startsWith('http://') || msg.imageUrl.startsWith('https://')) {
-        return msg.imageUrl;
+      let url = msg.imageUrl;
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = `${SERVER_ORIGIN}${url}`;
       }
-      return `${SERVER_ORIGIN}${msg.imageUrl}`;
+      const token = getAuthToken();
+      if (token && !url.includes('token=')) {
+        url += (url.includes('?') ? '&' : '?') + `token=${encodeURIComponent(token)}`;
+      }
+      return url;
     }
     return '';
   };
@@ -196,7 +261,7 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
   return (
     <div className="d-flex flex-column h-100 bg-white" style={{ position: 'relative' }}>
       {/* DAFTAR PESAN (MESSAGE BUBBLES) */}
-      <div className="chat-content-wrap px-3 pt-3 flex-grow-1" style={{ overflowY: 'auto' }}>
+      <div className="chat-content-wrap px-3 pt-3 flex-grow-1" style={{ overflowY: 'auto', backgroundColor: '#f4f6f8' }}>
         {messages.length === 0 ? (
           <div className="text-center py-5 text-muted small">
             <i className="bi bi-chat-square-text fs-2 d-block mb-2 text-secondary opacity-50"></i>
@@ -204,27 +269,31 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
           </div>
         ) : (
           messages.map((msg, index) => {
-            const isMe = (msg.senderId === currentUser.id) || (msg.senderId === currentUser.userId);
+            const isMe = checkIsMe(msg);
             const imageUrl = getRenderImageUrl(msg);
 
             return (
               <div
                 key={msg.uuid || msg.id || index}
-                className={`d-flex mb-3 ${isMe ? 'justify-content-end' : 'justify-content-start'}`}
+                className={`d-flex mb-2 ${isMe ? 'justify-content-end' : 'justify-content-start'}`}
               >
                 <div
-                  className={`p-2 shadow-sm ${isMe ? 'text-white' : 'text-dark'}`}
+                  className="p-2 shadow-sm"
                   style={{
-                    maxWidth: '82%',
-                    minWidth: '100px',
-                    backgroundColor: isMe ? '#155dfc' : '#f8f9fa',
-                    border: '1px solid #eef0f2',
-                    borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                    maxWidth: '78%',
+                    minWidth: '105px',
+                    backgroundColor: isMe ? '#155dfc' : '#ffffff',
+                    color: isMe ? '#ffffff' : '#1e293b',
+                    border: isMe ? 'none' : '1px solid #e2e8f0',
+                    borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                    boxShadow: isMe
+                      ? '0 2px 6px rgba(21, 93, 252, 0.22)'
+                      : '0 1px 3px rgba(0, 0, 0, 0.05)',
                   }}
                 >
-                  {/* Nama Pengirim (Hanya tampil di Grup jika bukan pesan kita sendiri) */}
+                  {/* Nama Pengirim (Tampil di Grup untuk lawan bicara) */}
                   {!isMe && isGroup && msg.sender?.fullname && (
-                    <div className="fw-bold mb-1" style={{ fontSize: '0.75rem', color: '#0d6efd' }}>
+                    <div className="fw-bold mb-1 px-1" style={{ fontSize: '0.75rem', color: '#155dfc' }}>
                       {msg.sender.fullname}
                     </div>
                   )}
@@ -257,7 +326,8 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
                         whiteSpace: 'pre-wrap',
                         lineHeight: '1.4',
                         fontSize: '13px',
-                        color: isMe ? '#ffffff' : '#212529',
+                        color: isMe ? '#ffffff' : '#1e293b',
+                        margin: 0,
                       }}
                     >
                       {msg.content}
@@ -266,20 +336,40 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
 
                   {/* Jam & Status Centang Pengiriman */}
                   <div
-                    className={`d-flex align-items-center justify-content-end gap-1 px-1 ${
+                    className={`d-flex align-items-center justify-content-end gap-1 px-1 mt-1 ${
                       isMe ? 'text-white-50' : 'text-muted'
                     }`}
-                    style={{ fontSize: '0.68rem' }}
+                    style={{ fontSize: '0.68rem', lineHeight: 1 }}
                   >
                     <span>{formatTime(msg.createdAt)}</span>
 
-                    {/* Centang Status Pengiriman (Hanya untuk pesan kita) */}
+                    {/* Status Centang (Hanya untuk pesan pengirim / isMe) */}
                     {isMe && (
-                      <span className="ms-1 fw-bold" title={msg.status === 'PENDING' ? 'Menunggu koneksi (Pending)' : 'Terkirim'}>
+                      <span className="d-inline-flex align-items-center ms-1">
                         {msg.status === 'PENDING' ? (
-                          <span style={{ color: '#d1e7dd', letterSpacing: '-2px' }}>✓</span>
+                          <i
+                            className="bi bi-clock"
+                            style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.7)' }}
+                            title="Menunggu jaringan (Pending)"
+                          />
+                        ) : msg.status === 'READ' ? (
+                          <i
+                            className="bi bi-check-all"
+                            style={{ fontSize: '16px', color: '#67e8f9', lineHeight: 1 }}
+                            title="Dibaca (Ceklis 2 Biru)"
+                          />
+                        ) : msg.status === 'DELIVERED' ? (
+                          <i
+                            className="bi bi-check-all"
+                            style={{ fontSize: '16px', color: 'rgba(255, 255, 255, 0.85)', lineHeight: 1 }}
+                            title="Tersampaikan (Ceklis 2)"
+                          />
                         ) : (
-                          <span style={{ color: '#ffffff', letterSpacing: '-2px' }}>✓✓</span>
+                          <i
+                            className="bi bi-check"
+                            style={{ fontSize: '16px', color: 'rgba(255, 255, 255, 0.85)', lineHeight: 1 }}
+                            title="Terkirim (Ceklis 1)"
+                          />
                         )}
                       </span>
                     )}

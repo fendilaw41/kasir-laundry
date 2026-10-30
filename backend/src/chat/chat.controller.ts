@@ -21,6 +21,8 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { ChatService } from './chat.service';
+import { ChatGateway } from './chat.gateway';
+import { Header, Inject, forwardRef } from '@nestjs/common';
 import type { ChatUserPayload } from './chat.service';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { CreateConversationDto } from './dto/create-conversation.dto';
@@ -30,7 +32,11 @@ import { CreateMessageDto } from './dto/create-message.dto';
 @ApiBearerAuth()
 @Controller('chat')
 export class ChatController {
-  constructor(private readonly chatService: ChatService) {}
+  constructor(
+    private readonly chatService: ChatService,
+    @Inject(forwardRef(() => ChatGateway))
+    private readonly chatGateway: ChatGateway,
+  ) {}
 
   @Get('config')
   @ApiOperation({
@@ -93,6 +99,7 @@ export class ChatController {
   }
 
   @Get('conversations/:id/messages')
+  @Header('Cache-Control', 'no-cache, no-store, must-revalidate')
   @ApiOperation({
     summary: 'Ambil Riwayat Pesan dalam Percakapan',
     description: 'Mengembalikan daftar pesan secara berurutan. Memerlukan keanggotaan dalam percakapan.',
@@ -130,6 +137,13 @@ export class ChatController {
   ) {
     dto.conversationId = conversationId;
     const message = await this.chatService.createMessage(user, dto);
+
+    try {
+      this.chatGateway.server
+        ?.to(`conversation:${conversationId}`)
+        .emit('new_message', message);
+    } catch (e) {}
+
     return {
       success: true,
       message: 'Pesan berhasil dikirim.',
@@ -148,6 +162,17 @@ export class ChatController {
     @Param('id') conversationId: string,
   ) {
     const result = await this.chatService.markAsRead(conversationId, user);
+
+    try {
+      this.chatGateway.server
+        ?.to(`conversation:${conversationId}`)
+        .emit('conversation_read', {
+          conversationId,
+          userId: user.userId,
+          readAt: new Date(),
+        });
+    } catch (e) {}
+
     return {
       success: true,
       data: result,

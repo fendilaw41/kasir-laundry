@@ -11,11 +11,11 @@ Aplikasi Kasir Laundry memerlukan **komunikasi langsung (peer-to-peer dan group)
 ### 1.1 Kebijakan Hak Akses (Hybrid Scoping):
 
 1. **Role `kasir` (Default: Terfilter Per Toko)**:
-   - Kasir **hanya dapat melihat dan memilih rekan kerja di tokonya sendiri** (`storeId` yang sama) untuk chat 1-on-1 (*Direct Message*).
+   - Kasir **hanya dapat melihat dan memilih rekan kerja di tokonya sendiri** (`storeId` yang sama) untuk chat 1-on-1 (_Direct Message_).
    - Kasir **hanya dapat membuat grup internal** untuk toko tempat ia bertugas.
    - Kasir **bisa berpartisipasi** di grup lintas cabang HANYA JIKA diundang oleh `owner`.
 2. **Role `owner` (Hak Akses Lintas Cabang)**:
-   - Pemilik toko (*owner*) dapat membuat **Grup Lintas Cabang (Cross-Store Group)** dan menambahkan kasir/staf dari cabang-cabang lain.
+   - Pemilik toko (_owner_) dapat membuat **Grup Lintas Cabang (Cross-Store Group)** dan menambahkan kasir/staf dari cabang-cabang lain.
    - Memungkinkan koordinasi terpusat (misal: kirim foto bedcover/karpet khusus ke workshop pusat, koordinasi stok deterjen, atau pengumuman SOP).
 
 ### 1.2 Feature Flag Toggle via Backend Environment (`.env`):
@@ -28,7 +28,7 @@ ENABLE_CROSS_STORE_CHAT=true    # Nilai: true | false (default: false)
 ```
 
 - **Jika `ENABLE_CROSS_STORE_CHAT=false` (Non-aktif)**:
-  - Frontend otomatis **menyembunyikan (*hide*)** semua opsi, tombol, dan tab pembuatan grup lintas cabang untuk semua pengguna (termasuk owner).
+  - Frontend otomatis **menyembunyikan (_hide_)** semua opsi, tombol, dan tab pembuatan grup lintas cabang untuk semua pengguna (termasuk owner).
   - Backend memblokir pembuatan obrolan yang melibatkan member dari toko berbeda dengan pesan galat `403 Forbidden: Fitur chat lintas toko sedang dinonaktifkan`.
   - Sistem beroperasi 100% dalam mode **Strict Single-Store Isolation**.
 - **Jika `ENABLE_CROSS_STORE_CHAT=true` (Aktif)**:
@@ -124,7 +124,7 @@ ENABLE_CROSS_STORE_CHAT=true    # Nilai: true | false (default: false)
 2. **Foto Langsung Nampil (Inline Preview)**:
    - Gambar langsung dirender di dalam gelembung chat.
    - **Dimensi Rapi**: `max-width: 240px` (atau `260px` pada layar desktop), `max-height: 280px`, `border-radius: 10px`, `object-fit: cover`.
-   - **Interaktif (Click to Enlarge)**: Saat gambar diklik, membuka pop-up *lightbox/modal full preview* untuk melihat detail noda atau tulisan nota.
+   - **Interaktif (Click to Enlarge)**: Saat gambar diklik, membuka pop-up _lightbox/modal full preview_ untuk melihat detail noda atau tulisan nota.
 3. **Jam & Status Ceklis (Delivery Status)**:
    - **Timestamp**: Waktu pesan dikirim (format `HH:mm`, contoh: `14:15`).
    - **Ceklis 1 (`✓` Abu-Abu)**: **Pending** (pesan tersimpan di IndexedDB browser saat offline / sedang proses upload).
@@ -187,19 +187,19 @@ Baik menggunakan penyimpanan **Lokal** maupun **S3/MinIO**, hierarki folder teta
    - **Kamera Langsung (`📷`)**: `<input type="file" accept="image/*" capture="environment" />`.
    - **Galeri Berkas (`📎`)**: `<input type="file" accept="image/png, image/jpeg, image/webp" />`.
 2. **Kompresi Ringan Client-Side**:
-   - Foto kamera HP beresolusi tinggi otomatis di-*resize* di browser (canvas) menjadi maksimal `1280px` dan kualitas JPEG `0.82` (mengurangi ukuran dari ~5MB menjadi ~250KB tanpa kehilangan ketajaman teks nota).
+   - Foto kamera HP beresolusi tinggi otomatis di-_resize_ di browser (canvas) menjadi maksimal `1280px` dan kualitas JPEG `0.82` (mengurangi ukuran dari ~5MB menjadi ~250KB tanpa kehilangan ketajaman teks nota).
 3. **Abstraksi Backend Service (`ChatStorageService`)**:
    - Controller tidak perlu tahu file disimpan di mana.
    - `ChatStorageService.saveFile(file, storeId)` akan mendelegasikan ke `LocalStorageDriver` atau `S3MinioStorageDriver` tergantung config aktif.
 4. **Proteksi Akses Gambar (Scoped Streaming Endpoint)**:
    - Endpoint: `GET /chat/files/:storeId/:filename`.
-   - Backend memverifikasi hak akses JWT sebelum melakukan *stream file lokal* atau *redirect presigned URL MinIO*. Staf dari `STORE_BDG02` dilarang mengunduh foto milik `STORE_KRW01`.
+   - Backend memverifikasi hak akses JWT sebelum melakukan _stream file lokal_ atau _redirect presigned URL MinIO_. Staf dari `STORE_BDG02` dilarang mengunduh foto milik `STORE_KRW01`.
 
 ---
 
 ## 🛡️ 4. Penjagaan Storage Browser: Batas Offline 3 Hari & Peringatan Otomatis
 
-Penyimpanan browser (*IndexedDB*) dapat cepat terisi penuh jika perangkat kasir menyimpan banyak foto dalam antrean offline selama berhari-hari. Untuk mencegah memori browser penuh dan risiko data terhapus oleh garbage collector OS, sistem menerapkan mekanisme penjagaan berikut:
+Penyimpanan browser (_IndexedDB_) dapat cepat terisi penuh jika perangkat kasir menyimpan banyak foto dalam antrean offline selama berhari-hari. Untuk mencegah memori browser penuh dan risiko data terhapus oleh garbage collector OS, sistem menerapkan mekanisme penjagaan berikut:
 
 ### 4.1 Pelacakan Waktu Online di Database Lokal (`db.settings`)
 
@@ -210,11 +210,11 @@ Di tabel Dexie `settings`, ditambahkan kolom penanda waktu:
 
 ```javascript
 // frontend/src/services/internetStatusWatcher.js
-window.addEventListener('online', async () => {
+window.addEventListener("online", async () => {
   await db.settings.update(1, { lastOnlineAt: new Date(), offlineSince: null });
 });
 
-window.addEventListener('offline', async () => {
+window.addEventListener("offline", async () => {
   const current = await db.settings.get(1);
   if (!current.offlineSince) {
     await db.settings.update(1, { offlineSince: new Date() });
@@ -227,7 +227,9 @@ window.addEventListener('offline', async () => {
 1. **Pengecekan Ambang Batas 3 Hari**:
    - Setiap kali aplikasi dibuka atau kasir masuk ke halaman Chat, sistem menghitung durasi offline:
      ```javascript
-     const isOfflineOverLimit = offlineSince && (Date.now() - new Date(offlineSince).getTime() > 3 * 24 * 60 * 60 * 1000);
+     const isOfflineOverLimit =
+       offlineSince &&
+       Date.now() - new Date(offlineSince).getTime() > 3 * 24 * 60 * 60 * 1000;
      ```
 2. **Peringatan Banner Kritis**:
    - Jika offline > 3 hari dan terdapat antrean pesan/foto belum tersinkron (`isDirty: 1`):
@@ -242,7 +244,7 @@ window.addEventListener('offline', async () => {
        >
 4. **Pemberitahuan Sebelum Ambil Foto Baru**:
    - Jika kasir menekan tombol kamera (`📷`) saat offline > 3 hari, muncul pop-up simpel:
-     > 📸 *"Kasir offline > 3 hari. Online-kan dulu sebentar yuk biar data nggak numpuk!"*
+     > 📸 _"Kasir offline > 3 hari. Online-kan dulu sebentar yuk biar data nggak numpuk!"_
      >
 5. **Eviction / Pembersihan Otomatis setelah Sukses Sync**:
    - Begitu koneksi internet tersambung dan foto berhasil diunggah ke server (Lokal / MinIO), objek biner `imageBlob` di Dexie **segera dihapus** dan digantikan dengan URL server `imageUrl`. Ini menjamin IndexedDB browser kasir tetap ramping (< 10MB).
@@ -336,13 +338,15 @@ Penambahan skema versi 3 di `frontend/src/db.js`:
 ```javascript
 db.version(3).stores({
   // Tabel pengaturan lokal (dengan tracking offline 3 hari)
-  settings: 'id, deviceId, lastOnlineAt, offlineSince, updatedAt, isDirty',
+  settings: "id, deviceId, lastOnlineAt, offlineSince, updatedAt, isDirty",
   // Tabel percakapan lokal kasir
-  conversations: '++id, &uuid, type, title, storeId, lastMessageText, lastMessageAt, updatedAt, isDirty',
+  conversations:
+    "++id, &uuid, type, title, storeId, lastMessageText, lastMessageAt, updatedAt, isDirty",
   // Relasi anggota obrolan
-  conversationMembers: '++id, &uuid, conversationId, userId, role, lastReadAt',
+  conversationMembers: "++id, &uuid, conversationId, userId, role, lastReadAt",
   // Pesan obrolan (mendukung text + imageBlob offline + status ceklis)
-  messages: '++id, &uuid, conversationId, senderId, senderName, content, type, imageUrl, imageBlob, status, createdAt, updatedAt, isDirty',
+  messages:
+    "++id, &uuid, conversationId, senderId, senderName, content, type, imageUrl, imageBlob, status, createdAt, updatedAt, isDirty",
 });
 ```
 
@@ -421,14 +425,14 @@ Untuk menjaga kualitas kode, maintainability, dan konsistensi di seluruh codebas
 ### 8.2 Small Single-Responsibility Functions (Prinsip Fungsi Tunggal & Ramping)
 
 - Satu fungsi hanya melakukan **satu tugas utama** dan maksimal 10–20 baris.
-- Terapkan **Guard Clauses (Early Return)**: Periksa validasi atau kondisi gagal di baris teratas fungsi untuk menghindari indentasi `if-else` bertingkat (*arrow anti-pattern*).
+- Terapkan **Guard Clauses (Early Return)**: Periksa validasi atau kondisi gagal di baris teratas fungsi untuk menghindari indentasi `if-else` bertingkat (_arrow anti-pattern_).
 - Hindari argumen flag `boolean` yang mengubah perilaku fungsi secara drastis (pisahkan menjadi 2 fungsi terpisah jika fungsinya berbeda).
 
 ### 8.3 Clean Error Handling & No Null Passing
 
-- Jangan mengembalikan `null` atau `undefined` yang memaksa pemanggil melakukan null-check berantai; kembalikan array kosong `[]`, objek representasi kosong (*Null Object pattern*), atau lempar *custom exception*.
+- Jangan mengembalikan `null` atau `undefined` yang memaksa pemanggil melakukan null-check berantai; kembalikan array kosong `[]`, objek representasi kosong (_Null Object pattern_), atau lempar _custom exception_.
 - Backend: Gunakan NestJS standard exceptions (`NotFoundException`, `ForbiddenException`, `BadRequestException`) dengan pesan yang mendeskripsikan konteks kegagalan.
-- Frontend: Tangani kegagalan koneksi secara elegan dengan *graceful degradation* (tampilkan indikator "Offline - Pesan disimpan lokal" tanpa crash pada UI).
+- Frontend: Tangani kegagalan koneksi secara elegan dengan _graceful degradation_ (tampilkan indikator "Offline - Pesan disimpan lokal" tanpa crash pada UI).
 
 ### 8.4 Unit Testing & FIRST Principle
 
@@ -437,7 +441,7 @@ Untuk menjaga kualitas kode, maintainability, dan konsistensi di seluruh codebas
 
 ### 8.5 Boy Scout Rule
 
-- *Selalu tinggalkan kode dalam kondisi yang lebih bersih dan rapi daripada saat pertama kali Anda membukanya.* Rapikan import yang tidak terpakai, format konsisten dengan ESLint/Prettier, dan hapus sisa console log debug.
+- _Selalu tinggalkan kode dalam kondisi yang lebih bersih dan rapi daripada saat pertama kali Anda membukanya._ Rapikan import yang tidak terpakai, format konsisten dengan ESLint/Prettier, dan hapus sisa console log debug.
 
 ---
 
@@ -445,33 +449,33 @@ Untuk menjaga kualitas kode, maintainability, dan konsistensi di seluruh codebas
 
 | Potensi Bug / Edge Case                                            | Skenario Masalah                                                                                                                      | Dampak                                                                   | Mitigasi Teknis yang Diterapkan                                                                                                                                                                                                     |
 | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1. Pesan Duplikat Saat Sync Ulang**                        | Kasir mengirim 3 pesan saat offline. Saat koneksi online kembali, background sync dan socket connect mengirim pesan secara bersamaan. | Pesan muncul ganda di database & chat lawan bicara.                      | **Idempotency Key**: Gunakan client-generated `uuid` pada setiap pesan. Backend menerapkan constraint `@@unique([uuid])` di PostgreSQL. Jika `uuid` sudah ada, backend mengabaikan duplikasi (*upsert/no-op*).        |
-| **2. Ephemeral Object URL Mati Setelah Refresh**             | Foto offline disimpan dalam bentuk `URL.createObjectURL(file)`. Kasir me-refresh tab sebelum internet aktif.                        | Gambar menjadi blank / ikon gambar rusak (*broken image*).             | **IndexedDB Binary Storage**: Simpan file gambar sementara sebagai objek `Blob` asli di Dexie (`imageBlob`), lalu generate `createObjectURL` baru saat komponen dirender. Hapus blob setelah sukses upload.             |
-| **3. Path Traversal & Akses Foto Ilegal**                    | Pengguna nakal memanipulasi parameter URL: `/chat/files/../STORE_LAIN/secret.png`.                                                  | Kebocoran foto nota/cucian toko lain (*security vulnerability*).       | **Strict Sanitization**: Gunakan `path.basename(filename)` di backend dan validasi regex format UUID `{storeId}_{timestamp}_{uuid}.[ext]`. Tolak request jika format nama file tidak sesuai.                              |
-| **4. Storage Browser Penuh Saat Kasir Berhari-hari Offline** | Kasir offline lebih dari 3 hari dan terus mengambil ratusan foto cucian tanpa pernah sinkron.                                         | Browser melempar *QuotaExceededError*, database IndexedDB korup/macet. | **Peringatan 3 Hari & Eviction**: Sistem mendeteksi `offlineSince > 3 hari`, memunculkan banner peringatan darurat, dan langsung membuang `imageBlob` lokal begitu berhasil terunggah ke server/MinIO.                    |
+| **1. Pesan Duplikat Saat Sync Ulang**                        | Kasir mengirim 3 pesan saat offline. Saat koneksi online kembali, background sync dan socket connect mengirim pesan secara bersamaan. | Pesan muncul ganda di database & chat lawan bicara.                      | **Idempotency Key**: Gunakan client-generated `uuid` pada setiap pesan. Backend menerapkan constraint `@@unique([uuid])` di PostgreSQL. Jika `uuid` sudah ada, backend mengabaikan duplikasi (_upsert/no-op_).        |
+| **2. Ephemeral Object URL Mati Setelah Refresh**             | Foto offline disimpan dalam bentuk `URL.createObjectURL(file)`. Kasir me-refresh tab sebelum internet aktif.                        | Gambar menjadi blank / ikon gambar rusak (_broken image_).             | **IndexedDB Binary Storage**: Simpan file gambar sementara sebagai objek `Blob` asli di Dexie (`imageBlob`), lalu generate `createObjectURL` baru saat komponen dirender. Hapus blob setelah sukses upload.             |
+| **3. Path Traversal & Akses Foto Ilegal**                    | Pengguna nakal memanipulasi parameter URL: `/chat/files/../STORE_LAIN/secret.png`.                                                  | Kebocoran foto nota/cucian toko lain (_security vulnerability_).       | **Strict Sanitization**: Gunakan `path.basename(filename)` di backend dan validasi regex format UUID `{storeId}_{timestamp}_{uuid}.[ext]`. Tolak request jika format nama file tidak sesuai.                              |
+| **4. Storage Browser Penuh Saat Kasir Berhari-hari Offline** | Kasir offline lebih dari 3 hari dan terus mengambil ratusan foto cucian tanpa pernah sinkron.                                         | Browser melempar _QuotaExceededError_, database IndexedDB korup/macet. | **Peringatan 3 Hari & Eviction**: Sistem mendeteksi `offlineSince > 3 hari`, memunculkan banner peringatan darurat, dan langsung membuang `imageBlob` lokal begitu berhasil terunggah ke server/MinIO.                    |
 | **5. Kegagalan Koneksi S3/MinIO Saat Switch Mode**           | Admin mengubah env `STORAGE_DRIVER=s3` tetapi service MinIO belum siap atau salah kredensial.                                       | Upload foto gagal total dan server crash.                                | **Graceful Driver Fallback**: Inisialisasi S3 driver memvalidasi koneksi (`HeadBucket`) saat boot; jika gagal, berikan log error yang jelas atau fallback sementara ke `local` dengan peringatan sistem.                  |
-| **6. Silent WebSocket Disconnect di Mobile Browser**         | Saat browser di HP berpindah tab atau layar terkunci, browser membekukan koneksi WebSocket tanpa memicu event `disconnect`.         | Kasir tidak menerima pesan masuk baru sampai halaman di-refresh.         | **Heartbeat Ping/Pong**: Frontend mengirim ping setiap 25 detik. Jika tidak ada pong dalam 10 detik, frontend mengasumsikan koneksi putus dan memicu *auto-reconnect* instan saat tab aktif kembali (`visibilitychange`). |
+| **6. Silent WebSocket Disconnect di Mobile Browser**         | Saat browser di HP berpindah tab atau layar terkunci, browser membekukan koneksi WebSocket tanpa memicu event `disconnect`.         | Kasir tidak menerima pesan masuk baru sampai halaman di-refresh.         | **Heartbeat Ping/Pong**: Frontend mengirim ping setiap 25 detik. Jika tidak ada pong dalam 10 detik, frontend mengasumsikan koneksi putus dan memicu _auto-reconnect_ instan saat tab aktif kembali (`visibilitychange`). |
 
 ---
 
 ## ⚖️ 10. Analisis Trade-Off & Pertimbangan Desain
 
-| Keputusan Desain                                            | Keuntungan (*Pros*)                                                                                                                                                       | Konsekuensi / Kompromi (*Cons / Trade-offs*)                                                                                              | Solusi Rekomendasi                                                                                                                                |
+| Keputusan Desain                                            | Keuntungan (_Pros_)                                                                                                                                                       | Konsekuensi / Kompromi (_Cons / Trade-offs_)                                                                                              | Solusi Rekomendasi                                                                                                                                |
 | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Storage Driver Switchable (Local vs S3/MinIO)**     | Fleksibilitas tinggi: server development/on-premise bisa pakai folder lokal tanpa instalasi rumit, sedangkan production cluster bisa langsung pakai MinIO/S3 terdistribusi. | Butuh memelihara 2 implementasi driver di backend dan pengelolaan lifecycle kredensial MinIO.                                               | Bungkus dalam satu interface tunggal `StorageDriver` (Clean Code), sehingga controller tetap bersih dan tidak terpengaruh jenis driver.         |
-| **Pembersihan Blob Foto Setelah Sync (*Eviction*)** | Menjaga database lokal IndexedDB kasir tetap ringan (< 10MB) dan mencegah memori HP kasir kepenuhan.                                                                        | Kasir yang ingin melihat foto lama yang sudah berhari-hari lalu memerlukan koneksi internet untuk streaming dari server/MinIO.              | Sangat sepadan (*best practice*). Foto lama yang sudah tersimpan aman di server di-cache oleh HTTP cache browser biasa.                         |
-| **Peringatan Batas 3 Hari Offline**                   | Mencegah penumpukan transaksi tanpa sinkronisasi yang berisiko data hilang jika HP kasir rusak/terformat.                                                                   | Kasir yang tokonya memang di daerah tanpa internet stabil akan sering melihat banner peringatan.                                            | Desain banner tetap ramah (*non-blocking*), hanya berupa peringatan pengingat tanpa mematikan fitur kasir offline.                              |
-| **Kompresi Gambar Sisi Klien (Canvas 1280px)**        | Sangat hemat kuota data kasir, waktu upload jauh lebih singkat (dari 5MB menjadi ~250KB), dan beban server backend ringan.                                                  | Detail tulisan kecil pada nota struk thermal yang difoto dari jarak jauh bisa sedikit berkurang ketajamannya jika kompresi terlalu agresif. | Gunakan kualitas JPEG `0.82` dan resolusi panjang `1280px` yang merupakan *sweet-spot* antara keterbacaan teks nota dan ukuran file ringan. |
+| **Pembersihan Blob Foto Setelah Sync (_Eviction_)** | Menjaga database lokal IndexedDB kasir tetap ringan (< 10MB) dan mencegah memori HP kasir kepenuhan.                                                                        | Kasir yang ingin melihat foto lama yang sudah berhari-hari lalu memerlukan koneksi internet untuk streaming dari server/MinIO.              | Sangat sepadan (_best practice_). Foto lama yang sudah tersimpan aman di server di-cache oleh HTTP cache browser biasa.                         |
+| **Peringatan Batas 3 Hari Offline**                   | Mencegah penumpukan transaksi tanpa sinkronisasi yang berisiko data hilang jika HP kasir rusak/terformat.                                                                   | Kasir yang tokonya memang di daerah tanpa internet stabil akan sering melihat banner peringatan.                                            | Desain banner tetap ramah (_non-blocking_), hanya berupa peringatan pengingat tanpa mematikan fitur kasir offline.                              |
+| **Kompresi Gambar Sisi Klien (Canvas 1280px)**        | Sangat hemat kuota data kasir, waktu upload jauh lebih singkat (dari 5MB menjadi ~250KB), dan beban server backend ringan.                                                  | Detail tulisan kecil pada nota struk thermal yang difoto dari jarak jauh bisa sedikit berkurang ketajamannya jika kompresi terlalu agresif. | Gunakan kualitas JPEG `0.82` dan resolusi panjang `1280px` yang merupakan _sweet-spot_ antara keterbacaan teks nota dan ukuran file ringan. |
 
 ---
 
 ## 📅 11. Rencana Kerja (Phased Roadmap)
 
-| Tahap            | Aktivitas                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Estimasi Output                                                                    |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| **Fase 1 (✅ SELESAI)** | **Rancangan Skema, Migrasi & Storage Driver Setup**<br>- Tambah model Prisma dengan field `imageUrl`, `uuid`, `type`, `status`.<br>- Tambah variabel `ENABLE_CROSS_STORE_CHAT` dan konfigurasi S3/MinIO di `backend/.env.example` & `backend/.env`.<br>- Buat modul `StorageDriver` (Local & S3/MinIO) dengan switchable config (Clean Code strategy pattern).<br>- Jalankan Prisma migration / db push & generate client.<br>- Tambah skema Dexie versi 3 di `frontend/src/db.js` (mendukung `imageBlob`, `lastOnlineAt`, `offlineSince`). | Database siap, modul storage switchable terpasang, unit test passed, dan skema offline siap. |
-| **Fase 2 (✅ SELESAI)** | **Backend Upload & Core API (Clean Code Standards)**<br>- Modul Multer upload foto dengan isolasi folder/bucket per `storeId`.<br>- Implementasi penyimpanan ke Local disk atau S3/MinIO sesuai driver aktif.<br>- Terapkan validasi `ENABLE_CROSS_STORE_CHAT` & filter role Kasir vs Owner.<br>- Endpoint streaming gambar aman `/chat/files/:storeId/:filename`.<br>- WebSocket gateway untuk update status ceklis 1 -> 2.<br>- Unit testing `ChatService` (29 backend tests passed). | Backend siap menerima teks, foto kamera (Local/MinIO), dan event socket real-time. |
-| **Fase 3 (✅ SELESAI)** | **Sinkronisasi Offline, Penjagaan 3 Hari & Kompresi**<br>- Utilitas kompresi foto sisi browser (Canvas resize max 1280px, q=0.82).<br>- Logika pelacakan `offlineSince` dan banner peringatan batas 3 hari offline global di `Layout.jsx`.<br>- Antrean upload foto offline via Dexie (`imageBlob` aman dari refresh) dan pembersihan otomatis setelah sync.<br>- Logika transisi status dari pending (Ceklis 1 `✓`) ke terkirim (Ceklis 2 `✓✓`).<br>- Unit testing `OfflineAlertBanner` passed. | Kasir aman dari masalah storage penuh; foto dikirim otomatis saat online. |
-| **Fase 4 (✅ SELESAI)** | **Frontend: Chat List & Pinned Asisten Order**<br>- Tampilan daftar percakapan mirip WhatsApp.<br>- **Asisten Kasir** tetap tersemat di posisi paling atas (*pinned*).<br>- Filter tab cepat (**Semua**, **Toko Saya**, **Lintas Cabang**).<br>- Modal mulai obrolan baru dan buat grup. | Halaman inbox percakapan fungsional, rapi, dan responsif. |
-| **Fase 5 (✅ SELESAI)** | **Frontend: Chat Room, Input Media & Bubble Gambar**<br>- Gelembung chat dengan nama pengirim, jam, dan icon ceklis 1 (`✓`) / ceklis 2 (`✓✓`).<br>- Inline image rapi (`max-width: 240px`) + modal perbesar gambar.<br>- Tombol input kamera langsung (`capture="environment"`) dengan konfirmasi penjagaan offline 3 hari dan tombol file galeri.<br>- Typing indicator & auto-resize textarea. | Ruang obrolan lengkap dengan multimedia dan penanda pesan yang jelas. |
-| **Fase 6 (✅ SELESAI)** | **Uji Coba, Keamanan & Penyempurnaan**<br>- Unit testing backend (29 tests passing di Jest) dan frontend (23 tests passing di Vitest).<br>- Verifikasi build frontend & backend tanpa error.<br>- Isolasi hak akses file dan filter toko verified. | Fitur chat multimedia terverifikasi aman, stabil, bersih, dan siap produksi. |
+| Tahap                         | Aktivitas                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Estimasi Output                                                                              |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| **Fase 1 (✅ SELESAI)** | **Rancangan Skema, Migrasi & Storage Driver Setup**- Tambah model Prisma dengan field `imageUrl`, `uuid`, `type`, `status`.- Tambah variabel `ENABLE_CROSS_STORE_CHAT` dan konfigurasi S3/MinIO di `backend/.env.example` & `backend/.env`.- Buat modul `StorageDriver` (Local & S3/MinIO) dengan switchable config (Clean Code strategy pattern).- Jalankan Prisma migration / db push & generate client.- Tambah skema Dexie versi 3 di `frontend/src/db.js` (mendukung `imageBlob`, `lastOnlineAt`, `offlineSince`). | Database siap, modul storage switchable terpasang, unit test passed, dan skema offline siap. |
+| **Fase 2 (✅ SELESAI)** | **Backend Upload & Core API (Clean Code Standards)**- Modul Multer upload foto dengan isolasi folder/bucket per `storeId`.- Implementasi penyimpanan ke Local disk atau S3/MinIO sesuai driver aktif.- Terapkan validasi `ENABLE_CROSS_STORE_CHAT` & filter role Kasir vs Owner.- Endpoint streaming gambar aman `/chat/files/:storeId/:filename`.- WebSocket gateway untuk update status ceklis 1 -> 2.- Unit testing `ChatService` (29 backend tests passed).                                                                         | Backend siap menerima teks, foto kamera (Local/MinIO), dan event socket real-time.           |
+| **Fase 3 (✅ SELESAI)** | **Sinkronisasi Offline, Penjagaan 3 Hari & Kompresi**- Utilitas kompresi foto sisi browser (Canvas resize max 1280px, q=0.82).- Logika pelacakan `offlineSince` dan banner peringatan batas 3 hari offline global di `Layout.jsx`.- Antrean upload foto offline via Dexie (`imageBlob` aman dari refresh) dan pembersihan otomatis setelah sync.- Logika transisi status dari pending (Ceklis 1 `✓`) ke terkirim (Ceklis 2 `✓✓`).- Unit testing `OfflineAlertBanner` passed.                                                     | Kasir aman dari masalah storage penuh; foto dikirim otomatis saat online.                    |
+| **Fase 4 (✅ SELESAI)** | **Frontend: Chat List & Pinned Asisten Order**- Tampilan daftar percakapan mirip WhatsApp.- **Asisten Kasir** tetap tersemat di posisi paling atas (_pinned_).- Filter tab cepat (**Semua**, **Toko Saya**, **Lintas Cabang**).- Modal mulai obrolan baru dan buat grup.                                                                                                                                                                                                                                              | Halaman inbox percakapan fungsional, rapi, dan responsif.                                    |
+| **Fase 5 (✅ SELESAI)** | **Frontend: Chat Room, Input Media & Bubble Gambar**- Gelembung chat dengan nama pengirim, jam, dan icon ceklis 1 (`✓`) / ceklis 2 (`✓✓`).- Inline image rapi (`max-width: 240px`) + modal perbesar gambar.- Tombol input kamera langsung (`capture="environment"`) dengan konfirmasi penjagaan offline 3 hari dan tombol file galeri.- Typing indicator & auto-resize textarea.                                                                                                                                                     | Ruang obrolan lengkap dengan multimedia dan penanda pesan yang jelas.                        |
+| **Fase 6 (✅ SELESAI)** | **Uji Coba, Keamanan & Penyempurnaan**- Unit testing backend (29 tests passing di Jest) dan frontend (23 tests passing di Vitest).- Verifikasi build frontend & backend tanpa error.- Isolasi hak akses file dan filter toko verified.                                                                                                                                                                                                                                                                                                          | Fitur chat multimedia terverifikasi aman, stabil, bersih, dan siap produksi.                 |

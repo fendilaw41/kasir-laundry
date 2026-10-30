@@ -50,7 +50,6 @@ const Chat = ({ user }) => {
       setChatHeaderState?.({
         type: 'chat',
         title: selectedConversation.title || 'Obrolan',
-        subtitle: isGroup ? `${selectedConversation.members?.length || 0} anggota` : 'Obrolan Langsung',
         isGroup,
         isCrossStore,
         avatarLetter: selectedConversation.title?.charAt(0).toUpperCase() || 'U',
@@ -97,9 +96,12 @@ const Chat = ({ user }) => {
     setSelectedConversation(newConv);
   };
 
-  const handleUpdateSubtitle = (subtitle) => {
-    setChatHeaderState?.((prev) => (prev ? { ...prev, subtitle } : null));
-  };
+  const handleUpdateSubtitle = useCallback((subtitle) => {
+    setChatHeaderState?.((prev) => {
+      if (!prev || prev.subtitle === subtitle) return prev;
+      return { ...prev, subtitle };
+    });
+  }, [setChatHeaderState]);
 
   return (
     <div

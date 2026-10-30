@@ -17,6 +17,7 @@ import DataOrder from './pages/DataOrder';
 import Reports from './pages/Reports';
 import Setting from './pages/Setting';
 import Chat from './pages/Chat';
+import Reset from './pages/Reset';
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -71,6 +72,7 @@ function App() {
           element={user ? <Navigate to="/" replace /> : <Login onLogin={handleLogin} />}
         />
         <Route path="/register" element={<Register />} />
+        <Route path="/reset" element={<Reset />} />
         <Route element={<ProtectedLayout user={user} onLogout={handleLogout} />}>
           <Route path="/" element={<Home user={user} />} />
           <Route path="/transaksi" element={<Transaksi user={user} />} />

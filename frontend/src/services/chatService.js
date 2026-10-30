@@ -119,22 +119,28 @@ export async function getMessages(conversationId) {
   try {
     if (navigator.onLine) {
       const res = await fetch(
-        `${API_BASE_URL}/chat/conversations/${conversationId}/messages?limit=60`,
-        { headers: getAuthHeaders() },
+        `${API_BASE_URL}/chat/conversations/${conversationId}/messages?limit=60&_t=${Date.now()}`,
+        {
+          headers: getAuthHeaders({ 'Cache-Control': 'no-cache, no-store' }),
+          cache: 'no-store',
+        },
       );
       if (res.ok) {
         const json = await res.json();
         const serverMessages = json.data || [];
 
-        // Simpan pesan server ke Dexie (tanpa menimpa pesan PENDING yang belum tersinkron)
+        // Simpan dan perbarui pesan server ke Dexie (termasuk status READ terbaru dari DB)
         for (const msg of serverMessages) {
-          const existing = await db.messages.where('uuid').equals(msg.uuid).first();
-          if (!existing || existing.status !== 'PENDING') {
-            await db.messages.put({
-              ...msg,
-              status: msg.status || 'SENT',
-            });
+          const existing = (await db.messages.where('uuid').equals(msg.uuid).first()) ||
+                           (await db.messages.get(msg.id));
+          if (existing && existing.id !== msg.id) {
+            await db.messages.delete(existing.id);
           }
+          await db.messages.put({
+            ...existing,
+            ...msg,
+            status: msg.status || 'SENT',
+          });
         }
       }
     }
@@ -195,9 +201,10 @@ export async function sendMessage({
     id: `local-${uuid}`,
     uuid,
     conversationId,
-    senderId: currentUser.id || currentUser.userId,
+    senderId: currentUser.uuid || currentUser.id || currentUser.userId,
     sender: {
-      id: currentUser.id || currentUser.userId,
+      id: currentUser.uuid || currentUser.id || currentUser.userId,
+      uuid: currentUser.uuid || currentUser.id || currentUser.userId,
       fullname: currentUser.fullname || currentUser.username || 'Saya',
       username: currentUser.username || 'saya',
       role: currentUser.role || 'kasir',
@@ -261,14 +268,20 @@ export async function sendMessage({
         const json = await res.json();
         const serverMsg = json.data;
 
-        // Sukses terkirim: tandai SENT dan EVICT imageBlob agar storage browser tidak bengkak
-        await db.messages.update(localMessage.id, {
-          id: serverMsg.id,
-          status: 'SENT',
-          imageUrl: serverMsg.imageUrl || finalImageUrl,
-          imageBlob: null, // Evict blob binary
-          updatedAt: serverMsg.updatedAt || now,
-        });
+        // Sukses terkirim: perbarui entri di Dexie dengan ID resmi dari server
+        if (serverMsg) {
+          if (localMessage.id !== serverMsg.id) {
+            await db.messages.delete(localMessage.id);
+          }
+          await db.messages.put({
+            ...localMessage,
+            ...serverMsg,
+            status: serverMsg.status || 'SENT',
+            imageUrl: serverMsg.imageUrl || finalImageUrl,
+            imageBlob: null,
+            updatedAt: serverMsg.updatedAt || now,
+          });
+        }
 
         // Trigger socket emit jika socket aktif
         if (socket?.connected) {
@@ -341,13 +354,19 @@ export async function syncPendingMessages() {
           const serverMsg = json.data;
 
           // Perbarui status menjadi SENT dan bersihkan imageBlob dari IndexedDB
-          await db.messages.update(msg.id, {
-            id: serverMsg.id,
-            status: 'SENT',
-            imageUrl: serverMsg.imageUrl || imageUrl,
-            imageBlob: null, // Hapus binary dari memori lokal
-            updatedAt: serverMsg.updatedAt,
-          });
+          if (serverMsg) {
+            if (msg.id !== serverMsg.id) {
+              await db.messages.delete(msg.id);
+            }
+            await db.messages.put({
+              ...msg,
+              ...serverMsg,
+              status: serverMsg.status || 'SENT',
+              imageUrl: serverMsg.imageUrl || imageUrl,
+              imageBlob: null, // Hapus binary dari memori lokal
+              updatedAt: serverMsg.updatedAt,
+            });
+          }
         }
       } catch (uploadErr) {
         console.warn(`[Chat] Gagal sinkronisasi pesan ${msg.uuid}:`, uploadErr);
@@ -432,6 +451,7 @@ export function initChatSocket({ onNewMessage, onMessageDelivered, onUserTyping 
     if (onNewMessage) {
       onNewMessage(message);
     }
+    window.dispatchEvent(new CustomEvent('chatNewMessage', { detail: message }));
   });
 
   socket.on('message_delivered', async (ack) => {
@@ -446,6 +466,22 @@ export function initChatSocket({ onNewMessage, onMessageDelivered, onUserTyping 
     }
     if (onMessageDelivered) {
       onMessageDelivered(ack);
+    }
+    window.dispatchEvent(new CustomEvent('chatMessageDelivered', { detail: ack }));
+  });
+
+  socket.on('conversation_read', async (data) => {
+    if (data?.conversationId) {
+      await db.messages
+        .where('conversationId')
+        .equals(data.conversationId)
+        .modify((msg) => {
+          if (msg.status !== 'PENDING') {
+            msg.status = 'READ';
+          }
+        })
+        .catch(() => {});
+      window.dispatchEvent(new CustomEvent('chatMessagesRead', { detail: data }));
     }
   });
 

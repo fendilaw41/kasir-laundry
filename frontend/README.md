@@ -8,48 +8,52 @@ Aplikasi kasir laundry berbasis React + Vite dengan arsitektur **Offline-First**
 
 Jika Anda ingin mereset seluruh data lokal di browser kasir (misal untuk pengujian ulang, mengganti outlet toko, membersihkan data mock, atau menyelesaikan konflik sync), Anda dapat menggunakan salah satu cara berikut:
 
-### Cara 1: Lewat Console Browser (Paling Cepat ⚡)
+### Cara 1: Langsung Buka URL Reset (Paling Praktis & Otomatis 🚀)
 
-1. Buka aplikasi di browser (Google Chrome, Edge, Safari, atau Brave).
-2. Tekan tombol **F12** atau klik kanan pilih **Inspect** -> buka tab **Console**.
-3. allow pasting
-4. Salin dan tempel baris perintah berikut, lalu tekan **Enter**:
+Anda dapat langsung membuka URL berikut di address bar browser:
+- **`http://localhost:5173/reset`**
+  Membuka halaman visual reset untuk membersihkan IndexedDB, LocalStorage, dan Cache PWA.
+- **`http://localhost:5173/?reset=true`** atau **`http://localhost:5173/reset?auto=true`**
+  Langsung membersihkan seluruh data offline & cache PWA secara otomatis, lalu mengarahkan ke halaman login yang bersih.
+
+---
+
+### Cara 2: Lewat Menu Pengaturan Aplikasi (UI Toko ⚙️)
+
+1. Masuk ke aplikasi, lalu buka menu **Pengaturan** (`/setting`).
+2. Gulir ke bagian paling bawah ke kartu **"Pemeliharaan Sistem & Reset Cache"**.
+3. Klik tombol **"Reset Cache & Database Lokal"** dan konfirmasi. Seluruh data lokal dan cache akan dibersihkan.
+
+---
+
+### Cara 3: Lewat DevTools Tab Application (Seperti Tangkapan Layar DevTools 🖱️)
+
+1. Buka browser **DevTools** (`F12`).
+2. Pilih tab **Application** -> buka menu **IndexedDB** -> klik **`KasirLaundryDB`**.
+3. Klik tombol **`Delete database`** (seperti tombol yang tampil pada layar DevTools).
+4. Atau klik menu **Storage** di panel kiri -> klik tombol **`Clear site data`** untuk menghapus IndexedDB, LocalStorage, dan Service Worker sekaligus.
+5. Muat ulang halaman browser (`F5` / `Ctrl + F5`).
+
+---
+
+### Cara 4: Lewat Console Browser (Skrip Cepat ⚡)
+
+1. Tekan tombol **F12** -> buka tab **Console**.
+2. Salin dan tempel baris perintah berikut, lalu tekan **Enter**:
    ```javascript
    indexedDB.deleteDatabase('KasirLaundryDB');
    localStorage.clear();
    sessionStorage.clear();
+   caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
    location.reload();
    ```
-5. Halaman akan otomatis me-refresh dan membuat ulang database `KasirLaundryDB` dari awal (*auto-seed* data master baru).
 
 ---
 
-### Cara 2: Lewat DevTools Application Tab (UI Manual 🖱️)
+### Cara 5: Pemulihan Otomatis Perbedaan Versi (Auto-Recovery 🛡️)
 
-1. Buka browser **DevTools** (`F12` atau `Cmd + Option + I` di Mac).
-2. Pilih tab **Application** (di Google Chrome / Edge) atau **Storage** (di Firefox).
-3. Di panel navigasi sebelah kiri:
-   - Klik **Storage** -> klik tombol **Clear site data**.
-   - **ATAU** buka folder **IndexedDB** -> klik kanan pada database **`KasirLaundryDB`** -> pilih **Delete database**.
-4. Bersihkan juga **Local storage** dan **Session storage** jika ingin mereset sesi login.
-5. Refresh halaman browser (`F5` atau `Cmd + R`).
+Jika browser Anda sebelumnya memiliki versi IndexedDB yang lebih tinggi (misalnya **Version 91** dari pengujian lama), skrip frontend di [src/db.js](file:///c:/work/product/kasir-laundry/frontend/src/db.js) kini secara otomatis mendeteksi error `VersionError`, menghapus database lama yang konflik, dan me-reload aplikasi secara otomatis tanpa perlu tindakan manual.
 
----
-
-### Cara 3: Reset Programmatic (Lewat Kode JavaScript)
-
-Jika ingin memanggil fungsi reset dari dalam kode frontend:
-
-```javascript
-import { db } from './db';
-
-export async function resetDexieDatabase() {
-  await db.delete();
-  localStorage.clear();
-  sessionStorage.clear();
-  window.location.reload();
-}
-```
 
 ---
 
