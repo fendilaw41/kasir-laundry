@@ -15,6 +15,8 @@ const prisma_module_1 = require("./prisma/prisma.module");
 const orders_module_1 = require("./orders/orders.module");
 const sync_module_1 = require("./sync/sync.module");
 const auth_module_1 = require("./auth/auth.module");
+const storage_module_1 = require("./common/storage/storage.module");
+const chat_module_1 = require("./chat/chat.module");
 const jwt_auth_guard_1 = require("./auth/jwt-auth.guard");
 const all_exceptions_filter_1 = require("./common/filters/all-exceptions.filter");
 let AppModule = class AppModule {
@@ -22,7 +24,7 @@ let AppModule = class AppModule {
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
-        imports: [prisma_module_1.PrismaModule, orders_module_1.OrdersModule, sync_module_1.SyncModule, auth_module_1.AuthModule],
+        imports: [prisma_module_1.PrismaModule, orders_module_1.OrdersModule, sync_module_1.SyncModule, auth_module_1.AuthModule, storage_module_1.StorageModule, chat_module_1.ChatModule],
         controllers: [app_controller_1.AppController],
         providers: [
             app_service_1.AppService,

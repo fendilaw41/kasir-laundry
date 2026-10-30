@@ -16,13 +16,14 @@ model Store {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
-  users      User[]
-  products   Product[]
-  orders     Order[]
-  pelanggan  Pelanggan[]
-  inventory  Inventory[]
-  settings   Settings?
-  syncLogs   SyncLog[]
+  users         User[]
+  products      Product[]
+  orders        Order[]
+  pelanggan     Pelanggan[]
+  inventory     Inventory[]
+  settings      Settings?
+  syncLogs      SyncLog[]
+  conversations Conversation[]
 }
 
 model User {
@@ -30,14 +31,17 @@ model User {
   storeId   String
   store     Store     @relation(fields: [storeId], references: [id])
   username  String
-  password  String    // hash bcrypt
+  password  String // hash bcrypt
   fullname  String
-  role      String    // 'owner' | 'kasir'
+  role      String // 'owner' | 'kasir'
   createdAt DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @db.Timestamptz(3)
   deletedAt DateTime? @db.Timestamptz(3)
 
-  orders    Order[]
+  orders               Order[]
+  createdConversations Conversation[]       @relation("CreatedConversations")
+  conversationMembers  ConversationMember[]
+  sentMessages         Message[]
 
   @@unique([storeId, username])
   @@index([storeId, updatedAt])
@@ -71,7 +75,7 @@ model Pelanggan {
   updatedAt DateTime  @updatedAt @db.Timestamptz(3)
   deletedAt DateTime? @db.Timestamptz(3)
 
-  orders    Order[]
+  orders Order[]
 
   @@index([storeId, updatedAt])
 }
@@ -94,77 +98,152 @@ model Inventory {
 }
 
 model Order {
-  id            String      @id @default(uuid())
+  id            String     @id @default(uuid())
   storeId       String
-  store         Store       @relation(fields: [storeId], references: [id])
-  invoiceId     String    
+  store         Store      @relation(fields: [storeId], references: [id])
+  invoiceId     String
   userId        String?
-  user          User?       @relation(fields: [userId], references: [id])
+  user          User?      @relation(fields: [userId], references: [id])
   pelangganId   String?
-  pelanggan     Pelanggan?  @relation(fields: [pelangganId], references: [id])
+  pelanggan     Pelanggan? @relation(fields: [pelangganId], references: [id])
   total         Int
-  diskon        Int         @default(0)
-  bayar         Int         @default(0)
-  kembalian     Int         @default(0)
+  diskon        Int        @default(0)
+  bayar         Int        @default(0)
+  kembalian     Int        @default(0)
   metodeBayar   String?
   estimasi      String?
   tipeLayanan   String?
-  isPriority    Boolean     @default(false)
+  isPriority    Boolean    @default(false)
   statusBayar   String?
   status        String?
   catatan       String?
   inventoryUsed Json?
-  createdAt     DateTime    @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime    @updatedAt @db.Timestamptz(3)
-  deletedAt     DateTime?   @db.Timestamptz(3)
+  createdAt     DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime   @updatedAt @db.Timestamptz(3)
+  deletedAt     DateTime?  @db.Timestamptz(3)
 
-  items         OrderItem[]
+  items OrderItem[]
 
   @@unique([storeId, invoiceId])
   @@index([storeId, updatedAt])
 }
 
 model OrderItem {
-  id          String    @id @default(uuid())
-  orderId     String
-  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId   String?
-  product     Product?  @relation(fields: [productId], references: [id])
-  name        String
-  quantity    Float
-  price       Int
-  subtotal    Int
-  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+  name      String
+  quantity  Float
+  price     Int
+  subtotal  Int
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@index([orderId])
 }
 
 model Settings {
-  storeId           String   @id
-  store             Store    @relation(fields: [storeId], references: [id])
-  namaLaundry       String?
-  alamat            String?
-  kota              String?
-  telepon           String?
-  jamBuka           String?
-  menerimaCucian    Boolean  @default(true)
-  headerStruk       String?
-  footerStruk       String?
-  updatedAt         DateTime @updatedAt @db.Timestamptz(3)
+  storeId        String   @id
+  store          Store    @relation(fields: [storeId], references: [id])
+  namaLaundry    String?
+  alamat         String?
+  kota           String?
+  telepon        String?
+  jamBuka        String?
+  menerimaCucian Boolean  @default(true)
+  headerStruk    String?
+  footerStruk    String?
+  storageDriver  String? // 'local' | 's3'
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
 }
 
 model SyncLog {
-  id          String   @id @default(uuid())
-  storeId     String
-  store       Store    @relation(fields: [storeId], references: [id])
-  tableName   String   // 'Order' | 'User' | 'Product' | 'Settings' | 'Pelanggan'
-  action      String   // 'CREATE' | 'UPDATE' | 'DELETE'
-  recordId    String?
-  username    String?
-  beforeData  Json?
-  afterData   Json?
-  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  id         String   @id @default(uuid())
+  storeId    String
+  store      Store    @relation(fields: [storeId], references: [id])
+  tableName  String // 'Order' | 'User' | 'Product' | 'Settings' | 'Pelanggan'
+  action     String // 'CREATE' | 'UPDATE' | 'DELETE'
+  recordId   String?
+  username   String?
+  beforeData Json?
+  afterData  Json?
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([storeId, tableName, createdAt])
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+  CROSS_STORE
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  ORDER_SNIPPET
+  SYSTEM
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  READ
+}
+
+model Conversation {
+  id          String           @id @default(uuid())
+  type        ConversationType @default(DIRECT)
+  title       String? // Nama grup (opsional jika direct)
+  avatarUrl   String?
+  createdById String
+  createdBy   User             @relation("CreatedConversations", fields: [createdById], references: [id])
+  storeId     String? // Null jika type = CROSS_STORE
+  store       Store?           @relation(fields: [storeId], references: [id])
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+  deletedAt   DateTime?        @db.Timestamptz(3)
+
+  members  ConversationMember[]
+  messages Message[]
+
+  @@index([storeId, updatedAt])
+}
+
+model ConversationMember {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String       @default("member") // "admin" | "member"
+  lastReadAt     DateTime     @default(now()) @db.Timestamptz(3)
+  joinedAt       DateTime     @default(now()) @db.Timestamptz(3)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id             String        @id @default(uuid())
+  uuid           String        @unique // Client-generated idempotency key
+  conversationId String
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User          @relation(fields: [senderId], references: [id])
+  content        String?       @db.Text // Teks pesan (bisa null jika hanya kirim foto)
+  type           MessageType   @default(TEXT)
+  imageUrl       String? // Path / Key file gambar
+  imageWidth     Int?
+  imageHeight    Int?
+  fileSize       Int?
+  status         MessageStatus @default(SENT)
+  metadata       Json? // Cuplikan info order/nota jika share invoice
+  createdAt      DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @db.Timestamptz(3)
+  deletedAt      DateTime?     @db.Timestamptz(3)
+
+  @@index([conversationId, createdAt])
 }

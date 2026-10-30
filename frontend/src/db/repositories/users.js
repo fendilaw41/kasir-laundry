@@ -394,21 +394,58 @@ export const getKasirUsersQuery = async () => {
 };
 
 export const addUser = async (userData) => {
-  return registerUser(userData);
+  const { fullname, username, password, role = 'kasir' } = userData;
+  if (!fullname?.trim() || !username?.trim() || !password?.trim()) {
+    throw new Error('Nama lengkap, username, dan password wajib diisi');
+  }
+
+  const cleanFullname = fullname.trim();
+  const cleanUsername = username.trim();
+  const storeId = await getActiveStoreId();
+
+  // Cek apakah username sudah ada di lokal
+  const existingUser = await db.users.where('username').equals(cleanUsername).first();
+  if (existingUser && !existingUser.deletedAt) {
+    throw new Error(`Username "${cleanUsername}" sudah terdaftar.`);
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const newId = await db.users.add(withNewSyncMeta({
+    uuid: crypto.randomUUID(),
+    storeId: storeId || undefined,
+    fullname: cleanFullname,
+    username: cleanUsername,
+    password: hashedPassword,
+    role: role || 'kasir',
+  }));
+
+  // Trigger sync kasir baru ke backend secara asynchronous
+  syncUsersToBackend().catch(err => console.warn('Sync add user failed:', err));
+
+  return newId;
 };
 
 export const updateUser = async (id, userData) => {
-  const { password, ...rest } = userData;
+  if (!id) throw new Error('ID user tidak valid');
+  let targetId = id;
+  if (typeof id === 'string' && id.includes('-')) {
+    const item = await db.users.where('uuid').equals(id).first();
+    if (item) targetId = item.id;
+  } else if (typeof id === 'string' && /^\d+$/.test(id)) {
+    targetId = parseInt(id, 10);
+  }
+
+  const { password, id: _dexieId, ...rest } = userData;
   const updateData = { ...rest };
 
-  // Only update password if it's less than 60 chars (meaning it's a new plaintext password, not a bcrypt hash)
-  if (password && password.length < 60) {
+  // Only update password if it's provided and less than 60 chars (meaning it's a new plaintext password)
+  if (password && password.trim().length > 0 && password.length < 60) {
     updateData.password = await bcrypt.hash(password, 10);
-  } else if (password && password.length === 60) {
+  } else if (password && password.length >= 60) {
     updateData.password = password; // keep existing hash
   }
 
-  const result = await db.users.update(id, withUpdatedSyncMeta(updateData));
+  const result = await db.users.update(targetId, withUpdatedSyncMeta(updateData));
 
   // Trigger sync user ke backend secara asynchronous
   syncUsersToBackend().catch(err => console.warn('Sync update user failed:', err));
@@ -417,9 +454,18 @@ export const updateUser = async (id, userData) => {
 };
 
 export const deleteUser = async (id) => {
+  if (!id) throw new Error('ID user tidak valid');
+  let targetId = id;
+  if (typeof id === 'string' && id.includes('-')) {
+    const item = await db.users.where('uuid').equals(id).first();
+    if (item) targetId = item.id;
+  } else if (typeof id === 'string' && /^\d+$/.test(id)) {
+    targetId = parseInt(id, 10);
+  }
+
   // Soft delete: tandai deletedAt supaya penghapusan ikut ter-sync ke backend (tombstone),
   // bukan hard delete yang tidak bisa disinkronkan.
-  const result = await db.users.update(id, withUpdatedSyncMeta({ deletedAt: new Date() }));
+  const result = await db.users.update(targetId, withUpdatedSyncMeta({ deletedAt: new Date() }));
 
   // Trigger sync user ke backend secara asynchronous
   syncUsersToBackend().catch(err => console.warn('Sync delete user failed:', err));

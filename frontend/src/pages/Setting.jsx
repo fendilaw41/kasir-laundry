@@ -54,7 +54,7 @@ const Setting = ({ user }) => {
       setEditingUser(null);
       setUserFormData({ fullname: '', username: '', password: '', role: 'kasir' });
     } catch (err) {
-      toast.error('Gagal menyimpan data', err);
+      toast.error(err.message || 'Gagal menyimpan data');
     }
   };
 
@@ -316,7 +316,14 @@ const Setting = ({ user }) => {
                     </div>
                     <div className="mb-4">
                       <label className="small text-muted fw-bold mb-2">Password</label>
-                      <input type="password" className="form-control border-0 bg-light rounded-4 px-3 py-3 fw-bold text-dark" id="password" onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })} placeholder="*****" required />
+                      <input
+                        type="password"
+                        className="form-control border-0 bg-light rounded-4 px-3 py-3 fw-bold text-dark"
+                        id="password"
+                        onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
+                        placeholder={editingUser ? 'Kosongkan jika tidak diubah' : 'Minimal 4 karakter'}
+                        required={!editingUser}
+                      />
                     </div>
                     <button type="submit" className="btn btn-outline-primary w-100 rounded-pill fw-bold py-3 shadow-sm">
                       <i className="bi bi-check-circle me-2"></i>{editingUser ? 'Simpan Perubahan' : 'Simpan Kasir Baru'}

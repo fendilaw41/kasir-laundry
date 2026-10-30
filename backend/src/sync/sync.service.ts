@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SyncInventoryDto, SyncMasterDataDto, SyncPelangganDto, SyncProductDto, SyncSettingsDto, SyncUserDto } from './dto/sync-master.dto';
 
@@ -427,18 +428,32 @@ export class SyncService {
       }
       const store = await this.getOrCreateStoreFromClient(storeId);
 
-      // Cari apakah inventory sudah ada di database (by ID atau storeId + nama)
-      const existingInventory = await this.prisma.inventory.findFirst({
+      // Cari apakah inventory sudah ada di database (by ID global atau storeId + nama)
+      const existingById = await this.prisma.inventory.findUnique({
+        where: { id: inv.id },
+      });
+
+      const existingByName = await this.prisma.inventory.findFirst({
         where: {
           storeId: store.id,
-          OR: [
-            { id: inv.id },
-            { nama: { equals: inv.nama, mode: 'insensitive' } },
-          ],
+          nama: { equals: inv.nama, mode: 'insensitive' },
         },
       });
 
-      const beforeInventory = existingInventory;
+      let targetInventory = null;
+      let targetId = inv.id;
+
+      if (existingById && existingById.storeId === store.id) {
+        targetInventory = existingById;
+      } else if (existingByName) {
+        targetInventory = existingByName;
+      } else if (existingById && existingById.storeId !== store.id) {
+        // ID ini sudah dipakai oleh store lain di database.
+        // Buat ID baru agar tidak menabrak constraint primary key PostgreSQL.
+        targetId = randomUUID();
+      }
+
+      const beforeInventory = targetInventory;
 
       const createdAt = inv.createdAt ? new Date(inv.createdAt) : new Date();
       const updatedAt = inv.updatedAt ? new Date(inv.updatedAt) : new Date();
@@ -458,15 +473,15 @@ export class SyncService {
       };
 
       let saved;
-      if (existingInventory) {
+      if (targetInventory) {
         saved = await this.prisma.inventory.update({
-          where: { id: existingInventory.id },
+          where: { id: targetInventory.id },
           data: inventoryData,
         });
       } else {
         saved = await this.prisma.inventory.create({
           data: {
-            id: inv.id,
+            id: targetId,
             ...inventoryData,
           },
         });

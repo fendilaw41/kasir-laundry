@@ -17,6 +17,8 @@ const Login = ({ onLogin }) => {
       if (s?.storeCode) {
         setStoreCode(s.storeCode);
       }
+    }).catch((err) => {
+      console.warn('[Login] Belum ada pengaturan tersimpan:', err);
     });
   }, []);
 

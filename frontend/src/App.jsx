@@ -12,6 +12,7 @@ import Pembayaran from './pages/Pembayaran';
 import OrderDetail from './pages/OrderDetail';
 import Product from './pages/Product';
 import Layout from './components/Layout';
+import PageLoader from './components/PageLoader';
 import DataOrder from './pages/DataOrder';
 import Reports from './pages/Reports';
 import Setting from './pages/Setting';
@@ -42,6 +43,7 @@ function App() {
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('token');
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('user');
   };
 
   useEffect(() => {
@@ -51,36 +53,48 @@ function App() {
       sessionStorage.removeItem('user');
       sessionStorage.removeItem('token');
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('user');
     };
 
     window.addEventListener('auth:unauthorized', handleUnauthorized);
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
   }, []);
 
-
   return (
     <Router>
       <ScrollToTop />
+      <PageLoader />
       <Toaster position="top-center" reverseOrder={false} />
       <Routes>
-        <Route path="/login" element={<Login onLogin={handleLogin} />} />
+        <Route
+          path="/login"
+          element={user ? <Navigate to="/" replace /> : <Login onLogin={handleLogin} />}
+        />
         <Route path="/register" element={<Register />} />
-        <Route element={<Layout user={user} onLogout={handleLogout} />}>
-          <Route path="/" element={user ? <Home user={user} /> : <Navigate to="/login" />} />
-          <Route path="/transaksi" element={user ? <Transaksi user={user} /> : <Navigate to="/login" />} />
-          <Route path="/cari" element={user ? <Cari user={user} /> : <Navigate to="/login" />} />
-          <Route path="/product" element={user ? <Product user={user} /> : <Navigate to="/login" />} />
-          <Route path="/pembayaran" element={user ? <Pembayaran user={user} /> : <Navigate to="/login" />} />
-          <Route path="/order/:id" element={user ? <OrderDetail user={user} /> : <Navigate to="/login" />} />
-          <Route path="/orders" element={user ? <DataOrder user={user} /> : <Navigate to="/login" />} />
-          <Route path="/reports" element={user ? <Reports user={user} /> : <Navigate to="/login" />} />
-          <Route path="/setting" element={user ? <Setting user={user} /> : <Navigate to="/login" />} />
-          <Route path="/chat" element={user ? <Chat user={user} /> : <Navigate to="/login" />} />
+        <Route element={<ProtectedLayout user={user} onLogout={handleLogout} />}>
+          <Route path="/" element={<Home user={user} />} />
+          <Route path="/transaksi" element={<Transaksi user={user} />} />
+          <Route path="/cari" element={<Cari user={user} />} />
+          <Route path="/product" element={<Product user={user} />} />
+          <Route path="/pembayaran" element={<Pembayaran user={user} />} />
+          <Route path="/order/:id" element={<OrderDetail user={user} />} />
+          <Route path="/orders" element={<DataOrder user={user} />} />
+          <Route path="/reports" element={<Reports user={user} />} />
+          <Route path="/setting" element={<Setting user={user} />} />
+          <Route path="/chat" element={<Chat user={user} />} />
         </Route>
         <Route path="*" element={<Navigate to={user ? "/" : "/login"} replace />} />
       </Routes>
     </Router>
   );
+}
+
+// Wrapper Layout terproteksi: jika user belum login, alihkan langsung ke /login dengan replace
+function ProtectedLayout({ user, onLogout }) {
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  return <Layout user={user} onLogout={onLogout} />;
 }
 
 function ScrollToTop() {

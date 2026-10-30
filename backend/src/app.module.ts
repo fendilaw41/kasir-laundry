@@ -6,11 +6,13 @@ import { PrismaModule } from './prisma/prisma.module';
 import { OrdersModule } from './orders/orders.module';
 import { SyncModule } from './sync/sync.module';
 import { AuthModule } from './auth/auth.module';
+import { StorageModule } from './common/storage/storage.module';
+import { ChatModule } from './chat/chat.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 @Module({
-  imports: [PrismaModule, OrdersModule, SyncModule, AuthModule],
+  imports: [PrismaModule, OrdersModule, SyncModule, AuthModule, StorageModule, ChatModule],
   controllers: [AppController],
   providers: [
     AppService,
