@@ -5,6 +5,10 @@
 [build.environment]
   NETLIFY_USE_YARN = "false"
   SECRETS_SCAN_ENABLED = "false"
+  VITE_API_URL = "https://kasir-laundry-mx80.onrender.com/api"
+  VITE_APP_NAME = "Kasir Laundry"
+  VITE_ENABLE_AUTO_SYNC = "true"
+  VITE_SYNC_INTERVAL_MS = "600000"
 
 [[redirects]]
   from = "/*"
