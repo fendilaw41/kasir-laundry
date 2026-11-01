@@ -1,7 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getOrdersSortedByDateQuery } from '../db/repositories/orders';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { pullOrdersFromBackend } from '../services/syncService';
+import { useState, useEffect } from 'react';
 
 const Reports = () => {
   const [searchParams] = useSearchParams();
@@ -14,6 +15,12 @@ const Reports = () => {
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().substring(0, 7));
   const [filterBayar, setFilterBayar] = useState('Semua');
   const [showBalance, setShowBalance] = useState(false);
+
+  useEffect(() => {
+    if (navigator.onLine) {
+      pullOrdersFromBackend(true).catch(err => console.warn('[Reports] Auto pull error:', err));
+    }
+  }, []);
 
   // Query Data
   const data = useLiveQuery(async () => {

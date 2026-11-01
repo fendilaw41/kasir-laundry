@@ -14,26 +14,54 @@ export const getInventoryQuery = async () => {
 export const getInventoryById = async (id) => {
   if (!id) return null;
   const storeId = await getActiveStoreId();
-  const item = await db.inventory.get(parseInt(id, 10));
+  let item = null;
+  const numId = parseInt(id, 10);
+  if (!isNaN(numId)) {
+    item = await db.inventory.get(numId);
+  }
+  if (!item && typeof id === 'string') {
+    item = (await db.inventory.where('uuid').equals(id).first()) ||
+           (await db.inventory.filter(i => i.nama && i.nama.toLowerCase() === id.toLowerCase()).first());
+  }
   if (!item || item.deletedAt) return null;
   if (storeId && item.storeId && item.storeId !== storeId) return null;
   return item;
 };
 
 export const updateInventory = async (id, data) => {
+  if (!id) throw new Error('ID inventory tidak valid');
+  let item = null;
+  const numId = parseInt(id, 10);
+  if (!isNaN(numId)) {
+    item = await db.inventory.get(numId);
+  }
+  if (!item && typeof id === 'string') {
+    item = (await db.inventory.where('uuid').equals(id).first()) ||
+           (await db.inventory.filter(i => i.nama && i.nama.toLowerCase() === id.toLowerCase()).first());
+  }
+  const targetId = item ? item.id : parseInt(id, 10);
+
   const storeId = await getActiveStoreId();
   const updatePayload = { ...data };
   if (storeId && !updatePayload.storeId) {
     updatePayload.storeId = storeId;
   }
-  const result = await db.inventory.update(parseInt(id, 10), withUpdatedSyncMeta(updatePayload));
+  const result = await db.inventory.update(targetId, withUpdatedSyncMeta(updatePayload));
   syncInventoryToBackend().catch(err => console.warn('[Sync] Sync inventory error:', err));
   return result;
 };
 
 export const updateInventoryStok = async (id, delta) => {
   const storeId = await getActiveStoreId();
-  const item = await db.inventory.get(parseInt(id, 10));
+  let item = null;
+  const numId = parseInt(id, 10);
+  if (!isNaN(numId)) {
+    item = await db.inventory.get(numId);
+  }
+  if (!item && typeof id === 'string') {
+    item = (await db.inventory.where('uuid').equals(id).first()) ||
+           (await db.inventory.filter(i => i.nama && i.nama.toLowerCase() === id.toLowerCase()).first());
+  }
   if (item) {
     const currentStok = Number(item.stok) || 0;
     const newStok = Math.max(0, currentStok + delta);

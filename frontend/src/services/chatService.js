@@ -387,19 +387,32 @@ export async function syncPendingMessages() {
  */
 export async function markConversationAsRead(conversationId) {
   try {
-    if (navigator.onLine) {
-      await fetch(`${API_BASE_URL}/chat/conversations/${conversationId}/read`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
+    // 1. Update Dexie lokal seketika (optimistic update status: 'READ' & reset unreadCount)
+    await db.messages
+      .where('conversationId')
+      .equals(conversationId)
+      .modify((msg) => {
+        if (msg.status !== 'PENDING') {
+          msg.status = 'READ';
+        }
+      })
+      .catch(() => {});
+    await db.conversations.update(conversationId, { unreadCount: 0 }).catch(() => {});
 
-      if (socket?.connected) {
-        socket.emit('mark_read', { conversationId });
-      }
+    // 2. Beritahu socket server langsung (broadcast instan <5ms ke pengirim)
+    if (socket?.connected) {
+      socket.emit('mark_read', { conversationId });
     }
 
-    // Reset unreadCount lokal di Dexie
-    await db.conversations.update(conversationId, { unreadCount: 0 }).catch(() => {});
+    // 3. Sinkronkan ke database server secara asinkron
+    if (navigator.onLine) {
+      fetch(`${API_BASE_URL}/chat/conversations/${conversationId}/read`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      }).catch((fetchErr) => {
+        console.warn('[Chat] HTTP markAsRead error:', fetchErr);
+      });
+    }
   } catch (err) {
     console.warn('[Chat] Gagal mark conversation as read:', err);
   }
@@ -426,15 +439,18 @@ export function initChatSocket({ onNewMessage, onMessageDelivered, onUserTyping 
 
   socket.on('connect', () => {
     console.log('[Chat] Socket connected:', socket.id);
+    if (currentJoinedConversationId) {
+      socket.emit('join_conversation', { conversationId: currentJoinedConversationId });
+    }
     // Jalankan sinkronisasi pesan pending saat tersambung kembali
     syncPendingMessages();
   });
 
   socket.on('new_message', async (message) => {
-    // Tambahkan atau perbarui pesan di Dexie
+    // Tambahkan atau perbarui pesan di Dexie dengan status terkini (READ/SENT)
     await db.messages.put({
       ...message,
-      status: 'SENT',
+      status: message.status || 'SENT',
     });
 
     // Perbarui percakapan terakhir di Dexie
@@ -497,7 +513,10 @@ export function initChatSocket({ onNewMessage, onMessageDelivered, onUserTyping 
 /**
  * Bergabung ke room percakapan di WebSocket
  */
+let currentJoinedConversationId = null;
+
 export function joinConversationRoom(conversationId) {
+  currentJoinedConversationId = conversationId;
   if (socket?.connected && conversationId) {
     socket.emit('join_conversation', { conversationId });
   }

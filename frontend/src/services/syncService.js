@@ -177,7 +177,15 @@ const formatOrderPayload = async (order) => {
  */
 export const syncOrderToBackend = async (orderId) => {
   try {
-    const order = await db.orders.get(parseInt(orderId));
+    let order = null;
+    const numId = parseInt(orderId, 10);
+    if (!isNaN(numId)) {
+      order = await db.orders.get(numId);
+    }
+    if (!order && typeof orderId === 'string') {
+      order = (await db.orders.where('uuid').equals(orderId).first()) ||
+              (await db.orders.where('invoiceId').equals(orderId).first());
+    }
     if (!order) return;
 
     // Jika belum punya uuid, tambahkan
@@ -196,8 +204,19 @@ export const syncOrderToBackend = async (orderId) => {
     });
 
     if (response.ok) {
-      // Tandai data lokal sudah ter-sync
-      await db.orders.update(order.id, { isDirty: 0 });
+      const result = await response.json().catch(() => ({}));
+      const serverOrder = result.data || result;
+      const updateData = { isDirty: 0 };
+      if (serverOrder && serverOrder.inventoryUsed) {
+        updateData.inventoryUsed = serverOrder.inventoryUsed;
+      }
+      if (serverOrder && serverOrder.id) {
+        updateData.uuid = serverOrder.id;
+      }
+      if (serverOrder && serverOrder.updatedAt) {
+        updateData.updatedAt = new Date(serverOrder.updatedAt);
+      }
+      await db.orders.update(order.id, updateData);
       console.log(`[Sync] Order ${order.invoiceId} berhasil disinkronkan ke BE.`);
       return true;
     } else {
@@ -576,7 +595,17 @@ export const syncDirtyOrders = async (forceAll = false) => {
           if (res.status === 'success') {
             const ord = dirtyOrders.find(o => o.uuid === res.id);
             if (ord) {
-              await db.orders.update(ord.id, { isDirty: 0 });
+              const updateData = { isDirty: 0 };
+              if (res.data?.inventoryUsed) {
+                updateData.inventoryUsed = res.data.inventoryUsed;
+              }
+              if (res.data?.id) {
+                updateData.uuid = res.data.id;
+              }
+              if (res.data?.updatedAt) {
+                updateData.updatedAt = new Date(res.data.updatedAt);
+              }
+              await db.orders.update(ord.id, updateData);
             }
           }
         }
@@ -705,8 +734,8 @@ export const pullOrdersFromBackend = async (force = false) => {
 
       // 5. Simpan ke db.orders
       if (localOrder) {
-        // Jangan timpa jika data lokal memiliki perubahan yang belum di-sync
-        if (localOrder.isDirty !== 1) {
+        // Jangan timpa jika data lokal memiliki perubahan yang belum di-sync (kecuali force=true)
+        if (localOrder.isDirty !== 1 || force) {
           await db.orders.update(localOrder.id, orderPayload);
         }
       } else {

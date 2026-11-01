@@ -234,8 +234,14 @@ const Home = ({ user }) => {
         <>
           <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(15px)', backgroundColor: 'rgba(255,255,255,0.7)' }}></div>
           <div className="modal fade show d-block" tabIndex="-1">
-            <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable mx-2" style={{ maxWidth: '450px' }}>
-              <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '28px', height: '90vh' }}>
+            <div
+              className="modal-dialog modal-dialog-centered modal-dialog-scrollable w-100 px-2 px-sm-3 my-2"
+              style={{ maxWidth: '100%', width: '100%' }}
+            >
+              <div
+                className="modal-content border-0 shadow-lg w-100"
+                style={{ borderRadius: '24px', height: '92vh', width: '100%' }}
+              >
                 <div className="modal-header border-0 pb-0 pt-4 px-4">
                   <div>
                     <h5 className="fw-bold mb-0 text-success">Data Pelanggan</h5>
@@ -345,8 +351,11 @@ const Home = ({ user }) => {
         <>
           <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1065 }}></div>
           <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1070 }}>
-            <div className="modal-dialog modal-dialog-centered mx-3">
-              <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '24px' }}>
+            <div
+              className="modal-dialog modal-dialog-centered w-100 px-2 px-sm-3 my-2"
+              style={{ maxWidth: '100%', width: '100%' }}
+            >
+              <div className="modal-content border-0 shadow-lg w-100" style={{ borderRadius: '24px', width: '100%' }}>
                 <div className="modal-header border-0 pb-0 pt-4 px-4">
                   <h5 className="fw-bold mb-0 text-primary">Edit Pelanggan</h5>
                   <button type="button" className="btn-close" onClick={() => setEditPelanggan({ show: false, data: { id: null, nama: '', hp: '', alamat: '' } })}></button>
@@ -399,8 +408,14 @@ const Home = ({ user }) => {
         <>
           <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(15px)', backgroundColor: 'rgba(255,255,255,0.7)' }}></div>
           <div className="modal fade show d-block" tabIndex="-1">
-            <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable mx-2" style={{ maxWidth: '450px' }}>
-              <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '28px', height: '90vh' }}>
+            <div
+              className="modal-dialog modal-dialog-centered modal-dialog-scrollable w-100 px-2 px-sm-3 my-2"
+              style={{ maxWidth: '100%', width: '100%' }}
+            >
+              <div
+                className="modal-content border-0 shadow-lg w-100"
+                style={{ borderRadius: '24px', height: '92vh', width: '100%' }}
+              >
                 <div className="modal-header border-0 pb-0 pt-4 px-4">
                   <div>
                     <h5 className="fw-bold mb-0 text-success">Inventaris Barang</h5>
@@ -494,7 +509,7 @@ const Home = ({ user }) => {
                             </div>
                             <div>
                               <div className="d-flex align-items-center mb-1">
-                                <h6 className="fw-bold mb-0 text-dark" style={{ maxWidth: '140px', fontSize: '12px', wordWrap: 'break-word' }}>{item.nama}</h6>
+                                <h6 className="fw-bold mb-0 text-dark" style={{ maxWidth: '100%', fontSize: '13px', wordWrap: 'break-word' }}>{item.nama}</h6>
                                 <i
                                   className="bi bi-copy text-muted ms-2"
                                   style={{ cursor: 'pointer', fontSize: '0.8rem' }}

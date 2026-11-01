@@ -535,7 +535,9 @@ export async function parseChatCommand(message, user) {
           if (isUsed) {
             responseText = `Gagal menghapus: Stok "${matchedInv.nama}" tidak boleh dihapus karena sudah pernah digunakan pada transaksi.`;
           } else {
-            await db.inventory.delete(matchedInv.id);
+            // Soft delete agar tombstone ter-sync ke PostgreSQL backend
+            await db.inventory.update(matchedInv.id, withUpdatedSyncMeta({ deletedAt: new Date() }));
+            syncInventoryToBackend().catch(err => console.warn('[Chatbot] Sync delete inventory failed:', err));
             responseText = `Stok "${matchedInv.nama}" berhasil dihapus dari sistem.`;
             status = 'success';
             payload = { deletedItem: matchedInv };

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { loginUser } from '../db/repositories/users';
 import { db } from '../db';
 
@@ -10,6 +10,8 @@ const Login = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectPath = searchParams.get('redirect') || '/';
 
   useEffect(() => {
     // Autofill kode toko jika sudah tersimpan di browser ini sebelumnya
@@ -30,7 +32,7 @@ const Login = ({ onLogin }) => {
     try {
       const user = await loginUser(username, password, storeCode.trim().toUpperCase());
       onLogin(user);
-      navigate('/');
+      navigate(redirectPath, { replace: true });
     } catch (err) {
       setError(err.message || 'Gagal login');
     } finally {

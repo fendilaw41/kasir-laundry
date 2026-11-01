@@ -109,16 +109,26 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
     joinConversationRoom(conversation.id);
 
     // Listener saat ada sinkronisasi, pesan masuk, terkirim, atau dibaca
+    const handleNewMessage = (e) => {
+      const incomingMsg = e.detail;
+      // Jika pesan masuk untuk percakapan yang sedang dibuka dan bukan dari diri sendiri,
+      // langsung tandai sebagai READ secara realtime tanpa perlu keluar ke list chat!
+      if (incomingMsg?.conversationId === conversation.id && !checkIsMe(incomingMsg)) {
+        markConversationAsRead(conversation.id);
+      }
+      loadMessages();
+    };
+
     const handleRefresh = () => loadMessages();
     window.addEventListener('chatMessagesSynced', handleRefresh);
-    window.addEventListener('chatNewMessage', handleRefresh);
+    window.addEventListener('chatNewMessage', handleNewMessage);
     window.addEventListener('chatMessageDelivered', handleRefresh);
     window.addEventListener('chatMessagesRead', handleRefresh);
 
     return () => {
       leaveConversationRoom(conversation.id);
       window.removeEventListener('chatMessagesSynced', handleRefresh);
-      window.removeEventListener('chatNewMessage', handleRefresh);
+      window.removeEventListener('chatNewMessage', handleNewMessage);
       window.removeEventListener('chatMessageDelivered', handleRefresh);
       window.removeEventListener('chatMessagesRead', handleRefresh);
     };

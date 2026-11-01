@@ -4,10 +4,21 @@ import { getOrderByIdQuery, updateOrder } from '../db/repositories/orders';
 import { getPelangganByIdQuery, updatePelanggan, addPelanggan } from '../db/repositories/pelanggan';
 import { getInventoryQuery, getInventoryById, updateInventory } from '../db/repositories/inventory';
 import { getSettingsQuery } from '../db/repositories/settings';
-import { useState } from 'react';
+import { pullOrdersFromBackend } from '../services/syncService';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { formatWhatsAppMessage } from '../utils/whatsapp';
 import PrintLayout from '../components/PrintLayout';
+
+const isSameInventory = (a, b) => {
+  if (!a || !b) return false;
+  if (a.id && b.id && String(a.id) === String(b.id)) return true;
+  if (a.uuid && b.uuid && String(a.uuid) === String(b.uuid)) return true;
+  if (a.uuid && b.id && String(a.uuid) === String(b.id)) return true;
+  if (a.id && b.uuid && String(a.id) === String(b.uuid)) return true;
+  if (a.nama && b.nama && a.nama.trim().toLowerCase() === b.nama.trim().toLowerCase()) return true;
+  return false;
+};
 
 const OrderDetail = () => {
   const { id } = useParams();
@@ -17,24 +28,36 @@ const OrderDetail = () => {
   const settings = useLiveQuery(getSettingsQuery);
 
   const [catatan, setCatatan] = useState('');
-  const [prevId, setPrevId] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [showHpModal, setShowHpModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
   const [selectedInventory, setSelectedInventory] = useState([]);
+  const [localInventoryUsed, setLocalInventoryUsed] = useState(null);
   const [newHp, setNewHp] = useState('');
   const [printType, setPrintType] = useState(null);
 
   const allInventory = useLiveQuery(getInventoryQuery);
 
-  if (order && order.id !== prevId) {
-    setPrevId(order.id);
-    setCatatan(order.catatan || '');
-    setSelectedInventory(order.inventoryUsed || []);
-  }
+  // Tarik order terbaru dari server saat membuka halaman jika online
+  useEffect(() => {
+    if (navigator.onLine && id) {
+      pullOrdersFromBackend(true).catch(err => console.warn('[OrderDetail] Auto pull error:', err));
+    }
+  }, [id]);
+
+  // Sinkronkan state catatan & inventory yang dipilih setiap kali data order diperbarui
+  useEffect(() => {
+    if (order) {
+      setCatatan(order.catatan || '');
+      setSelectedInventory(order.inventoryUsed || []);
+      setLocalInventoryUsed(order.inventoryUsed || []);
+    }
+  }, [order?.id, JSON.stringify(order?.inventoryUsed), order?.catatan]);
 
   if (!order) return <div className="p-3">Loading...</div>;
+
+  const displayedInventory = localInventoryUsed !== null ? localInventoryUsed : (order?.inventoryUsed || []);
 
   const handleStatusClick = (newStatus) => {
     if ((order.status === 'Selesai' || order.status === 'Ambil') && newStatus === 'Proses') {
@@ -59,13 +82,6 @@ const OrderDetail = () => {
     toast.success('Catatan diperbarui!');
     setShowNoteModal(false);
   };
-
-  // const hapusTransaksi = async () => {
-  //   if (window.confirm('Hapus transaksi ini?')) {
-  //     await db.orders.delete(order.id);
-  //     navigate('/orders');
-  //   }
-  // };
 
   const togglePriority = async () => {
     await updateOrder(order.id, { isPriority: !order.isPriority });
@@ -117,24 +133,25 @@ const OrderDetail = () => {
 
   const toggleInventory = (inv) => {
     setSelectedInventory(prev => {
-      const exists = prev.find(item => item.id === inv.id);
+      const exists = prev.find(item => isSameInventory(item, inv));
       if (exists) {
-        return prev.filter(item => item.id !== inv.id);
+        return prev.filter(item => !isSameInventory(item, inv));
       } else {
-        return [...prev, { id: inv.id, nama: inv.nama, quantity: 1 }];
+        return [...prev, { id: inv.id, uuid: inv.uuid, nama: inv.nama, quantity: 1 }];
       }
     });
   };
 
-  const updateInventoryQty = (invId, delta) => {
+  const updateInventoryQty = (inv, delta) => {
     setSelectedInventory(prev => {
-      const existing = prev.find(item => item.id === invId);
+      const existing = prev.find(item => isSameInventory(item, inv));
       if (existing) {
-        const newQty = (existing.quantity || 1) + delta;
+        const currentQty = Number(existing.quantity ?? existing.qty ?? 1);
+        const newQty = currentQty + delta;
         if (newQty <= 0) {
-          return prev.filter(item => item.id !== invId);
+          return prev.filter(item => !isSameInventory(item, inv));
         } else {
-          return prev.map(item => item.id === invId ? { ...item, quantity: newQty } : item);
+          return prev.map(item => isSameInventory(item, inv) ? { ...item, quantity: newQty } : item);
         }
       }
       return prev;
@@ -143,28 +160,49 @@ const OrderDetail = () => {
 
   const saveInventory = async () => {
     const oldInv = order.inventoryUsed || [];
-    const newInv = selectedInventory;
 
-    const allIds = new Set([...oldInv.map(i => i.id), ...newInv.map(i => i.id)]);
+    // Normalisasi dan pastikan deduplikasi
+    const newInv = [];
+    for (const item of selectedInventory) {
+      const existing = newInv.find(x => isSameInventory(x, item));
+      if (!existing) {
+        newInv.push({
+          id: item.id,
+          uuid: item.uuid || undefined,
+          nama: item.nama,
+          quantity: Math.max(1, Number(item.quantity ?? item.qty ?? 1))
+        });
+      }
+    }
 
-    for (const id of allIds) {
-      const oldItem = oldInv.find(i => i.id === id);
-      const newItem = newInv.find(i => i.id === id);
+    const allItems = [...oldInv];
+    for (const n of newInv) {
+      if (!allItems.some(o => isSameInventory(o, n))) {
+        allItems.push(n);
+      }
+    }
 
-      const oldQty = oldItem ? (oldItem.quantity || 1) : 0;
-      const newQty = newItem ? (newItem.quantity || 1) : 0;
+    for (const refItem of allItems) {
+      const oldItem = oldInv.find(i => isSameInventory(i, refItem));
+      const newItem = newInv.find(i => isSameInventory(i, refItem));
+
+      const oldQty = oldItem ? Number(oldItem.quantity ?? oldItem.qty ?? 1) : 0;
+      const newQty = newItem ? Number(newItem.quantity ?? newItem.qty ?? 1) : 0;
 
       const diff = newQty - oldQty;
       if (diff !== 0) {
-        const invData = await getInventoryById(id);
+        const invId = refItem.id || refItem.uuid || refItem.nama;
+        const invData = await getInventoryById(invId);
         if (invData) {
-          const newStok = Math.max(0, invData.stok - diff);
-          await updateInventory(id, { stok: newStok });
+          const newStok = Math.max(0, (Number(invData.stok) || 0) - diff);
+          await updateInventory(invData.id, { stok: newStok });
         }
       }
     }
 
-    await updateOrder(order.id, { inventoryUsed: newInv });
+    setLocalInventoryUsed(newInv);
+    const targetOrderId = order.id || id;
+    await updateOrder(targetOrderId, { inventoryUsed: newInv });
     toast.success('Inventory terpakai diperbarui!');
     setShowInventoryModal(false);
   };
@@ -222,8 +260,6 @@ const OrderDetail = () => {
             </div>
           </div>
 
-
-
           {/* Status Tracker */}
           <div className="p-3 border-bottom">
             <div className="small fw-bold text-muted text-uppercase mb-3 text-center" style={{ letterSpacing: '1px', fontSize: '0.7rem' }}>Status Pengerjaan</div>
@@ -267,14 +303,23 @@ const OrderDetail = () => {
               <div className="d-flex justify-content-between align-items-center mb-1">
                 <div className="fw-bold text-muted" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>INVENTORY TERPAKAI</div>
                 {order.status === 'Proses' && (
-                  <small className="text-primary" style={{ fontSize: '0.7rem', cursor: 'pointer' }} onClick={() => setShowInventoryModal(true)}><i className="bi bi-pencil-square me-1"></i>Edit</small>
+                  <small
+                    className="text-primary"
+                    style={{ fontSize: '0.7rem', cursor: 'pointer' }}
+                    onClick={() => {
+                      setSelectedInventory(order.inventoryUsed || displayedInventory || []);
+                      setShowInventoryModal(true);
+                    }}
+                  >
+                    <i className="bi bi-pencil-square me-1"></i>Edit
+                  </small>
                 )}
               </div>
-              {order.inventoryUsed && order.inventoryUsed.length > 0 ? (
-                order.inventoryUsed.map((inv, idx) => (
+              {displayedInventory && displayedInventory.length > 0 ? (
+                displayedInventory.map((inv, idx) => (
                   <div key={idx} className="d-flex justify-content-between mb-1 text-muted" style={{ fontSize: '0.75rem' }}>
                     <span>{inv.nama}</span>
-                    <span>{inv.quantity || 1}x</span>
+                    <span>{inv.quantity ?? inv.qty ?? 1}x</span>
                   </div>
                 ))
               ) : (
@@ -344,11 +389,6 @@ const OrderDetail = () => {
                   </li>
                 )}
                 <li><button className="dropdown-item py-2 small" onClick={togglePriority}><i className={`bi ${order.isPriority ? 'bi-star-fill text-warning' : 'bi-star'} me-2`}></i> {order.isPriority ? 'Batal Prioritas' : 'Jadikan Prioritas'}</button></li>
-                {/* <li><hr className="dropdown-divider" /></li>
-              <li className="bg-primary-light"><button className="dropdown-item py-2 small fw-bold text-primary" onClick={() => printViaRawBT(order, pelanggan)}><i className="bi bi-bluetooth me-2"></i> Cetak Bluetooth</button></li>
-              <li className="bg-success-light"><button className="dropdown-item py-2 small fw-bold text-success" onClick={() => printDirectBluetooth(order, pelanggan)}><i className="bi bi-lightning-fill me-2"></i> Direct Bluetooth</button></li> */}
-                {/* <li><hr className="dropdown-divider" /></li>
-              <li><button className="dropdown-item py-2 small text-danger" onClick={hapusTransaksi}><i className="bi bi-trash me-2"></i> Hapus Order</button></li> */}
               </ul>
             </div>
           </div>
@@ -399,14 +439,14 @@ const OrderDetail = () => {
                     <h5 className="fw-bold mb-0">Edit Inventory</h5>
                     <button type="button" className="btn-close" onClick={() => {
                       setShowInventoryModal(false);
-                      setSelectedInventory(order.inventoryUsed || []);
+                      setSelectedInventory(order.inventoryUsed || displayedInventory || []);
                     }}></button>
                   </div>
                   <div className="modal-body p-4">
                     <label className="small fw-bold text-muted text-uppercase mb-3">Pilih Inventori & Jumlahnya</label>
                     <div className="d-flex flex-column gap-2 mb-4 max-h-50 overflow-auto">
                       {allInventory?.filter(inv => !(inv.status === 'pending' && inv.stok === 0)).map(inv => {
-                        const activeItem = selectedInventory.find(s => s.id === inv.id);
+                        const activeItem = selectedInventory.find(s => isSameInventory(s, inv));
                         const isActive = !!activeItem;
                         return (
                           <div key={inv.id} className={`d-flex align-items-center justify-content-between p-3 rounded-4 border transition-all ${isActive ? 'bg-outline-primary text-dark border-primary shadow-sm' : 'bg-white text-dark shadow-sm'}`}>
@@ -419,11 +459,11 @@ const OrderDetail = () => {
                             </div>
                             {isActive && (
                               <div className="d-flex align-items-center gap-2 bg-white rounded-pill p-1 shadow-sm" onClick={e => e.stopPropagation()}>
-                                <button className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center" style={{ width: '16px', height: '16px' }} onClick={() => updateInventoryQty(inv.id, -1)}>
+                                <button className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center" style={{ width: '16px', height: '16px' }} onClick={() => updateInventoryQty(inv, -1)}>
                                   <i className="bi bi-dash text-primary"></i>
                                 </button>
-                                <span className="fw-bold text-primary px-1" style={{ fontSize: '0.9rem', minWidth: '20px', textAlign: 'center' }}>{activeItem.quantity || 1}</span>
-                                <button className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center" style={{ width: '16px', height: '16px' }} onClick={() => updateInventoryQty(inv.id, 1)}>
+                                <span className="fw-bold text-primary px-1" style={{ fontSize: '0.9rem', minWidth: '20px', textAlign: 'center' }}>{activeItem.quantity ?? activeItem.qty ?? 1}</span>
+                                <button className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center" style={{ width: '16px', height: '16px' }} onClick={() => updateInventoryQty(inv, 1)}>
                                   <i className="bi bi-plus text-primary"></i>
                                 </button>
                               </div>

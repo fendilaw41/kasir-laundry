@@ -139,9 +139,33 @@ export class ChatController {
     const message = await this.chatService.createMessage(user, dto);
 
     try {
-      this.chatGateway.server
-        ?.to(`conversation:${conversationId}`)
-        .emit('new_message', message);
+      const roomName = `conversation:${conversationId}`;
+      if (this.chatGateway?.server) {
+        let isRecipientInRoom = false;
+        let recipientUserId: string | null = null;
+        try {
+          const roomSockets = await this.chatGateway.server.in(roomName).fetchSockets();
+          const otherActive = roomSockets.filter(
+            (s: any) => s.user && s.user.userId !== user.userId,
+          );
+          if (otherActive.length > 0) {
+            isRecipientInRoom = true;
+            recipientUserId = (otherActive[0] as any).user.userId;
+            await this.chatService.markAsRead(conversationId, (otherActive[0] as any).user);
+            message.status = 'READ';
+          }
+        } catch (checkErr) {}
+
+        this.chatGateway.server.to(roomName).emit('new_message', message);
+
+        if (isRecipientInRoom && recipientUserId) {
+          this.chatGateway.server.to(roomName).emit('conversation_read', {
+            conversationId,
+            userId: recipientUserId,
+            readAt: new Date(),
+          });
+        }
+      }
     } catch (e) {}
 
     return {

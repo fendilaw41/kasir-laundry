@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getSettingsQuery } from './db/repositories/settings';
@@ -69,10 +69,10 @@ function App() {
       <Routes>
         <Route
           path="/login"
-          element={user ? <Navigate to="/" replace /> : <Login onLogin={handleLogin} />}
+          element={<LoginRouteWrapper user={user} onLogin={handleLogin} />}
         />
         <Route path="/register" element={<Register />} />
-        <Route path="/reset" element={<Reset />} />
+        <Route path="/reset" element={<Reset user={user} />} />
         <Route element={<ProtectedLayout user={user} onLogout={handleLogout} />}>
           <Route path="/" element={<Home user={user} />} />
           <Route path="/transaksi" element={<Transaksi user={user} />} />
@@ -89,6 +89,16 @@ function App() {
       </Routes>
     </Router>
   );
+}
+
+// Wrapper Login: jika user sudah login tapi membuka /login?redirect=..., arahkan ke redirect target
+function LoginRouteWrapper({ user, onLogin }) {
+  const [searchParams] = useSearchParams();
+  const redirectPath = searchParams.get('redirect') || '/';
+  if (user) {
+    return <Navigate to={redirectPath} replace />;
+  }
+  return <Login onLogin={onLogin} />;
 }
 
 // Wrapper Layout terproteksi: jika user belum login, alihkan langsung ke /login dengan replace

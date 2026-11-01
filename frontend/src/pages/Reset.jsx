@@ -2,13 +2,32 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { clearAllLocalData } from '../utils/storageReset';
 
-export default function Reset() {
+export default function Reset({ user }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [isResetting, setIsResetting] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
 
+  // Periksa apakah pengguna saat ini sudah login
+  const checkIsLoggedIn = () => {
+    if (user) return true;
+    try {
+      const sessionUser = sessionStorage.getItem('user');
+      const token = sessionStorage.getItem('token') || localStorage.getItem('auth_token');
+      if (sessionUser || token) return true;
+    } catch {}
+    return false;
+  };
+
+  const isLoggedIn = checkIsLoggedIn();
+
   const handleReset = async () => {
+    // Jika belum login, alihkan dulu ke halaman login dengan query redirect ke /reset
+    if (!checkIsLoggedIn()) {
+      navigate('/login?redirect=' + encodeURIComponent('/reset'));
+      return;
+    }
+
     setIsResetting(true);
     setStatusMessage('Menghapus IndexedDB, LocalStorage, dan Cache PWA...');
     try {
@@ -27,7 +46,11 @@ export default function Reset() {
   useEffect(() => {
     // Jika URL diakses dengan parameter ?auto=true atau ?auto=1
     if (searchParams.get('auto') === 'true' || searchParams.get('auto') === '1') {
-      handleReset();
+      if (!checkIsLoggedIn()) {
+        navigate('/login?redirect=' + encodeURIComponent('/reset?auto=true'));
+      } else {
+        handleReset();
+      }
     }
   }, [searchParams]);
 
@@ -77,10 +100,10 @@ export default function Reset() {
             <button
               type="button"
               className="btn btn-outline-secondary rounded-pill py-2 fw-semibold"
-              onClick={() => navigate('/login')}
+              onClick={() => navigate(isLoggedIn ? '/' : '/login')}
               disabled={isResetting}
             >
-              Batal
+              {isLoggedIn ? 'Kembali ke Beranda' : 'Ke Halaman Login'}
             </button>
           </div>
         </div>

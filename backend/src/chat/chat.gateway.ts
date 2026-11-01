@@ -80,16 +80,28 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * Bergabung ke room percakapan tertentu
    */
   @SubscribeMessage('join_conversation')
-  handleJoinConversation(
+  async handleJoinConversation(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() data: { conversationId: string },
   ) {
-    if (!data?.conversationId) return;
+    if (!data?.conversationId || !client.user) return;
     const roomName = `conversation:${data.conversationId}`;
     client.join(roomName);
     this.logger.debug(
       `User ${client.user?.username} bergabung ke room ${roomName}`,
     );
+
+    // Otomatis tandai telah dibaca saat user bergabung ke room percakapan
+    try {
+      await this.chatService.markAsRead(data.conversationId, client.user);
+      client.to(roomName).emit('conversation_read', {
+        conversationId: data.conversationId,
+        userId: client.user?.userId,
+        readAt: new Date(),
+      });
+    } catch (err: any) {
+      this.logger.warn(`Gagal auto-markAsRead saat join_conversation: ${err.message}`);
+    }
   }
 
   /**
@@ -122,12 +134,35 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     try {
+      const roomName = `conversation:${dto.conversationId}`;
       const message = await this.chatService.createMessage(client.user, dto);
 
-      const roomName = `conversation:${dto.conversationId}`;
+      // Cek apakah lawan bicara sedang aktif berada di dalam room saat ini
+      let isRecipientInRoom = false;
+      let recipientUserId: string | null = null;
+      try {
+        const roomSockets = await this.server.in(roomName).fetchSockets();
+        const otherActive = roomSockets.filter(
+          (s: any) => s.user && s.user.userId !== client.user?.userId,
+        );
+        if (otherActive.length > 0) {
+          isRecipientInRoom = true;
+          recipientUserId = (otherActive[0] as any).user.userId;
+          await this.chatService.markAsRead(dto.conversationId, (otherActive[0] as any).user);
+          message.status = 'READ';
+        }
+      } catch (checkErr) {}
 
       // Broadcast pesan baru ke seluruh anggota yang sedang di room percakapan
       this.server.to(roomName).emit('new_message', message);
+
+      if (isRecipientInRoom && recipientUserId) {
+        this.server.to(roomName).emit('conversation_read', {
+          conversationId: dto.conversationId,
+          userId: recipientUserId,
+          readAt: new Date(),
+        });
+      }
 
       // Kirim acknowledgement khusus ke pengirim untuk konfirmasi centang 2 (terkirim)
       client.emit('message_delivered', {
@@ -160,7 +195,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     client.to(roomName).emit('user_typing', {
       conversationId: data.conversationId,
-      userId: client.user.userId,
+      userId: client.user?.userId,
       username: client.user.username,
       fullname: client.user.fullname,
       isTyping: !!data.isTyping,
@@ -183,7 +218,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       client.to(roomName).emit('conversation_read', {
         conversationId: data.conversationId,
-        userId: client.user.userId,
+        userId: client.user?.userId,
         readAt: new Date(),
       });
     } catch (error) {

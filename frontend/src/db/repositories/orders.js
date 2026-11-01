@@ -1,7 +1,7 @@
 import { db } from '../../db.js';
 import { withNewSyncMeta, withUpdatedSyncMeta } from '../syncMeta.js';
 import { syncOrderToBackend, syncInventoryToBackend } from '../../services/syncService.js';
-import { getActiveStoreId } from './storeHelper.js';
+import { getActiveStoreId, getActiveStoreIdSync } from './storeHelper.js';
 
 export const getOrdersQuery = async () => {
   const storeId = await getActiveStoreId();
@@ -13,18 +13,28 @@ export const getOrdersQuery = async () => {
 
 export const getOrderByIdQuery = async (id) => {
   if (!id) return null;
-  const storeId = await getActiveStoreId();
   let order = null;
-  if (typeof id === 'string' && id.includes('-')) {
+
+  const numId = parseInt(id, 10);
+  if (!isNaN(numId) && String(numId) === String(id)) {
+    order = await db.orders.get(numId);
+  }
+
+  if (!order && typeof id === 'string') {
     order = await db.orders.where('uuid').equals(id).first();
   }
-  if (!order) {
-    const numId = parseInt(id, 10);
-    if (!isNaN(numId)) {
-      order = await db.orders.get(numId);
-    }
+
+  if (!order && typeof id === 'string') {
+    order = await db.orders.where('invoiceId').equals(id).first();
   }
+
+  if (!order && !isNaN(numId)) {
+    order = await db.orders.get(numId);
+  }
+
   if (!order || order.deletedAt) return null;
+
+  const storeId = getActiveStoreIdSync();
   if (storeId && order.storeId && order.storeId !== storeId) return null;
   return order;
 };
@@ -86,7 +96,7 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
           item = await db.inventory.filter(i => i.nama && i.nama.toLowerCase() === inv.nama.toLowerCase()).first();
         }
 
-        const qty = Number(inv.quantity) || 1;
+        const qty = Number(inv.quantity ?? inv.qty ?? 1);
         if (item) {
           const currentStok = Number(item.stok) || 0;
           const newStok = Math.max(0, currentStok - qty);
@@ -125,12 +135,21 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
 export const updateOrder = async (id, data) => {
   if (!id) throw new Error('ID Order tidak valid');
 
-  if (data.status === 'Ambil' || data.status === 'Selesai') {
-    const order = await db.orders.get(parseInt(id));
-    if (!order) throw new Error('Order tidak ditemukan');
+  let order = null;
+  const numId = parseInt(id, 10);
+  if (!isNaN(numId)) {
+    order = await db.orders.get(numId);
+  }
+  if (!order && typeof id === 'string') {
+    order = (await db.orders.where('uuid').equals(id).first()) ||
+            (await db.orders.where('invoiceId').equals(id).first());
+  }
+  if (!order) throw new Error('Order tidak ditemukan');
 
+  const targetId = order.id;
+
+  if (data.status === 'Ambil' || data.status === 'Selesai') {
     if (data.status === 'Ambil') {
-      // Check payment status from database, or from the incoming data if it's being updated simultaneously
       const currentStatusBayar = data.statusBayar || order.statusBayar;
       if (currentStatusBayar !== 'Lunas') {
         throw new Error('Pesanan belum lunas! Tidak bisa diambil.');
@@ -139,7 +158,7 @@ export const updateOrder = async (id, data) => {
 
     const inventory = data.inventoryUsed || order.inventoryUsed || [];
     const hasDeterjen = inventory.some(item =>
-      item.nama && item.nama.toLowerCase().includes('deterjen') && item.quantity >= 1
+      item.nama && item.nama.toLowerCase().includes('deterjen') && Number(item.quantity ?? item.qty ?? 0) >= 1
     );
 
     if (!hasDeterjen) {
@@ -147,21 +166,31 @@ export const updateOrder = async (id, data) => {
     }
   }
 
-  const result = await db.orders.update(parseInt(id), withUpdatedSyncMeta(data));
+  const result = await db.orders.update(targetId, withUpdatedSyncMeta(data));
   
   // Trigger sync ke backend secara asynchronous
-  syncOrderToBackend(id).catch(err => console.warn('Sync update order failed:', err));
+  syncOrderToBackend(targetId).catch(err => console.warn('Sync update order failed:', err));
 
   return result;
 };
 
 export const deleteOrder = async (id) => {
   if (!id) throw new Error('ID Order tidak valid');
+  let order = null;
+  const numId = parseInt(id, 10);
+  if (!isNaN(numId)) {
+    order = await db.orders.get(numId);
+  }
+  if (!order && typeof id === 'string') {
+    order = (await db.orders.where('uuid').equals(id).first()) ||
+            (await db.orders.where('invoiceId').equals(id).first());
+  }
+  const targetId = order ? order.id : parseInt(id, 10);
   // Soft delete supaya penghapusan order ikut ter-sync (tombstone), bukan hard delete.
-  const result = await db.orders.update(parseInt(id), withUpdatedSyncMeta({ deletedAt: new Date() }));
+  const result = await db.orders.update(targetId, withUpdatedSyncMeta({ deletedAt: new Date() }));
   
   // Trigger sync ke backend secara asynchronous
-  syncOrderToBackend(id).catch(err => console.warn('Sync delete order failed:', err));
+  syncOrderToBackend(targetId).catch(err => console.warn('Sync delete order failed:', err));
 
   return result;
 };

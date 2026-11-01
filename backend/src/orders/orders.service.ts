@@ -239,7 +239,7 @@ export class OrdersService {
       // 6. Kurangi stok inventory jika ada inventory yang digunakan pada order baru
       if (!beforeOrder && dto.inventoryUsed && Array.isArray(dto.inventoryUsed) && dto.inventoryUsed.length > 0) {
         for (const inv of dto.inventoryUsed) {
-          const qty = Number(inv.quantity) || 1;
+          const qty = Number(inv.quantity ?? inv.qty ?? 1);
           const targetInv = await tx.inventory.findFirst({
             where: {
               storeId,

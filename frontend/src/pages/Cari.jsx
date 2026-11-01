@@ -1,11 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getOrdersQuery } from '../db/repositories/orders';
+import { pullOrdersFromBackend } from '../services/syncService';
 import { useNavigate } from 'react-router-dom';
 
 const Cari = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (navigator.onLine) {
+      pullOrdersFromBackend(true).catch(err => console.warn('[Cari] Auto pull error:', err));
+    }
+  }, []);
 
   const searchResults = useLiveQuery(async () => {
     if (searchTerm.length < 2) return [];
