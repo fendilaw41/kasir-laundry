@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getProductsQuery } from '../db/repositories/products';
 import { addProductToCart } from '../db/repositories/cart';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import toast from 'react-hot-toast';
 
 const Product = () => {
@@ -11,6 +11,43 @@ const Product = () => {
 
   // State untuk menyimpan jumlah qty sementara per produk
   const [quantities, setQuantities] = useState({});
+
+  // Ref & drag state untuk scrolling horizontal kategori (mouse drag & touch)
+  const categoryScrollRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartX, setDragStartX] = useState(0);
+  const [dragScrollLeft, setDragScrollLeft] = useState(0);
+  const hasMovedRef = useRef(false);
+
+  const handleMouseDown = (e) => {
+    if (!categoryScrollRef.current) return;
+    setIsDragging(true);
+    hasMovedRef.current = false;
+    setDragStartX(e.pageX - categoryScrollRef.current.offsetLeft);
+    setDragScrollLeft(categoryScrollRef.current.scrollLeft);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging || !categoryScrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - categoryScrollRef.current.offsetLeft;
+    const walk = (x - dragStartX) * 1.5;
+    if (Math.abs(walk) > 4) {
+      hasMovedRef.current = true;
+    }
+    categoryScrollRef.current.scrollLeft = dragScrollLeft - walk;
+  };
+
+  const handleMouseUpOrLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleWheel = (e) => {
+    if (!categoryScrollRef.current) return;
+    if (e.deltaY !== 0) {
+      categoryScrollRef.current.scrollLeft += e.deltaY;
+    }
+  };
 
   // Ambil daftar kategori unik dari data produk
   const categories = useMemo(() => {
@@ -59,19 +96,30 @@ const Product = () => {
 
   return (
     <div className="product-page pb-5" style={{ backgroundColor: '#f8faff', minHeight: '100vh' }}>
-      {/* Search & Category Header - Menyatu & Modern Shopee / Tokopedia Style */}
+      {/* Search & Category Header - Menyatu & Menempel Rapi ke Header */}
       <div
-        className="sticky-top bg-white border-bottom shadow-xs px-3 pt-2 pb-2 mx-n3 mt-n3 mb-3"
-        style={{ zIndex: 10 }}
+        className="sticky-top bg-white border-bottom shadow-xs px-3 pt-2 pb-2 mx-n3 mb-2"
+        style={{
+          zIndex: 10,
+          top: '50px',
+          marginTop: '-10px',
+        }}
       >
         {/* Search Input Bar */}
         <div className="position-relative">
-          <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+          <i
+            className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"
+            style={{ fontSize: '0.85rem' }}
+          ></i>
           <input
-            className="form-control rounded-pill ps-5 pe-5 py-2 border-0 bg-light shadow-none"
+            className="form-control rounded-pill ps-5 pe-5 py-2 border shadow-none"
             type="text"
             placeholder="Cari nama layanan, kategori, atau kode..."
-            style={{ fontSize: '0.85rem' }}
+            style={{
+              fontSize: '0.84rem',
+              backgroundColor: '#f1f5f9',
+              borderColor: '#e2e8f0',
+            }}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -86,40 +134,79 @@ const Product = () => {
           )}
         </div>
 
-        {/* Category Horizontal Filter Chips (Shopee / Tokped Style) */}
+        {/* Category Horizontal Filter Chips (Bisa scroll horizontal di HP, drag mouse di PC) */}
         {categories.length > 0 && (
           <div
-            className="d-flex gap-2 overflow-x-auto pb-1 mt-2 no-scrollbar"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            ref={categoryScrollRef}
+            className="d-flex align-items-center gap-2 overflow-x-auto pt-2 pb-1 no-scrollbar position-relative"
+            style={{
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              WebkitOverflowScrolling: 'touch',
+              touchAction: 'pan-x',
+              whiteSpace: 'nowrap',
+              width: '100%',
+              maxWidth: '100%',
+              cursor: isDragging ? 'grabbing' : 'grab',
+              userSelect: 'none',
+            }}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUpOrLeave}
+            onMouseLeave={handleMouseUpOrLeave}
+            onWheel={handleWheel}
           >
             <style>{`
               .no-scrollbar::-webkit-scrollbar { display: none; }
             `}</style>
             <button
               type="button"
-              className={`btn btn-sm rounded-pill px-3 py-1 fw-semibold flex-shrink-0 transition-all ${selectedCategory === 'ALL'
-                ? 'btn-primary shadow-xs'
-                : 'btn-outline-light bg-light text-secondary border-0'
-                }`}
-              style={{ fontSize: '0.75rem' }}
-              onClick={() => setSelectedCategory('ALL')}
+              className="btn btn-sm rounded-pill px-3 py-1.5 fw-semibold flex-shrink-0 transition-all text-nowrap d-inline-flex align-items-center justify-content-center"
+              style={{
+                fontSize: '0.78rem',
+                backgroundColor: selectedCategory === 'ALL' ? '#0d5afd' : '#f8fafc',
+                color: selectedCategory === 'ALL' ? '#ffffff' : '#334155',
+                border: `1px solid ${selectedCategory === 'ALL' ? '#0d5afd' : '#e2e8f0'}`,
+                boxShadow: selectedCategory === 'ALL' ? '0 2px 6px rgba(13, 90, 253, 0.25)' : 'none',
+                touchAction: 'pan-x',
+              }}
+              onClick={(e) => {
+                if (hasMovedRef.current) {
+                  e.preventDefault();
+                  return;
+                }
+                setSelectedCategory('ALL');
+              }}
             >
               Semua
             </button>
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                className={`btn btn-sm rounded-pill px-3 py-1 fw-semibold flex-shrink-0 transition-all ${selectedCategory === cat
-                  ? 'btn-primary shadow-xs'
-                  : 'btn-outline-light bg-light text-secondary border-0'
-                  }`}
-                style={{ fontSize: '0.75rem' }}
-                onClick={() => setSelectedCategory(cat)}
-              >
-                {cat}
-              </button>
-            ))}
+            {categories.map((cat) => {
+              const isActive = selectedCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  className="btn btn-sm rounded-pill px-3 py-1.5 fw-semibold flex-shrink-0 transition-all text-nowrap d-inline-flex align-items-center justify-content-center"
+                  style={{
+                    fontSize: '0.78rem',
+                    backgroundColor: isActive ? '#0d5afd' : '#f8fafc',
+                    color: isActive ? '#ffffff' : '#334155',
+                    border: `1px solid ${isActive ? '#0d5afd' : '#e2e8f0'}`,
+                    boxShadow: isActive ? '0 2px 6px rgba(13, 90, 253, 0.25)' : 'none',
+                    touchAction: 'pan-x',
+                  }}
+                  onClick={(e) => {
+                    if (hasMovedRef.current) {
+                      e.preventDefault();
+                      return;
+                    }
+                    setSelectedCategory(cat);
+                  }}
+                >
+                  {cat}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -152,28 +239,39 @@ const Product = () => {
                           : 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
                     }}
                   >
-                    {/* Category Pill (Shopee Official Badge Style) */}
-                    <span
-                      className="badge position-absolute top-0 start-0 m-2 rounded-pill px-2 py-1 shadow-xs fw-bold"
+                    {/* Category Pill & Product Code Header */}
+                    <div
+                      className="position-absolute top-0 start-0 end-0 p-2 d-flex align-items-center gap-1 overflow-x-auto no-scrollbar"
                       style={{
-                        fontSize: '0.62rem',
-                        backgroundColor: isSetrikaOnly ? '#ea580c' : isSetrika ? '#4f46e5' : '#16a34a',
-                        color: '#fff',
-                        letterSpacing: '0.2px',
+                        zIndex: 2,
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none',
+                        WebkitOverflowScrolling: 'touch',
+                        touchAction: 'pan-x',
                       }}
                     >
-                      {product.category}
-                    </span>
-
-                    {/* Product Code Badge */}
-                    {product.code && (
                       <span
-                        className="badge bg-white text-dark border position-absolute top-0 end-0 m-2 rounded-pill px-2 py-1 shadow-xs fw-bold"
-                        style={{ fontSize: '0.62rem' }}
+                        className="badge rounded-pill px-2 py-0.5 shadow-xs fw-bold flex-shrink-0 text-nowrap"
+                        style={{
+                          fontSize: '0.62rem',
+                          backgroundColor: isSetrikaOnly ? '#ea580c' : isSetrika ? '#4f46e5' : '#16a34a',
+                          color: '#fff',
+                          letterSpacing: '0.2px',
+                        }}
+                        title={product.category}
                       >
-                        {product.code}
+                        {product.category}
                       </span>
-                    )}
+
+                      {product.code && (
+                        <span
+                          className="badge bg-white text-dark border rounded-pill px-1.5 py-0.5 shadow-xs fw-bold flex-shrink-0 text-nowrap ms-auto"
+                          style={{ fontSize: '0.6rem' }}
+                        >
+                          {product.code}
+                        </span>
+                      )}
+                    </div>
 
                     {/* Icon Graphic in Frosted Circle */}
                     <div

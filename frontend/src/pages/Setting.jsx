@@ -204,14 +204,19 @@ const Setting = ({ user }) => {
         {/* 1. MOBILE SEGMENTED TABS (DI BAGI 3 BAGIAN) */}
         <div className="sticky-top pt-1 pb-3" style={{ backgroundColor: '#f4f6fa', zIndex: 10 }}>
           <div
-            className="d-flex p-1 bg-white rounded-pill shadow-sm border"
-            style={{ borderColor: '#e2e8f0' }}
+            className="d-flex p-1 bg-white rounded-pill shadow-sm border overflow-x-auto gap-1"
+            style={{
+              borderColor: '#e2e8f0',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              WebkitOverflowScrolling: 'touch',
+            }}
           >
             <button
               type="button"
-              className={`btn btn-sm rounded-pill flex-fill py-2 fw-semibold d-flex align-items-center justify-content-center gap-1 transition-all ${activeTab === 'umum' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
+              className={`btn btn-sm rounded-pill flex-fill py-2 px-2.5 fw-semibold d-inline-flex align-items-center justify-content-center gap-1 text-nowrap transition-all ${activeTab === 'umum' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
                 }`}
-              style={{ fontSize: '0.82rem' }}
+              style={{ fontSize: '0.8rem', minWidth: 'fit-content' }}
               onClick={() => setActiveTab('umum')}
             >
               <i className="bi bi-shop"></i>
@@ -220,9 +225,9 @@ const Setting = ({ user }) => {
 
             <button
               type="button"
-              className={`btn btn-sm rounded-pill flex-fill py-2 fw-semibold d-flex align-items-center justify-content-center gap-1 transition-all ${activeTab === 'struk' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
+              className={`btn btn-sm rounded-pill flex-fill py-2 px-2.5 fw-semibold d-inline-flex align-items-center justify-content-center gap-1 text-nowrap transition-all ${activeTab === 'struk' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
                 }`}
-              style={{ fontSize: '0.82rem' }}
+              style={{ fontSize: '0.8rem', minWidth: 'fit-content' }}
               onClick={() => setActiveTab('struk')}
             >
               <i className="bi bi-receipt"></i>
@@ -232,9 +237,9 @@ const Setting = ({ user }) => {
             {isOwner && (
               <button
                 type="button"
-                className={`btn btn-sm rounded-pill flex-fill py-2 fw-semibold d-flex align-items-center justify-content-center gap-1 transition-all ${activeTab === 'kasir' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
+                className={`btn btn-sm rounded-pill flex-fill py-2 px-2.5 fw-semibold d-inline-flex align-items-center justify-content-center gap-1 text-nowrap transition-all ${activeTab === 'kasir' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
                   }`}
-                style={{ fontSize: '0.82rem' }}
+                style={{ fontSize: '0.8rem', minWidth: 'fit-content' }}
                 onClick={() => setActiveTab('kasir')}
               >
                 <i className="bi bi-people-fill"></i>
@@ -254,9 +259,9 @@ const Setting = ({ user }) => {
             {isOwner && (
               <button
                 type="button"
-                className={`btn btn-sm rounded-pill flex-fill py-2 fw-semibold d-flex align-items-center justify-content-center gap-1 transition-all ${activeTab === 'product' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
+                className={`btn btn-sm rounded-pill flex-fill py-2 px-2.5 fw-semibold d-inline-flex align-items-center justify-content-center gap-1 text-nowrap transition-all ${activeTab === 'product' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
                   }`}
-                style={{ fontSize: '0.82rem' }}
+                style={{ fontSize: '0.8rem', minWidth: 'fit-content' }}
                 onClick={() => setActiveTab('product')}
               >
                 <i className="bi bi-tag-fill"></i>
@@ -755,16 +760,16 @@ const Setting = ({ user }) => {
         {activeTab === 'product' && isOwner && (
           <div>
             {/* ACTION HEADER */}
-            <div className="d-flex justify-content-between align-items-center mb-3 px-1">
-              <div>
-                <h6 className="fw-bold mb-0 text-dark">Master Produk Layanan</h6>
+            <div className="d-flex justify-content-between align-items-center gap-2 mb-3 px-1">
+              <div className="overflow-hidden">
+                <h6 className="fw-bold mb-0 text-dark text-truncate">Master Produk Layanan</h6>
                 <small className="text-muted" style={{ fontSize: '0.74rem' }}>
                   Total {products?.length || 0} layanan terdaftar di toko ini
                 </small>
               </div>
               <button
                 type="button"
-                className="btn btn-primary btn-sm rounded-pill px-3 py-2 fw-semibold d-flex align-items-center gap-1 shadow-sm"
+                className="btn btn-primary btn-sm rounded-pill px-3 py-2 fw-semibold d-flex align-items-center gap-1 shadow-sm flex-shrink-0"
                 onClick={() => openProductModal()}
                 style={{ fontSize: '0.8rem' }}
               >
@@ -803,10 +808,10 @@ const Setting = ({ user }) => {
                   return (
                     <div
                       key={p.id}
-                      className="p-3 bg-white rounded-4 shadow-sm border d-flex align-items-center justify-content-between"
+                      className="p-3 bg-white rounded-4 shadow-sm border d-flex align-items-center justify-content-between gap-2"
                       style={{ borderColor: '#f1f5f9' }}
                     >
-                      <div className="d-flex align-items-center gap-3 overflow-hidden">
+                      <div className="d-flex align-items-center gap-3 overflow-hidden flex-grow-1 min-w-0">
                         <div
                           className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-xs flex-shrink-0"
                           style={{
@@ -820,24 +825,27 @@ const Setting = ({ user }) => {
                         >
                           <i className={`bi ${isSetrika ? 'bi-fire' : 'bi-water'}`}></i>
                         </div>
-                        <div className="overflow-hidden">
-                          <h6 className="mb-0 fw-bold text-dark text-truncate" style={{ fontSize: '0.9rem' }}>
+                        <div className="overflow-hidden flex-grow-1 min-w-0">
+                          <h6 className="mb-1 fw-bold text-dark text-truncate" style={{ fontSize: '0.9rem' }}>
                             {p.name}
                           </h6>
-                          <small className="text-muted text-truncate d-block" style={{ fontSize: '0.74rem' }}>
-                            <span className="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 me-1">
+                          <div className="d-flex align-items-center gap-1.5 flex-wrap">
+                            <span className="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-0.5" style={{ fontSize: '0.66rem' }}>
                               {p.category || 'LAINNYA'}
                             </span>
-                            {p.code && <span className="fw-semibold me-1">[{p.code}]</span>}
-                            •{' '}
-                            <span className="fw-bold text-dark ms-1">
+                            {p.code && (
+                              <span className="badge bg-light text-muted border rounded-pill px-1.5 py-0.5 fw-semibold" style={{ fontSize: '0.66rem' }}>
+                                {p.code}
+                              </span>
+                            )}
+                            <span className="fw-bold text-primary ms-1" style={{ fontSize: '0.84rem' }}>
                               Rp {Number(p.price || 0).toLocaleString('id-ID')}
                             </span>
-                          </small>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="d-flex align-items-center gap-1 flex-shrink-0 ms-2">
+                      <div className="d-flex align-items-center gap-1 flex-shrink-0 ms-1">
                         <button
                           type="button"
                           className="btn btn-sm btn-light rounded-circle text-primary border shadow-xs d-flex align-items-center justify-content-center"
@@ -930,24 +938,33 @@ const Setting = ({ user }) => {
                         <span className="input-group-text bg-light border-0 text-muted rounded-start-3">
                           <i className="bi bi-grid-fill"></i>
                         </span>
-                        <input
-                          type="text"
-                          list="categoryOptionsList"
-                          className="form-control bg-light border-0 py-2 rounded-end-3 text-dark fw-semibold text-uppercase"
+                        <select
+                          className="form-select bg-light border-0 py-2 rounded-end-3 text-dark fw-semibold"
                           style={{ fontSize: '0.88rem' }}
                           value={productFormData.category}
                           onChange={(e) => setProductFormData({ ...productFormData, category: e.target.value })}
-                          placeholder="Pilih atau ketik kategori..."
                           required
-                        />
-                        <datalist id="categoryOptionsList">
-                          <option value="CUCI LIPAT" />
-                          <option value="CUCI SETRIKA" />
-                          <option value="SETRIKA SAJA" />
-                          <option value="SATUAN" />
-                          <option value="BED COVER" />
-                          <option value="SEPATU" />
-                        </datalist>
+                        >
+                          <option value="" disabled>Pilih Kategori Layanan...</option>
+                          <option value="CUCI LIPAT">CUCI LIPAT</option>
+                          <option value="CUCI SETRIKA">CUCI SETRIKA</option>
+                          <option value="SETRIKA SAJA">SETRIKA SAJA</option>
+                          <option value="SATUAN">SATUAN</option>
+                          <option value="BED COVER">BED COVER</option>
+                          <option value="SEPATU">SEPATU</option>
+                          <option value="LAINNYA">LAINNYA</option>
+                          {productFormData.category && ![
+                            'CUCI LIPAT',
+                            'CUCI SETRIKA',
+                            'SETRIKA SAJA',
+                            'SATUAN',
+                            'BED COVER',
+                            'SEPATU',
+                            'LAINNYA'
+                          ].includes(productFormData.category) && (
+                            <option value={productFormData.category}>{productFormData.category}</option>
+                          )}
+                        </select>
                       </div>
                     </div>
 

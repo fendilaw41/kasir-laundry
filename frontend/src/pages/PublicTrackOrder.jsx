@@ -75,6 +75,8 @@ export default function PublicTrackOrder() {
 
   const currentStepIndex = order ? getStepIndex(order.status) : 0;
   const isCanceled = (order?.status || '').toLowerCase() === 'dibatalkan';
+  // Halaman publik khusus menampilkan 'Lunas' tanpa detail metode bayar (misal: Lunas QRIS -> Lunas)
+  const publicStatusBayar = isStatusLunas(order?.statusBayar) ? 'Lunas' : (order?.statusBayar || 'Belum Lunas');
 
   // Format tanggal & estimasi
   const formatTanggal = (dateStr) => {
@@ -200,7 +202,7 @@ export default function PublicTrackOrder() {
                       }}
                     >
                       <i className={`bi ${isStatusLunas(order.statusBayar) ? 'bi-check-circle-fill' : 'bi-clock-fill'} me-1`}></i>
-                      {order.statusBayar || 'Belum Lunas'}
+                      {publicStatusBayar}
                     </span>
                   </div>
                 </div>
@@ -406,7 +408,7 @@ export default function PublicTrackOrder() {
                   </div>
                   <div className="d-flex justify-content-between mt-2 pt-2 border-top text-muted" style={{ fontSize: '0.78rem' }}>
                     <span>Metode Bayar: <strong>{order.metodeBayar || 'Tunai'}</strong></span>
-                    <span>Status: <strong className={isStatusLunas(order.statusBayar) ? 'text-success' : 'text-warning'}>{order.statusBayar}</strong></span>
+                    <span>Status: <strong className={isStatusLunas(order.statusBayar) ? 'text-success' : 'text-warning'}>{publicStatusBayar}</strong></span>
                   </div>
                 </div>
 

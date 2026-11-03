@@ -130,11 +130,13 @@ export const rejectInventory = async (item) => {
   return result;
 };
 
-export const addInventoryManual = async (nama, stok) => {
+export const addInventoryManual = async (nama, stok, options = {}) => {
   if (!nama) throw new Error('Nama barang wajib diisi');
   const qty = Number(stok) || 0;
   const storeId = await getActiveStoreId();
   const cleanNama = nama.toLowerCase().trim();
+  const isPending = Boolean(options?.isPending);
+  const createdBy = options?.user?.fullname || options?.user?.username || 'system';
 
   const existing = await db.inventory.toArray();
   const existingItem = existing.find(i =>
@@ -144,46 +146,73 @@ export const addInventoryManual = async (nama, stok) => {
   );
 
   let targetId;
-  if (existingItem) {
-    const newStok = (Number(existingItem.stok) || 0) + qty;
-    await db.transaction('rw', [db.inventory, db.inventoryEvents], async () => {
-      await db.inventory.update(existingItem.id, withUpdatedSyncMeta({
-        stok: newStok,
-        status: 'approved',
-        ...(storeId && !existingItem.storeId ? { storeId } : {})
-      }));
-      if (qty > 0) {
-        await db.inventoryEvents.add(withNewSyncMeta({
-          storeId: storeId || existingItem.storeId || undefined,
-          inventoryId: existingItem.id,
-          type: 'ADD',
-          qty: qty,
-          note: 'Manual addition',
-          createdBy: 'system'
+  if (isPending) {
+    if (existingItem) {
+      await db.transaction('rw', [db.inventory, db.inventoryEvents], async () => {
+        await db.inventory.update(existingItem.id, withUpdatedSyncMeta({
+          qty: (Number(existingItem.qty) || 0) + qty,
+          status: 'pending',
+          createdBy,
+          ...(storeId && !existingItem.storeId ? { storeId } : {})
         }));
-      }
-    });
-    targetId = existingItem.id;
-  } else {
-    await db.transaction('rw', [db.inventory, db.inventoryEvents], async () => {
-      targetId = await db.inventory.add(withNewSyncMeta({
-        storeId: storeId || undefined,
-        nama: nama.trim(),
-        stok: qty,
-        qty: 0,
-        status: 'approved'
-      }));
-      if (qty > 0) {
-        await db.inventoryEvents.add(withNewSyncMeta({
+      });
+      targetId = existingItem.id;
+    } else {
+      await db.transaction('rw', [db.inventory, db.inventoryEvents], async () => {
+        targetId = await db.inventory.add(withNewSyncMeta({
           storeId: storeId || undefined,
-          inventoryId: targetId,
-          type: 'ADD',
+          nama: nama.trim(),
+          stok: 0,
           qty: qty,
-          note: 'Initial manual addition',
-          createdBy: 'system'
+          status: 'pending',
+          createdBy,
+          createdAt: new Date().toISOString()
         }));
-      }
-    });
+      });
+    }
+  } else {
+    if (existingItem) {
+      const newStok = (Number(existingItem.stok) || 0) + qty;
+      await db.transaction('rw', [db.inventory, db.inventoryEvents], async () => {
+        await db.inventory.update(existingItem.id, withUpdatedSyncMeta({
+          stok: newStok,
+          status: 'approved',
+          ...(storeId && !existingItem.storeId ? { storeId } : {})
+        }));
+        if (qty > 0) {
+          await db.inventoryEvents.add(withNewSyncMeta({
+            storeId: storeId || existingItem.storeId || undefined,
+            inventoryId: existingItem.id,
+            type: 'ADD',
+            qty: qty,
+            note: 'Manual addition',
+            createdBy
+          }));
+        }
+      });
+      targetId = existingItem.id;
+    } else {
+      await db.transaction('rw', [db.inventory, db.inventoryEvents], async () => {
+        targetId = await db.inventory.add(withNewSyncMeta({
+          storeId: storeId || undefined,
+          nama: nama.trim(),
+          stok: qty,
+          qty: 0,
+          status: 'approved',
+          createdBy
+        }));
+        if (qty > 0) {
+          await db.inventoryEvents.add(withNewSyncMeta({
+            storeId: storeId || undefined,
+            inventoryId: targetId,
+            type: 'ADD',
+            qty: qty,
+            note: 'Initial manual addition',
+            createdBy
+          }));
+        }
+      });
+    }
   }
 
   syncInventoryToBackend().catch(err => console.warn('[Sync] Sync inventory error:', err));

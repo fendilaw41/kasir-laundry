@@ -29,26 +29,12 @@ const Reports = () => {
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().substring(0, 7));
   const [filterBayar, setFilterBayar] = useState('Semua');
   const [showBalance, setShowBalance] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     if (navigator.onLine) {
       pullOrdersFromBackend(true).catch(err => console.warn('[Reports] Auto pull error:', err));
     }
   }, []);
-
-  const handleRefresh = async () => {
-    if (isRefreshing) return;
-    setIsRefreshing(true);
-    try {
-      await syncTwoWay();
-      toast.success('Data laporan & server berhasil disinkronkan!');
-    } catch (err) {
-      toast.error('Gagal sinkronkan laporan: ' + err.message);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
 
   // Query Data
   const data = useLiveQuery(async () => {
@@ -134,19 +120,6 @@ const Reports = () => {
                   type="button"
                   className="btn btn-sm btn-white bg-white bg-opacity-25 border-0 text-white rounded-circle shadow-none d-flex align-items-center justify-content-center"
                   style={{ width: '36px', height: '36px' }}
-                  onClick={handleRefresh}
-                  disabled={isRefreshing}
-                  title="Sinkronkan data dengan database server"
-                >
-                  <i
-                    className={`bi bi-arrow-clockwise ${isRefreshing ? 'spinner-border spinner-border-sm' : 'fs-5'}`}
-                    style={isRefreshing ? { width: '1rem', height: '1rem', borderWidth: '0.15em' } : {}}
-                  ></i>
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-white bg-white bg-opacity-25 border-0 text-white rounded-circle shadow-none d-flex align-items-center justify-content-center"
-                  style={{ width: '36px', height: '36px' }}
                   onClick={() => setShowBalance(!showBalance)}
                   title={showBalance ? 'Sembunyikan nominal' : 'Tampilkan nominal'}
                 >
@@ -165,7 +138,7 @@ const Reports = () => {
                 </div>
                 <div className="flex-fill border-start ps-3 border-white border-opacity-25">
                   <small className="opacity-75 d-block" style={{ fontSize: '0.65rem' }}>JUMLAH ORDER</small>
-                  <span className="fw-bold" style={{ fontSize: '0.9rem' }}>{data?.length || 0} Trx</span>
+                  <span className="fw-bold" style={{ fontSize: '0.9rem' }}>{data?.length || 0} transaksi</span>
                 </div>
               </div>
             )}
@@ -198,8 +171,8 @@ const Reports = () => {
               Semua Periode
             </button>
           </div>
-          <span className="badge bg-white text-muted border rounded-pill px-2 py-1 shadow-xs" style={{ fontSize: '0.72rem' }}>
-            {data?.length || 0} Trx
+          <span className="badge bg-white text-muted border rounded-pill px-2.5 py-1 shadow-xs fw-semibold" style={{ fontSize: '0.74rem' }}>
+            {data?.length || 0} transaksi
           </span>
         </div>
 

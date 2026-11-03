@@ -145,6 +145,41 @@ describe('PublicTrackOrder Page', () => {
     });
   });
 
+  it('menampilkan status Lunas saja (tanpa embel-embel QRIS) pada halaman publik jika status Lunas QRIS', async () => {
+    const mockOrder = {
+      id: 'order-123',
+      invoiceId: 'KL-00055',
+      shortCode: 'S0wtMDAwNTU',
+      status: 'Proses',
+      statusBayar: 'Lunas QRIS',
+      metodeBayar: 'QRIS',
+      total: 45000,
+      createdAt: '2026-11-01T08:00:00Z',
+      items: [{ id: '1', name: 'Cuci Komplit', quantity: 1, price: 45000, subtotal: 45000 }],
+      pelanggan: { nama: 'Budi' },
+    };
+
+    vi.spyOn(trackingUtils, 'fetchPublicOrder').mockResolvedValue({
+      order: mockOrder,
+      isOffline: false,
+      source: 'server',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/c/S0wtMDAwNTU']}>
+        <Routes>
+          <Route path="/c/:code" element={<PublicTrackOrder />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      // Pastikan ada teks 'Lunas' dan tidak ada teks 'Lunas QRIS'
+      expect(screen.getAllByText('Lunas').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Lunas QRIS')).toBeNull();
+    });
+  });
+
   it('menampilkan tampilan awal kosong jika halaman dibuka tanpa parameter kode', async () => {
     render(
       <MemoryRouter initialEntries={['/c/']}>

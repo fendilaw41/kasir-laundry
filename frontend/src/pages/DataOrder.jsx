@@ -23,7 +23,7 @@ const DataOrder = ({ user }) => {
     setIsRefreshing(true);
     try {
       await syncTwoWay();
-      toast.success('Data order & server berhasil disinkronkan!');
+      toast.success('Perbarui Data!');
     } catch (err) {
       toast.error('Gagal sinkronkan order: ' + err.message);
     } finally {
@@ -136,13 +136,12 @@ const DataOrder = ({ user }) => {
           disabled={isRefreshing}
           className="btn btn-sm btn-light border rounded-pill px-3 py-1 shadow-xs d-flex align-items-center gap-2 text-primary fw-semibold"
           style={{ fontSize: '0.8rem' }}
-          title="Sinkronisasi 2 arah (Kirim data lokal & tarik data server terbaru)"
+          title="Sinkronisasi"
         >
           <i
             className={`bi bi-arrow-clockwise ${isRefreshing ? 'spinner-border spinner-border-sm' : ''}`}
             style={!isRefreshing ? { display: 'inline-block' } : { width: '0.85rem', height: '0.85rem', borderWidth: '0.15em' }}
           ></i>
-          <span>{isRefreshing ? 'Sync...' : ''}</span>
         </button>
       </div>
 

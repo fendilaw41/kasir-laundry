@@ -484,7 +484,10 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
 
       {/* 3. PRATINJAU FOTO TERPILIH (SEBELUM DIKIRIM) */}
       {selectedImage && (
-        <div className="px-3 pt-2 pb-1 bg-light border-top d-flex align-items-center justify-content-between">
+        <div
+          className="px-3 pt-2 pb-2 bg-light border-top d-flex align-items-center justify-content-between position-relative"
+          style={{ zIndex: 50 }}
+        >
           <div className="d-flex align-items-center gap-2">
             <img
               src={selectedImage.previewUrl}
@@ -506,18 +509,23 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
           </div>
           <button
             type="button"
-            className="btn btn-sm btn-outline-danger rounded-circle p-1"
-            style={{ width: '28px', height: '28px' }}
-            onClick={() => setSelectedImage(null)}
-            title="Hapus Foto"
+            className="btn btn-light text-danger border shadow-xs rounded-circle d-flex align-items-center justify-content-center p-0 flex-shrink-0"
+            style={{ width: '32px', height: '32px', backgroundColor: '#fff' }}
+            onClick={() => {
+              if (selectedImage?.previewUrl) {
+                try { URL.revokeObjectURL(selectedImage.previewUrl); } catch (_) {}
+              }
+              setSelectedImage(null);
+            }}
+            title="Batal kirim foto"
           >
-            <i className="bi bi-x"></i>
+            <i className="bi bi-x-lg" style={{ fontSize: '13px' }}></i>
           </button>
         </div>
       )}
 
       {/* 4. FOOTER INPUT CHAT */}
-      <div className="border-top p-2 px-3 bg-white">
+      <div className="border-top p-2 px-3 bg-white position-relative" style={{ zIndex: 50 }}>
         <form onSubmit={handleSendMessage} className="d-flex align-items-center gap-2 position-relative">
           {/* Hidden Inputs untuk Kamera dan File */}
           <input
@@ -583,50 +591,67 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
           {/* Tombol Kirim */}
           <button
             type="submit"
-            className="btn btn-primary rounded-circle text-white p-0 d-flex align-items-center justify-content-center shadow-sm"
-            style={{ width: '40px', height: '40px', flexShrink: 0 }}
+            className="btn btn-primary rounded-circle text-white p-0 d-flex align-items-center justify-content-center shadow-sm transition-all"
+            style={{
+              width: '40px',
+              height: '40px',
+              flexShrink: 0,
+              backgroundColor: (!inputValue.trim() && !selectedImage) ? '#94a3b8' : '#0d5afd',
+              borderColor: (!inputValue.trim() && !selectedImage) ? '#94a3b8' : '#0d5afd',
+              opacity: isSending ? 0.7 : 1,
+            }}
             disabled={isSending || (!inputValue.trim() && !selectedImage)}
             title="Kirim Pesan"
           >
-            <i className="bi bi-send-fill fs-6"></i>
+            {isSending ? (
+              <span className="spinner-border spinner-border-sm" role="status" style={{ width: '16px', height: '16px', borderWidth: '2px' }}></span>
+            ) : (
+              <i className="bi bi-send-fill" style={{ fontSize: '15px', transform: 'translateX(1px)' }}></i>
+            )}
           </button>
         </form>
       </div>
 
-      {/* 5. MODAL ZOOM FOTO BESAR */}
+      {/* 5. PRATINJAU / ZOOM FOTO DI DALAM CHAT (HEADER & BOTTOM CHAT TETAP TAMPIL) */}
       {selectedZoomImage && (
-        <>
+        <div
+          className="position-absolute start-0 end-0 d-flex flex-column align-items-center justify-content-center p-3"
+          style={{
+            top: 0,
+            bottom: selectedImage ? '135px' : '65px',
+            backgroundColor: 'rgba(15, 23, 42, 0.92)',
+            zIndex: 40,
+            backdropFilter: 'blur(4px)',
+          }}
+          onClick={() => setSelectedZoomImage(null)}
+        >
           <div
-            className="modal-backdrop fade show"
-            style={{ backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 1070 }}
-            onClick={() => setSelectedZoomImage(null)}
-          />
-          <div
-            className="modal fade show d-block"
-            tabIndex="-1"
-            style={{ zIndex: 1075 }}
-            onClick={() => setSelectedZoomImage(null)}
+            className="position-relative text-center d-flex flex-column align-items-center justify-content-center"
+            style={{ maxWidth: '96%', maxHeight: '100%' }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div className="modal-dialog modal-dialog-centered mx-auto text-center p-3" style={{ maxWidth: '90vw' }}>
-              <div className="position-relative d-inline-block">
-                <button
-                  type="button"
-                  className="btn btn-light btn-sm rounded-circle position-absolute top-0 end-0 m-2 shadow"
-                  style={{ zIndex: 10 }}
-                  onClick={() => setSelectedZoomImage(null)}
-                >
-                  <i className="bi bi-x-lg"></i>
-                </button>
-                <img
-                  src={selectedZoomImage}
-                  alt="Zoom Foto"
-                  className="img-fluid rounded-3 shadow-lg"
-                  style={{ maxHeight: '85vh', objectFit: 'contain' }}
-                />
-              </div>
-            </div>
+            {/* Tombol Tutup Preview */}
+            <button
+              type="button"
+              className="btn btn-light btn-sm rounded-circle shadow position-absolute top-0 end-0 m-2 d-flex align-items-center justify-content-center"
+              style={{ width: '34px', height: '34px', zIndex: 10, backgroundColor: 'rgba(255,255,255,0.95)' }}
+              onClick={() => setSelectedZoomImage(null)}
+              title="Tutup Preview Foto"
+            >
+              <i className="bi bi-x-lg text-dark fw-bold" style={{ fontSize: '13px' }}></i>
+            </button>
+            <img
+              src={selectedZoomImage}
+              alt="Zoom Foto"
+              className="img-fluid rounded-4 shadow-lg"
+              style={{
+                maxHeight: 'calc(100vh - 220px)',
+                maxWidth: '100%',
+                objectFit: 'contain',
+              }}
+            />
           </div>
-        </>
+        </div>
       )}
 
       {/* 6. MODAL KONFIRMASI OFFLINE > 3 HARI SAAT BUKA KAMERA */}

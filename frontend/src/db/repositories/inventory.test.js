@@ -78,7 +78,39 @@ describe('inventory repository - storeId scoping', () => {
       expect(db.inventory.add).toHaveBeenCalledWith(expect.objectContaining({
         storeId: 'store-123',
         nama: 'Parfum',
-        stok: 10
+        stok: 10,
+        status: 'approved'
+      }));
+    });
+
+    it('should set status: pending and stok: 0 when isPending is true for new item', async () => {
+      sessionStorage.setItem('user', JSON.stringify({ storeId: 'store-123' }));
+      db.inventory.toArray.mockResolvedValue([]);
+      db.inventory.add.mockResolvedValue(99);
+
+      const id = await addInventoryManual('Deterjen Matic', 5, { isPending: true, user: { fullname: 'Kasir Andi' } });
+      expect(id).toBe(99);
+      expect(db.inventory.add).toHaveBeenCalledWith(expect.objectContaining({
+        storeId: 'store-123',
+        nama: 'Deterjen Matic',
+        stok: 0,
+        qty: 5,
+        status: 'pending',
+        createdBy: 'Kasir Andi'
+      }));
+    });
+
+    it('should update qty and set status: pending without changing stok for existing item', async () => {
+      sessionStorage.setItem('user', JSON.stringify({ storeId: 'store-123' }));
+      const existing = [{ id: 10, nama: 'Pewangi Mawar', stok: 8, qty: 0, status: 'approved', storeId: 'store-123' }];
+      db.inventory.toArray.mockResolvedValue(existing);
+
+      const id = await addInventoryManual('Pewangi Mawar', 4, { isPending: true, user: { fullname: 'Kasir Andi' } });
+      expect(id).toBe(10);
+      expect(db.inventory.update).toHaveBeenCalledWith(10, expect.objectContaining({
+        qty: 4,
+        status: 'pending',
+        createdBy: 'Kasir Andi'
       }));
     });
   });

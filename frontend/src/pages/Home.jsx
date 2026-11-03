@@ -425,46 +425,53 @@ const Home = ({ user }) => {
                 </div>
                 <div className="modal-body p-3 p-sm-4">
                   {/* Tambah Stok Baru Quick Form */}
-                  {user.role !== 'kasir' && (
-                    <div className="bg-light p-3 rounded-4 mb-4">
-                      <form onSubmit={async (e) => {
-                        e.preventDefault();
-                        const form = e.target;
-                        const nama = form.nama.value;
-                        const stok = parseInt(form.stok.value);
+                  <div className="bg-light p-3 rounded-4 mb-4">
+                    <form onSubmit={async (e) => {
+                      e.preventDefault();
+                      const form = e.target;
+                      const nama = form.nama.value;
+                      const stok = parseInt(form.stok.value);
+                      const isKasir = user?.role === 'kasir';
 
-                        setConfirmModal({
-                          show: true,
-                          message: `Konfirmasi penambahan stok manual:\n\nNama Barang: ${nama}\nJumlah: ${stok}\n\nApakah data sudah sesuai?`,
-                          onConfirm: async () => {
-                            try {
-                              await addInventoryManual(nama, stok);
-                              form.reset();
-                              toast.success('Barang telah ditambahkan');
-                              setConfirmModal({ show: false, message: '', onConfirm: null });
-                            } catch (error) {
-                              toast.error(error.message);
-                            }
+                      setConfirmModal({
+                        show: true,
+                        message: isKasir
+                          ? `Ajukan penambahan stok:\n\nNama Barang: ${nama}\nJumlah: ${stok}\n\nPengajuan akan berstatus Pending dan menunggu persetujuan Owner. Lanjutkan?`
+                          : `Konfirmasi penambahan stok manual:\n\nNama Barang: ${nama}\nJumlah: ${stok}\n\nApakah data sudah sesuai?`,
+                        onConfirm: async () => {
+                          try {
+                            await addInventoryManual(nama, stok, { isPending: isKasir, user });
+                            form.reset();
+                            toast.success(
+                              isKasir
+                                ? 'Pengajuan stok terkirim (menunggu persetujuan Owner)'
+                                : 'Stok telah ditambahkan'
+                            );
+                            setConfirmModal({ show: false, message: '', onConfirm: null });
+                          } catch (error) {
+                            toast.error(error.message);
                           }
-                        });
-                      }}>
-                        <label className="small fw-bold text-muted mb-2 px-1">Tambah Stok Barang Baru</label>
-                        <div className="row g-2">
-                          <div className="col-8">
-                            <input type="text" name="nama" className="form-control border-0 py-2 rounded-3 shadow-sm" placeholder="Nama item..." required />
-                          </div>
-                          <div className="col-4">
-                            <div className="input-group shadow-sm rounded-3 overflow-hidden">
-                              <input type="number" name="stok" className="form-control border-0 py-2 px-2 text-center" placeholder="Qty" required />
-                              <button className="btn btn-outline-primary border-0 px-2" type="submit">
-                                <i className="bi bi-plus-lg"></i>
-                              </button>
-                            </div>
+                        }
+                      });
+                    }}>
+                      <label className="small fw-bold text-muted mb-2 px-1">
+                        {user?.role === 'kasir' ? 'Ajukan Tambah Stok Barang' : 'Tambah Stok'}
+                      </label>
+                      <div className="row g-2">
+                        <div className="col-8">
+                          <input type="text" name="nama" className="form-control border-0 py-2 rounded-3 shadow-sm" placeholder="Nama item..." required />
+                        </div>
+                        <div className="col-4">
+                          <div className="input-group shadow-sm rounded-3 overflow-hidden">
+                            <input type="number" name="stok" className="form-control border-0 py-2 px-2 text-center" placeholder="Qty" required />
+                            <button className="btn btn-outline-primary border-0 px-2" type="submit">
+                              <i className="bi bi-plus-lg"></i>
+                            </button>
                           </div>
                         </div>
-                      </form>
-                    </div>
-                  )}
+                      </div>
+                    </form>
+                  </div>
 
                   {/* Search Bar Inventory */}
                   <div className="position-relative mb-4">
@@ -555,7 +562,6 @@ const Home = ({ user }) => {
                               </div>
                             )
                           ) : (
-
                             user.role !== 'kasir' && (
                               <div className="d-flex align-items-center gap-2 bg-light rounded-pill p-1">
                                 <button
