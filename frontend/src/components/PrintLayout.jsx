@@ -1,12 +1,15 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
+import { getTrackingUrl, getShortDisplayUrl } from '../utils/tracking';
 
 const PrintLayout = ({ order, pelanggan, printType }) => {
   const settings = useLiveQuery(() => db.settings.get(1));
 
   if (!order || !printType || !settings) return null;
 
-  const qrUrl = `https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=${encodeURIComponent(`https://kasirlaundry.my.id/status/${order.invoiceId}`)}`;
+  const trackingUrl = getTrackingUrl(order.invoiceId);
+  const trackingDisplayUrl = getShortDisplayUrl(order.invoiceId);
+  const qrUrl = `https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=${encodeURIComponent(trackingUrl)}`;
 
   return (
     <div className="print-only-container">
@@ -118,6 +121,10 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
           <div style={{ textAlign: 'center', marginTop: '10px', fontSize: '10px', whiteSpace: 'pre-line' }}>
             <div>{settings.headerStruk}</div>
             <div style={{ marginTop: '5px' }}>{settings.footerStruk}</div>
+            <div style={{ marginTop: '8px', borderTop: '1px dotted #000', paddingTop: '6px' }}>
+              <div style={{ fontWeight: 'bold' }}>Cek Status Cucian:</div>
+              <div>{trackingDisplayUrl}</div>
+            </div>
           </div>
         </div>
       )}
@@ -209,6 +216,10 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
               <div style={{ fontSize: '14px' }}>
                 <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>Informasi Tambahan:</div>
                 <div style={{ whiteSpace: 'pre-line' }}>{settings.footerStruk}</div>
+                <div style={{ marginTop: '10px', fontSize: '12px' }}>
+                  <strong>Cek Status Cucian: </strong>
+                  <span style={{ color: '#0134d4', fontWeight: 'bold' }}>{trackingUrl}</span>
+                </div>
               </div>
               <div style={{ textAlign: 'center', minWidth: '200px' }}>
                 <div style={{ marginBottom: '60px' }}>Hormat Kami,</div>
@@ -230,7 +241,8 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
           {printType === 'qr' && (
             <img src={qrUrl} alt="QR" style={{ width: '80px', height: '80px', marginTop: '5px' }} />
           )}
-          <div style={{ fontSize: '9px', marginTop: '2px' }}>{settings.namaLaundry}</div>
+          <div style={{ fontSize: '9px', marginTop: '3px', fontWeight: 'bold' }}>{trackingDisplayUrl}</div>
+          <div style={{ fontSize: '9px', marginTop: '1px' }}>{settings.namaLaundry}</div>
         </div>
       )}
     </div>

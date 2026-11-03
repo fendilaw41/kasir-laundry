@@ -1,3 +1,5 @@
+import { getShortDisplayUrl } from './tracking.js';
+
 export const printViaRawBT = (order, pelanggan, settings = null) => {
   if (!order) return;
 
@@ -63,6 +65,9 @@ export const printViaRawBT = (order, pelanggan, settings = null) => {
   footerStruk.forEach(line => {
     text += centerText(line) + "\n";
   });
+
+  text += centerText("Cek Status Cucian:") + "\n";
+  text += centerText(getShortDisplayUrl(order.invoiceId)) + "\n";
 
   text += "\n\n\n\n"; // Feed paper
 

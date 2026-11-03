@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SyncOrderDto } from './dto/sync-order.dto';
 
@@ -344,5 +344,152 @@ export class OrdersService {
         pelanggan: true,
       },
     });
+  }
+
+  /**
+   * Decode URL-safe base64 tracking code atau mengembalikan kode aslinya
+   */
+  decodeTrackingCode(code: string): string {
+    if (!code) return '';
+    const trimmed = code.trim();
+    try {
+      let base64 = trimmed.replace(/-/g, '+').replace(/_/g, '/');
+      while (base64.length % 4) {
+        base64 += '=';
+      }
+      const decoded = Buffer.from(base64, 'base64').toString('utf-8');
+      if (decoded && /^[\w\s.-]+$/.test(decoded) && decoded.length >= 2 && decoded.length <= 64) {
+        return decoded;
+      }
+    } catch {
+      // Abaikan jika bukan base64, gunakan string mentah
+    }
+    return trimmed;
+  }
+
+  /**
+   * Encode invoiceId ke dalam URL-safe short code
+   */
+  encodeTrackingCode(invoiceId: string): string {
+    if (!invoiceId) return '';
+    return Buffer.from(invoiceId).toString('base64url');
+  }
+
+  /**
+   * Ambil detail publik order untuk pelacakan pelanggan tanpa login
+   */
+  async trackPublicOrder(code: string) {
+    if (!code || !code.trim()) {
+      throw new BadRequestException('Kode pelacakan atau nomor nota wajib disertakan');
+    }
+
+    const decoded = this.decodeTrackingCode(code);
+    const raw = code.trim();
+
+    const candidateCodes = Array.from(
+      new Set([
+        decoded,
+        raw,
+        decoded.toUpperCase(),
+        raw.toUpperCase(),
+      ]),
+    ).filter(Boolean);
+
+    const order = await this.prisma.order.findFirst({
+      where: {
+        OR: [
+          { invoiceId: { in: candidateCodes } },
+          { id: { in: candidateCodes } },
+        ],
+        deletedAt: null,
+      },
+      include: {
+        items: true,
+        pelanggan: {
+          select: {
+            id: true,
+            nama: true,
+            hp: true,
+            alamat: true,
+          },
+        },
+        store: {
+          include: {
+            settings: true,
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException(
+        `Pesanan dengan kode nota "${code}" tidak ditemukan. Pastikan nomor nota atau link pelacakan sudah benar.`,
+      );
+    }
+
+    // Mask nomor HP untuk privasi pelanggan (08123456789 -> 0812****789)
+    const rawHp = order.pelanggan?.hp || '';
+    const maskedHp =
+      rawHp.length > 7
+        ? rawHp.substring(0, 4) + '****' + rawHp.substring(rawHp.length - 3)
+        : rawHp;
+
+    const shortCode = this.encodeTrackingCode(order.invoiceId);
+
+    return {
+      id: order.id,
+      storeId: order.storeId,
+      invoiceId: order.invoiceId,
+      shortCode,
+      status: order.status || 'Baru',
+      statusBayar: order.statusBayar || 'Belum Lunas',
+      metodeBayar: order.metodeBayar || 'Tunai',
+      total: order.total,
+      diskon: order.diskon || 0,
+      bayar: order.bayar || 0,
+      kembalian: order.kembalian || 0,
+      estimasi: order.estimasi || '2',
+      tipeLayanan: order.tipeLayanan || 'Kiloan',
+      isPriority: !!order.isPriority,
+      catatan: order.catatan || '',
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+      items: (order.items || []).map((item) => ({
+        id: item.id,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        subtotal: item.subtotal,
+      })),
+      pelanggan: order.pelanggan
+        ? {
+            id: order.pelanggan.id,
+            nama: order.pelanggan.nama,
+            hp: maskedHp,
+            alamat: order.pelanggan.alamat || '',
+          }
+        : {
+            nama: 'Pelanggan Umum',
+            hp: '-',
+            alamat: '',
+          },
+      store: {
+        id: order.store?.id,
+        name:
+          order.store?.settings?.namaLaundry ||
+          order.store?.name ||
+          'Kasir Laundry',
+        motto:
+          (order.store?.settings as any)?.motto || 'Solusi Laundry Bersih & Cepat',
+        address:
+          order.store?.settings?.alamat || order.store?.address || '',
+        city: order.store?.settings?.kota || order.store?.city || '',
+        phone:
+          order.store?.settings?.telepon || order.store?.phone || '',
+        jamBuka: order.store?.settings?.jamBuka || '08.00 - 17.00',
+        headerStruk: order.store?.settings?.headerStruk || '',
+        footerStruk: order.store?.settings?.footerStruk || '',
+      },
+    };
   }
 }

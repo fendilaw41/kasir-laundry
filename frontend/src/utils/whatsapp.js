@@ -1,3 +1,5 @@
+import { getTrackingUrl } from './tracking.js';
+
 export const formatWhatsAppMessage = (order, pelanggan, settings = null) => {
   const phone = pelanggan?.hp || '';
   if (!phone) return null;
@@ -13,6 +15,7 @@ export const formatWhatsAppMessage = (order, pelanggan, settings = null) => {
 
   const laundryName = settings?.namaLaundry || 'Kasir Laundry';
   const motto = settings?.motto || 'Solusi Laundry Bersih & Cepat';
+  const trackingLink = getTrackingUrl(order.invoiceId);
 
   const text = `*${laundryName}*
 ${motto}
@@ -32,10 +35,8 @@ ${order.diskon > 0 ? `Diskon : -Rp${order.diskon.toLocaleString()}\n` : ''}Total
 Nota ${order.status?.toLowerCase() === 'selesai' ? 'selesai' : 'diproses'}
 
 ------------------------------
-kasirlaundry.my.id
-------------------------------
-Cek status laundry anda dengan mengklik link :
-https://kasirlaundry.my.id/status/${order.invoiceId}`;
+Cek status laundry Anda secara online:
+${trackingLink}`;
 
   return {
     phone: formattedPhone,

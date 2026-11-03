@@ -8,6 +8,7 @@ import { pullOrdersFromBackend } from '../services/syncService';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { formatWhatsAppMessage } from '../utils/whatsapp';
+import { getTrackingUrl } from '../utils/tracking';
 import PrintLayout from '../components/PrintLayout';
 
 const isSameInventory = (a, b) => {
@@ -359,11 +360,11 @@ const OrderDetail = () => {
               <button className="btn btn-outline-primary w-100 py-3 fw-bold dropdown-toggle shadow-sm" type="button" data-bs-toggle="dropdown">
                 <i className="bi bi-printer me-2"></i>Cetak
               </button>
-              <ul className="dropdown-menu shadow border-0 w-100">
-                <li><button className="dropdown-item py-2 small" onClick={() => triggerPrint('thermal')}><i className="bi bi-file-earmark-text me-2 text-info"></i> Nota Thermal</button></li>
-                <li><button className="dropdown-item py-2 small" onClick={() => triggerPrint('a4')}><i className="bi bi-file-earmark-pdf me-2 text-danger"></i> Nota PDF (A4)</button></li>
-                <li><button className="dropdown-item py-2 small" onClick={() => triggerPrint('label')}><i className="bi bi-tag me-2 text-primary"></i> Label (Pcs)</button></li>
-                <li><button className="dropdown-item py-2 small" onClick={() => triggerPrint('qr')}><i className="bi bi-qr-code me-2 text-dark"></i> Label QR Code</button></li>
+              <ul className="dropdown-menu shadow border-0 rounded-3 py-2" style={{ minWidth: '180px' }}>
+                <li><button className="dropdown-item py-2 small d-flex align-items-center" onClick={() => triggerPrint('thermal')}><i className="bi bi-file-earmark-text me-2 text-info fs-6"></i> Nota Thermal</button></li>
+                <li><button className="dropdown-item py-2 small d-flex align-items-center" onClick={() => triggerPrint('a4')}><i className="bi bi-file-earmark-pdf me-2 text-danger fs-6"></i> Nota PDF (A4)</button></li>
+                <li><button className="dropdown-item py-2 small d-flex align-items-center" onClick={() => triggerPrint('label')}><i className="bi bi-tag me-2 text-primary fs-6"></i> Label (Pcs)</button></li>
+                <li><button className="dropdown-item py-2 small d-flex align-items-center" onClick={() => triggerPrint('qr')}><i className="bi bi-qr-code me-2 text-dark fs-6"></i> Label QR Code</button></li>
               </ul>
             </div>
           </div>
@@ -373,22 +374,44 @@ const OrderDetail = () => {
               <button className="btn btn-outline-primary w-100 py-3 fw-bold dropdown-toggle shadow-sm" type="button" data-bs-toggle="dropdown">
                 <i className="bi bi-gear-fill me-2"></i>Aksi
               </button>
-              <ul className="dropdown-menu dropdown-menu-end shadow border-0 w-100">
+              <ul className="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 py-2" style={{ minWidth: '210px' }}>
                 {order.statusBayar !== 'Lunas' && (
-                  <li><button className="dropdown-item py-2 small" onClick={() => navigate('/pembayaran', { state: { orderData: order, isPaymentOnly: true } })}><i className="bi bi-wallet2 me-2 text-primary"></i> Bayar</button></li>
+                  <li><button className="dropdown-item py-2 small d-flex align-items-center" onClick={() => navigate('/pembayaran', { state: { orderData: order, isPaymentOnly: true } })}><i className="bi bi-wallet2 me-2 text-primary fs-6"></i> Bayar</button></li>
                 )}
                 {order.status !== 'Ambil' && (
                   <li>
-                    <button className="dropdown-item py-2 small" onClick={toggleLunas}>
+                    <button className="dropdown-item py-2 small d-flex align-items-center" onClick={toggleLunas}>
                       {order.statusBayar === 'Lunas' ? (
-                        <><i className="bi bi-x-circle me-2 text-danger"></i> Jadikan Tidak Lunas</>
+                        <><i className="bi bi-x-circle me-2 text-danger fs-6"></i> Jadikan Tidak Lunas</>
                       ) : (
-                        <><i className="bi bi-check-circle me-2 text-success"></i> Jadikan Lunas</>
+                        <><i className="bi bi-check-circle me-2 text-success fs-6"></i> Jadikan Lunas</>
                       )}
                     </button>
                   </li>
                 )}
-                <li><button className="dropdown-item py-2 small" onClick={togglePriority}><i className={`bi ${order.isPriority ? 'bi-star-fill text-warning' : 'bi-star'} me-2`}></i> {order.isPriority ? 'Batal Prioritas' : 'Jadikan Prioritas'}</button></li>
+                <li>
+                  <button className="dropdown-item py-2 small d-flex align-items-center" onClick={togglePriority}>
+                    <i className={`bi ${order.isPriority ? 'bi-star-fill text-warning' : 'bi-star'} me-2 fs-6`}></i>
+                    {order.isPriority ? 'Batal Prioritas' : 'Jadikan Prioritas'}
+                  </button>
+                </li>
+                <li><hr className="dropdown-divider my-1" /></li>
+                <li>
+                  <button
+                    className="dropdown-item py-2 small d-flex align-items-center"
+                    onClick={() => {
+                      const url = getTrackingUrl(order.invoiceId);
+                      if (navigator.clipboard) {
+                        navigator.clipboard.writeText(url).then(() => toast.success('Link cek order disalin!'));
+                      } else {
+                        toast.success(url);
+                      }
+                    }}
+                  >
+                    <i className="bi bi-link-45deg me-2 text-primary fs-6"></i>
+                    <span>Salin Link Cek Order</span>
+                  </button>
+                </li>
               </ul>
             </div>
           </div>

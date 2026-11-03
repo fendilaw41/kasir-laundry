@@ -18,6 +18,7 @@ import Reports from './pages/Reports';
 import Setting from './pages/Setting';
 import Chat from './pages/Chat';
 import Reset from './pages/Reset';
+import PublicTrackOrder from './pages/PublicTrackOrder';
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -73,6 +74,8 @@ function App() {
         />
         <Route path="/register" element={<Register />} />
         <Route path="/reset" element={<Reset user={user} />} />
+        {/* Rute Publik: Cek Status Pesanan Tanpa Login */}
+        <Route path="/c/:code" element={<PublicTrackOrder />} />
         <Route element={<ProtectedLayout user={user} onLogout={handleLogout} />}>
           <Route path="/" element={<Home user={user} />} />
           <Route path="/transaksi" element={<Transaksi user={user} />} />

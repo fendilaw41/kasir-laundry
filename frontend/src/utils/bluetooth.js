@@ -1,3 +1,5 @@
+import { getShortDisplayUrl } from './tracking.js';
+
 /**
  * Utilitas untuk mencetak langsung ke printer Bluetooth menggunakan Web Bluetooth API
  * Mengirimkan perintah ESC/POS biner
@@ -99,6 +101,7 @@ export const printDirectBluetooth = async (order, pelanggan, settings = null) =>
       ...commands.center,
       ...encoder.encode(`${settings?.headerStruk || 'Terima kasih atas kunjungan anda'}\n`),
       ...encoder.encode(`${settings?.footerStruk || 'kasirlaundry.my.id'}\n`),
+      ...encoder.encode(`Cek Status: ${getShortDisplayUrl(order.invoiceId)}\n`),
       ...commands.feed,
       ...commands.cut
     ]);

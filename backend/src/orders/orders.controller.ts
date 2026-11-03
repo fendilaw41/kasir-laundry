@@ -2,13 +2,14 @@ import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { SyncOrderDto } from './dto/sync-order.dto';
+import { Public } from '../auth/public.decorator';
 
 @ApiTags('Orders')
 @ApiBearerAuth('bearer')
 @ApiResponse({ status: 401, description: 'Unauthorized - Bearer token tidak valid atau tidak disertakan.' })
 @Controller('orders')
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(private readonly ordersService: OrdersService) { }
 
   /**
    * Endpoint sinkronisasi satu pesanan dari frontend
@@ -69,6 +70,27 @@ export class OrdersController {
       success: true,
       data,
       inventory,
+    };
+  }
+
+  /**
+   * Endpoint publik untuk pelanggan melacak status pesanan tanpa login
+   * GET /orders/check/:code
+   */
+  @Public()
+  @Get('check/:code')
+  @ApiOperation({
+    summary: 'Cek Status Pesanan Publik (Tanpa Login)',
+    description: 'Mengambil data order untuk customer tracking menggunakan kolom invoiceId (misal: 8126-00001) atau shortcode terenkripsi.',
+  })
+  @ApiParam({ name: 'code', description: 'Nomor nota (invoiceId) seperti 8126-00001 atau shortcode terenkripsi', example: '8126-00001' })
+  @ApiResponse({ status: 200, description: 'Data order berhasil ditemukan.' })
+  @ApiResponse({ status: 404, description: 'Pesanan tidak ditemukan.' })
+  async checkOrder(@Param('code') code: string) {
+    const data = await this.ordersService.trackPublicOrder(code);
+    return {
+      success: true,
+      data,
     };
   }
 

@@ -9,14 +9,17 @@ import { useLocation } from 'react-router-dom';
  */
 const PageLoader = ({ minDuration = 400 }) => {
   const location = useLocation();
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
-  const [loading, setLoading] = useState(!isAuthPage);
+  const isBypassPage =
+    location.pathname === '/login' ||
+    location.pathname === '/register' ||
+    location.pathname.startsWith('/c/');
+  const [loading, setLoading] = useState(!isBypassPage);
   const [fading, setFading] = useState(false);
   const prevPathRef = useRef(location.pathname);
   const isInitialMount = useRef(true);
 
   useEffect(() => {
-    if (isAuthPage) {
+    if (isBypassPage) {
       setLoading(false);
       setFading(false);
       return;
@@ -49,20 +52,20 @@ const PageLoader = ({ minDuration = 400 }) => {
       clearTimeout(holdTimer);
       if (fadeTimer) clearTimeout(fadeTimer);
     };
-  }, [location.pathname, minDuration, isAuthPage]);
+  }, [location.pathname, minDuration, isBypassPage]);
 
   // Safety timeout agar preloader tidak pernah macet
   useEffect(() => {
-    if (loading && !isAuthPage) {
+    if (loading && !isBypassPage) {
       const safetyTimer = setTimeout(() => {
         setLoading(false);
         setFading(false);
       }, minDuration + 500);
       return () => clearTimeout(safetyTimer);
     }
-  }, [loading, isAuthPage, minDuration]);
+  }, [loading, isBypassPage, minDuration]);
 
-  if (!loading || isAuthPage) return null;
+  if (!loading || isBypassPage) return null;
 
   return (
     <div
