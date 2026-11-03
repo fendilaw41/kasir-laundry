@@ -3,6 +3,21 @@ import { db } from '../db.js';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 /**
+ * Mengambil User aktif dari storage browser (sessionStorage / localStorage)
+ */
+export const getStoredUser = () => {
+  try {
+    return JSON.parse(
+      sessionStorage.getItem('user') ||
+      localStorage.getItem('user') ||
+      '{}'
+    );
+  } catch {
+    return {};
+  }
+};
+
+/**
  * Mengambil JWT Bearer Token dari storage browser (sessionStorage / localStorage / user)
  */
 export const getAuthToken = () => {
@@ -10,7 +25,7 @@ export const getAuthToken = () => {
     return (
       sessionStorage.getItem('token') ||
       localStorage.getItem('auth_token') ||
-      JSON.parse(sessionStorage.getItem('user') || '{}')?.token ||
+      getStoredUser()?.token ||
       null
     );
   } catch {
@@ -44,7 +59,7 @@ const formatOrderPayload = async (order) => {
   }
 
   // Dapatkan Store ID agar data terisolasi per toko (Multi-store isolation)
-  const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+  const storedUser = getStoredUser();
   const setting = await db.settings.get(1);
   const storeId = order.storeId || storedUser.storeId || setting?.storeId || undefined;
 
@@ -246,7 +261,7 @@ export const syncUsersToBackend = async () => {
     const dirtyUsers = await db.users.filter(u => u.isDirty === 1).toArray();
     if (dirtyUsers.length === 0) return;
 
-    const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const storedUser = getStoredUser();
     const setting = await db.settings.get(1);
     const storeId = storedUser.storeId || setting?.storeId || undefined;
 
@@ -304,7 +319,7 @@ export const syncProductsToBackend = async (forceAll = false) => {
 
     if (productsToSync.length === 0) return;
 
-    const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const storedUser = getStoredUser();
     let setting = await db.settings.get(1);
     let storeId = storedUser.storeId || setting?.storeId;
 
@@ -367,7 +382,7 @@ export const syncPelangganToBackend = async (forceAll = false) => {
 
     if (pelangganList.length === 0) return;
 
-    const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const storedUser = getStoredUser();
     const setting = await db.settings.get(1);
     const storeId = storedUser.storeId || setting?.storeId;
 
@@ -423,7 +438,7 @@ export const syncPelangganToBackend = async (forceAll = false) => {
 export const syncSettingsToBackend = async () => {
   try {
     const setting = await db.settings.get(1);
-    const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const storedUser = getStoredUser();
     const storeId = setting?.storeId || storedUser.storeId;
 
     // HANYA sinkronkan jika setting berstatus kotor (isDirty: 1) dan memiliki storeId
@@ -535,7 +550,7 @@ export const syncAllDirtyMasterData = async (forceAll = false) => {
   try {
     isMasterSyncing = true;
     const setting = await db.settings.get(1);
-    const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const storedUser = getStoredUser();
     // Hanya jalankan sync jika sudah memiliki storeId resmi
     if (!setting?.storeId && !storedUser?.storeId) {
       return;
@@ -641,9 +656,16 @@ export const pullOrdersFromBackend = async (force = false) => {
   isPullingOrders = true;
 
   try {
-    const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const storedUser = getStoredUser();
     const setting = await db.settings.get(1);
-    const storeId = storedUser.storeId || setting?.storeId;
+    let storeId = storedUser.storeId || setting?.storeId;
+    if (!storeId && db && db.users && typeof db.users.toArray === 'function') {
+      const allUsers = await db.users.toArray();
+      if (Array.isArray(allUsers)) {
+        const anyUser = allUsers.find(u => u.storeId);
+        if (anyUser?.storeId) storeId = anyUser.storeId;
+      }
+    }
     if (!storeId) return false;
 
     const response = await fetch(`${API_BASE_URL}/orders?storeId=${encodeURIComponent(storeId)}`, {
@@ -789,6 +811,23 @@ export const pullOrdersFromBackend = async (force = false) => {
     return false;
   } finally {
     isPullingOrders = false;
+  }
+};
+
+/**
+ * Sinkronisasi Penuh Dua Arah (Two-Way Sync):
+ * 1. PUSH: Dorong perubahan master data & order lokal (termasuk dirty / forceAll) ke backend
+ * 2. PULL: Tarik data order & inventory terbaru dari backend ke Dexie
+ */
+export const syncTwoWay = async ({ forceAll = false } = {}) => {
+  try {
+    await syncAllDirtyMasterData(forceAll);
+    await syncDirtyOrders(forceAll);
+    const pullSuccess = await pullOrdersFromBackend(true);
+    return { success: true, pullSuccess };
+  } catch (error) {
+    console.error('[Sync] syncTwoWay gagal:', error);
+    throw error;
   }
 };
 

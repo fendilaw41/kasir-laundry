@@ -102,16 +102,35 @@ const Transaksi = () => {
             {inventory?.filter(inv => !(inv.status === 'pending' && inv.stok === 0)).map(inv => {
               const activeItem = selectedInventory.find(s => s.id === inv.id);
               const isActive = !!activeItem;
+              const isOutOfStock = Number(inv.stok || 0) <= 0;
               return (
                 <div
                   key={inv.id}
-                  className={`flex-shrink-0 p-3 rounded-4 border d-flex flex-column align-items-center justify-content-center transition-all ${isActive ? 'bg-outline-primary text-dark border-primary shadow-sm' : 'bg-white text-dark shadow-xs'}`}
-                  style={{ minWidth: '120px', height: '140px', opacity: inv.stok <= 0 && !isActive ? 0.5 : 1 }}
+                  className={`flex-shrink-0 p-3 rounded-4 border d-flex flex-column align-items-center justify-content-center transition-all ${
+                    isActive
+                      ? 'bg-outline-primary text-dark border-primary shadow-sm'
+                      : isOutOfStock
+                        ? 'bg-light text-muted border-dashed opacity-50'
+                        : 'bg-white text-dark shadow-xs'
+                  }`}
+                  style={{ minWidth: '120px', height: '140px' }}
                 >
-                  <div className="text-center w-100" onClick={() => (inv.stok > 0 || isActive) && toggleInventory(inv)} style={{ cursor: inv.stok > 0 || isActive ? 'pointer' : 'not-allowed' }}>
+                  <div
+                    className="text-center w-100"
+                    onClick={() => {
+                      if (isOutOfStock && !isActive) {
+                        toast.error(`Stok ${inv.nama} habis (0)!`);
+                        return;
+                      }
+                      toggleInventory(inv);
+                    }}
+                    style={{ cursor: isOutOfStock && !isActive ? 'not-allowed' : 'pointer' }}
+                  >
                     <i className={`bi ${isActive ? 'bi-check-circle-fill text-primary' : 'bi-box-seam'} d-block mb-1 fs-4`}></i>
                     <div className="small fw-bold text-truncate" style={{ fontSize: '0.75rem' }}>{inv.nama}</div>
-                    <small className="text-muted" style={{ fontSize: '0.65rem' }}>Stok: {inv.stok}</small>
+                    <small className={isOutOfStock ? 'text-danger fw-bold' : 'text-muted'} style={{ fontSize: '0.65rem' }}>
+                      {isOutOfStock ? 'Habis (0)' : `Stok: ${inv.stok}`}
+                    </small>
                   </div>
                   {isActive && (
                     <div className="d-flex align-items-center gap-2 bg-white rounded-pill p-1 shadow-sm mt-2 w-100 justify-content-center">

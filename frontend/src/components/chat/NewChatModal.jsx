@@ -196,8 +196,15 @@ export const NewChatModal = ({ show, onClose, onConversationCreated, currentUser
                             {contact.fullname?.charAt(0).toUpperCase() || 'U'}
                           </div>
                           <div className="flex-grow-1 text-start">
-                            <h6 className="mb-0 fw-semibold text-dark" style={{ fontSize: '0.9rem' }}>
-                              {contact.fullname || contact.username}
+                            <h6 className="mb-0 fw-semibold text-dark d-flex align-items-center gap-1" style={{ fontSize: '0.9rem' }}>
+                              <span>{contact.fullname || contact.username}</span>
+                              {contact.role?.toLowerCase() === 'owner' && (
+                                <i
+                                  className="bi bi-patch-check-fill text-primary flex-shrink-0"
+                                  style={{ fontSize: '13px' }}
+                                  title="Owner Terverifikasi"
+                                ></i>
+                              )}
                             </h6>
                             <small className="text-muted" style={{ fontSize: '0.75rem' }}>
                               <span className="badge rounded-pill me-1" style={{ backgroundColor: '#f1f5f9', color: '#475569' }}>

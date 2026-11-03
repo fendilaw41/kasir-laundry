@@ -2,6 +2,7 @@ import { db } from '../../db.js';
 import { withNewSyncMeta, withUpdatedSyncMeta } from '../syncMeta.js';
 import { syncOrderToBackend, syncInventoryToBackend } from '../../services/syncService.js';
 import { getActiveStoreId, getActiveStoreIdSync } from './storeHelper.js';
+import { getStatusLunasByMetode, isStatusLunas } from '../../utils/paymentStatus.js';
 
 export const getOrdersQuery = async () => {
   const storeId = await getActiveStoreId();
@@ -71,13 +72,14 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
     const nextNumber = (setting?.lastInvoiceNumber || 0) + 1;
     const invoiceId = `${deviceId}-${nextNumber.toString().padStart(5, '0')}`;
 
+    const resolvedStatusLunas = getStatusLunasByMetode(orderData.metodeBayar);
     newId = await db.orders.add(withNewSyncMeta({
       storeId,
       ...orderData,
       invoiceId,
       bayar: bayar,
       kembalian: kembalianNum > 0 ? kembalianNum : 0,
-      statusBayar: isLunas ? (bayar >= total ? 'Lunas' : 'DP') : 'Belum Bayar',
+      statusBayar: isLunas ? (bayar >= total ? resolvedStatusLunas : 'DP') : 'Belum Bayar',
       status: 'Proses',
       createdAt: new Date()
     }));
@@ -99,6 +101,12 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
         const qty = Number(inv.quantity ?? inv.qty ?? 1);
         if (item) {
           const currentStok = Number(item.stok) || 0;
+          if (currentStok <= 0) {
+            throw new Error(`Stok ${item.nama} habis (0)! Tidak bisa digunakan.`);
+          }
+          if (currentStok < qty) {
+            throw new Error(`Stok ${item.nama} tidak mencukupi (sisa: ${currentStok}, dibutuhkan: ${qty})`);
+          }
           const newStok = Math.max(0, currentStok - qty);
           await db.inventory.update(item.id, withUpdatedSyncMeta({
             stok: newStok
@@ -151,7 +159,7 @@ export const updateOrder = async (id, data) => {
   if (data.status === 'Ambil' || data.status === 'Selesai') {
     if (data.status === 'Ambil') {
       const currentStatusBayar = data.statusBayar || order.statusBayar;
-      if (currentStatusBayar !== 'Lunas') {
+      if (!isStatusLunas(currentStatusBayar)) {
         throw new Error('Pesanan belum lunas! Tidak bisa diambil.');
       }
     }

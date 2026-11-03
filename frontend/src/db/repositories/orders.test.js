@@ -42,8 +42,30 @@ describe('orders repository', () => {
       expect(db.cart.clear).toHaveBeenCalled();
       
       const addedOrder = db.orders.add.mock.calls[0][0];
-      expect(addedOrder.statusBayar).toBe('Lunas');
+      expect(addedOrder.statusBayar).toBe('Lunas Cash');
       expect(addedOrder.invoiceId).toBe('TEST-00011');
+    });
+
+    it('should set statusBayar as Lunas QRIS if metodeBayar is QRIS', async () => {
+      db.settings.get.mockResolvedValue({ deviceId: 'TEST', namaLaundry: 'KASIR TEST', lastInvoiceNumber: 20 });
+      db.orders.add.mockResolvedValue(2);
+
+      const orderData = { total: 30000, metodeBayar: 'QRIS', cartItems: [{ id: 2, name: 'Setrika', price: 30000, qty: 1 }] };
+      await createOrderFromCheckout({ orderData, bayarNum: 30000, kembalian: 0, isLunas: true });
+
+      const addedOrder = db.orders.add.mock.calls[1][0];
+      expect(addedOrder.statusBayar).toBe('Lunas QRIS');
+    });
+
+    it('should set statusBayar as Lunas Deposit if metodeBayar is Deposit', async () => {
+      db.settings.get.mockResolvedValue({ deviceId: 'TEST', namaLaundry: 'KASIR TEST', lastInvoiceNumber: 30 });
+      db.orders.add.mockResolvedValue(3);
+
+      const orderData = { total: 40000, metodeBayar: 'Deposit', cartItems: [{ id: 3, name: 'Dry Clean', price: 40000, qty: 1 }] };
+      await createOrderFromCheckout({ orderData, bayarNum: 40000, kembalian: 0, isLunas: true });
+
+      const addedOrder = db.orders.add.mock.calls[2][0];
+      expect(addedOrder.statusBayar).toBe('Lunas Deposit');
     });
   });
 
@@ -74,6 +96,14 @@ describe('orders repository', () => {
       
       expect(res).toBe(1);
       expect(db.orders.update).toHaveBeenCalledWith(1, expect.objectContaining({ status: 'Ambil' }));
+    });
+
+    it('should successfully update to Ambil if statusBayar is Lunas QRIS and has Deterjen', async () => {
+      db.orders.get.mockResolvedValue({ id: 2, statusBayar: 'Lunas QRIS', inventoryUsed: [{ nama: 'Deterjen Cair', quantity: 1 }] });
+      db.orders.update.mockResolvedValue(1);
+
+      const res = await updateOrder(2, { status: 'Ambil' });
+      expect(res).toBe(1);
     });
   });
 });

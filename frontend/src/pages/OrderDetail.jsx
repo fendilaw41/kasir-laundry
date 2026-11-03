@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { formatWhatsAppMessage } from '../utils/whatsapp';
 import { getTrackingUrl } from '../utils/tracking';
+import { getStatusLunasByMetode, isStatusLunas } from '../utils/paymentStatus';
 import PrintLayout from '../components/PrintLayout';
 
 const isSameInventory = (a, b) => {
@@ -89,10 +90,13 @@ const OrderDetail = () => {
   };
 
   const toggleLunas = async () => {
-    if (order.statusBayar === 'Lunas') {
+    if (isStatusLunas(order.statusBayar)) {
       await updateOrder(order.id, { statusBayar: 'Belum Lunas', bayar: 0, kembalian: 0 });
+      toast.success('Status pembayaran diubah menjadi Belum Lunas');
     } else {
-      await updateOrder(order.id, { statusBayar: 'Lunas', metodeBayar: 'Tunai', bayar: order.total, kembalian: 0 });
+      const newStatus = getStatusLunasByMetode(order.metodeBayar);
+      await updateOrder(order.id, { statusBayar: newStatus, bayar: order.total, kembalian: 0 });
+      toast.success(`Status pembayaran diubah menjadi ${newStatus}`);
     }
   };
 
@@ -138,6 +142,15 @@ const OrderDetail = () => {
       if (exists) {
         return prev.filter(item => !isSameInventory(item, inv));
       } else {
+        const oldInv = order?.inventoryUsed || [];
+        const oldItem = oldInv.find(i => isSameInventory(i, inv));
+        const oldQty = oldItem ? Number(oldItem.quantity ?? oldItem.qty ?? 1) : 0;
+        const availableStock = (Number(inv.stok) || 0) + oldQty;
+
+        if (availableStock <= 0) {
+          toast.error(`Stok ${inv.nama} habis (0)!`);
+          return prev;
+        }
         return [...prev, { id: inv.id, uuid: inv.uuid, nama: inv.nama, quantity: 1 }];
       }
     });
@@ -152,6 +165,16 @@ const OrderDetail = () => {
         if (newQty <= 0) {
           return prev.filter(item => !isSameInventory(item, inv));
         } else {
+          if (delta > 0) {
+            const oldInv = order?.inventoryUsed || [];
+            const oldItem = oldInv.find(i => isSameInventory(i, inv));
+            const oldQty = oldItem ? Number(oldItem.quantity ?? oldItem.qty ?? 1) : 0;
+            const availableStock = (Number(inv.stok) || 0) + oldQty;
+            if (newQty > availableStock) {
+              toast.error(`Stok ${inv.nama} tidak mencukupi (tersedia: ${availableStock})`);
+              return prev;
+            }
+          }
           return prev.map(item => isSameInventory(item, inv) ? { ...item, quantity: newQty } : item);
         }
       }
@@ -180,6 +203,25 @@ const OrderDetail = () => {
     for (const n of newInv) {
       if (!allItems.some(o => isSameInventory(o, n))) {
         allItems.push(n);
+      }
+    }
+
+    for (const refItem of allItems) {
+      const oldItem = oldInv.find(i => isSameInventory(i, refItem));
+      const newItem = newInv.find(i => isSameInventory(i, refItem));
+
+      const oldQty = oldItem ? Number(oldItem.quantity ?? oldItem.qty ?? 1) : 0;
+      const newQty = newItem ? Number(newItem.quantity ?? newItem.qty ?? 1) : 0;
+
+      const diff = newQty - oldQty;
+      if (diff > 0) {
+        const invId = refItem.id || refItem.uuid || refItem.nama;
+        const invData = await getInventoryById(invId);
+        const currentStok = invData ? Number(invData.stok || 0) : 0;
+        if (currentStok < diff) {
+          toast.error(`Stok ${refItem.nama} tidak mencukupi untuk ditambah! (tersedia: ${currentStok})`);
+          return;
+        }
       }
     }
 
@@ -250,7 +292,9 @@ const OrderDetail = () => {
             </div>
             <div className="d-flex justify-content-between mt-1 align-items-center">
               <span>Metode Bayar :</span>
-              <span className={`badge ${order.statusBayar === 'Lunas' ? 'bg-success' : 'bg-warning'} text-uppercase`}>{order.statusBayar} {order.metodeBayar}</span>
+              <span className={`badge ${isStatusLunas(order.statusBayar) ? 'bg-success' : 'bg-warning'} text-uppercase`}>
+                {order.statusBayar}
+              </span>
             </div>
             <div className="d-flex justify-content-between mt-1 align-items-start" onClick={() => setShowNoteModal(true)} style={{ cursor: 'pointer' }}>
               <span>Catatan :</span>
@@ -375,16 +419,16 @@ const OrderDetail = () => {
                 <i className="bi bi-gear-fill me-2"></i>Aksi
               </button>
               <ul className="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 py-2" style={{ minWidth: '210px' }}>
-                {order.statusBayar !== 'Lunas' && (
+                {!isStatusLunas(order.statusBayar) && (
                   <li><button className="dropdown-item py-2 small d-flex align-items-center" onClick={() => navigate('/pembayaran', { state: { orderData: order, isPaymentOnly: true } })}><i className="bi bi-wallet2 me-2 text-primary fs-6"></i> Bayar</button></li>
                 )}
                 {order.status !== 'Ambil' && (
                   <li>
                     <button className="dropdown-item py-2 small d-flex align-items-center" onClick={toggleLunas}>
-                      {order.statusBayar === 'Lunas' ? (
+                      {isStatusLunas(order.statusBayar) ? (
                         <><i className="bi bi-x-circle me-2 text-danger fs-6"></i> Jadikan Tidak Lunas</>
                       ) : (
-                        <><i className="bi bi-check-circle me-2 text-success fs-6"></i> Jadikan Lunas</>
+                        <><i className="bi bi-check-circle me-2 text-success fs-6"></i> Jadikan {getStatusLunasByMetode(order.metodeBayar)}</>
                       )}
                     </button>
                   </li>
@@ -471,13 +515,39 @@ const OrderDetail = () => {
                       {allInventory?.filter(inv => !(inv.status === 'pending' && inv.stok === 0)).map(inv => {
                         const activeItem = selectedInventory.find(s => isSameInventory(s, inv));
                         const isActive = !!activeItem;
+                        const oldInv = order?.inventoryUsed || [];
+                        const oldItem = oldInv.find(i => isSameInventory(i, inv));
+                        const oldQty = oldItem ? Number(oldItem.quantity ?? oldItem.qty ?? 1) : 0;
+                        const availableStock = (Number(inv.stok) || 0) + oldQty;
+                        const isOutOfStock = availableStock <= 0;
+
                         return (
-                          <div key={inv.id} className={`d-flex align-items-center justify-content-between p-3 rounded-4 border transition-all ${isActive ? 'bg-outline-primary text-dark border-primary shadow-sm' : 'bg-white text-dark shadow-sm'}`}>
-                            <div className="d-flex align-items-center gap-3 flex-grow-1" style={{ cursor: 'pointer' }} onClick={() => toggleInventory(inv)}>
+                          <div
+                            key={inv.id}
+                            className={`d-flex align-items-center justify-content-between p-3 rounded-4 border transition-all ${isActive
+                              ? 'bg-outline-primary text-dark border-primary shadow-sm'
+                              : isOutOfStock
+                                ? 'bg-light text-muted opacity-50'
+                                : 'bg-white text-dark shadow-sm'
+                              }`}
+                          >
+                            <div
+                              className="d-flex align-items-center gap-3 flex-grow-1"
+                              style={{ cursor: isOutOfStock && !isActive ? 'not-allowed' : 'pointer' }}
+                              onClick={() => {
+                                if (isOutOfStock && !isActive) {
+                                  toast.error(`Stok ${inv.nama} habis (0)!`);
+                                  return;
+                                }
+                                toggleInventory(inv);
+                              }}
+                            >
                               <i className={`bi ${isActive ? 'bi-check-circle-fill text-primary' : 'bi-box-seam'} fs-4`}></i>
                               <div>
                                 <div className="fw-bold">{inv.nama}</div>
-                                <small className={isActive ? 'text-primary-50' : 'text-muted'}>Sisa Stok: {inv.stok}</small>
+                                <small className={isOutOfStock && !isActive ? 'text-danger fw-bold' : isActive ? 'text-primary-50' : 'text-muted'}>
+                                  {isOutOfStock && !isActive ? 'Stok Habis (0)' : `Sisa Stok: ${inv.stok}`}
+                                </small>
                               </div>
                             </div>
                             {isActive && (

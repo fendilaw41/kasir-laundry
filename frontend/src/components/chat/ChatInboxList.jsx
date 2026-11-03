@@ -26,8 +26,21 @@ export const ChatInboxList = ({
     return `${date.getDate()}/${date.getMonth() + 1}`;
   };
 
+  const myIds = [currentUser?.uuid, currentUser?.id, currentUser?.userId].filter(Boolean).map(String);
+  const myUsername = (currentUser?.username || '').toLowerCase().trim();
+
   // Filter percakapan
   const filteredConversations = conversations.filter((conv) => {
+    // Isolasi akses: Kasir hanya boleh melihat percakapan di mana dia adalah anggota
+    if (currentUser?.role === 'kasir' && conv.members && Array.isArray(conv.members)) {
+      const isMember = conv.members.some((m) => {
+        const memberUserId = String(m.userId || m.user?.id || m.user?.uuid || '');
+        const memberUsername = (m.user?.username || '').toLowerCase().trim();
+        return (memberUserId && myIds.includes(memberUserId)) || (myUsername && memberUsername === myUsername);
+      });
+      if (!isMember) return false;
+    }
+
     // Filter tab
     if (activeFilter === 'store' && conv.type === 'CROSS_STORE') return false;
     if (activeFilter === 'cross' && conv.type !== 'CROSS_STORE') return false;
@@ -147,6 +160,17 @@ export const ChatInboxList = ({
               ? '📷 Foto'
               : (conv.lastMessage?.content || 'Belum ada pesan');
 
+            const otherMember = conv.members?.find((m) => {
+              const mUserId = String(m.userId || m.user?.id || m.user?.uuid || '');
+              const mUsername = (m.user?.username || '').toLowerCase().trim();
+              return !myIds.includes(mUserId) && (!myUsername || mUsername !== myUsername);
+            });
+            const isWithOwner = Boolean(
+              conv.isOwner ||
+              otherMember?.user?.role === 'owner' ||
+              (!isGroup && conv.members?.some(m => m.user?.role === 'owner' && !myIds.includes(String(m.userId || m.user?.id))))
+            );
+
             return (
               <div
                 key={conv.id}
@@ -182,8 +206,15 @@ export const ChatInboxList = ({
                 <div className="flex-grow-1 text-start overflow-hidden">
                   <div className="d-flex align-items-center justify-content-between mb-1">
                     <div className="d-flex align-items-center gap-1 overflow-hidden">
-                      <h6 className="mb-0 fw-semibold text-dark text-truncate" style={{ fontSize: '0.9rem' }}>
-                        {conv.title}
+                      <h6 className="mb-0 fw-semibold text-dark text-truncate d-flex align-items-center gap-1" style={{ fontSize: '0.9rem' }}>
+                        <span className="text-truncate">{conv.title}</span>
+                        {isWithOwner && (
+                          <i
+                            className="bi bi-patch-check-fill text-primary flex-shrink-0"
+                            style={{ fontSize: '13px' }}
+                            title="Owner Terverifikasi"
+                          ></i>
+                        )}
                       </h6>
                       {isCrossStore && (
                         <span className="badge bg-purple-subtle text-purple border rounded-pill px-2 py-0" style={{ fontSize: '0.65rem' }}>

@@ -1,20 +1,32 @@
 import { useState, useEffect } from 'react';
 import { getSettingsQuery, updateSettings } from '../db/repositories/settings';
 import { getKasirUsersQuery, addUser, updateUser, deleteUser as deleteUserRepo } from '../db/repositories/users';
+import { getProductsQuery, addProduct, updateProduct, deleteProduct as deleteProductRepo } from '../db/repositories/products';
 import { useLiveQuery } from 'dexie-react-hooks';
 import toast from 'react-hot-toast';
 
 const Setting = ({ user }) => {
   const settings = useLiveQuery(getSettingsQuery);
   const users = useLiveQuery(getKasirUsersQuery);
+  const products = useLiveQuery(getProductsQuery);
 
-  // Tab aktif: 'umum' (Informasi Toko & Kontak) | 'struk' (Format Nota Struk) | 'kasir' (Manajemen Kasir)
+  // Tab aktif: 'umum' (Informasi Toko & Kontak) | 'struk' (Format Nota Struk) | 'kasir' (Manajemen Kasir) | 'product' (Master Layanan)
   const [activeTab, setActiveTab] = useState('umum');
 
   const [isSaving, setIsSaving] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  // State untuk Modal & Form Produk / Layanan
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [productFormData, setProductFormData] = useState({
+    name: '',
+    category: 'CUCI LIPAT',
+    code: '',
+    price: '',
+  });
 
   const [userFormData, setUserFormData] = useState({
     fullname: '',
@@ -117,6 +129,64 @@ const Setting = ({ user }) => {
     setShowUserModal(true);
   };
 
+  const openProductModal = (selectedProduct = null) => {
+    if (selectedProduct) {
+      setEditingProduct(selectedProduct);
+      setProductFormData({
+        name: selectedProduct.name || '',
+        category: selectedProduct.category || 'CUCI LIPAT',
+        code: selectedProduct.code || '',
+        price: selectedProduct.price || '',
+      });
+    } else {
+      setEditingProduct(null);
+      setProductFormData({
+        name: '',
+        category: 'CUCI LIPAT',
+        code: '',
+        price: '',
+      });
+    }
+    setShowProductModal(true);
+  };
+
+  const handleProductSave = async (e) => {
+    e.preventDefault();
+    if (!isOwner) {
+      toast.error('Hanya akun Pemilik (Owner) yang dapat mengubah layanan');
+      return;
+    }
+    try {
+      if (editingProduct) {
+        await updateProduct(editingProduct.id, productFormData);
+        toast.success('Layanan berhasil diperbarui');
+      } else {
+        await addProduct(productFormData);
+        toast.success('Layanan baru berhasil ditambahkan');
+      }
+      setShowProductModal(false);
+      setEditingProduct(null);
+      setProductFormData({ name: '', category: 'CUCI LIPAT', code: '', price: '' });
+    } catch (err) {
+      toast.error(err.message || 'Gagal menyimpan layanan');
+    }
+  };
+
+  const deleteProduct = async (id) => {
+    if (!isOwner) {
+      toast.error('Hanya akun Pemilik (Owner) yang dapat menghapus layanan');
+      return;
+    }
+    if (window.confirm('Hapus layanan laundry ini?')) {
+      try {
+        await deleteProductRepo(id);
+        toast.success('Layanan berhasil dihapus');
+      } catch (err) {
+        toast.error(err.message || 'Gagal menghapus layanan');
+      }
+    }
+  };
+
   if (!settings) {
     return (
       <div className="p-5 text-center text-muted">
@@ -139,9 +209,8 @@ const Setting = ({ user }) => {
           >
             <button
               type="button"
-              className={`btn btn-sm rounded-pill flex-fill py-2 fw-semibold d-flex align-items-center justify-content-center gap-1 transition-all ${
-                activeTab === 'umum' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
-              }`}
+              className={`btn btn-sm rounded-pill flex-fill py-2 fw-semibold d-flex align-items-center justify-content-center gap-1 transition-all ${activeTab === 'umum' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
+                }`}
               style={{ fontSize: '0.82rem' }}
               onClick={() => setActiveTab('umum')}
             >
@@ -151,9 +220,8 @@ const Setting = ({ user }) => {
 
             <button
               type="button"
-              className={`btn btn-sm rounded-pill flex-fill py-2 fw-semibold d-flex align-items-center justify-content-center gap-1 transition-all ${
-                activeTab === 'struk' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
-              }`}
+              className={`btn btn-sm rounded-pill flex-fill py-2 fw-semibold d-flex align-items-center justify-content-center gap-1 transition-all ${activeTab === 'struk' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
+                }`}
               style={{ fontSize: '0.82rem' }}
               onClick={() => setActiveTab('struk')}
             >
@@ -164,9 +232,8 @@ const Setting = ({ user }) => {
             {isOwner && (
               <button
                 type="button"
-                className={`btn btn-sm rounded-pill flex-fill py-2 fw-semibold d-flex align-items-center justify-content-center gap-1 transition-all ${
-                  activeTab === 'kasir' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
-                }`}
+                className={`btn btn-sm rounded-pill flex-fill py-2 fw-semibold d-flex align-items-center justify-content-center gap-1 transition-all ${activeTab === 'kasir' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
+                  }`}
                 style={{ fontSize: '0.82rem' }}
                 onClick={() => setActiveTab('kasir')}
               >
@@ -174,12 +241,33 @@ const Setting = ({ user }) => {
                 <span>Kasir</span>
                 {users && users.length > 0 && (
                   <span
-                    className={`badge rounded-pill ms-1 ${
-                      activeTab === 'kasir' ? 'bg-white text-primary' : 'bg-light text-muted'
-                    }`}
+                    className={`badge rounded-pill ms-1 ${activeTab === 'kasir' ? 'bg-white text-primary' : 'bg-light text-muted'
+                      }`}
                     style={{ fontSize: '0.65rem' }}
                   >
                     {users.length}
+                  </span>
+                )}
+              </button>
+            )}
+
+            {isOwner && (
+              <button
+                type="button"
+                className={`btn btn-sm rounded-pill flex-fill py-2 fw-semibold d-flex align-items-center justify-content-center gap-1 transition-all ${activeTab === 'product' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
+                  }`}
+                style={{ fontSize: '0.82rem' }}
+                onClick={() => setActiveTab('product')}
+              >
+                <i className="bi bi-tag-fill"></i>
+                <span>Layanan</span>
+                {products && products.length > 0 && (
+                  <span
+                    className={`badge rounded-pill ms-1 ${activeTab === 'product' ? 'bg-white text-primary' : 'bg-light text-muted'
+                      }`}
+                    style={{ fontSize: '0.65rem' }}
+                  >
+                    {products.length}
                   </span>
                 )}
               </button>
@@ -660,7 +748,264 @@ const Setting = ({ user }) => {
             </div>
           </div>
         )}
+
+        {/* ======================================================== */}
+        {/* BAGIAN 4: MASTER PRODUK / LAYANAN (KHUSUS OWNER)          */}
+        {/* ======================================================== */}
+        {activeTab === 'product' && isOwner && (
+          <div>
+            {/* ACTION HEADER */}
+            <div className="d-flex justify-content-between align-items-center mb-3 px-1">
+              <div>
+                <h6 className="fw-bold mb-0 text-dark">Master Produk Layanan</h6>
+                <small className="text-muted" style={{ fontSize: '0.74rem' }}>
+                  Total {products?.length || 0} layanan terdaftar di toko ini
+                </small>
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm rounded-pill px-3 py-2 fw-semibold d-flex align-items-center gap-1 shadow-sm"
+                onClick={() => openProductModal()}
+                style={{ fontSize: '0.8rem' }}
+              >
+                <i className="bi bi-plus-circle-fill"></i>
+                <span>Tambah Layanan</span>
+              </button>
+            </div>
+
+            {/* LIST PRODUK (GAYA SIMPLE SEPERTI MANAJEMEN KASIR) */}
+            <div className="d-flex flex-column gap-2 mb-4">
+              {!products || products.length === 0 ? (
+                <div className="card border-0 shadow-sm rounded-4 p-5 text-center bg-white my-2">
+                  <div
+                    className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
+                    style={{ width: '64px', height: '64px', backgroundColor: '#eaf1ff', color: '#0d5afd' }}
+                  >
+                    <i className="bi bi-tag fs-2"></i>
+                  </div>
+                  <h6 className="fw-bold text-dark mb-1">Belum Ada Layanan</h6>
+                  <p className="text-muted small mb-3">
+                    Tambahkan layanan laundry yang ditawarkan oleh toko Anda.
+                  </p>
+                  <div>
+                    <button
+                      type="button"
+                      className="btn btn-outline-primary btn-sm rounded-pill px-4"
+                      onClick={() => openProductModal()}
+                    >
+                      + Tambah Layanan Pertama
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                products.map((p) => {
+                  const isSetrika = p.category?.includes('SETRIKA');
+                  return (
+                    <div
+                      key={p.id}
+                      className="p-3 bg-white rounded-4 shadow-sm border d-flex align-items-center justify-content-between"
+                      style={{ borderColor: '#f1f5f9' }}
+                    >
+                      <div className="d-flex align-items-center gap-3 overflow-hidden">
+                        <div
+                          className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-xs flex-shrink-0"
+                          style={{
+                            width: '42px',
+                            height: '42px',
+                            background: isSetrika
+                              ? 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)'
+                              : 'linear-gradient(135deg, #0d5afd 0%, #1e40af 100%)',
+                            fontSize: '1rem',
+                          }}
+                        >
+                          <i className={`bi ${isSetrika ? 'bi-fire' : 'bi-water'}`}></i>
+                        </div>
+                        <div className="overflow-hidden">
+                          <h6 className="mb-0 fw-bold text-dark text-truncate" style={{ fontSize: '0.9rem' }}>
+                            {p.name}
+                          </h6>
+                          <small className="text-muted text-truncate d-block" style={{ fontSize: '0.74rem' }}>
+                            <span className="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 me-1">
+                              {p.category || 'LAINNYA'}
+                            </span>
+                            {p.code && <span className="fw-semibold me-1">[{p.code}]</span>}
+                            •{' '}
+                            <span className="fw-bold text-dark ms-1">
+                              Rp {Number(p.price || 0).toLocaleString('id-ID')}
+                            </span>
+                          </small>
+                        </div>
+                      </div>
+
+                      <div className="d-flex align-items-center gap-1 flex-shrink-0 ms-2">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-light rounded-circle text-primary border shadow-xs d-flex align-items-center justify-content-center"
+                          style={{ width: '34px', height: '34px' }}
+                          onClick={() => openProductModal(p)}
+                          title="Edit Data Layanan"
+                        >
+                          <i className="bi bi-pencil-fill" style={{ fontSize: '0.8rem' }}></i>
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-light rounded-circle text-danger border shadow-xs d-flex align-items-center justify-content-center"
+                          style={{ width: '34px', height: '34px' }}
+                          onClick={() => deleteProduct(p.id)}
+                          title="Hapus Layanan"
+                        >
+                          <i className="bi bi-trash-fill" style={{ fontSize: '0.8rem' }}></i>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* ======================================================== */}
+      {/* MODAL TAMBAH / EDIT PRODUK (SHOPEE MOBILE SHEET STYLE)     */}
+      {/* ======================================================== */}
+      {showProductModal && (
+        <>
+          <div
+            className="modal-backdrop fade show"
+            style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}
+            onClick={() => setShowProductModal(false)}
+          ></div>
+          <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1065 }}>
+            <div className="modal-dialog modal-dialog-centered mx-auto" style={{ maxWidth: '420px' }}>
+              <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div className="modal-header border-bottom px-4 py-3 bg-white">
+                  <div className="d-flex align-items-center gap-2">
+                    <div
+                      className="rounded-circle d-flex align-items-center justify-content-center text-primary"
+                      style={{ width: '32px', height: '32px', backgroundColor: '#eaf1ff' }}
+                    >
+                      <i className={`bi ${editingProduct ? 'bi-pencil-square' : 'bi-plus-circle-fill'}`}></i>
+                    </div>
+                    <h6 className="fw-bold mb-0 text-dark">
+                      {editingProduct ? 'Edit Layanan' : 'Tambah Layanan Baru'}
+                    </h6>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setShowProductModal(false)}
+                  ></button>
+                </div>
+
+                <form onSubmit={handleProductSave}>
+                  <div className="modal-body p-4 d-flex flex-column gap-3">
+                    {/* Nama Layanan */}
+                    <div>
+                      <label className="text-muted small fw-semibold mb-1 d-block" style={{ fontSize: '0.74rem' }}>
+                        NAMA LAYANAN <span className="text-danger">*</span>
+                      </label>
+                      <div className="input-group">
+                        <span className="input-group-text bg-light border-0 text-muted rounded-start-3">
+                          <i className="bi bi-tag-fill"></i>
+                        </span>
+                        <input
+                          type="text"
+                          className="form-control bg-light border-0 py-2 rounded-end-3 text-dark fw-semibold"
+                          style={{ fontSize: '0.88rem' }}
+                          value={productFormData.name}
+                          onChange={(e) => setProductFormData({ ...productFormData, name: e.target.value })}
+                          placeholder="Contoh: Cuci Lipat Reguler (2-3 hari)"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Kategori Layanan */}
+                    <div>
+                      <label className="text-muted small fw-semibold mb-1 d-block" style={{ fontSize: '0.74rem' }}>
+                        KATEGORI LAYANAN <span className="text-danger">*</span>
+                      </label>
+                      <div className="input-group">
+                        <span className="input-group-text bg-light border-0 text-muted rounded-start-3">
+                          <i className="bi bi-grid-fill"></i>
+                        </span>
+                        <input
+                          type="text"
+                          list="categoryOptionsList"
+                          className="form-control bg-light border-0 py-2 rounded-end-3 text-dark fw-semibold text-uppercase"
+                          style={{ fontSize: '0.88rem' }}
+                          value={productFormData.category}
+                          onChange={(e) => setProductFormData({ ...productFormData, category: e.target.value })}
+                          placeholder="Pilih atau ketik kategori..."
+                          required
+                        />
+                        <datalist id="categoryOptionsList">
+                          <option value="CUCI LIPAT" />
+                          <option value="CUCI SETRIKA" />
+                          <option value="SETRIKA SAJA" />
+                          <option value="SATUAN" />
+                          <option value="BED COVER" />
+                          <option value="SEPATU" />
+                        </datalist>
+                      </div>
+                    </div>
+
+                    {/* Kode Layanan & Harga */}
+                    <div className="row g-2">
+                      <div className="col-5">
+                        <label className="text-muted small fw-semibold mb-1 d-block" style={{ fontSize: '0.74rem' }}>
+                          KODE (OPSIONAL)
+                        </label>
+                        <input
+                          type="text"
+                          className="form-control bg-light border-0 py-2 rounded-3 text-dark fw-semibold text-uppercase"
+                          style={{ fontSize: '0.88rem' }}
+                          value={productFormData.code}
+                          onChange={(e) => setProductFormData({ ...productFormData, code: e.target.value })}
+                          placeholder="CLR"
+                        />
+                      </div>
+                      <div className="col-7">
+                        <label className="text-muted small fw-semibold mb-1 d-block" style={{ fontSize: '0.74rem' }}>
+                          HARGA (RP) <span className="text-danger">*</span>
+                        </label>
+                        <div className="input-group">
+                          <span className="input-group-text bg-light border-0 text-muted rounded-start-3 small">
+                            Rp
+                          </span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="500"
+                            className="form-control bg-light border-0 py-2 rounded-end-3 text-dark fw-bold"
+                            style={{ fontSize: '0.88rem' }}
+                            value={productFormData.price}
+                            onChange={(e) => setProductFormData({ ...productFormData, price: e.target.value })}
+                            placeholder="5000"
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="modal-footer border-0 px-4 pb-4 pt-0">
+                    <button
+                      type="submit"
+                      className="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm"
+                      style={{ fontSize: '0.88rem' }}
+                    >
+                      <i className="bi bi-check2-circle me-1"></i>
+                      <span>{editingProduct ? 'Simpan Perubahan' : 'Tambah Layanan'}</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ======================================================== */}
       {/* MODAL TAMBAH / EDIT KASIR (SHOPEE MOBILE SHEET STYLE)     */}

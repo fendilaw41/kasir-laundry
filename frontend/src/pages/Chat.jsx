@@ -28,6 +28,28 @@ const Chat = ({ user }) => {
     [],
   );
 
+  const currentUserId = String(user?.uuid || user?.id || user?.userId || '');
+  const currentUsername = (user?.username || '').toLowerCase().trim();
+
+  const isUserMember = useCallback((conv) => {
+    if (!conv?.members || !Array.isArray(conv.members)) return true;
+    return conv.members.some((m) => {
+      const memberUserId = String(m.userId || m.user?.id || m.user?.uuid || '');
+      const memberUsername = (m.user?.username || '').toLowerCase().trim();
+      return (
+        (memberUserId && memberUserId === currentUserId) ||
+        (currentUsername && memberUsername === currentUsername)
+      );
+    });
+  }, [currentUserId, currentUsername]);
+
+  const filteredLocalConversations = (localConversations || []).filter((conv) => {
+    if (user?.role === 'kasir') {
+      return isUserMember(conv);
+    }
+    return true;
+  });
+
   const handleBackToInbox = useCallback(() => {
     setSelectedConversation(null);
     fetchConversationsFromBackend();
@@ -36,27 +58,61 @@ const Chat = ({ user }) => {
   // Update header utama di Layout sesuai percakapan aktif
   useEffect(() => {
     if (!selectedConversation) {
-      setChatHeaderState?.(null);
+      setChatHeaderState?.(prev => (prev === null ? prev : null));
     } else if (selectedConversation === 'bot') {
-      setChatHeaderState?.({
-        type: 'bot',
-        title: 'Asisten Order & Bot',
-        subtitle: 'Otomasi Transaksi & Cek Nota',
-        onBack: handleBackToInbox,
+      setChatHeaderState?.(prev => {
+        if (prev?.type === 'bot') return prev;
+        return {
+          type: 'bot',
+          title: 'Asisten Order & Bot',
+          subtitle: 'Otomasi Transaksi & Cek Nota',
+          onBack: handleBackToInbox,
+        };
       });
     } else {
       const isGroup = selectedConversation.type === 'GROUP' || selectedConversation.type === 'CROSS_STORE';
       const isCrossStore = selectedConversation.type === 'CROSS_STORE';
-      setChatHeaderState?.({
-        type: 'chat',
-        title: selectedConversation.title || 'Obrolan',
-        isGroup,
-        isCrossStore,
-        avatarLetter: selectedConversation.title?.charAt(0).toUpperCase() || 'U',
-        onBack: handleBackToInbox,
+
+      // Cek apakah lawan bicara adalah Owner (verifikasi badge biru)
+      const otherMember = selectedConversation.members?.find((m) => {
+        const mUserId = String(m.userId || m.user?.id || m.user?.uuid || '');
+        const mUsername = (m.user?.username || '').toLowerCase().trim();
+        return (mUserId && mUserId !== currentUserId) || (mUsername && mUsername !== currentUsername);
+      });
+      const isOwner = Boolean(
+        selectedConversation.isOwner ||
+        otherMember?.user?.role === 'owner' ||
+        (!isGroup && selectedConversation.members?.some(m => m.user?.role === 'owner' && String(m.userId || m.user?.id) !== currentUserId))
+      );
+      const title = selectedConversation.title || 'Obrolan';
+      const avatarLetter = title.charAt(0).toUpperCase() || 'U';
+
+      setChatHeaderState?.(prev => {
+        // Cegah re-render berulang jika nilai header tidak berubah
+        if (
+          prev &&
+          prev.type === 'chat' &&
+          prev.title === title &&
+          prev.isGroup === isGroup &&
+          prev.isCrossStore === isCrossStore &&
+          prev.isOwner === isOwner &&
+          prev.avatarLetter === avatarLetter
+        ) {
+          return prev;
+        }
+
+        return {
+          type: 'chat',
+          title,
+          isGroup,
+          isCrossStore,
+          isOwner,
+          avatarLetter,
+          onBack: handleBackToInbox,
+        };
       });
     }
-  }, [selectedConversation, setChatHeaderState, handleBackToInbox]);
+  }, [selectedConversation, setChatHeaderState, handleBackToInbox, currentUserId, currentUsername]);
 
   // Bersihkan custom header saat meninggalkan halaman chat
   useEffect(() => {
@@ -137,7 +193,7 @@ const Chat = ({ user }) => {
         {/* TAMPILAN 3: INBOX LIST (DEFAULT WHATSAPP STYLE) */}
         {!selectedConversation && (
           <ChatInboxList
-            conversations={localConversations || []}
+            conversations={filteredLocalConversations}
             onSelectConversation={handleSelectConversation}
             onOpenNewChatModal={() => setShowNewChatModal(true)}
             enableCrossStore={config.enableCrossStoreChat}

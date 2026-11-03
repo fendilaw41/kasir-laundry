@@ -53,11 +53,48 @@ export const useTransaksi = () => {
 
   const total = subtotal - nilaiDiskon;
 
+  // Auto-prune draft inventory jika stok barang sudah 0
+  useEffect(() => {
+    if (draftOrder?.inventory?.length && inventory?.length) {
+      const invalidItems = draftOrder.inventory.filter((item) => {
+        const inv = inventory.find(
+          (i) => i.id === item.id || (item.uuid && i.uuid === item.uuid)
+        );
+        return inv && Number(inv.stok || 0) <= 0;
+      });
+      if (invalidItems.length > 0) {
+        const cleaned = draftOrder.inventory.filter(
+          (item) => !invalidItems.some((inv) => inv.id === item.id)
+        );
+        updateDraftOrder({ inventory: cleaned });
+      }
+    }
+  }, [draftOrder?.inventory, inventory]);
+
   const handleCheckout = async () => {
     if (!cartItems || cartItems.length === 0) return;
     if (!selectedPelanggan) {
       setShowModal(true);
       return;
+    }
+
+    // Validasi ketersediaan stok inventori yang dipilih
+    if (selectedInventory && selectedInventory.length > 0) {
+      for (const item of selectedInventory) {
+        const invData = inventory?.find(
+          (i) => i.id === item.id || (item.uuid && i.uuid === item.uuid) || (item.nama && i.nama?.toLowerCase() === item.nama?.toLowerCase())
+        );
+        const availableStock = invData ? Number(invData.stok || 0) : 0;
+        const requestedQty = Number(item.quantity || 1);
+        if (availableStock <= 0) {
+          toast.error(`Stok ${item.nama || 'inventori'} habis (0), tidak dapat digunakan!`);
+          return;
+        }
+        if (requestedQty > availableStock) {
+          toast.error(`Stok ${item.nama} tidak mencukupi (tersedia: ${availableStock})`);
+          return;
+        }
+      }
     }
 
     const user = JSON.parse(sessionStorage.getItem('user'));
@@ -101,6 +138,10 @@ export const useTransaksi = () => {
     if (exists) {
       newInventory = prev.filter(item => item.id !== inv.id);
     } else {
+      if (Number(inv.stok || 0) <= 0) {
+        toast.error(`Stok ${inv.nama} habis (0), tidak bisa dipilih!`);
+        return;
+      }
       newInventory = [...prev, { id: inv.id, nama: inv.nama, quantity: 1 }];
     }
     await updateDraftOrder({ inventory: newInventory });
@@ -110,7 +151,13 @@ export const useTransaksi = () => {
     const prev = selectedInventory;
     const existing = prev.find(item => item.id === invId);
     if (existing) {
+      const invData = inventory?.find(i => i.id === invId);
+      const currentStock = invData ? Number(invData.stok || 0) : 0;
       const newQty = (existing.quantity || 1) + delta;
+      if (delta > 0 && newQty > currentStock) {
+        toast.error(`Stok ${existing.nama || 'item'} tidak mencukupi (tersedia: ${currentStock})`);
+        return;
+      }
       let newInventory;
       if (newQty <= 0) {
         newInventory = prev.filter(item => item.id !== invId);

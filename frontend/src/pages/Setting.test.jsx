@@ -20,6 +20,13 @@ vi.mock('../db/repositories/users', () => ({
   deleteUser: vi.fn().mockResolvedValue(1),
 }));
 
+vi.mock('../db/repositories/products', () => ({
+  getProductsQuery: () => 'PRODUCTS_QUERY',
+  addProduct: vi.fn().mockResolvedValue(1),
+  updateProduct: vi.fn().mockResolvedValue(1),
+  deleteProduct: vi.fn().mockResolvedValue(1),
+}));
+
 // Mock react-hot-toast
 vi.mock('react-hot-toast', () => ({
   default: {
@@ -49,14 +56,24 @@ describe('Setting Component - Mobile Redesign', () => {
     { id: 2, fullname: 'Budi Kasir', username: 'budi123', role: 'kasir' },
   ];
 
+  const mockProducts = [
+    { id: 1, name: 'Cuci Lipat Reguler', category: 'CUCI LIPAT', code: 'CLR', price: 5000 },
+    { id: 2, name: 'Cuci Setrika Express', category: 'CUCI SETRIKA', code: 'CSE', price: 9000 },
+  ];
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  const setupMockQueries = (settingsData = mockSettings, usersData = mockKasirUsers) => {
+  const setupMockQueries = (
+    settingsData = mockSettings,
+    usersData = mockKasirUsers,
+    productsData = mockProducts
+  ) => {
     useLiveQuery.mockImplementation((queryFn) => {
       const q = typeof queryFn === 'function' ? queryFn() : queryFn;
       if (q === 'USERS_QUERY') return usersData;
+      if (q === 'PRODUCTS_QUERY') return productsData;
       return settingsData;
     });
   };
@@ -115,5 +132,20 @@ describe('Setting Component - Mobile Redesign', () => {
     expect(screen.getByText('Siti Kasir')).toBeDefined();
     expect(screen.getByText('Budi Kasir')).toBeDefined();
     expect(screen.getByRole('button', { name: /Tambah Kasir/i })).toBeDefined();
+  });
+
+  it('dapat berpindah tab ke Layanan dan menampilkan daftar produk serta tombol tambah untuk owner', () => {
+    setupMockQueries();
+
+    render(<Setting user={{ role: 'owner' }} />);
+
+    // Click tab Layanan
+    const productTab = screen.getByRole('button', { name: /Layanan/i });
+    fireEvent.click(productTab);
+
+    expect(screen.getByText(/Master Produk Layanan/i)).toBeDefined();
+    expect(screen.getByText('Cuci Lipat Reguler')).toBeDefined();
+    expect(screen.getByText('Cuci Setrika Express')).toBeDefined();
+    expect(screen.getByRole('button', { name: /Tambah Layanan/i })).toBeDefined();
   });
 });

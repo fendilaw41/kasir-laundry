@@ -13,6 +13,7 @@ import { isOfflineExceeded3Days } from '../../utils/offlineGuard';
 
 export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }) => {
   const [messages, setMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [inputValue, setInputValue] = useState('');
   const [selectedImage, setSelectedImage] = useState(null); // { blob, previewUrl, width, height, size }
   const [isSending, setIsSending] = useState(false);
@@ -92,19 +93,22 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
   }, [typingUser]);
 
   // Muat pesan saat pertama kali masuk ke percakapan
-  const loadMessages = async () => {
+  const loadMessages = async (showLoading = false) => {
+    if (showLoading) setIsLoading(true);
     try {
       const list = await getMessages(conversation.id);
       setMessages(list);
     } catch (err) {
       console.warn('Gagal memuat pesan:', err);
+    } finally {
+      if (showLoading) setIsLoading(false);
     }
   };
 
   useEffect(() => {
     if (!conversation?.id) return;
 
-    loadMessages();
+    loadMessages(true);
     markConversationAsRead(conversation.id);
     joinConversationRoom(conversation.id);
 
@@ -198,18 +202,37 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
     }, 2000);
   };
 
-  // Submit pengiriman pesan
+  // Submit pengiriman pesan dengan Optimistic UI (bubble muncul instan)
   const handleSendMessage = async (e) => {
     e?.preventDefault();
     if ((!inputValue.trim() && !selectedImage) || isSending) return;
 
-    setIsSending(true);
     const content = inputValue;
     const imgData = selectedImage;
+    const tempId = 'temp-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
 
+    // Siapkan pesan optimistik
+    const optimisticMsg = {
+      id: tempId,
+      uuid: tempId,
+      conversationId: conversation.id,
+      content,
+      type: imgData ? 'IMAGE' : 'TEXT',
+      imageBlob: imgData ? imgData.blob : null,
+      imageUrl: imgData ? imgData.previewUrl : null,
+      senderId: resolvedCurrentUser?.uuid || resolvedCurrentUser?.id,
+      sender: resolvedCurrentUser,
+      status: 'SENDING',
+      createdAt: new Date().toISOString(),
+      isOptimistic: true,
+    };
+
+    // Munculkan bubble secara instan ke state antarmuka pengguna
+    setMessages((prev) => [...prev, optimisticMsg]);
     setInputValue('');
     setSelectedImage(null);
     emitTyping(conversation.id, false);
+    setIsSending(true);
 
     try {
       const createdMsg = await sendMessage({
@@ -222,10 +245,18 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
         currentUser: resolvedCurrentUser,
       });
 
-      // Tambahkan ke state lokal agar pesan langsung muncul di antarmuka
-      setMessages((prev) => [...prev, createdMsg]);
+      // Gantikan bubble optimistik dengan data pesan valid dari server
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempId || m.uuid === tempId ? createdMsg : m))
+      );
     } catch (err) {
       console.error('Gagal mengirim pesan:', err);
+      // Tandai bubble sebagai gagal jika proses websocket/jaringan error
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempId || m.uuid === tempId ? { ...m, status: 'FAILED' } : m
+        )
+      );
     } finally {
       setIsSending(false);
     }
@@ -268,11 +299,50 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
     return '';
   };
 
+  // Pengecekan akses anggota jika pengguna adalah kasir
+  const myIds = [
+    resolvedCurrentUser?.uuid,
+    resolvedCurrentUser?.id,
+    resolvedCurrentUser?.userId,
+  ].filter(Boolean).map(String);
+  const myUsername = (resolvedCurrentUser?.username || '').toLowerCase().trim();
+
+  const isMemberOfConversation =
+    !conversation?.members ||
+    !Array.isArray(conversation.members) ||
+    conversation.members.some((m) => {
+      const memberUserId = String(m.userId || m.user?.id || m.user?.uuid || '');
+      const memberUsername = (m.user?.username || '').toLowerCase().trim();
+      return (memberUserId && myIds.includes(memberUserId)) || (myUsername && memberUsername === myUsername);
+    });
+
+  if (resolvedCurrentUser?.role === 'kasir' && !isMemberOfConversation) {
+    return (
+      <div className="d-flex flex-column align-items-center justify-content-center h-100 p-4 text-center bg-white">
+        <i className="bi bi-shield-lock-fill text-danger fs-1 mb-3"></i>
+        <h5 className="fw-bold text-dark">Akses Obrolan Ditolak</h5>
+        <p className="text-muted small mb-4" style={{ maxWidth: '320px' }}>
+          Anda tidak memiliki izin untuk membuka percakapan ini karena Anda bukan anggota dalam obrolan ini.
+        </p>
+        <button className="btn btn-outline-primary rounded-pill px-4" onClick={onBack}>
+          Kembali ke Kotak Masuk
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="d-flex flex-column h-100 bg-white" style={{ position: 'relative' }}>
       {/* DAFTAR PESAN (MESSAGE BUBBLES) */}
       <div className="chat-content-wrap px-3 pt-3 flex-grow-1" style={{ overflowY: 'auto', backgroundColor: '#f4f6f8' }}>
-        {messages.length === 0 ? (
+        {isLoading ? (
+          <div className="d-flex flex-column align-items-center justify-content-center h-100 py-5">
+            <div className="spinner-border text-primary mb-2" role="status" style={{ width: '2rem', height: '2rem' }}>
+              <span className="visually-hidden">Memuat...</span>
+            </div>
+            <span className="text-muted small">Memuat percakapan...</span>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="text-center py-5 text-muted small">
             <i className="bi bi-chat-square-text fs-2 d-block mb-2 text-secondary opacity-50"></i>
             Kirim sapaan atau foto untuk memulai percakapan.
@@ -281,6 +351,7 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
           messages.map((msg, index) => {
             const isMe = checkIsMe(msg);
             const imageUrl = getRenderImageUrl(msg);
+            const isOwnerSender = msg.sender?.role?.toLowerCase() === 'owner';
 
             return (
               <div
@@ -301,10 +372,17 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
                       : '0 1px 3px rgba(0, 0, 0, 0.05)',
                   }}
                 >
-                  {/* Nama Pengirim (Tampil di Grup untuk lawan bicara) */}
-                  {!isMe && isGroup && msg.sender?.fullname && (
-                    <div className="fw-bold mb-1 px-1" style={{ fontSize: '0.75rem', color: '#155dfc' }}>
-                      {msg.sender.fullname}
+                  {/* Nama Pengirim & Verified Badge Owner */}
+                  {!isMe && (isGroup || isOwnerSender) && (
+                    <div className="fw-bold mb-1 px-1 d-flex align-items-center gap-1" style={{ fontSize: '0.75rem', color: '#155dfc' }}>
+                      {msg.sender?.fullname && <span>{msg.sender.fullname}</span>}
+                      {isOwnerSender && (
+                        <i
+                          className="bi bi-patch-check-fill text-primary"
+                          style={{ fontSize: '11px' }}
+                          title="Owner Terverifikasi"
+                        ></i>
+                      )}
                     </div>
                   )}
 
@@ -356,7 +434,19 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
                     {/* Status Centang (Hanya untuk pesan pengirim / isMe) */}
                     {isMe && (
                       <span className="d-inline-flex align-items-center ms-1">
-                        {msg.status === 'PENDING' ? (
+                        {msg.status === 'SENDING' ? (
+                          <span
+                            className="spinner-border spinner-border-sm"
+                            style={{ width: '9px', height: '9px', borderWidth: '1.5px', color: 'rgba(255, 255, 255, 0.85)' }}
+                            title="Mengirim pesan..."
+                          />
+                        ) : msg.status === 'FAILED' ? (
+                          <i
+                            className="bi bi-exclamation-circle-fill text-warning"
+                            style={{ fontSize: '11px' }}
+                            title="Gagal terkirim"
+                          />
+                        ) : msg.status === 'PENDING' ? (
                           <i
                             className="bi bi-clock"
                             style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.7)' }}

@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getOrdersSortedByDateQuery, updateOrder, deleteOrder } from '../db/repositories/orders';
-import { pullOrdersFromBackend } from '../services/syncService';
+import { pullOrdersFromBackend, syncTwoWay } from '../services/syncService';
+import { isStatusLunas } from '../utils/paymentStatus';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
@@ -21,8 +22,8 @@ const DataOrder = ({ user }) => {
     if (isRefreshing) return;
     setIsRefreshing(true);
     try {
-      await pullOrdersFromBackend(true);
-      toast.success('Data order di perbarui');
+      await syncTwoWay();
+      toast.success('Data order & server berhasil disinkronkan!');
     } catch (err) {
       toast.error('Gagal sinkronkan order: ' + err.message);
     } finally {
@@ -46,7 +47,7 @@ const DataOrder = ({ user }) => {
     return allOrders.filter(order => {
       const matchTab = order.status === activeTab || (!order.status && activeTab === 'Proses') || (order.status === 'Baru' && activeTab === 'Proses');
       const matchAntar = filterAntar === 'Semua' || order.tipeLayanan === filterAntar || order.status === 'Baru';
-      const matchBayar = filterBayar === 'Semua' || order.statusBayar === filterBayar;
+      const matchBayar = filterBayar === 'Semua' || (filterBayar === 'Lunas' ? isStatusLunas(order.statusBayar) : (filterBayar === 'DP' ? order.statusBayar === 'DP' : !isStatusLunas(order.statusBayar)));
       const matchPrioritas = filterPrioritas === 'Semua' || (filterPrioritas === 'Ya' ? order.isPriority : !order.isPriority);
 
       return matchTab && matchAntar && matchBayar && matchPrioritas;
@@ -123,13 +124,26 @@ const DataOrder = ({ user }) => {
   return (
     <div className="data-order-wrapper pb-5">
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h5 className="mb-0 fw-bold">Data Order</h5>
-        <i
-          className={`bi bi-arrow-clockwise fs-5 ${isRefreshing ? 'opacity-50' : ''}`}
+        <div>
+          <h5 className="mb-0 fw-bold">Data Order</h5>
+          <small className="text-muted" style={{ fontSize: '0.72rem' }}>
+            {orders?.length || 0} order terdaftar
+          </small>
+        </div>
+        <button
+          type="button"
           onClick={handleRefresh}
-          title="Tarik data order terbaru dari server"
-          style={{ cursor: 'pointer' }}
-        ></i>
+          disabled={isRefreshing}
+          className="btn btn-sm btn-light border rounded-pill px-3 py-1 shadow-xs d-flex align-items-center gap-2 text-primary fw-semibold"
+          style={{ fontSize: '0.8rem' }}
+          title="Sinkronisasi 2 arah (Kirim data lokal & tarik data server terbaru)"
+        >
+          <i
+            className={`bi bi-arrow-clockwise ${isRefreshing ? 'spinner-border spinner-border-sm' : ''}`}
+            style={!isRefreshing ? { display: 'inline-block' } : { width: '0.85rem', height: '0.85rem', borderWidth: '0.15em' }}
+          ></i>
+          <span>{isRefreshing ? 'Sync...' : ''}</span>
+        </button>
       </div>
 
       {/* Tabs */}
@@ -216,7 +230,14 @@ const DataOrder = ({ user }) => {
                 )}
 
                 <div className="d-flex gap-1 mb-3">
-                  <span className={`badge rounded-pill ${order.statusBayar === 'Lunas' ? 'bg-success-light text-success' : 'bg-warning-light text-warning'}`} style={{ backgroundColor: '#d1f7e0', color: '#00a854', fontSize: '0.65rem' }}>
+                  <span
+                    className={`badge rounded-pill ${isStatusLunas(order.statusBayar) ? 'bg-success-light text-success' : 'bg-warning-light text-warning'}`}
+                    style={{
+                      backgroundColor: isStatusLunas(order.statusBayar) ? '#d1f7e0' : '#fff3cd',
+                      color: isStatusLunas(order.statusBayar) ? '#00a854' : '#856404',
+                      fontSize: '0.65rem'
+                    }}
+                  >
                     {order.statusBayar?.toLowerCase() || 'belum bayar'}
                   </span>
                   <span className="badge rounded-pill bg-warning-light text-warning" style={{ backgroundColor: '#fff9c4', color: '#fbc02d', fontSize: '0.65rem' }}>

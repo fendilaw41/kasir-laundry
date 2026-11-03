@@ -71,8 +71,15 @@ export const useHome = () => {
   // Ambil statistik singkat
   const stats = useLiveQuery(async () => {
     const allOrders = await getOrdersQuery();
-    const today = new Date().toLocaleDateString();
-    const todayOrders = allOrders.filter(o => new Date(o.createdAt).toLocaleDateString() === today);
+    const now = new Date();
+    const isSameDay = (dateA, dateB) => {
+      if (!dateA || !dateB) return false;
+      const a = new Date(dateA);
+      const b = new Date(dateB);
+      if (isNaN(a.getTime()) || isNaN(b.getTime())) return false;
+      return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    };
+    const todayOrders = allOrders.filter(o => isSameDay(o.createdAt, now));
 
     const totalOmzet = todayOrders.reduce((acc, o) => acc + o.total, 0);
     const pendingOrders = allOrders.filter(o => o.status === 'Proses').length;

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createOrderFromCheckout, updateOrder } from '../db/repositories/orders';
 import { clearDraftOrder } from '../db/repositories/draftOrder';
+import { getStatusLunasByMetode } from '../utils/paymentStatus';
 import toast from 'react-hot-toast';
 
 const Pembayaran = () => {
@@ -31,8 +32,9 @@ const Pembayaran = () => {
     try {
       if (isPaymentOnly) {
         const newBayar = (orderData.bayar || 0) + bayarNum;
+        const resolvedStatusLunas = getStatusLunasByMetode(metodeBayar);
         await updateOrder(orderData.id, {
-          statusBayar: isLunas ? 'Lunas' : 'Belum Lunas',
+          statusBayar: isLunas ? resolvedStatusLunas : 'Belum Lunas',
           metodeBayar,
           bayar: isLunas ? Math.max(total, newBayar) : newBayar,
           kembalian: isLunas ? Math.max(0, newBayar - total) : 0

@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getSettingsQuery } from '../db/repositories/settings';
 import OfflineAlertBanner from './OfflineAlertBanner';
@@ -9,6 +9,11 @@ const Layout = ({ user, onLogout }) => {
   const navigate = useNavigate();
   const settings = useLiveQuery(getSettingsQuery);
   const [chatHeaderState, setChatHeaderState] = useState(null);
+
+  const outletContext = useMemo(
+    () => ({ chatHeaderState, setChatHeaderState }),
+    [chatHeaderState]
+  );
 
   // Reset header chat jika pindah halaman selain /chat
   useEffect(() => {
@@ -107,9 +112,18 @@ const Layout = ({ user, onLogout }) => {
 
                     {/* Nama bot / orang & subtitle */}
                     <div className="overflow-hidden" style={{ minWidth: 0 }}>
-                      <h6 className="mb-0 fw-bold text-dark text-truncate" style={{ fontSize: '0.92rem', lineHeight: '1.2' }}>
-                        {chatHeaderState.title}
-                      </h6>
+                      <div className="d-flex align-items-center gap-1">
+                        <h6 className="mb-0 fw-bold text-dark text-truncate" style={{ fontSize: '0.92rem', lineHeight: '1.2' }}>
+                          {chatHeaderState.title}
+                        </h6>
+                        {chatHeaderState.isOwner && (
+                          <i
+                            className="bi bi-patch-check-fill text-primary"
+                            style={{ fontSize: '13px' }}
+                            title="Owner Terverifikasi"
+                          ></i>
+                        )}
+                      </div>
                       {chatHeaderState.subtitle && (
                         <small className="text-muted text-truncate d-block" style={{ fontSize: '0.72rem', lineHeight: '1.2' }}>
                           {chatHeaderState.subtitle}
@@ -181,7 +195,7 @@ const Layout = ({ user, onLogout }) => {
       <div className="page-content-wrapper pb-3">
         <OfflineAlertBanner />
         <div className="container-fluid px-3">
-          <Outlet context={{ chatHeaderState, setChatHeaderState }} />
+          <Outlet context={outletContext} />
         </div>
       </div>
 

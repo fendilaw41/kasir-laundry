@@ -22,7 +22,7 @@ ${motto}
 ------------------------------
 No Nota : #${order.invoiceId || 'KL'}
 Tanggal : ${tgl}
-Pembayaran : ${order.statusBayar?.toLowerCase()}
+Pembayaran : ${order.statusBayar || 'Belum Lunas'}
 Status : ${order.status?.toLowerCase() || 'proses'}
 Nama : ${pelanggan?.nama || 'Umum'} (${phone})
 Est : ${order.estimasi} Hari ${estDate}

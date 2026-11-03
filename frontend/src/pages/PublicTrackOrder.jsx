@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { fetchPublicOrder } from '../utils/tracking';
+import { isStatusLunas } from '../utils/paymentStatus';
 
 const TRACKING_STEPS = [
   { key: 'Baru', label: 'Diterima', icon: 'bi-inbox-fill', desc: 'Pesanan masuk antrean kasir' },
@@ -192,13 +193,13 @@ export default function PublicTrackOrder() {
                       style={{
                         backgroundColor: isCanceled
                           ? '#ef4444'
-                          : order.statusBayar === 'Lunas'
+                          : isStatusLunas(order.statusBayar)
                             ? '#10b981'
                             : '#f59e0b',
                         fontSize: '0.8rem',
                       }}
                     >
-                      <i className={`bi ${order.statusBayar === 'Lunas' ? 'bi-check-circle-fill' : 'bi-clock-fill'} me-1`}></i>
+                      <i className={`bi ${isStatusLunas(order.statusBayar) ? 'bi-check-circle-fill' : 'bi-clock-fill'} me-1`}></i>
                       {order.statusBayar || 'Belum Lunas'}
                     </span>
                   </div>
@@ -405,7 +406,7 @@ export default function PublicTrackOrder() {
                   </div>
                   <div className="d-flex justify-content-between mt-2 pt-2 border-top text-muted" style={{ fontSize: '0.78rem' }}>
                     <span>Metode Bayar: <strong>{order.metodeBayar || 'Tunai'}</strong></span>
-                    <span>Status: <strong className={order.statusBayar === 'Lunas' ? 'text-success' : 'text-warning'}>{order.statusBayar}</strong></span>
+                    <span>Status: <strong className={isStatusLunas(order.statusBayar) ? 'text-success' : 'text-warning'}>{order.statusBayar}</strong></span>
                   </div>
                 </div>
 

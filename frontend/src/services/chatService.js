@@ -74,6 +74,37 @@ export async function fetchConversationsFromBackend() {
     const json = await res.json();
     const conversations = json.data || [];
 
+    // Bersihkan percakapan di Dexie yang tidak menjadi hak akses pengguna aktif
+    let currentUser = null;
+    try {
+      currentUser = JSON.parse(sessionStorage.getItem('user') || localStorage.getItem('user') || '{}');
+    } catch {}
+
+    const myId = currentUser?.uuid || currentUser?.id || currentUser?.userId;
+    const myUsername = (currentUser?.username || '').toLowerCase().trim();
+
+    if (myId || myUsername) {
+      const allLocal = await db.conversations.toArray();
+      const serverConvIds = new Set(conversations.map((c) => c.id));
+
+      for (const localConv of allLocal) {
+        const isMember = localConv.members?.some((m) => {
+          const mUserId = m.userId || m.user?.id || m.user?.uuid;
+          const mUsername = (m.user?.username || '').toLowerCase().trim();
+          return (
+            (mUserId && (mUserId === myId || mUserId === currentUser?.id || mUserId === currentUser?.uuid)) ||
+            (myUsername && mUsername === myUsername)
+          );
+        });
+
+        // Jika percakapan tidak ada dalam respon server dan user adalah kasir / bukan member, bersihkan
+        if (!serverConvIds.has(localConv.id) && (!isMember || currentUser?.role === 'kasir')) {
+          await db.conversations.delete(localConv.id);
+          await db.messages.where('conversationId').equals(localConv.id).delete();
+        }
+      }
+    }
+
     // Perbarui cache Dexie
     if (conversations.length > 0) {
       await db.conversations.bulkPut(conversations);
@@ -125,6 +156,9 @@ export async function getMessages(conversationId) {
           cache: 'no-store',
         },
       );
+      if (res.status === 403 || res.status === 401) {
+        throw new Error('Akses ditolak: Anda bukan anggota percakapan ini.');
+      }
       if (res.ok) {
         const json = await res.json();
         const serverMessages = json.data || [];
@@ -264,6 +298,9 @@ export async function sendMessage({
         }),
       });
 
+      if (res.status === 403 || res.status === 401) {
+        throw new Error('Akses ditolak: Anda bukan anggota percakapan ini.');
+      }
       if (res.ok) {
         const json = await res.json();
         const serverMsg = json.data;
@@ -349,7 +386,10 @@ export async function syncPendingMessages() {
           },
         );
 
-        if (res.ok) {
+        if (res.status === 403 || res.status === 401) {
+        throw new Error('Akses ditolak: Anda bukan anggota percakapan ini.');
+      }
+      if (res.ok) {
           const json = await res.json();
           const serverMsg = json.data;
 

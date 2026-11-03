@@ -1,11 +1,25 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getOrdersSortedByDateQuery } from '../db/repositories/orders';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { pullOrdersFromBackend } from '../services/syncService';
+import { pullOrdersFromBackend, syncTwoWay } from '../services/syncService';
+import { isStatusLunas } from '../utils/paymentStatus';
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
+
+const isSameDay = (dateA, dateB) => {
+  if (!dateA || !dateB) return false;
+  const a = new Date(dateA);
+  const b = new Date(dateB);
+  if (isNaN(a.getTime()) || isNaN(b.getTime())) return false;
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+};
 
 const Reports = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
   const isTodayOnly = searchParams.get('today') === 'true';
@@ -15,6 +29,7 @@ const Reports = () => {
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().substring(0, 7));
   const [filterBayar, setFilterBayar] = useState('Semua');
   const [showBalance, setShowBalance] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     if (navigator.onLine) {
@@ -22,23 +37,37 @@ const Reports = () => {
     }
   }, []);
 
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await syncTwoWay();
+      toast.success('Data laporan & server berhasil disinkronkan!');
+    } catch (err) {
+      toast.error('Gagal sinkronkan laporan: ' + err.message);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   // Query Data
   const data = useLiveQuery(async () => {
     const allOrders = await getOrdersSortedByDateQuery();
-
-    const today = new Date().toLocaleDateString('id-ID');
+    const now = new Date();
 
     return allOrders.filter(order => {
       const orderDate = new Date(order.createdAt);
-      const orderDateStr = orderDate.toLocaleDateString('id-ID');
       const orderMonthStr = orderDate.toISOString().substring(0, 7);
 
-      const matchesSearch = order.pelangganNama?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      const matchesSearch = !searchTerm ||
+        order.pelangganNama?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.invoiceId?.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesDate = isTodayOnly ? orderDateStr === today : (filterMonth === 'All' || orderMonthStr === filterMonth);
+      const matchesDate = isTodayOnly
+        ? isSameDay(order.createdAt, now)
+        : (filterMonth === 'All' || orderMonthStr === filterMonth);
 
-      const matchesStatus = filterBayar === 'Semua' || (filterBayar === 'Lunas' ? order.statusBayar === 'Lunas' : order.statusBayar !== 'Lunas');
+      const matchesStatus = filterBayar === 'Semua' || (filterBayar === 'Lunas' ? isStatusLunas(order.statusBayar) : !isStatusLunas(order.statusBayar));
 
       return matchesSearch && matchesDate && matchesStatus;
     });
@@ -95,17 +124,35 @@ const Reports = () => {
           <div className="card-body p-4 text-white">
             <div className="d-flex justify-content-between align-items-start mb-3">
               <div>
-                <small className="opacity-75 d-block mb-1">Total Omzet {isTodayOnly ? 'Hari Ini' : ''}</small>
+                <small className="opacity-75 d-block mb-1">Total Omzet {isTodayOnly ? 'Hari Ini' : 'Periode Ini'}</small>
                 <h2 className="text-white fw-bold mb-0">
                   {showBalance ? `Rp ${data?.reduce((acc, o) => acc + o.total, 0).toLocaleString()}` : 'Rp ••••••••'}
                 </h2>
               </div>
-              <button
-                className="btn btn-sm btn-white bg-white bg-opacity-25 border-0 text-white rounded-circle shadow-none"
-                onClick={() => setShowBalance(!showBalance)}
-              >
-                <i className={`bi ${showBalance ? 'bi-eye-slash-fill' : 'bi-eye-fill'} fs-5`}></i>
-              </button>
+              <div className="d-flex align-items-center gap-2">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-white bg-white bg-opacity-25 border-0 text-white rounded-circle shadow-none d-flex align-items-center justify-content-center"
+                  style={{ width: '36px', height: '36px' }}
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  title="Sinkronkan data dengan database server"
+                >
+                  <i
+                    className={`bi bi-arrow-clockwise ${isRefreshing ? 'spinner-border spinner-border-sm' : 'fs-5'}`}
+                    style={isRefreshing ? { width: '1rem', height: '1rem', borderWidth: '0.15em' } : {}}
+                  ></i>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-white bg-white bg-opacity-25 border-0 text-white rounded-circle shadow-none d-flex align-items-center justify-content-center"
+                  style={{ width: '36px', height: '36px' }}
+                  onClick={() => setShowBalance(!showBalance)}
+                  title={showBalance ? 'Sembunyikan nominal' : 'Tampilkan nominal'}
+                >
+                  <i className={`bi ${showBalance ? 'bi-eye-slash-fill' : 'bi-eye-fill'} fs-5`}></i>
+                </button>
+              </div>
             </div>
 
             {showBalance && (
@@ -125,6 +172,37 @@ const Reports = () => {
           </div>
         </div>
 
+        {/* Periode Switcher Pills */}
+        <div className="d-flex align-items-center justify-content-between mb-3 px-1">
+          <div className="d-flex align-items-center gap-2">
+            <button
+              type="button"
+              className={`btn btn-sm rounded-pill px-3 py-1 fw-semibold transition-all shadow-xs ${
+                isTodayOnly ? 'btn-primary text-white shadow-sm' : 'btn-light bg-white text-muted border'
+              }`}
+              style={{ fontSize: '0.78rem' }}
+              onClick={() => setSearchParams({ today: 'true' })}
+            >
+              <i className="bi bi-calendar-check me-1"></i>
+              Hari Ini
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm rounded-pill px-3 py-1 fw-semibold transition-all shadow-xs ${
+                !isTodayOnly ? 'btn-primary text-white shadow-sm' : 'btn-light bg-white text-muted border'
+              }`}
+              style={{ fontSize: '0.78rem' }}
+              onClick={() => setSearchParams({})}
+            >
+              <i className="bi bi-calendar3 me-1"></i>
+              Semua Periode
+            </button>
+          </div>
+          <span className="badge bg-white text-muted border rounded-pill px-2 py-1 shadow-xs" style={{ fontSize: '0.72rem' }}>
+            {data?.length || 0} Trx
+          </span>
+        </div>
+
         {/* Search Bar */}
         <div className="input-group input-group-sm bg-white border-0 shadow-sm rounded-pill px-3 align-items-center mb-4" style={{ height: '45px' }}>
           <i className="bi bi-search text-muted me-2"></i>
@@ -135,10 +213,13 @@ const Reports = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          {!isTodayOnly && (
-            <i className="bi bi-sliders text-primary ms-3" style={{ cursor: 'pointer' }} onClick={() => setShowFilter(!showFilter)}></i>
-          )}
-          <i className="bi bi-download text-primary ms-3" style={{ cursor: 'pointer' }} onClick={() => handleDownload()}></i>
+          <i
+            className="bi bi-sliders text-primary ms-3"
+            style={{ cursor: 'pointer' }}
+            title="Filter Bulan & Periode"
+            onClick={() => setShowFilter(!showFilter)}
+          ></i>
+          <i className="bi bi-download text-primary ms-3" style={{ cursor: 'pointer' }} onClick={() => handleDownload()} title="Download CSV"></i>
         </div>
 
         {/* Minimal Status Tabs */}
@@ -200,7 +281,7 @@ const Reports = () => {
                     >
                       {/* Label Pojok Kiri */}
                       <div
-                        className={`position-absolute top-0 start-0 px-3 py-1 fw-bold text-white shadow-sm ${order.statusBayar === 'Lunas' ? 'bg-success' : 'bg-warning text-dark'}`}
+                        className={`position-absolute top-0 start-0 px-3 py-1 fw-bold text-white shadow-sm ${isStatusLunas(order.statusBayar) ? 'bg-success' : 'bg-warning text-dark'}`}
                         style={{ borderBottomRightRadius: '15px', fontSize: '0.6rem', zIndex: 1, letterSpacing: '0.5px' }}
                       >
                         {order.statusBayar?.toUpperCase() || 'BELUM BAYAR'}
