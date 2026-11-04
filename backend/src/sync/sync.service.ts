@@ -527,6 +527,17 @@ export class SyncService {
     });
   }
 
+  /**
+   * Mengambil daftar pelanggan untuk toko tertentu (termasuk status deletedAt)
+   */
+  async getPelanggan(storeId: string) {
+    if (!storeId) return [];
+    return await this.prisma.pelanggan.findMany({
+      where: { storeId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
 
   /**
    * Mengambil riwayat log sinkronisasi & audit trail

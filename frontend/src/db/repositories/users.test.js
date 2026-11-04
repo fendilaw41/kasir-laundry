@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { addUser, updateUser, deleteUser, getKasirUsersQuery } from './users.js';
+import { addUser, updateUser, deleteUser, getKasirUsersQuery, changePassword } from './users.js';
+import bcrypt from 'bcryptjs';
 import { db } from '../../db.js';
 
 vi.mock('../../services/syncService.js', () => ({
@@ -128,6 +129,42 @@ describe('users repository - addUser, updateUser, deleteUser', () => {
       const updatePayload = db.users.update.mock.calls[0][1];
       expect(updatePayload.deletedAt).toBeInstanceOf(Date);
       expect(updatePayload.isDirty).toBe(1);
+    });
+  });
+
+  describe('changePassword', () => {
+    it('throws error when validation fails', async () => {
+      await expect(changePassword({})).rejects.toThrow(/Password lama dan password baru wajib diisi/i);
+      await expect(changePassword({ userId: 1, oldPassword: 'old', newPassword: '' })).rejects.toThrow(/Password lama dan password baru wajib diisi/i);
+      await expect(changePassword({ userId: 1, oldPassword: 'old', newPassword: '123' })).rejects.toThrow(/Password baru minimal 5 karakter/i);
+      await expect(changePassword({ userId: 999, oldPassword: 'old', newPassword: 'validpass' })).rejects.toThrow(/User tidak ditemukan/i);
+    });
+
+    it('throws error if old password does not match', async () => {
+      const hashed = bcrypt.hashSync('correctpass', 10);
+      db.users.get.mockResolvedValue({ id: 1, username: 'testuser', password: hashed });
+
+      await expect(
+        changePassword({ userId: 1, oldPassword: 'wrongpass', newPassword: 'newpassword123' })
+      ).rejects.toThrow(/Password lama tidak sesuai/i);
+    });
+
+    it('successfully updates password and marks isDirty: 1', async () => {
+      const hashed = bcrypt.hashSync('oldsecret', 10);
+      db.users.get.mockResolvedValue({ id: 1, username: 'testuser', password: hashed });
+      db.users.update.mockResolvedValue(1);
+
+      const result = await changePassword({
+        userId: 1,
+        oldPassword: 'oldsecret',
+        newPassword: 'newsecret123'
+      });
+
+      expect(result).toBe(1);
+      expect(db.users.update).toHaveBeenCalledTimes(1);
+      const updateCall = db.users.update.mock.calls[0][1];
+      expect(updateCall.isDirty).toBe(1);
+      expect(bcrypt.compareSync('newsecret123', updateCall.password)).toBe(true);
     });
   });
 });

@@ -738,19 +738,24 @@ export const pullOrdersFromBackend = async (force = false) => {
         if (!localPel && so.pelanggan.hp && so.pelanggan.hp !== '-') {
           localPel = await db.pelanggan.where('hp').equals(so.pelanggan.hp).first();
         }
-        const pelPayload = {
-          uuid: so.pelanggan.id,
-          storeId: so.storeId || storeId,
-          nama: so.pelanggan.nama,
-          hp: so.pelanggan.hp || '-',
-          alamat: so.pelanggan.alamat || '-',
-          updatedAt: new Date(so.pelanggan.updatedAt || new Date()),
-          isDirty: 0,
-        };
-        if (localPel) {
-          await db.pelanggan.update(localPel.id, pelPayload);
-        } else {
-          await db.pelanggan.add(pelPayload);
+
+        // Jangan timpa jika pelanggan lokal memiliki perubahan yang belum di-sync (isDirty: 1) atau sudah dihapus
+        if (!localPel || (localPel.isDirty !== 1 && !localPel.deletedAt)) {
+          const pelPayload = {
+            uuid: so.pelanggan.id,
+            storeId: so.storeId || storeId,
+            nama: so.pelanggan.nama,
+            hp: so.pelanggan.hp || '-',
+            alamat: so.pelanggan.alamat || '-',
+            updatedAt: new Date(so.pelanggan.updatedAt || new Date()),
+            deletedAt: so.pelanggan.deletedAt ? new Date(so.pelanggan.deletedAt) : null,
+            isDirty: 0,
+          };
+          if (localPel) {
+            await db.pelanggan.update(localPel.id, pelPayload);
+          } else {
+            await db.pelanggan.add(pelPayload);
+          }
         }
       }
 
@@ -917,9 +922,75 @@ export const pullProductsFromBackend = async (force = false) => {
 };
 
 /**
+ * Tarik dan Sinkronkan Pelanggan terbaru dari Backend ke Dexie
+ */
+export const pullPelangganFromBackend = async (force = false) => {
+  try {
+    const storedUser = getStoredUser();
+    const setting = await db.settings.get(1);
+    const storeId = storedUser.storeId || setting?.storeId;
+    if (!storeId) return false;
+
+    const response = await fetch(`${API_BASE_URL}/sync/pelanggan?storeId=${storeId}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) return false;
+
+    const result = await response.json();
+    const serverPelanggan = result.data || result || [];
+
+    if (Array.isArray(serverPelanggan) && serverPelanggan.length > 0) {
+      for (const sp of serverPelanggan) {
+        let localPel = null;
+        if (sp.id) {
+          localPel = await db.pelanggan.where('uuid').equals(sp.id).first();
+        }
+        if (!localPel && sp.hp && sp.hp !== '-') {
+          localPel = await db.pelanggan.where('hp').equals(sp.hp).first();
+        }
+        if (!localPel && sp.nama) {
+          localPel = await db.pelanggan.filter(p => p.nama && p.nama.toLowerCase().trim() === sp.nama.toLowerCase().trim()).first();
+        }
+
+        const pelPayload = {
+          uuid: sp.id,
+          storeId: sp.storeId || storeId,
+          nama: sp.nama,
+          hp: sp.hp || '-',
+          alamat: sp.alamat || '-',
+          createdAt: sp.createdAt ? new Date(sp.createdAt) : new Date(),
+          updatedAt: sp.updatedAt ? new Date(sp.updatedAt) : new Date(),
+          deletedAt: sp.deletedAt ? new Date(sp.deletedAt) : null,
+          isDirty: 0,
+        };
+
+        if (localPel) {
+          // Jangan timpa jika pelanggan lokal berstatus dirty (isDirty: 1) sementara data server belum mencatat deletedAt
+          if (localPel.isDirty === 1 && !sp.deletedAt) {
+            continue;
+          }
+          if (localPel.isDirty !== 1 || force) {
+            await db.pelanggan.update(localPel.id, pelPayload);
+          }
+        } else {
+          await db.pelanggan.add(pelPayload);
+        }
+      }
+      console.log(`[Sync] Berhasil menarik ${serverPelanggan.length} pelanggan terbaru dari endpoint sync/pelanggan.`);
+    }
+    return true;
+  } catch (err) {
+    console.warn('[Sync] Gagal menarik pelanggan dari server (offline):', err.message);
+    return false;
+  }
+};
+
+/**
  * Sinkronisasi Penuh Dua Arah (Two-Way Sync):
  * 1. PUSH: Dorong perubahan master data & order lokal (termasuk dirty / forceAll) ke backend
- * 2. PULL: Tarik data order, inventory, dan produk terbaru dari backend ke Dexie
+ * 2. PULL: Tarik data order, inventory, produk, dan pelanggan terbaru dari backend ke Dexie
  */
 export const syncTwoWay = async ({ forceAll = false } = {}) => {
   try {
@@ -927,6 +998,7 @@ export const syncTwoWay = async ({ forceAll = false } = {}) => {
     await syncDirtyOrders(forceAll);
     const pullSuccess = await pullOrdersFromBackend(true);
     await pullProductsFromBackend(true);
+    await pullPelangganFromBackend(true);
     return { success: true, pullSuccess };
   } catch (error) {
     console.error('[Sync] syncTwoWay gagal:', error);
@@ -948,6 +1020,7 @@ if (typeof window !== 'undefined') {
       await syncDirtyOrders();
       await pullOrdersFromBackend();
       await pullProductsFromBackend();
+      await pullPelangganFromBackend();
     });
 
     // 2. Cek sekali saat pertama kali aplikasi dibuka (Hanya sinkronkan data yang kotor/belum tersinkron lalu tarik order & produk)
@@ -957,6 +1030,7 @@ if (typeof window !== 'undefined') {
         await syncDirtyOrders(false);
         await pullOrdersFromBackend();
         await pullProductsFromBackend();
+        await pullPelangganFromBackend();
       }, 2000);
     }
 

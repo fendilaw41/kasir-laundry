@@ -100,3 +100,76 @@ export const updatePelanggan = async (id, pelangganData) => {
   syncPelangganToBackend().catch(err => console.warn('[Sync] Sync update pelanggan error:', err));
   return result;
 };
+
+export const deletePelanggan = async (idOrPelanggan) => {
+  if (!idOrPelanggan) throw new Error('ID Pelanggan tidak valid');
+  let targetId = null;
+  let pelanggan = null;
+
+  const id = (typeof idOrPelanggan === 'object' && idOrPelanggan !== null)
+    ? (idOrPelanggan.id || idOrPelanggan.uuid)
+    : idOrPelanggan;
+
+  if (typeof id === 'number' || (typeof id === 'string' && /^\d+$/.test(id))) {
+    const numId = parseInt(id, 10);
+    pelanggan = await db.pelanggan.get(numId);
+    if (pelanggan) targetId = pelanggan.id;
+  }
+  if (!pelanggan && typeof id === 'string') {
+    pelanggan = await db.pelanggan.where('uuid').equals(id).first();
+    if (pelanggan) targetId = pelanggan.id;
+  }
+  if (!pelanggan) throw new Error('Pelanggan tidak ditemukan');
+
+  const activeStoreId = await getActiveStoreId();
+
+  // Cek apakah pelanggan masih memiliki order aktif (belum dihapus dan status bukan 'Dibatalkan')
+  const allOrders = await db.orders.toArray();
+  const activeOrders = allOrders.filter(o => {
+    // Abaikan jika order sudah di-soft delete
+    if (o.deletedAt) return false;
+
+    // Filter store jika toko berbeda
+    if (activeStoreId && o.storeId && o.storeId !== activeStoreId) return false;
+    if (pelanggan.storeId && o.storeId && o.storeId !== pelanggan.storeId) return false;
+
+    // Abaikan jika status order adalah Dibatalkan / Batal (request delete)
+    const status = String(o.status || '').trim().toLowerCase();
+    if (status === 'dibatalkan' || status === 'batal' || status === 'cancelled') return false;
+
+    // Cocokkan id pelanggan
+    const matchesId = Boolean(
+      o.pelangganId && (
+        o.pelangganId === pelanggan.id ||
+        o.pelangganId === pelanggan.uuid ||
+        String(o.pelangganId) === String(pelanggan.id) ||
+        (pelanggan.uuid && String(o.pelangganId) === String(pelanggan.uuid))
+      )
+    );
+
+    // Fallback cocokkan nama HANYA jika order belum punya pelangganId sama sekali
+    const matchesNama = Boolean(
+      !o.pelangganId &&
+      o.pelangganNama &&
+      pelanggan.nama &&
+      o.pelangganNama.toLowerCase().trim() === pelanggan.nama.toLowerCase().trim()
+    );
+
+    return matchesId || matchesNama;
+  });
+
+  if (activeOrders.length > 0) {
+    throw new Error('Pelanggan masih memiliki order aktif. Batalkan order terlebih dahulu.');
+  }
+
+  // Set soft-delete dan pastikan isDirty: 1 tersimpan di Dexie
+  const result = await db.pelanggan.update(targetId, {
+    deletedAt: new Date(),
+    updatedAt: new Date(),
+    isDirty: 1
+  });
+
+  // Segera sinkronkan penghapusan ke Backend
+  syncPelangganToBackend().catch(err => console.warn('[Sync] Sync delete pelanggan error:', err));
+  return result;
+};

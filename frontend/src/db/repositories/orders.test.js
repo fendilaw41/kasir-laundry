@@ -67,6 +67,18 @@ describe('orders repository', () => {
       const addedOrder = db.orders.add.mock.calls[2][0];
       expect(addedOrder.statusBayar).toBe('Lunas Deposit');
     });
+
+    it('should set statusBayar as DP if bayarNum is less than total', async () => {
+      db.settings.get.mockResolvedValue({ deviceId: 'TEST', namaLaundry: 'KASIR TEST', lastInvoiceNumber: 40 });
+      db.orders.add.mockResolvedValue(4);
+
+      const orderData = { total: 50000, metodeBayar: 'Tunai', cartItems: [{ id: 4, name: 'Cuci', price: 50000, qty: 1 }] };
+      await createOrderFromCheckout({ orderData, bayarNum: 20000, kembalian: 0, isLunas: true });
+
+      const addedOrder = db.orders.add.mock.calls[3][0];
+      expect(addedOrder.statusBayar).toBe('DP');
+      expect(addedOrder.bayar).toBe(20000);
+    });
   });
 
   describe('updateOrder', () => {

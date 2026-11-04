@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { getSettingsQuery, updateSettings } from '../db/repositories/settings';
 import { getKasirUsersQuery, addUser, updateUser, deleteUser as deleteUserRepo } from '../db/repositories/users';
 import { getProductsQuery, addProduct, updateProduct, deleteProduct as deleteProductRepo } from '../db/repositories/products';
 import { useLiveQuery } from 'dexie-react-hooks';
 import toast from 'react-hot-toast';
+import UbahPassword from './UbahPassword';
 import {
   TOAST_MESSAGES,
   CONFIRM_MESSAGES,
@@ -28,8 +30,18 @@ const Setting = ({ user }) => {
   const users = useLiveQuery(getKasirUsersQuery);
   const products = useLiveQuery(getProductsQuery);
 
-  // Tab aktif: 'umum' (Informasi Toko & Kontak) | 'struk' (Format Nota Struk) | 'kasir' (Manajemen Kasir) | 'product' (Master Layanan)
-  const [activeTab, setActiveTab] = useState('umum');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'umum';
+
+  // Tab aktif: 'umum' (Informasi Toko & Kontak) | 'struk' (Format Nota Struk) | 'kasir' (Manajemen Kasir) | 'product' (Master Layanan) | 'password' (Ubah Password)
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['umum', 'struk', 'kasir', 'product', 'password'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   const [isSaving, setIsSaving] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
@@ -294,6 +306,18 @@ const Setting = ({ user }) => {
                 )}
               </button>
             )}
+
+            <button
+              type="button"
+              className={`btn btn-sm rounded-pill flex-fill py-2 px-2.5 fw-semibold d-inline-flex align-items-center justify-content-center gap-1 text-nowrap transition-all ${activeTab === 'password' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
+                }`}
+              style={{ fontSize: '0.8rem', minWidth: 'fit-content' }}
+              onClick={() => setActiveTab('password')}
+              title={TAB_TITLE.PASSWORD}
+              aria-label={TAB_TITLE.PASSWORD}
+            >
+              <i className="bi bi-key-fill"></i>
+            </button>
           </div>
         </div>
 
@@ -926,6 +950,13 @@ const Setting = ({ user }) => {
               )}
             </div>
           </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* BAGIAN 5: UBAH PASSWORD (SEMUA ROLE)                     */}
+        {/* ======================================================== */}
+        {activeTab === 'password' && (
+          <UbahPassword user={user} isEmbedded={true} />
         )}
       </div>
 

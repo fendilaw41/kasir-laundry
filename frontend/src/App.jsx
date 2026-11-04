@@ -16,6 +16,7 @@ import PageLoader from './components/PageLoader';
 import DataOrder from './pages/DataOrder';
 import Reports from './pages/Reports';
 import Setting from './pages/Setting';
+import UbahPassword from './pages/UbahPassword';
 import Chat from './pages/Chat';
 import Reset from './pages/Reset';
 import PublicTrackOrder from './pages/PublicTrackOrder';
@@ -86,6 +87,7 @@ function App() {
           <Route path="/orders" element={<DataOrder user={user} />} />
           <Route path="/reports" element={<Reports user={user} />} />
           <Route path="/setting" element={<Setting user={user} />} />
+          <Route path="/ubah-password" element={<UbahPassword user={user} />} />
           <Route path="/chat" element={<Chat user={user} />} />
         </Route>
         <Route path="*" element={<Navigate to={user ? "/" : "/login"} replace />} />

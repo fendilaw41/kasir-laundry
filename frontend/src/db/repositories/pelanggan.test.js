@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getPelangganQuery, getPelangganByIdQuery, addPelanggan } from './pelanggan.js';
+import { getPelangganQuery, getPelangganByIdQuery, addPelanggan, deletePelanggan } from './pelanggan.js';
 import { db } from '../../db.js';
 
 vi.mock('../../services/syncService.js', () => ({
@@ -15,6 +15,9 @@ vi.mock('../../db.js', () => ({
       update: vi.fn(),
       where: vi.fn(),
       filter: vi.fn()
+    },
+    orders: {
+      toArray: vi.fn()
     },
     settings: {
       get: vi.fn()
@@ -130,6 +133,63 @@ describe('pelanggan repository - storeId scoping', () => {
       const id = await addPelanggan({ nama: 'Budi', hp: '0812345678' });
       expect(id).toBe(100);
       expect(db.pelanggan.add).toHaveBeenCalled();
+    });
+  });
+
+  describe('deletePelanggan', () => {
+    it('should throw error if customer not found', async () => {
+      db.pelanggan.get.mockResolvedValue(null);
+      await expect(deletePelanggan(999)).rejects.toThrow('Pelanggan tidak ditemukan');
+    });
+
+    it('should block deletion if customer has active orders', async () => {
+      db.pelanggan.get.mockResolvedValue({ id: 1, nama: 'Budi' });
+      db.orders.toArray.mockResolvedValue([
+        { id: 101, pelangganId: 1, status: 'Proses' }
+      ]);
+
+      await expect(deletePelanggan(1)).rejects.toThrow('Pelanggan masih memiliki order aktif. Batalkan order terlebih dahulu.');
+    });
+
+    it('should allow deletion if customer orders are all cancelled (Dibatalkan)', async () => {
+      db.pelanggan.get.mockResolvedValue({ id: 1, nama: 'Budi' });
+      db.orders.toArray.mockResolvedValue([
+        { id: 101, pelangganId: 1, status: 'Dibatalkan' }
+      ]);
+      db.pelanggan.update.mockResolvedValue(1);
+
+      const res = await deletePelanggan(1);
+      expect(res).toBe(1);
+      expect(db.pelanggan.update).toHaveBeenCalledWith(1, expect.objectContaining({
+        deletedAt: expect.any(Date),
+        isDirty: 1
+      }));
+    });
+
+    it('should allow deletion if customer has no orders', async () => {
+      db.pelanggan.get.mockResolvedValue({ id: 2, nama: 'Siti' });
+      db.orders.toArray.mockResolvedValue([]);
+      db.pelanggan.update.mockResolvedValue(1);
+
+      const res = await deletePelanggan(2);
+      expect(res).toBe(1);
+      expect(db.pelanggan.update).toHaveBeenCalledWith(2, expect.objectContaining({
+        deletedAt: expect.any(Date),
+        isDirty: 1
+      }));
+    });
+
+    it('should accept customer object directly and set isDirty: 1', async () => {
+      db.pelanggan.get.mockResolvedValue({ id: 3, nama: 'Rudi', uuid: 'uuid-3' });
+      db.orders.toArray.mockResolvedValue([]);
+      db.pelanggan.update.mockResolvedValue(1);
+
+      const res = await deletePelanggan({ id: 3, nama: 'Rudi', uuid: 'uuid-3' });
+      expect(res).toBe(1);
+      expect(db.pelanggan.update).toHaveBeenCalledWith(3, expect.objectContaining({
+        deletedAt: expect.any(Date),
+        isDirty: 1
+      }));
     });
   });
 });

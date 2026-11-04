@@ -141,7 +141,7 @@ const DataOrder = ({ user }) => {
           title="Sinkronisasi"
         >
           <i
-            className={`bi bi-arrow-clockwise ${isRefreshing ? 'spinner-border spinner-border-sm' : ''}`}
+            className={`bi bi-arrow-clockwise`}
             style={!isRefreshing ? { display: 'inline-block' } : { width: '0.85rem', height: '0.85rem', borderWidth: '0.15em' }}
           ></i>
         </button>
@@ -249,29 +249,42 @@ const DataOrder = ({ user }) => {
                 </div>
 
                 <div className="row g-2 mt-2">
-                  <div className={user.role === 'owner' ? 'col-4' : 'col-6'}>
+                  <div className={
+                    activeTab === 'Proses'
+                      ? 'col-4'
+                      : activeTab === 'Selesai'
+                        ? (user?.role === 'owner' ? 'col-4' : 'col-6')
+                        : (user?.role === 'owner' ? 'col-6' : 'col-12')
+                  }>
                     <button className="btn btn-outline-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => navigate(`/order/${order.id}`)}>Detail</button>
                   </div>
-                  <div className={user.role === 'owner' ? 'col-4' : 'col-6'}>
-                    {activeTab === 'Proses' && (
+
+                  {activeTab === 'Proses' && (
+                    <div className="col-4">
                       <button className="btn btn-outline-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => confirmSelesai(order.id)}>Selesai</button>
-                    )}
-                    {activeTab === 'Selesai' && (
+                    </div>
+                  )}
+
+                  {activeTab === 'Selesai' && (
+                    <div className={user?.role === 'owner' ? 'col-4' : 'col-6'}>
                       <button className="btn btn-outline-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => confirmAmbil(order.id)}>Ambil</button>
-                    )}
-                    {activeTab === 'Dibatalkan' && (
-                      <button className="btn btn-outline-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => hardDelete(order.id)} title={BUTTON_TITLE.DELETE}>
+                    </div>
+                  )}
+
+                  {activeTab === 'Dibatalkan' && user?.role === 'owner' && (
+                    <div className="col-6">
+                      <button className="btn btn-outline-danger btn-sm w-100 fw-bold shadow-sm" onClick={() => hardDelete(order.id)} title={BUTTON_TITLE.DELETE}>
                         Hapus
                       </button>
-                    )}
-                  </div>
-                  {user.role === 'owner' && (
+                    </div>
+                  )}
+
+                  {/* Kasir boleh delete jika masih proses (hanya request delete). Owner boleh di Proses dan Selesai */}
+                  {((activeTab === 'Proses') || (activeTab === 'Selesai' && user?.role === 'owner')) && (
                     <div className="col-4 text-end">
-                      {(activeTab === 'Proses' || activeTab === 'Selesai') && (
-                        <button className="btn btn-outline-danger btn-sm w-100 fw-bold shadow-sm" onClick={() => requestDelete(order.id)} title={BUTTON_TITLE.DELETE}>
-                          Hapus
-                        </button>
-                      )}
+                      <button className="btn btn-outline-danger btn-sm w-100 fw-bold shadow-sm" onClick={() => requestDelete(order.id)} title={BUTTON_TITLE.DELETE}>
+                        Hapus
+                      </button>
                     </div>
                   )}
                 </div>

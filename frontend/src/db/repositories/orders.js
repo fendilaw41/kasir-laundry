@@ -79,7 +79,9 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
       invoiceId,
       bayar: bayar,
       kembalian: kembalianNum > 0 ? kembalianNum : 0,
-      statusBayar: isLunas ? (bayar >= total ? resolvedStatusLunas : 'DP') : 'Belum Bayar',
+      statusBayar: isLunas
+        ? (bayar >= total ? resolvedStatusLunas : 'DP')
+        : (bayar > 0 ? (bayar >= total ? resolvedStatusLunas : 'DP') : 'Belum Bayar'),
       status: 'Proses',
       createdAt: new Date()
     }));

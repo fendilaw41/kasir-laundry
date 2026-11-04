@@ -9,6 +9,7 @@ export const TOAST_ERROR = TOAST_MESSAGES.ERROR;
 export const CONFIRM_MESSAGES = {
   DELETE_USER: 'Hapus kasir ini?',
   DELETE_PRODUCT: 'Hapus layanan ini?',
+  DELETE_CUSTOMER: 'Hapus pelanggan ini?',
   DELETE_ORDER: 'Hapus permanen order ini?',
   CANCEL_ORDER: 'Batalkan order ini?',
   FINISH_ORDER: 'Tandai selesai?',
@@ -33,7 +34,7 @@ export const DEFAULT_CATEGORY = 'CUCI LIPAT';
 export const FALLBACK_CATEGORY = 'LAINNYA';
 
 export const STATUS_TEXT = {
-  READ_ONLY: 'Mode Baca: Hanya Owner',
+  READ_ONLY: 'Mode Baca',
   STORE_OPEN: '🟢 Buka',
   STORE_CLOSED: '🔴 Tutup',
 };
@@ -51,6 +52,7 @@ export const BUTTON_TITLE = {
   ADD_PELANGGAN: 'Tambah Pelanggan',
   EDIT: 'Edit',
   DELETE: 'Hapus',
+  DELETE_CUSTOMER: 'Hapus Pelanggan',
   SAVE: 'Save',
   CANCEL: 'Batal',
 };
@@ -60,4 +62,5 @@ export const TAB_TITLE = {
   STRUK: 'Struk',
   KASIR: 'Kasir',
   PRODUCT: 'Layanan',
+  PASSWORD: 'Ubah Password',
 };

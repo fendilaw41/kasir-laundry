@@ -1,8 +1,9 @@
 import { Body, Controller, Post } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { Public } from './public.decorator';
 
 @ApiTags('Authentication')
@@ -47,6 +48,22 @@ export class AuthController {
       success: true,
       message: 'Login berhasil',
       data: result,
+    };
+  }
+
+  @Post('change-password')
+  @ApiOperation({
+    summary: 'Ubah Password Pengguna',
+    description: 'Memverifikasi password lama dan mengubahnya menjadi password baru.',
+  })
+  @ApiBody({ type: ChangePasswordDto })
+  @ApiResponse({ status: 200, description: 'Password berhasil diubah.' })
+  @ApiResponse({ status: 400, description: 'Password lama tidak cocok atau format tidak valid.' })
+  async changePassword(@Body() dto: ChangePasswordDto) {
+    const result = await this.authService.changePassword(dto);
+    return {
+      success: true,
+      message: result.message,
     };
   }
 }

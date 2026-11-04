@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import Setting from './Setting';
 
 // Mock Dexie useLiveQuery
@@ -78,16 +79,24 @@ describe('Setting Component - Mobile Redesign', () => {
     });
   };
 
+  const renderSetting = (props = { user: { role: 'owner' } }) => {
+    return render(
+      <MemoryRouter>
+        <Setting {...props} />
+      </MemoryRouter>
+    );
+  };
+
   it('menampilkan loading state jika data settings belum tersedia', () => {
     useLiveQuery.mockReturnValue(null);
-    render(<Setting user={{ role: 'owner' }} />);
+    renderSetting({ user: { role: 'owner' } });
     expect(screen.getByText(/Memuat data pengaturan.../i)).toBeDefined();
   });
 
   it('merender segmented tabs Toko, Struk, dan Kasir untuk akun owner', () => {
     setupMockQueries();
 
-    render(<Setting user={{ role: 'owner' }} />);
+    renderSetting({ user: { role: 'owner' } });
 
     expect(screen.getByRole('button', { name: /^Toko$/i })).toBeDefined();
     expect(screen.getByRole('button', { name: /^Struk$/i })).toBeDefined();
@@ -98,7 +107,7 @@ describe('Setting Component - Mobile Redesign', () => {
   it('menyembunyikan tab Kasir dan menampilkan peringatan read-only jika user bukan owner', () => {
     setupMockQueries();
 
-    render(<Setting user={{ role: 'kasir' }} />);
+    renderSetting({ user: { role: 'kasir' } });
 
     expect(screen.getByRole('button', { name: /^Toko$/i })).toBeDefined();
     expect(screen.getByRole('button', { name: /^Struk$/i })).toBeDefined();
@@ -109,7 +118,7 @@ describe('Setting Component - Mobile Redesign', () => {
   it('dapat berpindah tab ke Struk dan menampilkan simulasi nota thermal', () => {
     setupMockQueries();
 
-    render(<Setting user={{ role: 'owner' }} />);
+    renderSetting({ user: { role: 'owner' } });
 
     // Click tab Struk
     const strukTab = screen.getByRole('button', { name: /^Struk$/i });
@@ -122,7 +131,7 @@ describe('Setting Component - Mobile Redesign', () => {
   it('dapat berpindah tab ke Kasir dan menampilkan daftar kasir serta tombol tambah', () => {
     setupMockQueries();
 
-    render(<Setting user={{ role: 'owner' }} />);
+    renderSetting({ user: { role: 'owner' } });
 
     // Click tab Kasir
     const kasirTab = screen.getByRole('button', { name: /Kasir/i });
@@ -137,7 +146,7 @@ describe('Setting Component - Mobile Redesign', () => {
   it('dapat berpindah tab ke Layanan dan menampilkan daftar produk serta tombol tambah untuk owner', () => {
     setupMockQueries();
 
-    render(<Setting user={{ role: 'owner' }} />);
+    renderSetting({ user: { role: 'owner' } });
 
     // Click tab Layanan
     const productTab = screen.getByRole('button', { name: /Layanan/i });

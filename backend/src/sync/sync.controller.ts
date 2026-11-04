@@ -8,7 +8,7 @@ import { SyncInventoryDto, SyncMasterDataDto, SyncPelangganDto, SyncProductDto, 
 @ApiResponse({ status: 401, description: 'Unauthorized - Bearer token tidak valid atau tidak disertakan.' })
 @Controller('sync')
 export class SyncController {
-  constructor(private readonly syncService: SyncService) {}
+  constructor(private readonly syncService: SyncService) { }
 
   @Post('master-data')
   @ApiOperation({
@@ -130,6 +130,21 @@ export class SyncController {
   @ApiResponse({ status: 200, description: 'Daftar produk berhasil dimuat.' })
   async getProducts(@Query('storeId') storeId: string) {
     const data = await this.syncService.getProducts(storeId);
+    return {
+      success: true,
+      data,
+    };
+  }
+
+  @Get('pelanggan')
+  @ApiOperation({
+    summary: 'Mendapatkan Daftar Pelanggan Toko',
+    description: 'Mengambil daftar seluruh pelanggan toko berdasarkan ID Toko termasuk status deletedAt.',
+  })
+  @ApiQuery({ name: 'storeId', required: true, description: 'Filter berdasarkan ID Toko' })
+  @ApiResponse({ status: 200, description: 'Daftar pelanggan berhasil dimuat.' })
+  async getPelanggan(@Query('storeId') storeId: string) {
+    const data = await this.syncService.getPelanggan(storeId);
     return {
       success: true,
       data,

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { getPelangganQuery, addPelanggan, updatePelanggan } from '../../db/repositories/pelanggan';
+import { getPelangganQuery, addPelanggan, updatePelanggan, deletePelanggan } from '../../db/repositories/pelanggan';
 import { getInventoryQuery, updateInventoryStok, approveInventory, rejectInventory, addInventoryManual } from '../../db/repositories/inventory';
 import { getOrdersQuery } from '../../db/repositories/orders';
 import { updateDraftOrder } from '../../db/repositories/draftOrder';
@@ -111,6 +111,23 @@ export const useHome = () => {
     }
   };
 
+  const handleDeletePelanggan = (pelanggan) => {
+    setConfirmModal({
+      show: true,
+      message: CONFIRM_MESSAGES.DELETE_CUSTOMER,
+      onConfirm: async () => {
+        try {
+          await deletePelanggan(pelanggan.id || pelanggan.uuid || pelanggan);
+          toast.success(TOAST_MESSAGES.SUCCESS);
+          setConfirmModal({ show: false, message: '', onConfirm: null });
+        } catch (error) {
+          toast.error(error.message || TOAST_MESSAGES.ERROR);
+          setConfirmModal({ show: false, message: '', onConfirm: null });
+        }
+      }
+    });
+  };
+
   return {
     showPelangganModal, setShowPelangganModal,
     showInventoryModal, setShowInventoryModal,
@@ -123,7 +140,7 @@ export const useHome = () => {
     searchInventory, setSearchInventory,
     inventoryTab, setInventoryTab,
     handleUpdateStok, handleApproveInventory, handleRejectInventory,
-    stats, handleSelectPelanggan, handleAddPelanggan,
+    stats, handleSelectPelanggan, handleAddPelanggan, handleDeletePelanggan,
     updatePelanggan, addInventoryManual
   };
 };
