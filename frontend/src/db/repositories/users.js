@@ -90,6 +90,7 @@ const hydrateFromBackend = async (data) => {
         name: p.name,
         price: Number(p.price) || 0,
         updatedAt: new Date(p.updatedAt || new Date()),
+        deletedAt: p.deletedAt ? new Date(p.deletedAt) : null,
         isDirty: 0,
       };
       if (existingProd) {

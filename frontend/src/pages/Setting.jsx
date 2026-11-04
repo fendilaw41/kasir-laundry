@@ -4,6 +4,17 @@ import { getKasirUsersQuery, addUser, updateUser, deleteUser as deleteUserRepo }
 import { getProductsQuery, addProduct, updateProduct, deleteProduct as deleteProductRepo } from '../db/repositories/products';
 import { useLiveQuery } from 'dexie-react-hooks';
 import toast from 'react-hot-toast';
+import {
+  TOAST_MESSAGES,
+  CONFIRM_MESSAGES,
+  PRODUCT_CATEGORIES,
+  DEFAULT_CATEGORY,
+  FALLBACK_CATEGORY,
+  STATUS_TEXT,
+  BUTTON_TEXT,
+  BUTTON_TITLE,
+  TAB_TITLE,
+} from '../constants/settingConstants';
 
 const Setting = ({ user }) => {
   const settings = useLiveQuery(getSettingsQuery);
@@ -23,7 +34,7 @@ const Setting = ({ user }) => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [productFormData, setProductFormData] = useState({
     name: '',
-    category: 'CUCI LIPAT',
+    category: DEFAULT_CATEGORY,
     code: '',
     price: '',
   });
@@ -67,17 +78,17 @@ const Setting = ({ user }) => {
   const handleSaveSettings = async (e) => {
     e?.preventDefault();
     if (user?.role !== 'owner') {
-      toast.error('Hanya akun Pemilik (Owner) yang dapat mengubah pengaturan');
+      toast.error(TOAST_MESSAGES.ERROR);
       return;
     }
 
     setIsSaving(true);
     try {
       await updateSettings(formData);
-      toast.success('Pengaturan berhasil disimpan');
+      toast.success(TOAST_MESSAGES.SUCCESS);
     } catch (err) {
       console.error(err);
-      toast.error('Gagal menyimpan pengaturan');
+      toast.error(TOAST_MESSAGES.ERROR);
     } finally {
       setIsSaving(false);
     }
@@ -88,26 +99,26 @@ const Setting = ({ user }) => {
     try {
       if (editingUser) {
         await updateUser(editingUser.id, userFormData);
-        toast.success('Data akun kasir diperbarui');
+        toast.success(TOAST_MESSAGES.SUCCESS);
       } else {
         await addUser(userFormData);
-        toast.success('Kasir baru berhasil ditambahkan');
+        toast.success(TOAST_MESSAGES.SUCCESS);
       }
       setShowUserModal(false);
       setEditingUser(null);
       setUserFormData({ fullname: '', username: '', password: '', role: 'kasir' });
     } catch (err) {
-      toast.error(err.message || 'Gagal menyimpan akun kasir');
+      toast.error(TOAST_MESSAGES.ERROR);
     }
   };
 
   const deleteUser = async (id) => {
-    if (window.confirm('Hapus akun kasir ini? Pegawai tidak akan bisa login lagi.')) {
+    if (window.confirm(CONFIRM_MESSAGES.DELETE_USER)) {
       try {
         await deleteUserRepo(id);
-        toast.success('Akun kasir berhasil dihapus');
+        toast.success(TOAST_MESSAGES.SUCCESS);
       } catch (err) {
-        toast.error(err.message || 'Gagal menghapus kasir');
+        toast.error(TOAST_MESSAGES.ERROR);
       }
     }
   };
@@ -134,7 +145,7 @@ const Setting = ({ user }) => {
       setEditingProduct(selectedProduct);
       setProductFormData({
         name: selectedProduct.name || '',
-        category: selectedProduct.category || 'CUCI LIPAT',
+        category: selectedProduct.category || DEFAULT_CATEGORY,
         code: selectedProduct.code || '',
         price: selectedProduct.price || '',
       });
@@ -142,7 +153,7 @@ const Setting = ({ user }) => {
       setEditingProduct(null);
       setProductFormData({
         name: '',
-        category: 'CUCI LIPAT',
+        category: DEFAULT_CATEGORY,
         code: '',
         price: '',
       });
@@ -153,36 +164,36 @@ const Setting = ({ user }) => {
   const handleProductSave = async (e) => {
     e.preventDefault();
     if (!isOwner) {
-      toast.error('Hanya akun Pemilik (Owner) yang dapat mengubah layanan');
+      toast.error(TOAST_MESSAGES.ERROR);
       return;
     }
     try {
       if (editingProduct) {
         await updateProduct(editingProduct.id, productFormData);
-        toast.success('Layanan berhasil diperbarui');
+        toast.success(TOAST_MESSAGES.SUCCESS);
       } else {
         await addProduct(productFormData);
-        toast.success('Layanan baru berhasil ditambahkan');
+        toast.success(TOAST_MESSAGES.SUCCESS);
       }
       setShowProductModal(false);
       setEditingProduct(null);
-      setProductFormData({ name: '', category: 'CUCI LIPAT', code: '', price: '' });
+      setProductFormData({ name: '', category: DEFAULT_CATEGORY, code: '', price: '' });
     } catch (err) {
-      toast.error(err.message || 'Gagal menyimpan layanan');
+      toast.error(TOAST_MESSAGES.ERROR);
     }
   };
 
   const deleteProduct = async (id) => {
     if (!isOwner) {
-      toast.error('Hanya akun Pemilik (Owner) yang dapat menghapus layanan');
+      toast.error(TOAST_MESSAGES.ERROR);
       return;
     }
-    if (window.confirm('Hapus layanan laundry ini?')) {
+    if (window.confirm(CONFIRM_MESSAGES.DELETE_PRODUCT)) {
       try {
         await deleteProductRepo(id);
-        toast.success('Layanan berhasil dihapus');
+        toast.success(TOAST_MESSAGES.SUCCESS);
       } catch (err) {
-        toast.error(err.message || 'Gagal menghapus layanan');
+        toast.error(TOAST_MESSAGES.ERROR);
       }
     }
   };
@@ -218,6 +229,8 @@ const Setting = ({ user }) => {
                 }`}
               style={{ fontSize: '0.4rem', minWidth: 'fit-content' }}
               onClick={() => setActiveTab('umum')}
+              title={TAB_TITLE.UMUM}
+              aria-label={TAB_TITLE.UMUM}
             >
               <i className="bi bi-shop"></i>
             </button>
@@ -228,6 +241,8 @@ const Setting = ({ user }) => {
                 }`}
               style={{ fontSize: '0.8rem', minWidth: 'fit-content' }}
               onClick={() => setActiveTab('struk')}
+              title={TAB_TITLE.STRUK}
+              aria-label={TAB_TITLE.STRUK}
             >
               <i className="bi bi-receipt"></i>
             </button>
@@ -239,6 +254,8 @@ const Setting = ({ user }) => {
                   }`}
                 style={{ fontSize: '0.5rem', minWidth: 'fit-content' }}
                 onClick={() => setActiveTab('kasir')}
+                title={TAB_TITLE.KASIR}
+                aria-label={TAB_TITLE.KASIR}
               >
                 <i className="bi bi-people-fill"></i>
                 {users && users.length > 0 && (
@@ -260,6 +277,8 @@ const Setting = ({ user }) => {
                   }`}
                 style={{ fontSize: '0.5rem', minWidth: 'fit-content' }}
                 onClick={() => setActiveTab('product')}
+                title={TAB_TITLE.PRODUCT}
+                aria-label={TAB_TITLE.PRODUCT}
               >
                 <i className="bi bi-tag-fill"></i>
                 {products && products.length > 0 && (
@@ -283,7 +302,7 @@ const Setting = ({ user }) => {
             style={{ backgroundColor: '#fff9e6', color: '#8a6200', fontSize: '0.78rem' }}
           >
             <i className="bi bi-shield-lock-fill fs-6 text-warning"></i>
-            <span>Mode Baca: Pengaturan hanya dapat diedit oleh akun Pemilik (Owner).</span>
+            <span>{STATUS_TEXT.READ_ONLY}</span>
           </div>
         )}
 
@@ -467,9 +486,7 @@ const Setting = ({ user }) => {
                   <div className="pe-2">
                     <h6 className="mb-0 fw-bold text-dark" style={{ fontSize: '0.88rem' }}>Status Menerima Cucian</h6>
                     <small className="text-muted d-block" style={{ fontSize: '0.72rem' }}>
-                      {formData.menerimaCucian
-                        ? '🟢 Toko BUKA (Kasir dapat input pesanan baru)'
-                        : '🔴 Toko TUTUP (Sementara tidak menerima cucian)'}
+                      {formData.menerimaCucian ? STATUS_TEXT.STORE_OPEN : STATUS_TEXT.STORE_CLOSED}
                     </small>
                   </div>
                   <div className="form-check form-switch m-0 p-0 d-flex align-items-center">
@@ -491,19 +508,19 @@ const Setting = ({ user }) => {
             {isOwner && (
               <button
                 type="submit"
-                className="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2"
+                className="btn btn-outline-primary w-100 rounded-pill py-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2"
                 disabled={isSaving}
                 style={{ fontSize: '0.92rem' }}
               >
                 {isSaving ? (
                   <>
                     <span className="spinner-border spinner-border-sm" role="status"></span>
-                    <span>Menyimpan Pengaturan...</span>
+                    <span>{BUTTON_TEXT.SAVING}</span>
                   </>
                 ) : (
                   <>
                     <i className="bi bi-check-circle-fill fs-5"></i>
-                    <span>Simpan Pengaturan Toko</span>
+                    <span>{BUTTON_TEXT.SAVE}</span>
                   </>
                 )}
               </button>
@@ -623,19 +640,19 @@ const Setting = ({ user }) => {
             {isOwner && (
               <button
                 type="submit"
-                className="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2"
+                className="btn btn-outline-primary w-100 rounded-pill py-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2"
                 disabled={isSaving}
                 style={{ fontSize: '0.92rem' }}
               >
                 {isSaving ? (
                   <>
                     <span className="spinner-border spinner-border-sm" role="status"></span>
-                    <span>Menyimpan Format Struk...</span>
+                    <span>{BUTTON_TEXT.SAVING}</span>
                   </>
                 ) : (
                   <>
                     <i className="bi bi-check-circle-fill fs-5"></i>
-                    <span>Simpan Format Struk</span>
+                    <span>{BUTTON_TEXT.SAVE}</span>
                   </>
                 )}
               </button>
@@ -658,11 +675,12 @@ const Setting = ({ user }) => {
               </div>
               <button
                 type="button"
-                className="btn btn-primary btn-sm rounded-pill px-3 py-2 fw-semibold d-flex align-items-center gap-1 shadow-sm"
+                className="btn btn-outline-primary btn-sm rounded-pill px-3 py-2 fw-semibold d-flex align-items-center gap-1 shadow-sm"
                 onClick={() => openUserModal()}
+                title={BUTTON_TITLE.ADD_USER}
                 style={{ fontSize: '0.5rem' }}
               >
-                <i className="bi bi-person-plus-fill" style={{ fontSize: '0.8rem' }}></i>
+                <i className="bi bi-plus-lg" style={{ fontSize: '0.8rem' }}></i>
               </button>
             </div>
 
@@ -685,8 +703,9 @@ const Setting = ({ user }) => {
                       type="button"
                       className="btn btn-outline-primary btn-sm rounded-pill px-4"
                       onClick={() => openUserModal()}
+                      title={BUTTON_TITLE.ADD_USER}
                     >
-                      <i className="bi bi-person-plus-fill fs-2"></i>
+                      <i className="bi bi-plus-lg fs-4"></i>
                     </button>
                   </div>
                 </div>
@@ -728,7 +747,7 @@ const Setting = ({ user }) => {
                         className="btn btn-sm btn-light rounded-circle text-primary border shadow-xs d-flex align-items-center justify-content-center"
                         style={{ width: '34px', height: '34px' }}
                         onClick={() => openUserModal(u)}
-                        title="Edit Data Kasir"
+                        title={BUTTON_TITLE.EDIT}
                       >
                         <i className="bi bi-pencil-fill" style={{ fontSize: '0.8rem' }}></i>
                       </button>
@@ -737,7 +756,7 @@ const Setting = ({ user }) => {
                         className="btn btn-sm btn-light rounded-circle text-danger border shadow-xs d-flex align-items-center justify-content-center"
                         style={{ width: '34px', height: '34px' }}
                         onClick={() => deleteUser(u.id)}
-                        title="Hapus Kasir"
+                        title={BUTTON_TITLE.DELETE}
                       >
                         <i className="bi bi-trash-fill" style={{ fontSize: '0.8rem' }}></i>
                       </button>
@@ -764,11 +783,12 @@ const Setting = ({ user }) => {
               </div>
               <button
                 type="button"
-                className="btn btn-primary btn-sm rounded-pill px-3 py-2 fw-semibold d-flex align-items-center gap-1 shadow-sm flex-shrink-0"
+                className="btn btn-outline-primary btn-sm rounded-pill px-3 py-2 fw-semibold d-flex align-items-center gap-1 shadow-sm flex-shrink-0"
                 onClick={() => openProductModal()}
+                title={BUTTON_TITLE.ADD_PRODUCT}
                 style={{ fontSize: '0.8rem' }}
               >
-                <i className="bi bi-plus-circle-fill"></i>
+                <i className="bi bi-plus-lg"></i>
               </button>
             </div>
 
@@ -791,8 +811,9 @@ const Setting = ({ user }) => {
                       type="button"
                       className="btn btn-outline-primary btn-sm rounded-pill px-4"
                       onClick={() => openProductModal()}
+                      title={BUTTON_TITLE.ADD_PRODUCT}
                     >
-                      <i className="bi bi-plus-circle-fill"></i>
+                      <i className="bi bi-plus-lg fs-4"></i>
                     </button>
                   </div>
                 </div>
@@ -825,7 +846,7 @@ const Setting = ({ user }) => {
                           </h6>
                           <div className="d-flex align-items-center gap-1.5 flex-wrap">
                             <span className="badge bg-primary-subtle text-dark border border-primary-subtle rounded-pill px-2 py-0.5" style={{ fontSize: '0.6rem' }}>
-                              {p.category || 'LAINNYA'} ({p.code})
+                              {p.category || FALLBACK_CATEGORY} ({p.code})
                             </span>
                             <span className="fw-bold text-primary ms-1" style={{ fontSize: '0.8rem' }}>
                               Rp {Number(p.price || 0).toLocaleString('id-ID')}
@@ -840,7 +861,7 @@ const Setting = ({ user }) => {
                           className="btn btn-sm btn-light rounded-circle text-primary border shadow-xs d-flex align-items-center justify-content-center"
                           style={{ width: '34px', height: '34px' }}
                           onClick={() => openProductModal(p)}
-                          title="Edit Data Layanan"
+                          title={BUTTON_TITLE.EDIT}
                         >
                           <i className="bi bi-pencil-fill" style={{ fontSize: '0.8rem' }}></i>
                         </button>
@@ -849,7 +870,7 @@ const Setting = ({ user }) => {
                           className="btn btn-sm btn-light rounded-circle text-danger border shadow-xs d-flex align-items-center justify-content-center"
                           style={{ width: '34px', height: '34px' }}
                           onClick={() => deleteProduct(p.id)}
-                          title="Hapus Layanan"
+                          title={BUTTON_TITLE.DELETE}
                         >
                           <i className="bi bi-trash-fill" style={{ fontSize: '0.8rem' }}></i>
                         </button>
@@ -934,25 +955,13 @@ const Setting = ({ user }) => {
                           onChange={(e) => setProductFormData({ ...productFormData, category: e.target.value })}
                           required
                         >
-                          <option value="" disabled>Pilih Kategori Layanan...</option>
-                          <option value="CUCI LIPAT">CUCI LIPAT</option>
-                          <option value="CUCI SETRIKA">CUCI SETRIKA</option>
-                          <option value="SETRIKA SAJA">SETRIKA SAJA</option>
-                          <option value="SATUAN">SATUAN</option>
-                          <option value="BED COVER">BED COVER</option>
-                          <option value="SEPATU">SEPATU</option>
-                          <option value="LAINNYA">LAINNYA</option>
-                          {productFormData.category && ![
-                            'CUCI LIPAT',
-                            'CUCI SETRIKA',
-                            'SETRIKA SAJA',
-                            'SATUAN',
-                            'BED COVER',
-                            'SEPATU',
-                            'LAINNYA'
-                          ].includes(productFormData.category) && (
-                              <option value={productFormData.category}>{productFormData.category}</option>
-                            )}
+                          <option value="" disabled>Pilih Kategori...</option>
+                          {PRODUCT_CATEGORIES.map((cat) => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                          {productFormData.category && !PRODUCT_CATEGORIES.includes(productFormData.category) && (
+                            <option value={productFormData.category}>{productFormData.category}</option>
+                          )}
                         </select>
                       </div>
                     </div>
@@ -999,11 +1008,11 @@ const Setting = ({ user }) => {
                   <div className="modal-footer border-0 px-4 pb-4 pt-0">
                     <button
                       type="submit"
-                      className="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm"
+                      className="btn btn-outline-primary rounded-pill py-2 fw-bold shadow-sm"
                       style={{ fontSize: '0.88rem' }}
                     >
                       <i className="bi bi-check2-circle me-1"></i>
-                      <span>{editingProduct ? 'Simpan Perubahan' : 'Tambah Layanan'}</span>
+                      <span>{BUTTON_TEXT.SAVE}</span>
                     </button>
                   </div>
                 </form>
@@ -1121,11 +1130,11 @@ const Setting = ({ user }) => {
                   <div className="modal-footer border-0 px-4 pb-4 pt-0">
                     <button
                       type="submit"
-                      className="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm"
+                      className="btn btn-outline-primary w-100 rounded-pill py-2 fw-bold shadow-sm"
                       style={{ fontSize: '0.88rem' }}
                     >
                       <i className="bi bi-check2-circle me-1"></i>
-                      <span>{editingUser ? 'Simpan Perubahan' : 'Daftarkan Kasir'}</span>
+                      <span>{BUTTON_TEXT.SAVE}</span>
                     </button>
                   </div>
                 </form>

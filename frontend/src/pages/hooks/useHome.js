@@ -7,6 +7,7 @@ import { updateDraftOrder } from '../../db/repositories/draftOrder';
 import { pullOrdersFromBackend } from '../../services/syncService';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { TOAST_MESSAGES, CONFIRM_MESSAGES } from '../../constants/appConstants';
 
 export const useHome = () => {
   const navigate = useNavigate();
@@ -33,16 +34,15 @@ export const useHome = () => {
 
   // Update Stok Inventory
   const handleUpdateStok = async (item, delta) => {
-    const actionText = delta > 0 ? `tambah ${delta}` : `kurangi ${Math.abs(delta)}`;
     setConfirmModal({
       show: true,
-      message: `Apakah Anda yakin ingin ${actionText} stok ${item.nama}?`,
+      message: CONFIRM_MESSAGES.UPDATE_STOCK,
       onConfirm: async () => {
         try {
           await updateInventoryStok(item.id, delta);
           setConfirmModal({ show: false, message: '', onConfirm: null });
         } catch (e) {
-          toast.error(e.message);
+          toast.error(TOAST_MESSAGES.ERROR);
         }
       }
     });
@@ -51,20 +51,20 @@ export const useHome = () => {
   const handleApproveInventory = async (item) => {
     try {
       await approveInventory(item);
-      toast.success(`${item.nama} berhasil disetujui`);
+      toast.success(TOAST_MESSAGES.SUCCESS);
     } catch (error) {
       console.error(error);
-      toast.error('Gagal menyetujui');
+      toast.error(TOAST_MESSAGES.ERROR);
     }
   };
 
   const handleRejectInventory = async (item) => {
     try {
       await rejectInventory(item);
-      toast.success(`${item.nama} ditolak`);
+      toast.success(TOAST_MESSAGES.SUCCESS);
     } catch (error) {
       console.error(error);
-      toast.error('Gagal menolak');
+      toast.error(TOAST_MESSAGES.ERROR);
     }
   };
 
@@ -103,11 +103,11 @@ export const useHome = () => {
     e.preventDefault();
     try {
       await addPelanggan(newPelanggan);
-      toast.success('Pelanggan berhasil ditambahkan');
+      toast.success(TOAST_MESSAGES.SUCCESS);
       setNewPelanggan({ nama: '', hp: '', alamat: '' });
       setShowPelangganModal(false);
     } catch (error) {
-      toast.error(error.message);
+      toast.error(TOAST_MESSAGES.ERROR);
     }
   };
 

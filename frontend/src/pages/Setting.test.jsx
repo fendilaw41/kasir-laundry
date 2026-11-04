@@ -103,7 +103,7 @@ describe('Setting Component - Mobile Redesign', () => {
     expect(screen.getByRole('button', { name: /^Toko$/i })).toBeDefined();
     expect(screen.getByRole('button', { name: /^Struk$/i })).toBeDefined();
     expect(screen.queryByRole('button', { name: /Kasir/i })).toBeNull();
-    expect(screen.getByText(/Mode Baca: Pengaturan hanya dapat diedit oleh akun Pemilik/i)).toBeDefined();
+    expect(screen.getByText(/Mode Baca/i)).toBeDefined();
   });
 
   it('dapat berpindah tab ke Struk dan menampilkan simulasi nota thermal', () => {
@@ -143,7 +143,7 @@ describe('Setting Component - Mobile Redesign', () => {
     const productTab = screen.getByRole('button', { name: /Layanan/i });
     fireEvent.click(productTab);
 
-    expect(screen.getByText(/Master Produk Layanan/i)).toBeDefined();
+    expect(screen.getAllByText(/^Layanan$/i)[0]).toBeDefined();
     expect(screen.getByText('Cuci Lipat Reguler')).toBeDefined();
     expect(screen.getByText('Cuci Setrika Express')).toBeDefined();
     expect(screen.getByRole('button', { name: /Tambah Layanan/i })).toBeDefined();

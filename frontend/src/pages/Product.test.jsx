@@ -63,12 +63,14 @@ describe('Product Page Category Dropdown', () => {
     fireEvent.click(dropdownButton);
 
     // Dropdown item now visible as button in dropdown
-    expect(screen.getByRole('button', { name: 'SETRIKA SAJA' })).toBeDefined();
+    const itemButton = screen.getByRole('button', { name: 'SETRIKA SAJA' });
+    expect(itemButton).toBeDefined();
 
     // Click the item
-    fireEvent.click(screen.getByRole('button', { name: 'SETRIKA SAJA' }));
+    fireEvent.click(itemButton);
 
-    // Dropdown closes and button shows active state
-    expect(screen.getByRole('button', { name: /\+1: SETRIKA SAJA/ })).toBeDefined();
+    // Dropdown closes and button shows active blue state
+    expect(dropdownButton.textContent).toContain('+1');
+    expect(dropdownButton.style.backgroundColor).toBe('rgb(13, 90, 253)');
   });
 });

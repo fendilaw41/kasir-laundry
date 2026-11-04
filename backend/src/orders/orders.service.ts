@@ -334,6 +334,17 @@ export class OrdersService {
   }
 
   /**
+   * Ambil daftar produk untuk store tertentu (termasuk status deletedAt)
+   */
+  async findProducts(storeId: string) {
+    if (!storeId) return [];
+    return await this.prisma.product.findMany({
+      where: { storeId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  /**
    * Ambil detail order by ID
    */
   async findOne(id: string) {

@@ -199,7 +199,7 @@ export const syncOrderToBackend = async (orderId) => {
     }
     if (!order && typeof orderId === 'string') {
       order = (await db.orders.where('uuid').equals(orderId).first()) ||
-              (await db.orders.where('invoiceId').equals(orderId).first());
+        (await db.orders.where('invoiceId').equals(orderId).first());
     }
     if (!order) return;
 
@@ -804,6 +804,45 @@ export const pullOrdersFromBackend = async (force = false) => {
       console.log(`[Sync] Berhasil memperbarui ${serverInventory.length} inventory dari server.`);
     }
 
+    // 7. Tarik dan Sinkronkan Products dari Response GET /orders?storeId=...
+    const serverProducts = result.products || [];
+    if (Array.isArray(serverProducts) && serverProducts.length > 0) {
+      for (const sp of serverProducts) {
+        let localProd = null;
+        if (sp.id) {
+          localProd = await db.products.where('uuid').equals(sp.id).first();
+        }
+        if (!localProd && sp.code) {
+          localProd = await db.products.where('code').equals(sp.code).first();
+        }
+        if (!localProd && sp.category && sp.name) {
+          localProd = await db.products.filter(p => p.category === sp.category && p.name === sp.name).first();
+        }
+
+        const prodPayload = {
+          uuid: sp.id,
+          storeId: sp.storeId || storeId,
+          code: sp.code || null,
+          category: sp.category || null,
+          name: sp.name,
+          price: Number(sp.price) || 0,
+          createdAt: sp.createdAt ? new Date(sp.createdAt) : new Date(),
+          updatedAt: sp.updatedAt ? new Date(sp.updatedAt) : new Date(),
+          deletedAt: sp.deletedAt ? new Date(sp.deletedAt) : null,
+          isDirty: 0,
+        };
+
+        if (localProd) {
+          if (localProd.isDirty !== 1 || force) {
+            await db.products.update(localProd.id, prodPayload);
+          }
+        } else {
+          await db.products.add(prodPayload);
+        }
+      }
+      console.log(`[Sync] Berhasil memperbarui ${serverProducts.length} produk dari server.`);
+    }
+
     console.log(`[Sync] Berhasil menarik ${serverOrders.length} order dari server.`);
     return true;
   } catch (err) {
@@ -815,15 +854,79 @@ export const pullOrdersFromBackend = async (force = false) => {
 };
 
 /**
+ * Tarik dan Sinkronkan Produk / Layanan terbaru dari Backend ke Dexie
+ */
+export const pullProductsFromBackend = async (force = false) => {
+  try {
+    const storedUser = getStoredUser();
+    const setting = await db.settings.get(1);
+    const storeId = storedUser.storeId || setting?.storeId;
+    if (!storeId) return false;
+
+    const response = await fetch(`${API_BASE_URL}/sync/products?storeId=${storeId}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) return false;
+
+    const result = await response.json();
+    const serverProducts = result.data || result || [];
+
+    if (Array.isArray(serverProducts) && serverProducts.length > 0) {
+      for (const sp of serverProducts) {
+        let localProd = null;
+        if (sp.id) {
+          localProd = await db.products.where('uuid').equals(sp.id).first();
+        }
+        if (!localProd && sp.code) {
+          localProd = await db.products.where('code').equals(sp.code).first();
+        }
+        if (!localProd && sp.category && sp.name) {
+          localProd = await db.products.filter(p => p.category === sp.category && p.name === sp.name).first();
+        }
+
+        const prodPayload = {
+          uuid: sp.id,
+          storeId: sp.storeId || storeId,
+          code: sp.code || null,
+          category: sp.category || null,
+          name: sp.name,
+          price: Number(sp.price) || 0,
+          createdAt: sp.createdAt ? new Date(sp.createdAt) : new Date(),
+          updatedAt: sp.updatedAt ? new Date(sp.updatedAt) : new Date(),
+          deletedAt: sp.deletedAt ? new Date(sp.deletedAt) : null,
+          isDirty: 0,
+        };
+
+        if (localProd) {
+          if (localProd.isDirty !== 1 || force) {
+            await db.products.update(localProd.id, prodPayload);
+          }
+        } else {
+          await db.products.add(prodPayload);
+        }
+      }
+      console.log(`[Sync] Berhasil menarik ${serverProducts.length} produk terbaru dari endpoint sync/products.`);
+    }
+    return true;
+  } catch (err) {
+    console.warn('[Sync] Gagal menarik produk dari server (offline):', err.message);
+    return false;
+  }
+};
+
+/**
  * Sinkronisasi Penuh Dua Arah (Two-Way Sync):
  * 1. PUSH: Dorong perubahan master data & order lokal (termasuk dirty / forceAll) ke backend
- * 2. PULL: Tarik data order & inventory terbaru dari backend ke Dexie
+ * 2. PULL: Tarik data order, inventory, dan produk terbaru dari backend ke Dexie
  */
 export const syncTwoWay = async ({ forceAll = false } = {}) => {
   try {
     await syncAllDirtyMasterData(forceAll);
     await syncDirtyOrders(forceAll);
     const pullSuccess = await pullOrdersFromBackend(true);
+    await pullProductsFromBackend(true);
     return { success: true, pullSuccess };
   } catch (error) {
     console.error('[Sync] syncTwoWay gagal:', error);
@@ -844,14 +947,16 @@ if (typeof window !== 'undefined') {
       await syncAllDirtyMasterData();
       await syncDirtyOrders();
       await pullOrdersFromBackend();
+      await pullProductsFromBackend();
     });
 
-    // 2. Cek sekali saat pertama kali aplikasi dibuka (Hanya sinkronkan data yang kotor/belum tersinkron lalu tarik order)
+    // 2. Cek sekali saat pertama kali aplikasi dibuka (Hanya sinkronkan data yang kotor/belum tersinkron lalu tarik order & produk)
     if (navigator.onLine) {
       setTimeout(async () => {
         await syncAllDirtyMasterData(false);
         await syncDirtyOrders(false);
         await pullOrdersFromBackend();
+        await pullProductsFromBackend();
       }, 2000);
     }
 
@@ -862,6 +967,7 @@ if (typeof window !== 'undefined') {
           await syncAllDirtyMasterData();
           await syncDirtyOrders();
           await pullOrdersFromBackend();
+          await pullProductsFromBackend();
         }
       }, syncInterval);
     }

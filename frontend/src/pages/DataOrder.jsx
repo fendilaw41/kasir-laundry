@@ -5,6 +5,7 @@ import { isStatusLunas } from '../utils/paymentStatus';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { TOAST_MESSAGES, CONFIRM_MESSAGES, BUTTON_TITLE } from '../constants/appConstants';
 
 const DataOrder = ({ user }) => {
   const navigate = useNavigate();
@@ -23,9 +24,9 @@ const DataOrder = ({ user }) => {
     setIsRefreshing(true);
     try {
       await syncTwoWay();
-      toast.success('Perbarui Data!');
+      toast.success(TOAST_MESSAGES.SUCCESS);
     } catch (err) {
-      toast.error('Gagal sinkronkan order: ' + err.message);
+      toast.error(TOAST_MESSAGES.ERROR);
     } finally {
       setIsRefreshing(false);
     }
@@ -58,14 +59,14 @@ const DataOrder = ({ user }) => {
   const handleCopy = (e, text) => {
     e.stopPropagation();
     navigator.clipboard.writeText(text);
-    toast.success('ID Order berhasil disalin!');
+    toast.success(TOAST_MESSAGES.SUCCESS);
   };
 
   const requestDelete = (id) => {
     setConfirmData({
       id,
       type: 'request',
-      message: 'Apakah Anda yakin ingin mengajukan penghapusan untuk order ini?'
+      message: CONFIRM_MESSAGES.CANCEL_ORDER
     });
     setShowConfirmModal(true);
   };
@@ -74,7 +75,7 @@ const DataOrder = ({ user }) => {
     setConfirmData({
       id,
       type: 'hard',
-      message: 'PERINGATAN: Order akan dihapus secara permanen dari database. Lanjutkan?'
+      message: CONFIRM_MESSAGES.DELETE_ORDER
     });
     setShowConfirmModal(true);
   };
@@ -83,7 +84,7 @@ const DataOrder = ({ user }) => {
     setConfirmData({
       id,
       type: 'selesai',
-      message: 'Apakah Anda yakin ingin mengubah status order ini menjadi Selesai?'
+      message: CONFIRM_MESSAGES.FINISH_ORDER
     });
     setShowConfirmModal(true);
   };
@@ -92,7 +93,7 @@ const DataOrder = ({ user }) => {
     setConfirmData({
       id,
       type: 'ambil',
-      message: 'Apakah Anda yakin pesanan ini sudah diambil oleh pelanggan?'
+      message: CONFIRM_MESSAGES.TAKE_ORDER
     });
     setShowConfirmModal(true);
   };
@@ -103,20 +104,20 @@ const DataOrder = ({ user }) => {
     try {
       if (confirmData.type === 'request') {
         await updateOrder(confirmData.id, { status: 'Dibatalkan' });
-        toast.success('Permintaan hapus terkirim');
+        toast.success(TOAST_MESSAGES.SUCCESS);
       } else if (confirmData.type === 'hard') {
         await deleteOrder(confirmData.id);
-        toast.success('Order berhasil dihapus permanen');
+        toast.success(TOAST_MESSAGES.SUCCESS);
       } else if (confirmData.type === 'selesai') {
         await updateOrder(confirmData.id, { status: 'Selesai' });
-        toast.success('Status order diperbarui menjadi Selesai');
+        toast.success(TOAST_MESSAGES.SUCCESS);
       } else if (confirmData.type === 'ambil') {
         await updateOrder(confirmData.id, { status: 'Ambil' });
-        toast.success('Status order diperbarui menjadi Ambil');
+        toast.success(TOAST_MESSAGES.SUCCESS);
       }
       setShowConfirmModal(false);
     } catch (error) {
-      toast.error(error.message);
+      toast.error(TOAST_MESSAGES.ERROR);
       setShowConfirmModal(false);
     }
   };
@@ -256,13 +257,17 @@ const DataOrder = ({ user }) => {
                       <button className="btn btn-outline-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => confirmAmbil(order.id)}>Ambil</button>
                     )}
                     {activeTab === 'Dibatalkan' && (
-                      <button className="btn btn-outline-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => hardDelete(order.id)}>Hapus</button>
+                      <button className="btn btn-outline-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => hardDelete(order.id)} title={BUTTON_TITLE.DELETE}>
+                        <i className="bi bi-trash-fill"></i>
+                      </button>
                     )}
                   </div>
                   {user.role === 'owner' && (
                     <div className="col-4 text-end">
                       {(activeTab === 'Proses' || activeTab === 'Selesai') && (
-                        <button className="btn btn-outline-danger btn-sm w-100 fw-bold shadow-sm" onClick={() => requestDelete(order.id)}>Hapus</button>
+                        <button className="btn btn-outline-danger btn-sm w-100 fw-bold shadow-sm" onClick={() => requestDelete(order.id)} title={BUTTON_TITLE.DELETE}>
+                          <i className="bi bi-trash-fill"></i>
+                        </button>
                       )}
                     </div>
                   )}

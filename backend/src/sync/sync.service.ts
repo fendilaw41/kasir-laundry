@@ -516,6 +516,17 @@ export class SyncService {
     });
   }
 
+  /**
+   * Mengambil daftar produk untuk toko tertentu (termasuk status deletedAt)
+   */
+  async getProducts(storeId: string) {
+    if (!storeId) return [];
+    return await this.prisma.product.findMany({
+      where: { storeId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
 
   /**
    * Mengambil riwayat log sinkronisasi & audit trail

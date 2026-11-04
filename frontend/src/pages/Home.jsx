@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useHome } from './hooks/useHome';
+import { TOAST_MESSAGES, CONFIRM_MESSAGES, BUTTON_TEXT, BUTTON_TITLE } from '../constants/appConstants';
 
 const Home = ({ user }) => {
   const {
@@ -115,7 +116,7 @@ const Home = ({ user }) => {
             {/* Proses */}
             <div className="col-3">
               <Link to="/orders?tab=Proses" className="text-decoration-none customer-card-clickable d-block">
-                <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
+                <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#fff', border: '1px solid #bbdefb' }}>
                   <i className="bi bi-bag-check fs-5"></i>
                 </div>
                 <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Order<br />Proses</span>
@@ -125,7 +126,7 @@ const Home = ({ user }) => {
             {/* Siap Ambil */}
             <div className="col-3">
               <Link to="/orders?tab=Selesai" className="text-decoration-none customer-card-clickable d-block">
-                <div className="mx-auto text-primary rounded-1 border-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
+                <div className="mx-auto text-primary rounded-1 border-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#fff', border: '1px solid #bbdefb' }}>
                   <i className="bi bi-box-seam fs-5"></i>
                 </div>
                 <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Siap<br />Ambil</span>
@@ -135,7 +136,7 @@ const Home = ({ user }) => {
             {/* Inventory */}
             <div className="col-3">
               <div className="text-decoration-none customer-card-clickable d-block" onClick={() => setShowInventoryModal(true)} style={{ cursor: 'pointer' }}>
-                <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
+                <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#fff', border: '1px solid #bbdefb' }}>
                   <i className="bi bi-archive fs-5"></i>
                 </div>
                 <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Stok</span>
@@ -145,7 +146,7 @@ const Home = ({ user }) => {
             {/* Pelanggan */}
             <div className="col-3">
               <div className="text-decoration-none customer-card-clickable d-block" onClick={() => setShowPelangganModal(true)} style={{ cursor: 'pointer' }}>
-                <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
+                <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#fff', border: '1px solid #bbdefb' }}>
                   <i className="bi bi-people fs-5"></i>
                 </div>
                 <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Cust.</span>
@@ -155,7 +156,7 @@ const Home = ({ user }) => {
             {/* Report */}
             <div className="col-3">
               <Link to="/reports" className="text-decoration-none customer-card-clickable d-block">
-                <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
+                <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#fff', border: '1px solid #bbdefb' }}>
                   <i className="bi bi-bar-chart-fill fs-5"></i>
                 </div>
                 <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Laporan</span>
@@ -165,7 +166,7 @@ const Home = ({ user }) => {
             {/* Setting */}
             <div className="col-3">
               <Link to="/setting" className="text-decoration-none customer-card-clickable d-block">
-                <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
+                <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#fff', border: '1px solid #bbdefb' }}>
                   <i className="bi bi-gear-fill fs-5"></i>
                 </div>
                 <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Setting</span>
@@ -176,7 +177,7 @@ const Home = ({ user }) => {
             {user?.role === 'owner' && (
               <div className="col-3">
                 <div className="text-decoration-none customer-card-clickable d-block" onClick={() => toast('Fitur Layanan/Produk segera hadir!', { icon: '🚀' })} style={{ cursor: 'pointer' }}>
-                  <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
+                  <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#fff', border: '1px solid #bbdefb' }}>
                     <i className="bi bi-grid fs-5"></i>
                   </div>
                   <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Layanan</span>
@@ -188,7 +189,7 @@ const Home = ({ user }) => {
             {user?.role === 'owner' && (
               <div className="col-3">
                 <div className="text-decoration-none customer-card-clickable d-block" onClick={() => toast('Fitur Promo segera hadir!', { icon: '🚀' })} style={{ cursor: 'pointer' }}>
-                  <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#e3f2fd', border: '1px solid #bbdefb' }}>
+                  <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#fff', border: '1px solid #bbdefb' }}>
                     <i className="bi bi-percent fs-5"></i>
                   </div>
                   <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Promo</span>
@@ -215,7 +216,7 @@ const Home = ({ user }) => {
       {user?.role === 'owner' && inventory?.filter(i => i.status === 'pending').length > 0 && (
         <div
           className="alert alert-info border-0 shadow-sm d-flex align-items-center mx-3 mt-3"
-          style={{ borderRadius: '12px', cursor: 'pointer', backgroundColor: '#e3f2fd' }}
+          style={{ borderRadius: '12px', cursor: 'pointer', backgroundColor: '#fff' }}
           onClick={() => {
             setInventoryTab('pending');
             setShowInventoryModal(true);
@@ -252,8 +253,8 @@ const Home = ({ user }) => {
                 <div className="modal-body p-3 p-sm-4">
                   {/* Form Tambah Baru (Collapsible) */}
                   <div className="mb-4">
-                    <button className="btn btn-outline-primary w-100 rounded-pill fw-bold py-2 mb-3 shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAddPelanggan">
-                      <i className="bi bi-person-plus me-2"></i> Pelanggan Baru
+                    <button className="btn btn-outline-primary w-100 rounded-pill fw-bold py-2 mb-3 shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAddPelanggan" title={BUTTON_TITLE.ADD}>
+                      <i className="bi bi-plus-lg"></i>
                     </button>
                     <div className="collapse" id="collapseAddPelanggan">
                       <div className="card card-body border-0 bg-light rounded-4 p-3 mb-3 shadow-inner">
@@ -267,7 +268,7 @@ const Home = ({ user }) => {
                           <div className="mb-3">
                             <textarea className="form-control border-0 py-2 rounded-3" placeholder="Alamat (Kota)" rows="2" value={newPelanggan.alamat} onChange={(e) => setNewPelanggan({ ...newPelanggan, alamat: e.target.value })}></textarea>
                           </div>
-                          <button type="submit" className="btn btn-outline-primary w-100 rounded-pill fw-bold shadow-sm">SIMPAN DATA</button>
+                          <button type="submit" className="btn btn-outline-primary w-100 rounded-pill fw-bold shadow-sm">{BUTTON_TEXT.SAVE}</button>
                         </form>
                       </div>
                     </div>
@@ -323,8 +324,9 @@ const Home = ({ user }) => {
                                 className="btn btn-sm btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center"
                                 style={{ width: '32px', height: '32px' }}
                                 onClick={(e) => { e.stopPropagation(); setEditPelanggan({ show: true, data: { ...p } }); }}
+                                title={BUTTON_TITLE.EDIT}
                               >
-                                <i className="bi bi-pencil-square text-primary"></i>
+                                <i className="bi bi-pencil-fill text-primary"></i>
                               </button>
                               <button
                                 className="btn btn-sm btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center"
@@ -365,7 +367,7 @@ const Home = ({ user }) => {
                     e.preventDefault();
                     setConfirmModal({
                       show: true,
-                      message: `Simpan perubahan data pelanggan ${editPelanggan.data.nama}?`,
+                      message: CONFIRM_MESSAGES.UPDATE_CUSTOMER,
                       onConfirm: async () => {
                         try {
                           await updatePelanggan(editPelanggan.data.id, {
@@ -373,11 +375,11 @@ const Home = ({ user }) => {
                             hp: editPelanggan.data.hp,
                             alamat: editPelanggan.data.alamat
                           });
-                          toast.success('Data pelanggan diperbarui!');
+                          toast.success(TOAST_MESSAGES.SUCCESS);
                           setConfirmModal({ show: false, message: '', onConfirm: null });
                           setEditPelanggan({ show: false, data: { id: null, nama: '', hp: '', alamat: '' } });
                         } catch (e) {
-                          toast.error(e.message);
+                          toast.error(TOAST_MESSAGES.ERROR);
                         }
                       }
                     });
@@ -394,7 +396,7 @@ const Home = ({ user }) => {
                       <label className="small fw-bold text-muted mb-1">Alamat</label>
                       <textarea className="form-control border-0 bg-light rounded-3 py-2" rows="2" value={editPelanggan.data.alamat || ''} onChange={(e) => setEditPelanggan({ ...editPelanggan, data: { ...editPelanggan.data, alamat: e.target.value } })}></textarea>
                     </div>
-                    <button type="submit" className="btn btn-outline-primary w-100 rounded-pill fw-bold shadow-sm py-2">Simpan Perubahan</button>
+                    <button type="submit" className="btn btn-outline-primary w-100 rounded-pill fw-bold shadow-sm py-2">{BUTTON_TEXT.SAVE}</button>
                   </form>
                 </div>
               </div>
@@ -435,21 +437,15 @@ const Home = ({ user }) => {
 
                       setConfirmModal({
                         show: true,
-                        message: isKasir
-                          ? `Ajukan penambahan stok:\n\nNama Barang: ${nama}\nJumlah: ${stok}\n\nPengajuan akan berstatus Pending dan menunggu persetujuan Owner. Lanjutkan?`
-                          : `Konfirmasi penambahan stok manual:\n\nNama Barang: ${nama}\nJumlah: ${stok}\n\nApakah data sudah sesuai?`,
+                        message: CONFIRM_MESSAGES.UPDATE_STOCK,
                         onConfirm: async () => {
                           try {
                             await addInventoryManual(nama, stok, { isPending: isKasir, user });
                             form.reset();
-                            toast.success(
-                              isKasir
-                                ? 'Pengajuan stok terkirim (menunggu persetujuan Owner)'
-                                : 'Stok telah ditambahkan'
-                            );
+                            toast.success(TOAST_MESSAGES.SUCCESS);
                             setConfirmModal({ show: false, message: '', onConfirm: null });
                           } catch (error) {
-                            toast.error(error.message);
+                            toast.error(TOAST_MESSAGES.ERROR);
                           }
                         }
                       });
@@ -464,7 +460,7 @@ const Home = ({ user }) => {
                         <div className="col-4">
                           <div className="input-group shadow-sm rounded-3 overflow-hidden">
                             <input type="number" name="stok" className="form-control border-0 py-2 px-2 text-center" placeholder="Qty" required />
-                            <button className="btn btn-outline-primary border-0 px-2" type="submit">
+                            <button className="btn btn-outline-primary border-0 px-2" type="submit" title={BUTTON_TITLE.ADD}>
                               <i className="bi bi-plus-lg"></i>
                             </button>
                           </div>
@@ -522,7 +518,7 @@ const Home = ({ user }) => {
                                   style={{ cursor: 'pointer', fontSize: '0.8rem' }}
                                   onClick={() => {
                                     navigator.clipboard.writeText(item.nama);
-                                    toast.success('Nama disalin!');
+                                    toast.success(TOAST_MESSAGES.SUCCESS);
                                   }}
                                   title="Copy nama stok"
                                 ></i>

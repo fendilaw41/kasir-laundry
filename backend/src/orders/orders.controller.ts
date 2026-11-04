@@ -66,10 +66,12 @@ export class OrdersController {
   async findAll(@Query('storeId') storeId?: string) {
     const data = await this.ordersService.findAll(storeId);
     const inventory = storeId ? await this.ordersService.findInventory(storeId) : [];
+    const products = storeId ? await this.ordersService.findProducts(storeId) : [];
     return {
       success: true,
       data,
       inventory,
+      products,
     };
   }
 

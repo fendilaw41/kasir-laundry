@@ -121,6 +121,21 @@ export class SyncController {
     };
   }
 
+  @Get('products')
+  @ApiOperation({
+    summary: 'Mendapatkan Daftar Produk / Layanan Toko',
+    description: 'Mengambil daftar seluruh produk/layanan cucian berdasarkan ID Toko termasuk status deletedAt.',
+  })
+  @ApiQuery({ name: 'storeId', required: true, description: 'Filter berdasarkan ID Toko' })
+  @ApiResponse({ status: 200, description: 'Daftar produk berhasil dimuat.' })
+  async getProducts(@Query('storeId') storeId: string) {
+    const data = await this.syncService.getProducts(storeId);
+    return {
+      success: true,
+      data,
+    };
+  }
+
   @Get('logs')
   @ApiOperation({
     summary: 'Melihat Riwayat Log Sinkronisasi & Audit Trail',
