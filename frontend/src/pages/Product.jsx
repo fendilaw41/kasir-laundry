@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getProductsQuery } from '../db/repositories/products';
 import { addProductToCart } from '../db/repositories/cart';
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 
 const Product = () => {
@@ -55,6 +55,28 @@ const Product = () => {
     return Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
   }, [products]);
 
+  const initialCategories = useMemo(() => categories.slice(0, 2), [categories]);
+  const otherCategories = useMemo(() => categories.slice(2), [categories]);
+  const isOtherSelected = otherCategories.includes(selectedCategory);
+
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const categoryDropdownRef = useRef(null);
+
+  // Tutup dropdown jika klik di luar dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)) {
+        setIsCategoryDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
+
   const updateQty = (id, delta) => {
     setQuantities((prev) => ({
       ...prev,
@@ -98,12 +120,7 @@ const Product = () => {
     <div className="product-page pb-5" style={{ backgroundColor: '#f8faff', minHeight: '100vh' }}>
       {/* Search & Category Header - Menyatu & Menempel Rapi ke Header */}
       <div
-        className="sticky-top bg-white border-bottom shadow-xs px-3 pt-2 pb-2 mx-n3 mb-2"
-        style={{
-          zIndex: 10,
-          top: '50px',
-          marginTop: '-10px',
-        }}
+        className="sticky-top shadow-xs px-3 pt-2 pb-2 mx-n3 mb-2"
       >
         {/* Search Input Bar */}
         <div className="position-relative">
@@ -114,7 +131,7 @@ const Product = () => {
           <input
             className="form-control rounded-pill ps-5 pe-5 py-2 border shadow-none"
             type="text"
-            placeholder="Cari nama layanan, kategori, atau kode..."
+            placeholder="Cari nama layanan"
             style={{
               fontSize: '0.84rem',
               backgroundColor: '#f1f5f9',
@@ -134,11 +151,11 @@ const Product = () => {
           )}
         </div>
 
-        {/* Category Horizontal Filter Chips (Bisa scroll horizontal di HP, drag mouse di PC) */}
+        {/* Category Filter Chips */}
         {categories.length > 0 && (
           <div
             ref={categoryScrollRef}
-            className="d-flex align-items-center gap-2 overflow-x-auto pt-2 pb-1 no-scrollbar position-relative"
+            className="d-flex align-items-center gap-2 pt-2 pb-1 no-scrollbar position-relative"
             style={{
               scrollbarWidth: 'none',
               msOverflowStyle: 'none',
@@ -147,6 +164,7 @@ const Product = () => {
               whiteSpace: 'nowrap',
               width: '100%',
               maxWidth: '100%',
+              overflow: 'visible',
               cursor: isDragging ? 'grabbing' : 'grab',
               userSelect: 'none',
             }}
@@ -163,7 +181,7 @@ const Product = () => {
               type="button"
               className="btn btn-sm rounded-pill px-3 py-1.5 fw-semibold flex-shrink-0 transition-all text-nowrap d-inline-flex align-items-center justify-content-center"
               style={{
-                fontSize: '0.78rem',
+                fontSize: '0.5rem',
                 backgroundColor: selectedCategory === 'ALL' ? '#0d5afd' : '#f8fafc',
                 color: selectedCategory === 'ALL' ? '#ffffff' : '#334155',
                 border: `1px solid ${selectedCategory === 'ALL' ? '#0d5afd' : '#e2e8f0'}`,
@@ -176,11 +194,14 @@ const Product = () => {
                   return;
                 }
                 setSelectedCategory('ALL');
+                setIsCategoryDropdownOpen(false);
               }}
             >
               Semua
             </button>
-            {categories.map((cat) => {
+
+            {/* 2 Kategori awal */}
+            {initialCategories.map((cat) => {
               const isActive = selectedCategory === cat;
               return (
                 <button
@@ -188,7 +209,7 @@ const Product = () => {
                   type="button"
                   className="btn btn-sm rounded-pill px-3 py-1.5 fw-semibold flex-shrink-0 transition-all text-nowrap d-inline-flex align-items-center justify-content-center"
                   style={{
-                    fontSize: '0.78rem',
+                    fontSize: '0.5rem',
                     backgroundColor: isActive ? '#0d5afd' : '#f8fafc',
                     color: isActive ? '#ffffff' : '#334155',
                     border: `1px solid ${isActive ? '#0d5afd' : '#e2e8f0'}`,
@@ -201,12 +222,84 @@ const Product = () => {
                       return;
                     }
                     setSelectedCategory(cat);
+                    setIsCategoryDropdownOpen(false);
                   }}
                 >
                   {cat}
                 </button>
               );
             })}
+
+            {/* Dropdown untuk kategori lainnya jika lebih dari 2 category */}
+            {categories.length > 2 && (
+              <div className="position-relative d-inline-block flex-shrink-0" ref={categoryDropdownRef}>
+                <button
+                  type="button"
+                  className="btn btn-sm rounded-pill px-3 py-1.5 fw-semibold flex-shrink-0 transition-all text-nowrap d-inline-flex align-items-center justify-content-center"
+                  style={{
+                    fontSize: '0.5rem',
+                    backgroundColor: isOtherSelected ? '#0d5afd' : '#f8fafc',
+                    color: isOtherSelected ? '#ffffff' : '#334155',
+                    border: `1px solid ${isOtherSelected ? '#0d5afd' : '#e2e8f0'}`,
+                    boxShadow: isOtherSelected ? '0 2px 6px rgba(13, 90, 253, 0.25)' : 'none',
+                    touchAction: 'pan-x',
+                  }}
+                  onClick={(e) => {
+                    if (hasMovedRef.current) {
+                      e.preventDefault();
+                      return;
+                    }
+                    setIsCategoryDropdownOpen((prev) => !prev);
+                  }}
+                >
+                  <span className="d-inline-flex align-items-center">
+                    +{otherCategories.length}
+                  </span>
+                  <i
+                    className={`bi bi-chevron-${isCategoryDropdownOpen ? 'up' : 'down'} ms-1`}
+                    style={{ fontSize: '0.3rem' }}
+                  ></i>
+                </button>
+
+                {isCategoryDropdownOpen && (
+                  <div
+                    className="dropdown-menu show shadow border-0 rounded-3 py-1 position-absolute mt-1"
+                    style={{
+                      top: '100%',
+                      left: 0,
+                      zIndex: 1050,
+                      minWidth: '150px',
+                      maxHeight: '220px',
+                      overflowY: 'auto',
+                      backgroundColor: '#ffffff',
+                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+                    }}
+                  >
+                    {otherCategories.map((cat) => {
+                      const isCatActive = selectedCategory === cat;
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          className={`dropdown-item py-1.5 px-3 d-flex align-items-center justify-content-between text-nowrap ${isCatActive ? 'fw-bold text-primary bg-primary-subtle' : 'text-dark'
+                            }`}
+                          style={{ fontSize: '0.5rem' }}
+                          onClick={() => {
+                            setSelectedCategory(cat);
+                            setIsCategoryDropdownOpen(false);
+                          }}
+                        >
+                          <span>{cat}</span>
+                          {isCatActive && (
+                            <i className="bi bi-check2 text-primary ms-2 fs-6"></i>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

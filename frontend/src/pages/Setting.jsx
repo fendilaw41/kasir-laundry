@@ -216,11 +216,10 @@ const Setting = ({ user }) => {
               type="button"
               className={`btn btn-sm rounded-pill flex-fill py-2 px-2.5 fw-semibold d-inline-flex align-items-center justify-content-center gap-1 text-nowrap transition-all ${activeTab === 'umum' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
                 }`}
-              style={{ fontSize: '0.8rem', minWidth: 'fit-content' }}
+              style={{ fontSize: '0.4rem', minWidth: 'fit-content' }}
               onClick={() => setActiveTab('umum')}
             >
               <i className="bi bi-shop"></i>
-              <span>Toko</span>
             </button>
 
             <button
@@ -231,24 +230,22 @@ const Setting = ({ user }) => {
               onClick={() => setActiveTab('struk')}
             >
               <i className="bi bi-receipt"></i>
-              <span>Struk</span>
             </button>
 
             {isOwner && (
               <button
                 type="button"
-                className={`btn btn-sm rounded-pill flex-fill py-2 px-2.5 fw-semibold d-inline-flex align-items-center justify-content-center gap-1 text-nowrap transition-all ${activeTab === 'kasir' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
+                className={`btn btn-sm rounded-pill fw-semibold d-inline-flex align-items-center justify-content-center gap-1 text-nowrap transition-all ${activeTab === 'kasir' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
                   }`}
-                style={{ fontSize: '0.8rem', minWidth: 'fit-content' }}
+                style={{ fontSize: '0.5rem', minWidth: 'fit-content' }}
                 onClick={() => setActiveTab('kasir')}
               >
                 <i className="bi bi-people-fill"></i>
-                <span>Kasir</span>
                 {users && users.length > 0 && (
                   <span
                     className={`badge rounded-pill ms-1 ${activeTab === 'kasir' ? 'bg-white text-primary' : 'bg-light text-muted'
                       }`}
-                    style={{ fontSize: '0.65rem' }}
+                    style={{ fontSize: '0.4rem' }}
                   >
                     {users.length}
                   </span>
@@ -259,18 +256,17 @@ const Setting = ({ user }) => {
             {isOwner && (
               <button
                 type="button"
-                className={`btn btn-sm rounded-pill flex-fill py-2 px-2.5 fw-semibold d-inline-flex align-items-center justify-content-center gap-1 text-nowrap transition-all ${activeTab === 'product' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
+                className={`btn btn-sm rounded-pill fw-semibold d-inline-flex align-items-center justify-content-center gap-1 text-nowrap transition-all ${activeTab === 'product' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
                   }`}
-                style={{ fontSize: '0.8rem', minWidth: 'fit-content' }}
+                style={{ fontSize: '0.5rem', minWidth: 'fit-content' }}
                 onClick={() => setActiveTab('product')}
               >
                 <i className="bi bi-tag-fill"></i>
-                <span>Layanan</span>
                 {products && products.length > 0 && (
                   <span
                     className={`badge rounded-pill ms-1 ${activeTab === 'product' ? 'bg-white text-primary' : 'bg-light text-muted'
                       }`}
-                    style={{ fontSize: '0.65rem' }}
+                    style={{ fontSize: '0.4rem' }}
                   >
                     {products.length}
                   </span>
@@ -664,10 +660,9 @@ const Setting = ({ user }) => {
                 type="button"
                 className="btn btn-primary btn-sm rounded-pill px-3 py-2 fw-semibold d-flex align-items-center gap-1 shadow-sm"
                 onClick={() => openUserModal()}
-                style={{ fontSize: '0.8rem' }}
+                style={{ fontSize: '0.5rem' }}
               >
-                <i className="bi bi-person-plus-fill"></i>
-                <span>Tambah Kasir</span>
+                <i className="bi bi-person-plus-fill" style={{ fontSize: '0.8rem' }}></i>
               </button>
             </div>
 
@@ -691,7 +686,7 @@ const Setting = ({ user }) => {
                       className="btn btn-outline-primary btn-sm rounded-pill px-4"
                       onClick={() => openUserModal()}
                     >
-                      + Tambah Kasir Pertama
+                      <i className="bi bi-person-plus-fill fs-2"></i>
                     </button>
                   </div>
                 </div>
@@ -762,7 +757,7 @@ const Setting = ({ user }) => {
             {/* ACTION HEADER */}
             <div className="d-flex justify-content-between align-items-center gap-2 mb-3 px-1">
               <div className="overflow-hidden">
-                <h6 className="fw-bold mb-0 text-dark text-truncate">Master Produk Layanan</h6>
+                <h6 className="fw-bold mb-0 text-dark text-truncate">Layanan</h6>
                 <small className="text-muted" style={{ fontSize: '0.74rem' }}>
                   Total {products?.length || 0} layanan terdaftar di toko ini
                 </small>
@@ -774,7 +769,6 @@ const Setting = ({ user }) => {
                 style={{ fontSize: '0.8rem' }}
               >
                 <i className="bi bi-plus-circle-fill"></i>
-                <span>Tambah Layanan</span>
               </button>
             </div>
 
@@ -798,7 +792,7 @@ const Setting = ({ user }) => {
                       className="btn btn-outline-primary btn-sm rounded-pill px-4"
                       onClick={() => openProductModal()}
                     >
-                      + Tambah Layanan Pertama
+                      <i className="bi bi-plus-circle-fill"></i>
                     </button>
                   </div>
                 </div>
@@ -826,19 +820,14 @@ const Setting = ({ user }) => {
                           <i className={`bi ${isSetrika ? 'bi-fire' : 'bi-water'}`}></i>
                         </div>
                         <div className="overflow-hidden flex-grow-1 min-w-0">
-                          <h6 className="mb-1 fw-bold text-dark text-truncate" style={{ fontSize: '0.9rem' }}>
+                          <h6 className="mb-1 fw-bold text-dark text-truncate" style={{ fontSize: '0.7rem' }}>
                             {p.name}
                           </h6>
                           <div className="d-flex align-items-center gap-1.5 flex-wrap">
-                            <span className="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-0.5" style={{ fontSize: '0.66rem' }}>
-                              {p.category || 'LAINNYA'}
+                            <span className="badge bg-primary-subtle text-dark border border-primary-subtle rounded-pill px-2 py-0.5" style={{ fontSize: '0.6rem' }}>
+                              {p.category || 'LAINNYA'} ({p.code})
                             </span>
-                            {p.code && (
-                              <span className="badge bg-light text-muted border rounded-pill px-1.5 py-0.5 fw-semibold" style={{ fontSize: '0.66rem' }}>
-                                {p.code}
-                              </span>
-                            )}
-                            <span className="fw-bold text-primary ms-1" style={{ fontSize: '0.84rem' }}>
+                            <span className="fw-bold text-primary ms-1" style={{ fontSize: '0.8rem' }}>
                               Rp {Number(p.price || 0).toLocaleString('id-ID')}
                             </span>
                           </div>
@@ -962,8 +951,8 @@ const Setting = ({ user }) => {
                             'SEPATU',
                             'LAINNYA'
                           ].includes(productFormData.category) && (
-                            <option value={productFormData.category}>{productFormData.category}</option>
-                          )}
+                              <option value={productFormData.category}>{productFormData.category}</option>
+                            )}
                         </select>
                       </div>
                     </div>
