@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { getOrdersQuery } from '../db/repositories/orders';
 import { pullOrdersFromBackend } from '../services/syncService';
 import { useNavigate } from 'react-router-dom';
+import { OrderListSkeleton } from '../components/common/Skeleton';
 
 const Cari = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,6 +44,10 @@ const Cari = () => {
       </div>
 
       <div className="results">
+        {searchTerm.length >= 2 && searchResults === undefined && (
+          <OrderListSkeleton count={2} />
+        )}
+
         {searchResults?.map(order => (
           <div key={order.id} className="card shadow-sm border-0 mb-2" onClick={() => navigate(`/order/${order.id}`)} style={{ cursor: 'pointer' }}>
             <div className="card-body p-3 d-flex justify-content-between align-items-center">

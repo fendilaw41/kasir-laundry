@@ -4,7 +4,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { pullOrdersFromBackend, syncTwoWay } from '../services/syncService';
 import { isStatusLunas } from '../utils/paymentStatus';
 import { useState, useEffect } from 'react';
-import toast from 'react-hot-toast';
+import { TransactionListSkeleton } from '../components/common/Skeleton';
 
 const isSameDay = (dateA, dateB) => {
   if (!dateA || !dateB) return false;
@@ -239,7 +239,9 @@ const Reports = () => {
             {data?.length || 0} Data
           </span>
         </div>
-        {groupedData && Object.keys(groupedData).length > 0 ? (
+        {data === undefined ? (
+          <TransactionListSkeleton count={4} />
+        ) : groupedData && Object.keys(groupedData).length > 0 ? (
           Object.entries(groupedData).map(([month, dates]) => (
             <div key={month} className="month-group mb-4">
               <div className="text-muted small fw-bold mb-2 px-1 text-uppercase" style={{ letterSpacing: '1px' }}>{month}</div>

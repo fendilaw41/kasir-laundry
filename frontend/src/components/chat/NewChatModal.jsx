@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getChatContacts, createConversation } from '../../services/chatService';
+import { ContactListSkeleton } from '../common/Skeleton';
 
 export const NewChatModal = ({ show, onClose, onConversationCreated, currentUser, enableCrossStore }) => {
   const [activeTab, setActiveTab] = useState('direct'); // 'direct' | 'group'
@@ -171,10 +172,7 @@ export const NewChatModal = ({ show, onClose, onConversationCreated, currentUser
                   </div>
 
                   {loading ? (
-                    <div className="text-center py-4 text-muted">
-                      <div className="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
-                      Memuat kontak...
-                    </div>
+                    <ContactListSkeleton count={4} />
                   ) : filteredContacts.length === 0 ? (
                     <div className="text-center py-4 text-muted small">
                       Tidak ada kontak ditemukan.

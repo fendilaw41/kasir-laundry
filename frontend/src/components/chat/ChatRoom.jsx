@@ -10,6 +10,7 @@ import {
 } from '../../services/chatService';
 import { compressImage } from '../../utils/imageCompressor';
 import { isOfflineExceeded3Days } from '../../utils/offlineGuard';
+import { ChatMessagesSkeleton } from '../common/Skeleton';
 
 export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }) => {
   const [messages, setMessages] = useState([]);
@@ -336,12 +337,7 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
       {/* DAFTAR PESAN (MESSAGE BUBBLES) */}
       <div className="chat-content-wrap px-3 pt-3 flex-grow-1" style={{ overflowY: 'auto', backgroundColor: '#f4f6f8' }}>
         {isLoading ? (
-          <div className="d-flex flex-column align-items-center justify-content-center h-100 py-5">
-            <div className="spinner-border text-primary mb-2" role="status" style={{ width: '2rem', height: '2rem' }}>
-              <span className="visually-hidden">Memuat...</span>
-            </div>
-            <span className="text-muted small">Memuat percakapan...</span>
-          </div>
+          <ChatMessagesSkeleton count={4} />
         ) : messages.length === 0 ? (
           <div className="text-center py-5 text-muted small">
             <i className="bi bi-chat-square-text fs-2 d-block mb-2 text-secondary opacity-50"></i>

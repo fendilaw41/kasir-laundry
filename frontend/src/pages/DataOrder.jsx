@@ -6,6 +6,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { TOAST_MESSAGES, CONFIRM_MESSAGES, BUTTON_TITLE } from '../constants/appConstants';
+import { OrderListSkeleton } from '../components/common/Skeleton';
 
 const DataOrder = ({ user }) => {
   const navigate = useNavigate();
@@ -196,13 +197,15 @@ const DataOrder = ({ user }) => {
 
       {/* Order List */}
       <div className="order-list">
-        {orders?.length === 0 ? (
+        {orders === undefined ? (
+          <OrderListSkeleton count={3} />
+        ) : orders.length === 0 ? (
           <div className="text-center py-5 text-muted">
             <i className="bi bi-inbox fs-1 d-block mb-2"></i>
             <p>Tidak ada data order</p>
           </div>
         ) : (
-          orders?.map(order => (
+          orders.map(order => (
             <div className="card shadow-sm border-0 mb-3" key={order.id}>
               <div className="card-body p-3">
                 <div className="d-flex justify-content-between mb-1">
@@ -258,7 +261,7 @@ const DataOrder = ({ user }) => {
                     )}
                     {activeTab === 'Dibatalkan' && (
                       <button className="btn btn-outline-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => hardDelete(order.id)} title={BUTTON_TITLE.DELETE}>
-                        <i className="bi bi-trash-fill"></i>
+                        Hapus
                       </button>
                     )}
                   </div>
@@ -266,7 +269,7 @@ const DataOrder = ({ user }) => {
                     <div className="col-4 text-end">
                       {(activeTab === 'Proses' || activeTab === 'Selesai') && (
                         <button className="btn btn-outline-danger btn-sm w-100 fw-bold shadow-sm" onClick={() => requestDelete(order.id)} title={BUTTON_TITLE.DELETE}>
-                          <i className="bi bi-trash-fill"></i>
+                          Hapus
                         </button>
                       )}
                     </div>

@@ -15,6 +15,13 @@ import {
   BUTTON_TITLE,
   TAB_TITLE,
 } from '../constants/settingConstants';
+import { SettingSkeleton, ProductListSkeleton } from '../components/common/Skeleton';
+import { Barcode } from '../components/common/Barcode';
+import {
+  isFooterBarcode,
+  isFooterLinkOrder,
+  formatReceiptFooterText,
+} from '../utils/receiptFooter';
 
 const Setting = ({ user }) => {
   const settings = useLiveQuery(getSettingsQuery);
@@ -199,12 +206,7 @@ const Setting = ({ user }) => {
   };
 
   if (!settings) {
-    return (
-      <div className="p-5 text-center text-muted">
-        <div className="spinner-border text-primary mb-3" role="status"></div>
-        <p className="small mb-0">Memuat data pengaturan...</p>
-      </div>
-    );
+    return <SettingSkeleton />;
   }
 
   const isOwner = user?.role === 'owner';
@@ -578,11 +580,45 @@ const Setting = ({ user }) => {
                     rows="3"
                     value={formData.footerStruk}
                     onChange={(e) => setFormData({ ...formData, footerStruk: e.target.value })}
-                    placeholder="Contoh: Barang tidak diambil dalam 30 hari di luar tanggung jawab."
+                    placeholder="Gunakan LINK_ORDER untuk link cek order, atau INVOICE untuk barcode."
                     disabled={!isOwner}
                   />
-                  <small className="text-muted d-block mt-1" style={{ fontSize: '0.7rem' }}>
-                    Ketentuan klaim atau ucapan penutup di bagian paling bawah struk.
+                  <div className="d-flex flex-wrap gap-2 mt-2">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-primary rounded-pill py-1 px-3 d-flex align-items-center gap-1 shadow-none"
+                      style={{ fontSize: '0.72rem' }}
+                      disabled={!isOwner}
+                      onClick={() => {
+                        const current = (formData.footerStruk || '').trim();
+                        setFormData({
+                          ...formData,
+                          footerStruk: current ? `${current}\nLINK_ORDER` : 'LINK_ORDER',
+                        });
+                      }}
+                      title="Gunakan link cek order"
+                    >
+                      <i className="bi bi-link-45deg"></i> + LINK_ORDER
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-primary rounded-pill py-1 px-3 d-flex align-items-center gap-1 shadow-none"
+                      style={{ fontSize: '0.72rem' }}
+                      disabled={!isOwner}
+                      onClick={() => {
+                        const current = (formData.footerStruk || '').trim();
+                        setFormData({
+                          ...formData,
+                          footerStruk: current ? `${current}\nINVOICE` : 'INVOICE',
+                        });
+                      }}
+                      title="Gunakan barcode nota"
+                    >
+                      <i className="bi bi-upc-scan"></i> + INVOICE (Barcode)
+                    </button>
+                  </div>
+                  <small className="text-muted d-block mt-2" style={{ fontSize: '0.7rem' }}>
+                    Tulis <strong>LINK_ORDER</strong> untuk mencetak tautan cek order, atau <strong>INVOICE</strong> untuk menampilkan barcode nota.
                   </small>
                 </div>
               </div>
@@ -631,7 +667,14 @@ const Setting = ({ user }) => {
                     </div>
                   </div>
                   <div className="mt-2 text-muted" style={{ fontSize: '9px', whiteSpace: 'pre-wrap' }}>
-                    {formData.footerStruk || 'Terima kasih atas kepercayaan Anda'}
+                    {formatReceiptFooterText(formData.footerStruk, '8126-00001') || (
+                      !isFooterBarcode(formData.footerStruk) && 'Terima kasih atas kepercayaan Anda'
+                    )}
+                    {isFooterBarcode(formData.footerStruk) && (
+                      <div className="mt-2 pt-1">
+                        <Barcode value="8126-00001" width={1.1} height={34} fontSize={8} />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -794,7 +837,9 @@ const Setting = ({ user }) => {
 
             {/* LIST PRODUK (GAYA SIMPLE SEPERTI MANAJEMEN KASIR) */}
             <div className="d-flex flex-column gap-2 mb-4">
-              {!products || products.length === 0 ? (
+              {products === undefined ? (
+                <ProductListSkeleton count={4} />
+              ) : products.length === 0 ? (
                 <div className="card border-0 shadow-sm rounded-4 p-5 text-center bg-white my-2">
                   <div
                     className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"

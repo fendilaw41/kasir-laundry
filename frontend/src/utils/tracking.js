@@ -35,7 +35,7 @@ export const decodeTrackingCode = (code) => {
   if (!code) return '';
   const trimmed = String(code).trim();
   try {
-    let base64 = trimmed.replace(/-/g, '+').replace(/_/g, '/');
+    let base64 = trimmed.replace(/\./g, '=').replace(/-/g, '+').replace(/_/g, '/');
     while (base64.length % 4) {
       base64 += '=';
     }
@@ -61,7 +61,7 @@ export const decodeTrackingCode = (code) => {
 export const getTrackingUrl = (invoiceId, explicitOrigin = null) => {
   if (!invoiceId) return '';
   const shortCode = encodeTrackingCode(invoiceId);
-  const origin = explicitOrigin || (typeof window !== 'undefined' && window.location?.origin ? window.location.origin : 'https://kasirlaundry.my.id');
+  const origin = explicitOrigin || (typeof window !== 'undefined' && window.location?.origin && !window.location.origin.includes('localhost') ? window.location.origin : 'https://kasirlaundry.netlify.app');
   return `${origin}/c/${shortCode}`;
 };
 

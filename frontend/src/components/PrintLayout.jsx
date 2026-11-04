@@ -1,6 +1,13 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { getTrackingUrl, getShortDisplayUrl } from '../utils/tracking';
+import { Barcode } from './common/Barcode';
+import {
+  isFooterBarcode,
+  isFooterLinkOrder,
+  formatReceiptFooterText,
+  getReceiptTrackingUrl,
+} from '../utils/receiptFooter';
 
 const PrintLayout = ({ order, pelanggan, printType }) => {
   const settings = useLiveQuery(() => db.settings.get(1));
@@ -10,6 +17,11 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
   const trackingUrl = getTrackingUrl(order.invoiceId);
   const trackingDisplayUrl = getShortDisplayUrl(order.invoiceId);
   const qrUrl = `https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=${encodeURIComponent(trackingUrl)}`;
+
+  const hasBarcode = isFooterBarcode(settings.footerStruk);
+  const hasLinkOrder = isFooterLinkOrder(settings.footerStruk);
+  const formattedFooter = formatReceiptFooterText(settings.footerStruk, order.invoiceId);
+  const receiptTrackingUrl = getReceiptTrackingUrl(order.invoiceId);
 
   return (
     <div className="print-only-container">
@@ -118,13 +130,28 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
 
           <div style={{ borderTop: '1px dashed #000', margin: '5px 0' }}></div>
 
-          <div style={{ textAlign: 'center', marginTop: '10px', fontSize: '10px', whiteSpace: 'pre-line' }}>
-            <div>{settings.headerStruk}</div>
-            <div style={{ marginTop: '5px' }}>{settings.footerStruk}</div>
-            <div style={{ marginTop: '8px', borderTop: '1px dotted #000', paddingTop: '6px' }}>
-              <div style={{ fontWeight: 'bold' }}>Cek Status Cucian:</div>
-              <div>{trackingDisplayUrl}</div>
-            </div>
+          <div style={{ textAlign: 'center', marginTop: '10px', fontSize: '10px' }}>
+            {settings.headerStruk && (
+              <div style={{ whiteSpace: 'pre-line', marginBottom: '5px' }}>{settings.headerStruk}</div>
+            )}
+            {formattedFooter && (
+              <div style={{ whiteSpace: 'pre-line', marginTop: '5px' }}>{formattedFooter}</div>
+            )}
+
+            {/* Jika footer dikonfigurasi INVOICE -> Muncul Barcode bukan link */}
+            {hasBarcode && (
+              <div style={{ marginTop: '8px', paddingTop: '4px' }}>
+                <Barcode value={order.invoiceId} width={1.4} height={42} fontSize={10} />
+              </div>
+            )}
+
+            {/* Jika bukan barcode dan bukan LINK_ORDER yang sudah ada di teks -> tampilkan link default */}
+            {!hasBarcode && !hasLinkOrder && (
+              <div style={{ marginTop: '8px', borderTop: '1px dotted #000', paddingTop: '6px' }}>
+                <div style={{ fontWeight: 'bold' }}>Cek Status Cucian:</div>
+                <div style={{ wordBreak: 'break-all' }}>{receiptTrackingUrl}</div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -213,13 +240,16 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
 
           <div style={{ marginTop: '50px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: '14px' }}>
+              <div style={{ fontSize: '14px', maxWidth: '420px' }}>
                 <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>Informasi Tambahan:</div>
-                <div style={{ whiteSpace: 'pre-line' }}>{settings.footerStruk}</div>
-                <div style={{ marginTop: '10px', fontSize: '12px' }}>
-                  <strong>Cek Status Cucian: </strong>
-                  <span style={{ color: '#0134d4', fontWeight: 'bold' }}>{trackingUrl}</span>
-                </div>
+                {formattedFooter && (
+                  <div style={{ whiteSpace: 'pre-line' }}>{formattedFooter}</div>
+                )}
+                {hasBarcode ? (
+                  <div style={{ marginTop: '12px' }}>
+                    <Barcode value={order.invoiceId} width={1.6} height={46} fontSize={11} style={{ textAlign: 'left' }} />
+                  </div>
+                ) : ''}
               </div>
               <div style={{ textAlign: 'center', minWidth: '200px' }}>
                 <div style={{ marginBottom: '60px' }}>Hormat Kami,</div>

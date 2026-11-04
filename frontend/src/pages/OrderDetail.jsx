@@ -7,10 +7,12 @@ import { getSettingsQuery } from '../db/repositories/settings';
 import { pullOrdersFromBackend } from '../services/syncService';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { TOAST_MESSAGES, CONFIRM_MESSAGES, BUTTON_TEXT } from '../constants/appConstants';
 import { formatWhatsAppMessage } from '../utils/whatsapp';
 import { getTrackingUrl } from '../utils/tracking';
 import { getStatusLunasByMetode, isStatusLunas } from '../utils/paymentStatus';
 import PrintLayout from '../components/PrintLayout';
+import { OrderDetailSkeleton } from '../components/common/Skeleton';
 
 const isSameInventory = (a, b) => {
   if (!a || !b) return false;
@@ -57,7 +59,7 @@ const OrderDetail = () => {
     }
   }, [order?.id, JSON.stringify(order?.inventoryUsed), order?.catatan]);
 
-  if (!order) return <div className="p-3">Loading...</div>;
+  if (!order) return <OrderDetailSkeleton />;
 
   const displayedInventory = localInventoryUsed !== null ? localInventoryUsed : (order?.inventoryUsed || []);
 
@@ -73,30 +75,44 @@ const OrderDetail = () => {
     try {
       await updateOrder(order.id, { status });
       setShowConfirmModal(false);
+      toast.success(TOAST_MESSAGES.SUCCESS);
     } catch (error) {
-      toast.error(error.message);
+      toast.error(TOAST_MESSAGES.ERROR);
       setShowConfirmModal(false);
     }
   };
 
   const updateCatatan = async () => {
-    await updateOrder(order.id, { catatan });
-    toast.success('Catatan diperbarui!');
-    setShowNoteModal(false);
+    try {
+      await updateOrder(order.id, { catatan });
+      toast.success(TOAST_MESSAGES.SUCCESS);
+      setShowNoteModal(false);
+    } catch (error) {
+      toast.error(TOAST_MESSAGES.ERROR);
+    }
   };
 
   const togglePriority = async () => {
-    await updateOrder(order.id, { isPriority: !order.isPriority });
+    try {
+      await updateOrder(order.id, { isPriority: !order.isPriority });
+      toast.success(TOAST_MESSAGES.SUCCESS);
+    } catch (error) {
+      toast.error(TOAST_MESSAGES.ERROR);
+    }
   };
 
   const toggleLunas = async () => {
-    if (isStatusLunas(order.statusBayar)) {
-      await updateOrder(order.id, { statusBayar: 'Belum Lunas', bayar: 0, kembalian: 0 });
-      toast.success('Status pembayaran diubah menjadi Belum Lunas');
-    } else {
-      const newStatus = getStatusLunasByMetode(order.metodeBayar);
-      await updateOrder(order.id, { statusBayar: newStatus, bayar: order.total, kembalian: 0 });
-      toast.success(`Status pembayaran diubah menjadi ${newStatus}`);
+    try {
+      if (isStatusLunas(order.statusBayar)) {
+        await updateOrder(order.id, { statusBayar: 'Belum Lunas', bayar: 0, kembalian: 0 });
+        toast.success(TOAST_MESSAGES.SUCCESS);
+      } else {
+        const newStatus = getStatusLunasByMetode(order.metodeBayar);
+        await updateOrder(order.id, { statusBayar: newStatus, bayar: order.total, kembalian: 0 });
+        toast.success(TOAST_MESSAGES.SUCCESS);
+      }
+    } catch (error) {
+      toast.error(TOAST_MESSAGES.ERROR);
     }
   };
 
@@ -108,7 +124,7 @@ const OrderDetail = () => {
     }
     const waData = formatWhatsAppMessage(order, pelanggan, settings);
     if (!waData) {
-      toast.error('Gagal memformat pesan WhatsApp!');
+      toast.error(TOAST_MESSAGES.ERROR);
       return;
     }
     window.open(waData.url, '_blank');
@@ -116,24 +132,28 @@ const OrderDetail = () => {
 
   const saveHpAndSend = async () => {
     if (!newHp.trim()) {
-      toast.error('Nomor HP tidak boleh kosong');
+      toast.error(TOAST_MESSAGES.ERROR);
       return;
     }
-    let updatedPelanggan = { ...pelanggan, hp: newHp };
-    if (pelanggan && pelanggan.id) {
-      await updatePelanggan(pelanggan.id, { hp: newHp });
-    } else {
-      const newPelangganId = await addPelanggan({ nama: order.pelangganNama || 'Pelanggan Umum', hp: newHp, alamat: '-' });
-      await updateOrder(order.id, { pelangganId: newPelangganId });
-      updatedPelanggan = { id: newPelangganId, nama: order.pelangganNama || 'Pelanggan Umum', hp: newHp, alamat: '-' };
-    }
-    setShowHpModal(false);
-    toast.success('Nomor HP berhasil disimpan');
+    try {
+      let updatedPelanggan = { ...pelanggan, hp: newHp };
+      if (pelanggan && pelanggan.id) {
+        await updatePelanggan(pelanggan.id, { hp: newHp });
+      } else {
+        const newPelangganId = await addPelanggan({ nama: order.pelangganNama || 'Pelanggan Umum', hp: newHp, alamat: '-' });
+        await updateOrder(order.id, { pelangganId: newPelangganId });
+        updatedPelanggan = { id: newPelangganId, nama: order.pelangganNama || 'Pelanggan Umum', hp: newHp, alamat: '-' };
+      }
+      setShowHpModal(false);
+      toast.success(TOAST_MESSAGES.SUCCESS);
 
-    setTimeout(() => {
-      const waData = formatWhatsAppMessage(order, updatedPelanggan, settings);
-      if (waData) window.open(waData.url, '_blank');
-    }, 300);
+      setTimeout(() => {
+        const waData = formatWhatsAppMessage(order, updatedPelanggan, settings);
+        if (waData) window.open(waData.url, '_blank');
+      }, 300);
+    } catch (error) {
+      toast.error(TOAST_MESSAGES.ERROR);
+    }
   };
 
   const toggleInventory = (inv) => {
@@ -148,7 +168,7 @@ const OrderDetail = () => {
         const availableStock = (Number(inv.stok) || 0) + oldQty;
 
         if (availableStock <= 0) {
-          toast.error(`Stok ${inv.nama} habis (0)!`);
+          toast.error(TOAST_MESSAGES.ERROR);
           return prev;
         }
         return [...prev, { id: inv.id, uuid: inv.uuid, nama: inv.nama, quantity: 1 }];
@@ -171,7 +191,7 @@ const OrderDetail = () => {
             const oldQty = oldItem ? Number(oldItem.quantity ?? oldItem.qty ?? 1) : 0;
             const availableStock = (Number(inv.stok) || 0) + oldQty;
             if (newQty > availableStock) {
-              toast.error(`Stok ${inv.nama} tidak mencukupi (tersedia: ${availableStock})`);
+              toast.error(TOAST_MESSAGES.ERROR);
               return prev;
             }
           }
@@ -183,71 +203,75 @@ const OrderDetail = () => {
   };
 
   const saveInventory = async () => {
-    const oldInv = order.inventoryUsed || [];
+    try {
+      const oldInv = order.inventoryUsed || [];
 
-    // Normalisasi dan pastikan deduplikasi
-    const newInv = [];
-    for (const item of selectedInventory) {
-      const existing = newInv.find(x => isSameInventory(x, item));
-      if (!existing) {
-        newInv.push({
-          id: item.id,
-          uuid: item.uuid || undefined,
-          nama: item.nama,
-          quantity: Math.max(1, Number(item.quantity ?? item.qty ?? 1))
-        });
-      }
-    }
-
-    const allItems = [...oldInv];
-    for (const n of newInv) {
-      if (!allItems.some(o => isSameInventory(o, n))) {
-        allItems.push(n);
-      }
-    }
-
-    for (const refItem of allItems) {
-      const oldItem = oldInv.find(i => isSameInventory(i, refItem));
-      const newItem = newInv.find(i => isSameInventory(i, refItem));
-
-      const oldQty = oldItem ? Number(oldItem.quantity ?? oldItem.qty ?? 1) : 0;
-      const newQty = newItem ? Number(newItem.quantity ?? newItem.qty ?? 1) : 0;
-
-      const diff = newQty - oldQty;
-      if (diff > 0) {
-        const invId = refItem.id || refItem.uuid || refItem.nama;
-        const invData = await getInventoryById(invId);
-        const currentStok = invData ? Number(invData.stok || 0) : 0;
-        if (currentStok < diff) {
-          toast.error(`Stok ${refItem.nama} tidak mencukupi untuk ditambah! (tersedia: ${currentStok})`);
-          return;
+      // Normalisasi dan pastikan deduplikasi
+      const newInv = [];
+      for (const item of selectedInventory) {
+        const existing = newInv.find(x => isSameInventory(x, item));
+        if (!existing) {
+          newInv.push({
+            id: item.id,
+            uuid: item.uuid || undefined,
+            nama: item.nama,
+            quantity: Math.max(1, Number(item.quantity ?? item.qty ?? 1))
+          });
         }
       }
-    }
 
-    for (const refItem of allItems) {
-      const oldItem = oldInv.find(i => isSameInventory(i, refItem));
-      const newItem = newInv.find(i => isSameInventory(i, refItem));
-
-      const oldQty = oldItem ? Number(oldItem.quantity ?? oldItem.qty ?? 1) : 0;
-      const newQty = newItem ? Number(newItem.quantity ?? newItem.qty ?? 1) : 0;
-
-      const diff = newQty - oldQty;
-      if (diff !== 0) {
-        const invId = refItem.id || refItem.uuid || refItem.nama;
-        const invData = await getInventoryById(invId);
-        if (invData) {
-          const newStok = Math.max(0, (Number(invData.stok) || 0) - diff);
-          await updateInventory(invData.id, { stok: newStok });
+      const allItems = [...oldInv];
+      for (const n of newInv) {
+        if (!allItems.some(o => isSameInventory(o, n))) {
+          allItems.push(n);
         }
       }
-    }
 
-    setLocalInventoryUsed(newInv);
-    const targetOrderId = order.id || id;
-    await updateOrder(targetOrderId, { inventoryUsed: newInv });
-    toast.success('Inventory terpakai diperbarui!');
-    setShowInventoryModal(false);
+      for (const refItem of allItems) {
+        const oldItem = oldInv.find(i => isSameInventory(i, refItem));
+        const newItem = newInv.find(i => isSameInventory(i, refItem));
+
+        const oldQty = oldItem ? Number(oldItem.quantity ?? oldItem.qty ?? 1) : 0;
+        const newQty = newItem ? Number(newItem.quantity ?? newItem.qty ?? 1) : 0;
+
+        const diff = newQty - oldQty;
+        if (diff > 0) {
+          const invId = refItem.id || refItem.uuid || refItem.nama;
+          const invData = await getInventoryById(invId);
+          const currentStok = invData ? Number(invData.stok || 0) : 0;
+          if (currentStok < diff) {
+            toast.error(TOAST_MESSAGES.ERROR);
+            return;
+          }
+        }
+      }
+
+      for (const refItem of allItems) {
+        const oldItem = oldInv.find(i => isSameInventory(i, refItem));
+        const newItem = newInv.find(i => isSameInventory(i, refItem));
+
+        const oldQty = oldItem ? Number(oldItem.quantity ?? oldItem.qty ?? 1) : 0;
+        const newQty = newItem ? Number(newItem.quantity ?? newItem.qty ?? 1) : 0;
+
+        const diff = newQty - oldQty;
+        if (diff !== 0) {
+          const invId = refItem.id || refItem.uuid || refItem.nama;
+          const invData = await getInventoryById(invId);
+          if (invData) {
+            const newStok = Math.max(0, (Number(invData.stok) || 0) - diff);
+            await updateInventory(invData.id, { stok: newStok });
+          }
+        }
+      }
+
+      setLocalInventoryUsed(newInv);
+      const targetOrderId = order.id || id;
+      await updateOrder(targetOrderId, { inventoryUsed: newInv });
+      toast.success(TOAST_MESSAGES.SUCCESS);
+      setShowInventoryModal(false);
+    } catch (err) {
+      toast.error(TOAST_MESSAGES.ERROR);
+    }
   };
 
   const triggerPrint = (type) => {
@@ -446,9 +470,9 @@ const OrderDetail = () => {
                     onClick={() => {
                       const url = getTrackingUrl(order.invoiceId);
                       if (navigator.clipboard) {
-                        navigator.clipboard.writeText(url).then(() => toast.success('Link cek order disalin!'));
+                        navigator.clipboard.writeText(url).then(() => toast.success(TOAST_MESSAGES.SUCCESS));
                       } else {
-                        toast.success(url);
+                        toast.success(TOAST_MESSAGES.SUCCESS);
                       }
                     }}
                   >
@@ -487,7 +511,7 @@ const OrderDetail = () => {
                       rows="4"
                       placeholder="Masukkan catatan pesanan di sini..."
                     ></textarea>
-                    <button className="btn btn-outline-primary w-100 rounded-pill fw-bold py-3 shadow-sm" onClick={updateCatatan}>Lanjutkan</button>
+                    <button className="btn btn-outline-primary w-100 rounded-pill fw-bold py-3 shadow-sm" onClick={updateCatatan}>{BUTTON_TEXT.SAVE}</button>
                   </div>
                 </div>
               </div>
@@ -536,7 +560,7 @@ const OrderDetail = () => {
                               style={{ cursor: isOutOfStock && !isActive ? 'not-allowed' : 'pointer' }}
                               onClick={() => {
                                 if (isOutOfStock && !isActive) {
-                                  toast.error(`Stok ${inv.nama} habis (0)!`);
+                                  toast.error(TOAST_MESSAGES.ERROR);
                                   return;
                                 }
                                 toggleInventory(inv);
@@ -568,7 +592,7 @@ const OrderDetail = () => {
                         <div className="w-100 text-center text-muted small p-3 bg-light rounded-4">Belum ada data inventory</div>
                       )}
                     </div>
-                    <button className="btn btn-outline-primary w-100 rounded-pill fw-bold py-3" onClick={saveInventory}>Simpan Perubahan</button>
+                    <button className="btn btn-outline-primary w-100 rounded-pill fw-bold py-3" onClick={saveInventory}>{BUTTON_TEXT.SAVE}</button>
                   </div>
                 </div>
               </div>
@@ -598,7 +622,7 @@ const OrderDetail = () => {
                       autoFocus
                     />
                     <button className="btn btn-outline-primary w-100 rounded-pill fw-bold py-3 shadow-sm" onClick={saveHpAndSend}>
-                      <i className="bi bi-whatsapp me-2"></i>Simpan & Kirim
+                      <i className="bi bi-whatsapp me-2"></i>{BUTTON_TEXT.SAVE}
                     </button>
                   </div>
                 </div>
@@ -619,7 +643,7 @@ const OrderDetail = () => {
                       <i className="bi bi-exclamation-triangle text-warning fs-1"></i>
                     </div>
                     <h5 className="fw-bold mb-2">Konfirmasi Status</h5>
-                    <p className="text-muted small mb-4">Apakah Anda yakin ingin mengembalikan status order ini ke <strong>PROSES</strong>?</p>
+                    <p className="text-muted small mb-4">{CONFIRM_MESSAGES.RESET_STATUS}</p>
                     <div className="d-flex gap-2">
                       <button className="btn btn-outline-primary w-100 fw-bold py-2" onClick={() => setShowConfirmModal(false)} style={{ borderRadius: '10px' }}>Batal</button>
                       <button className="btn btn-outline-primary w-100 fw-bold py-2" onClick={() => updateStatus('Proses')} style={{ borderRadius: '10px' }}>Ya, Proses</button>

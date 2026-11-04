@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useHome } from './hooks/useHome';
 import { TOAST_MESSAGES, CONFIRM_MESSAGES, BUTTON_TEXT, BUTTON_TITLE } from '../constants/appConstants';
+import { Skeleton, CustomerListSkeleton, InventoryListSkeleton } from '../components/common/Skeleton';
 
 const Home = ({ user }) => {
   const {
@@ -78,7 +79,13 @@ const Home = ({ user }) => {
                     <small className="text-muted fw-bold" style={{ fontSize: '0.7rem' }}>Omzet</small>
                   </div>
                   <h6 className="fw-bold mb-0 text-dark mt-2" style={{ letterSpacing: '-0.5px' }}>
-                    {showOmzet ? `Rp ${stats?.totalOmzet.toLocaleString() || 0}` : 'Rp ••••••'}
+                    {stats === undefined ? (
+                      <Skeleton width="90px" height="18px" />
+                    ) : showOmzet ? (
+                      `Rp ${stats?.totalOmzet.toLocaleString() || 0}`
+                    ) : (
+                      'Rp ••••••'
+                    )}
                   </h6>
                 </div>
               </Link>
@@ -94,11 +101,15 @@ const Home = ({ user }) => {
                 </div>
                 <div className="d-flex justify-content-between mt-2">
                   <div className="text-center">
-                    <h6 className="fw-bold mb-0 text-dark">{stats?.pendingOrders || 0}</h6>
+                    <h6 className="fw-bold mb-0 text-dark">
+                      {stats === undefined ? <Skeleton width="24px" height="18px" /> : (stats?.pendingOrders || 0)}
+                    </h6>
                     <small className="text-muted" style={{ fontSize: '0.65rem' }}>Proses</small>
                   </div>
                   <div className="text-center">
-                    <h6 className="fw-bold mb-0 text-dark">{stats?.readyToPickUp || 0}</h6>
+                    <h6 className="fw-bold mb-0 text-dark">
+                      {stats === undefined ? <Skeleton width="24px" height="18px" /> : (stats?.readyToPickUp || 0)}
+                    </h6>
                     <small className="text-muted" style={{ fontSize: '0.65rem' }}>Siap</small>
                   </div>
                 </div>
@@ -176,19 +187,19 @@ const Home = ({ user }) => {
             {/* Layanan (Hanya Owner) */}
             {user?.role === 'owner' && (
               <div className="col-3">
-                <div className="text-decoration-none customer-card-clickable d-block" onClick={() => toast('Fitur Layanan/Produk segera hadir!', { icon: '🚀' })} style={{ cursor: 'pointer' }}>
+                <Link to="/product" className="text-decoration-none customer-card-clickable d-block">
                   <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#fff', border: '1px solid #bbdefb' }}>
                     <i className="bi bi-grid fs-5"></i>
                   </div>
                   <span className="d-block text-nowrap" style={{ fontSize: '0.65rem', lineHeight: '1.2', color: '#4a4a4a', overflow: 'hidden', textOverflow: 'ellipsis' }}>Layanan</span>
-                </div>
+                </Link>
               </div>
             )}
 
             {/* Promo (Hanya Owner) */}
             {user?.role === 'owner' && (
               <div className="col-3">
-                <div className="text-decoration-none customer-card-clickable d-block" onClick={() => toast('Fitur Promo segera hadir!', { icon: '🚀' })} style={{ cursor: 'pointer' }}>
+                <div className="text-decoration-none customer-card-clickable d-block" onClick={() => toast.error(TOAST_MESSAGES.ERROR)} style={{ cursor: 'pointer' }}>
                   <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#fff', border: '1px solid #bbdefb' }}>
                     <i className="bi bi-percent fs-5"></i>
                   </div>
@@ -288,7 +299,9 @@ const Home = ({ user }) => {
 
                   {/* List Pelanggan Terdaftar */}
                   <div className="pelanggan-list">
-                    {pelangganList?.filter(p =>
+                    {pelangganList === undefined ? (
+                      <CustomerListSkeleton count={4} />
+                    ) : pelangganList.filter(p =>
                       p.nama.toLowerCase().includes(searchPelanggan.toLowerCase()) ||
                       p.hp.includes(searchPelanggan)
                     ).length === 0 ? (
@@ -499,7 +512,9 @@ const Home = ({ user }) => {
 
                   {/* Daftar Item Inventory */}
                   <div className="inventory-list">
-                    {inventory?.filter(item => {
+                    {inventory === undefined ? (
+                      <InventoryListSkeleton count={4} />
+                    ) : inventory.filter(item => {
                       const matchSearch = item.nama.toLowerCase().includes(searchInventory.toLowerCase());
                       const matchTab = inventoryTab === 'pending' ? item.status === 'pending' : (item.status !== 'rejected' && !(item.status === 'pending' && item.stok === 0));
                       return matchSearch && matchTab;

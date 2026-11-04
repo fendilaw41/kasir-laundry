@@ -4,6 +4,7 @@ import { createOrderFromCheckout, updateOrder } from '../db/repositories/orders'
 import { clearDraftOrder } from '../db/repositories/draftOrder';
 import { getStatusLunasByMetode } from '../utils/paymentStatus';
 import toast from 'react-hot-toast';
+import { TOAST_MESSAGES } from '../constants/appConstants';
 
 const Pembayaran = () => {
   const location = useLocation();
@@ -39,9 +40,7 @@ const Pembayaran = () => {
           bayar: isLunas ? Math.max(total, newBayar) : newBayar,
           kembalian: isLunas ? Math.max(0, newBayar - total) : 0
         });
-        toast.success('Pembayaran berhasil diperbarui!', {
-          style: { borderRadius: '10px', background: '#333', color: '#fff' }
-        });
+        toast.success(TOAST_MESSAGES.SUCCESS);
         navigate(`/order/${orderData.id}`);
       } else {
         const newId = await createOrderFromCheckout({
@@ -52,17 +51,11 @@ const Pembayaran = () => {
         });
 
         await clearDraftOrder();
-        toast.success(`Transaksi berhasil dibuat`, {
-          style: {
-            borderRadius: '10px',
-            background: '#333',
-            color: '#fff',
-          },
-        });
+        toast.success(TOAST_MESSAGES.SUCCESS);
         navigate(`/order/${newId}`);
       }
     } catch (error) {
-      toast.error(isPaymentOnly ? 'Gagal memperbarui pembayaran: ' + error.message : 'Gagal membuat transaksi: ' + error.message);
+      toast.error(TOAST_MESSAGES.ERROR);
     }
   };
 

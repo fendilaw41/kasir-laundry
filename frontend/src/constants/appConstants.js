@@ -16,6 +16,7 @@ export const CONFIRM_MESSAGES = {
   RESET_STATUS: 'Kembalikan ke status Proses?',
   UPDATE_CUSTOMER: 'Simpan perubahan pelanggan?',
   UPDATE_STOCK: 'Update stok item ini?',
+  RESET_CHAT: 'Mulai percakapan baru? Riwayat chat akan dihapus.',
 };
 
 export const PRODUCT_CATEGORIES = [

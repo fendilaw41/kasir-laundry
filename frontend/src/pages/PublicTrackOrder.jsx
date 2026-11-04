@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { TOAST_MESSAGES } from '../constants/appConstants';
 import { fetchPublicOrder } from '../utils/tracking';
 import { isStatusLunas } from '../utils/paymentStatus';
+import { PublicTrackOrderSkeleton } from '../components/common/Skeleton';
 
 const TRACKING_STEPS = [
   { key: 'Baru', label: 'Diterima', icon: 'bi-inbox-fill', desc: 'Pesanan masuk antrean kasir' },
@@ -53,7 +55,7 @@ export default function PublicTrackOrder() {
   useEffect(() => {
     const handleOnline = () => {
       if (rawParamCode) {
-        toast.success('Kembali online! Menyinkronkan status pesanan...');
+        toast.success(TOAST_MESSAGES.SUCCESS);
         loadOrder(rawParamCode);
       }
     };
@@ -119,13 +121,7 @@ export default function PublicTrackOrder() {
         )}
 
         {/* 2. LOADING STATE */}
-        {loading && (
-          <div className="card border-0 shadow-sm rounded-4 p-5 text-center bg-white my-3">
-            <div className="spinner-border text-primary mx-auto mb-3" role="status"></div>
-            <h6 className="fw-bold mb-1 text-dark">Memuat Data Pesanan...</h6>
-            <p className="text-muted small mb-0">Mengambil status terbaru cucian Anda</p>
-          </div>
-        )}
+        {loading && <PublicTrackOrderSkeleton />}
 
         {/* 3. ERROR STATE */}
         {!loading && errorMsg && (

@@ -1,4 +1,7 @@
 import { useTransaksi } from './hooks/useTransaksi';
+import toast from 'react-hot-toast';
+import { TOAST_MESSAGES, BUTTON_TEXT, BUTTON_TITLE } from '../constants/appConstants';
+import { CustomerListSkeleton } from '../components/common/Skeleton';
 
 const Transaksi = () => {
   const {
@@ -106,20 +109,19 @@ const Transaksi = () => {
               return (
                 <div
                   key={inv.id}
-                  className={`flex-shrink-0 p-3 rounded-4 border d-flex flex-column align-items-center justify-content-center transition-all ${
-                    isActive
-                      ? 'bg-outline-primary text-dark border-primary shadow-sm'
-                      : isOutOfStock
-                        ? 'bg-light text-muted border-dashed opacity-50'
-                        : 'bg-white text-dark shadow-xs'
-                  }`}
+                  className={`flex-shrink-0 p-3 rounded-4 border d-flex flex-column align-items-center justify-content-center transition-all ${isActive
+                    ? 'bg-outline-primary text-dark border-primary shadow-sm'
+                    : isOutOfStock
+                      ? 'bg-light text-muted border-dashed opacity-50'
+                      : 'bg-white text-dark shadow-xs'
+                    }`}
                   style={{ minWidth: '120px', height: '140px' }}
                 >
                   <div
                     className="text-center w-100"
                     onClick={() => {
                       if (isOutOfStock && !isActive) {
-                        toast.error(`Stok ${inv.nama} habis (0)!`);
+                        toast.error(TOAST_MESSAGES.ERROR);
                         return;
                       }
                       toggleInventory(inv);
@@ -168,13 +170,18 @@ const Transaksi = () => {
               </select>
             </div>
             <div className="col-12 col-sm-6">
-              <label className="form-label small fw-bold text-muted px-1">Estimasi (Hari)</label>
+              <label htmlFor="estimasi-input" className="form-label small fw-bold text-muted px-1 d-flex justify-content-between align-items-center">
+                <span>Estimasi (Hari)</span>
+              </label>
               <input
+                id="estimasi-input"
+                aria-label="Estimasi (Hari)"
                 type="number"
                 className="form-control border-0 shadow-sm rounded-3 py-2"
                 value={estimasi}
                 onChange={e => setEstimasi(e.target.value)}
                 onFocus={(e) => e.target.select()}
+                min="0"
                 required
               />
             </div>
@@ -268,16 +275,18 @@ const Transaksi = () => {
                       <div className="mb-3">
                         <textarea className="form-control" placeholder="Alamat" value={newPelanggan.alamat} onChange={e => setNewPelanggan({ ...newPelanggan, alamat: e.target.value })}></textarea>
                       </div>
-                      <button type="submit" className="btn btn-outline-primary w-100">Simpan & Pilih</button>
+                      <button type="submit" className="btn btn-outline-primary w-100">{BUTTON_TEXT.SAVE}</button>
                       <button type="button" className="btn btn-outline-primary w-100 mt-2" onClick={() => setIsAdding(false)}>Batal</button>
                     </form>
                   ) : (
                     <>
-                      <button className="btn btn-outline-primary w-100 mb-3" onClick={() => setIsAdding(true)}>
-                        <i className="bi bi-plus-lg me-1"></i> Pelanggan Baru
+                      <button className="btn btn-outline-primary w-100 mb-3" onClick={() => setIsAdding(true)} title={BUTTON_TITLE.ADD}>
+                        <i className="bi bi-plus-lg"></i>
                       </button>
                       <div className="list-group list-group-flush">
-                        {daftarPelanggan?.length === 0 ? (
+                        {daftarPelanggan === undefined ? (
+                          <CustomerListSkeleton count={3} />
+                        ) : daftarPelanggan.length === 0 ? (
                           <p className="text-center text-muted">Belum ada data pelanggan</p>
                         ) : (
                           daftarPelanggan?.map(p => (

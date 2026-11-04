@@ -3,6 +3,8 @@ import { getProductsQuery } from '../db/repositories/products';
 import { addProductToCart } from '../db/repositories/cart';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { TOAST_MESSAGES } from '../constants/appConstants';
+import { ProductListSkeleton } from '../components/common/Skeleton';
 
 const Product = () => {
   const products = useLiveQuery(getProductsQuery);
@@ -89,15 +91,12 @@ const Product = () => {
       const qty = quantities[product.id] || 1;
       await addProductToCart(product, qty);
 
-      toast.success(`${qty}x ${product.name} ditambahkan`, {
-        position: 'top-center',
-        style: { borderRadius: '12px', background: '#1e293b', color: '#fff', fontSize: '13px' },
-      });
+      toast.success(TOAST_MESSAGES.SUCCESS);
 
       // Reset qty setelah tambah
       setQuantities((prev) => ({ ...prev, [product.id]: 1 }));
     } catch (err) {
-      toast.error('Gagal menambahkan ke keranjang', err);
+      toast.error(TOAST_MESSAGES.ERROR);
     }
   };
 
@@ -181,7 +180,7 @@ const Product = () => {
               type="button"
               className="btn btn-sm rounded-pill px-3 py-1.5 fw-semibold flex-shrink-0 transition-all text-nowrap d-inline-flex align-items-center justify-content-center"
               style={{
-                fontSize: '0.5rem',
+                fontSize: '0.6rem',
                 backgroundColor: selectedCategory === 'ALL' ? '#0d5afd' : '#f8fafc',
                 color: selectedCategory === 'ALL' ? '#ffffff' : '#334155',
                 border: `1px solid ${selectedCategory === 'ALL' ? '#0d5afd' : '#e2e8f0'}`,
@@ -209,7 +208,7 @@ const Product = () => {
                   type="button"
                   className="btn btn-sm rounded-pill px-3 py-1.5 fw-semibold flex-shrink-0 transition-all text-nowrap d-inline-flex align-items-center justify-content-center"
                   style={{
-                    fontSize: '0.5rem',
+                    fontSize: '0.6rem',
                     backgroundColor: isActive ? '#0d5afd' : '#f8fafc',
                     color: isActive ? '#ffffff' : '#334155',
                     border: `1px solid ${isActive ? '#0d5afd' : '#e2e8f0'}`,
@@ -237,7 +236,7 @@ const Product = () => {
                   type="button"
                   className="btn btn-sm rounded-pill px-3 py-1.5 fw-semibold flex-shrink-0 transition-all text-nowrap d-inline-flex align-items-center justify-content-center"
                   style={{
-                    fontSize: '0.5rem',
+                    fontSize: '0.6rem',
                     backgroundColor: isOtherSelected ? '#0d5afd' : '#f8fafc',
                     color: isOtherSelected ? '#ffffff' : '#334155',
                     border: `1px solid ${isOtherSelected ? '#0d5afd' : '#e2e8f0'}`,
@@ -283,7 +282,7 @@ const Product = () => {
                           type="button"
                           className={`dropdown-item py-1.5 px-3 d-flex align-items-center justify-content-between text-nowrap ${isCatActive ? 'fw-bold text-primary bg-primary-subtle' : 'text-dark'
                             }`}
-                          style={{ fontSize: '0.5rem' }}
+                          style={{ fontSize: '0.6rem' }}
                           onClick={() => {
                             setSelectedCategory(cat);
                             setIsCategoryDropdownOpen(false);
@@ -455,6 +454,8 @@ const Product = () => {
             );
           })}
         </div>
+      ) : products === undefined ? (
+        <ProductListSkeleton count={6} />
       ) : (
         /* Empty State (Shopee / Tokopedia Style) */
         <div className="text-center py-5 px-3">

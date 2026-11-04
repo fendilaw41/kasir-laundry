@@ -6,6 +6,8 @@ import { getInventoryQuery } from '../../db/repositories/inventory';
 import { getDraftOrderQuery, updateDraftOrder } from '../../db/repositories/draftOrder';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { TOAST_MESSAGES } from '../../constants/appConstants';
+import { calculateOrderEstimatedDays } from '../../utils/estimateCalculator';
 
 export const useTransaksi = () => {
   const cartItems = useLiveQuery(getCartQuery);
@@ -43,6 +45,16 @@ export const useTransaksi = () => {
   const [metodeBayar, setMetodeBayar] = useState('Cash');
   const [tipeLayanan, setTipeLayanan] = useState('Datang Langsung');
   const [isPriority, setIsPriority] = useState('Tidak');
+
+  // Hitung otomatis estimasi hari pengerjaan dari cartItems (ambil durasi terlama/maksimal)
+  useEffect(() => {
+    if (cartItems && cartItems.length > 0) {
+      const calculatedDays = calculateOrderEstimatedDays(cartItems);
+      if (calculatedDays > 0) {
+        setEstimasi(calculatedDays);
+      }
+    }
+  }, [cartItems]);
 
   const subtotal = cartItems?.reduce((acc, item) => acc + (item.price * item.quantity), 0) || 0;
 
@@ -87,11 +99,11 @@ export const useTransaksi = () => {
         const availableStock = invData ? Number(invData.stok || 0) : 0;
         const requestedQty = Number(item.quantity || 1);
         if (availableStock <= 0) {
-          toast.error(`Stok ${item.nama || 'inventori'} habis (0), tidak dapat digunakan!`);
+          toast.error(TOAST_MESSAGES.ERROR);
           return;
         }
         if (requestedQty > availableStock) {
-          toast.error(`Stok ${item.nama} tidak mencukupi (tersedia: ${availableStock})`);
+          toast.error(TOAST_MESSAGES.ERROR);
           return;
         }
       }
@@ -99,7 +111,7 @@ export const useTransaksi = () => {
 
     const user = JSON.parse(sessionStorage.getItem('user'));
     if (!user) {
-      toast.error('Sesi tidak valid, silakan login ulang.');
+      toast.error(TOAST_MESSAGES.ERROR);
       navigate('/login');
       return;
     }
@@ -139,7 +151,7 @@ export const useTransaksi = () => {
       newInventory = prev.filter(item => item.id !== inv.id);
     } else {
       if (Number(inv.stok || 0) <= 0) {
-        toast.error(`Stok ${inv.nama} habis (0), tidak bisa dipilih!`);
+        toast.error(TOAST_MESSAGES.ERROR);
         return;
       }
       newInventory = [...prev, { id: inv.id, nama: inv.nama, quantity: 1 }];
@@ -155,7 +167,7 @@ export const useTransaksi = () => {
       const currentStock = invData ? Number(invData.stok || 0) : 0;
       const newQty = (existing.quantity || 1) + delta;
       if (delta > 0 && newQty > currentStock) {
-        toast.error(`Stok ${existing.nama || 'item'} tidak mencukupi (tersedia: ${currentStock})`);
+        toast.error(TOAST_MESSAGES.ERROR);
         return;
       }
       let newInventory;
@@ -176,9 +188,10 @@ export const useTransaksi = () => {
       await setSelectedPelanggan(created);
       setIsAdding(false);
       setNewPelanggan({ nama: '', hp: '', alamat: '' });
+      toast.success(TOAST_MESSAGES.SUCCESS);
       setShowModal(false);
     } catch (error) {
-      toast.error(error.message);
+      toast.error(TOAST_MESSAGES.ERROR);
     }
   };
 

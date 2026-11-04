@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { getChatLogQuery } from '../../db/repositories/chatLog';
 import { parseChatCommand } from '../../utils/chatbot';
+import { CONFIRM_MESSAGES } from '../../constants/appConstants';
 
 export const BotChatRoom = ({ user, onBack }) => {
   const [inputValue, setInputValue] = useState('');
@@ -29,7 +30,7 @@ export const BotChatRoom = ({ user, onBack }) => {
     const handleReset = () => {
       setConfirmModal({
         show: true,
-        message: 'Mulai percakapan baru? Riwayat chat di layar ini akan dihapus.',
+        message: CONFIRM_MESSAGES.RESET_CHAT,
         onConfirm: async () => {
           try {
             await db.chatLog.clear();
