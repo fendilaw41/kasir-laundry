@@ -20,6 +20,9 @@ import UbahPassword from './pages/UbahPassword';
 import Chat from './pages/Chat';
 import Reset from './pages/Reset';
 import PublicTrackOrder from './pages/PublicTrackOrder';
+import { clearDraftOrder } from './db/repositories/draftOrder';
+import { clearCart } from './db/repositories/cart';
+import { updatePwaManifest } from './utils/pwaHelper';
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -32,6 +35,12 @@ function App() {
   useEffect(() => {
     if (settings && settings.namaLaundry) {
       document.title = settings.namaLaundry;
+      updatePwaManifest(settings.namaLaundry);
+    } else if (typeof localStorage !== 'undefined') {
+      const cachedStoreName = localStorage.getItem('pwa_custom_store_name');
+      if (cachedStoreName) {
+        updatePwaManifest(cachedStoreName);
+      }
     }
   }, [settings]);
 
@@ -41,7 +50,13 @@ function App() {
     sessionStorage.setItem('user', JSON.stringify(safeUser));
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await clearDraftOrder();
+      await clearCart();
+    } catch (e) {
+      console.warn('[Logout] Gagal membersihkan draft/cart:', e);
+    }
     setUser(null);
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('token');
@@ -50,8 +65,14 @@ function App() {
   };
 
   useEffect(() => {
-    const handleUnauthorized = () => {
+    const handleUnauthorized = async () => {
       console.warn('[Auth] Sesi berakhir atau token tidak valid (401 Unauthorized)');
+      try {
+        await clearDraftOrder();
+        await clearCart();
+      } catch (e) {
+        console.warn('[Auth] Gagal membersihkan draft/cart:', e);
+      }
       setUser(null);
       sessionStorage.removeItem('user');
       sessionStorage.removeItem('token');

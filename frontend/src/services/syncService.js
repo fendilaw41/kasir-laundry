@@ -55,7 +55,15 @@ export const getAuthHeaders = (extraHeaders = {}) => {
 const formatOrderPayload = async (order) => {
   let pelanggan = null;
   if (order.pelangganId) {
-    pelanggan = await db.pelanggan.get(order.pelangganId);
+    if (typeof order.pelangganId === 'number' || (typeof order.pelangganId === 'string' && /^\d+$/.test(order.pelangganId))) {
+      pelanggan = await db.pelanggan.get(parseInt(order.pelangganId, 10));
+    }
+    if (!pelanggan && typeof order.pelangganId === 'string') {
+      pelanggan = await db.pelanggan.where('uuid').equals(order.pelangganId).first();
+    }
+  }
+  if (!pelanggan && order.pelangganNama) {
+    pelanggan = await db.pelanggan.filter(p => !p.deletedAt && p.nama && p.nama.toLowerCase().trim() === order.pelangganNama.toLowerCase().trim()).first();
   }
 
   // Dapatkan Store ID agar data terisolasi per toko (Multi-store isolation)
@@ -157,16 +165,16 @@ const formatOrderPayload = async (order) => {
     storeId,
     invoiceId: order.invoiceId,
     userId: finalUserId || undefined,
-    pelangganId: pelanggan?.uuid || undefined,
+    pelangganId: pelanggan?.uuid || (typeof order.pelangganId === 'string' && order.pelangganId.includes('-') ? order.pelangganId : undefined),
     pelanggan: pelanggan ? {
       id: pelanggan.uuid,
       nama: pelanggan.nama,
-      hp: pelanggan.hp,
-      alamat: pelanggan.alamat
+      hp: pelanggan.hp || '-',
+      alamat: pelanggan.alamat || '-'
     } : (order.pelangganNama ? {
       nama: order.pelangganNama,
       hp: order.pelangganHp || '-',
-      alamat: order.pelangganAlamat
+      alamat: order.pelangganAlamat || '-'
     } : undefined),
     total: order.total,
     diskon: order.diskon || 0,
@@ -668,7 +676,7 @@ export const pullOrdersFromBackend = async (force = false) => {
     }
     if (!storeId) return false;
 
-    const response = await fetch(`${API_BASE_URL}/orders?storeId=${encodeURIComponent(storeId)}`, {
+    const response = await fetch(`${API_BASE_URL}/orders?storeId=${encodeURIComponent(storeId)}&includeDeleted=true`, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
@@ -712,7 +720,7 @@ export const pullOrdersFromBackend = async (force = false) => {
         invoiceId: so.invoiceId,
         userId: so.userId,
         pelangganId: so.pelangganId,
-        pelangganNama: so.pelanggan?.nama || so.pelangganNama || 'Pelanggan',
+        pelangganNama: so.pelanggan?.nama || so.pelangganNama || localOrder?.pelangganNama || 'Pelanggan',
         total: Number(so.total) || 0,
         diskon: Number(so.diskon) || 0,
         bayar: Number(so.bayar) || 0,
@@ -768,6 +776,22 @@ export const pullOrdersFromBackend = async (force = false) => {
       } else {
         await db.orders.add(orderPayload);
       }
+    }
+
+    // 5b. Rekonsiliasi penghapusan: jika ada order lokal yang sudah tidak ada sama sekali di server (hard delete di BE)
+    try {
+      const activeServerUuids = new Set(serverOrders.map(o => o.id).filter(Boolean));
+      const activeServerInvoices = new Set(serverOrders.map(o => o.invoiceId).filter(Boolean));
+      const localOrdersInStore = await db.orders.filter(o => (!o.storeId || o.storeId === storeId) && !o.deletedAt && o.isDirty !== 1).toArray();
+      
+      for (const lo of localOrdersInStore) {
+        const existsInServer = (lo.uuid && activeServerUuids.has(lo.uuid)) || (lo.invoiceId && activeServerInvoices.has(lo.invoiceId));
+        if (!existsInServer) {
+          await db.orders.update(lo.id, { deletedAt: new Date(), isDirty: 0 });
+        }
+      }
+    } catch (reconcileErr) {
+      console.warn('[Sync] Rekonsiliasi order lokal error:', reconcileErr);
     }
 
     // 6. Tarik dan Sinkronkan Inventory dari Response GET /orders?storeId=...
@@ -846,6 +870,24 @@ export const pullOrdersFromBackend = async (force = false) => {
         }
       }
       console.log(`[Sync] Berhasil memperbarui ${serverProducts.length} produk dari server.`);
+    }
+
+    // 8. Sinkronkan lastInvoiceNumber pada setting agar nomor nota tidak bentrok setelah reset/ganti device
+    let maxInvoiceNum = 0;
+    for (const so of serverOrders) {
+      if (so.invoiceId && so.invoiceId.includes('-')) {
+        const parts = so.invoiceId.split('-');
+        const parsed = parseInt(parts[parts.length - 1], 10);
+        if (!isNaN(parsed) && parsed > maxInvoiceNum) {
+          maxInvoiceNum = parsed;
+        }
+      }
+    }
+    if (maxInvoiceNum > 0) {
+      const currentSetting = await db.settings.get(1);
+      if (currentSetting && (currentSetting.lastInvoiceNumber || 0) < maxInvoiceNum) {
+        await db.settings.update(1, { lastInvoiceNumber: maxInvoiceNum });
+      }
     }
 
     console.log(`[Sync] Berhasil menarik ${serverOrders.length} order dari server.`);

@@ -129,4 +129,26 @@ describe('OrdersService - Public Tracking', () => {
       BadRequestException,
     );
   });
+
+  describe('findAll', () => {
+    it('memfilter deletedAt: null secara default jika includeDeleted = false', async () => {
+      prisma.order.findMany = jest.fn().mockResolvedValue([]);
+      await service.findAll('store-1', false);
+      expect(prisma.order.findMany).toHaveBeenCalledWith({
+        where: { deletedAt: null, storeId: 'store-1' },
+        include: { items: true, pelanggan: true },
+        orderBy: { createdAt: 'desc' },
+      });
+    });
+
+    it('tidak memfilter deletedAt jika includeDeleted = true', async () => {
+      prisma.order.findMany = jest.fn().mockResolvedValue([]);
+      await service.findAll('store-1', true);
+      expect(prisma.order.findMany).toHaveBeenCalledWith({
+        where: { storeId: 'store-1' },
+        include: { items: true, pelanggan: true },
+        orderBy: { createdAt: 'desc' },
+      });
+    });
+  });
 });

@@ -13,39 +13,60 @@ import { db } from '../db';
  */
 export async function clearAllLocalData({ reload = true, redirectUrl = '/login' } = {}) {
   try {
-    // 1. Tutup koneksi Dexie
-    if (db && typeof db.close === 'function') {
+    // 1. Kosongkan semua data tabel Dexie terlebih dahulu saat koneksi masih aktif
+    if (db && Array.isArray(db.tables)) {
       try {
-        db.close();
+        await Promise.all(db.tables.map((table) => table.clear().catch(() => {})));
       } catch (e) {
-        console.warn('[Reset] Error saat menutup koneksi Dexie:', e);
+        console.warn('[Reset] Error saat mengosongkan tabel Dexie:', e);
       }
     }
 
-    // 2. Hapus IndexedDB
-    if (window.indexedDB) {
+    // 2. Tutup koneksi Dexie dan hapus database via API Dexie
+    if (db && typeof db.delete === 'function') {
+      try {
+        await db.delete();
+      } catch (e) {
+        console.warn('[Reset] Error saat db.delete():', e);
+      }
+    }
+
+    // 3. Hapus database native IndexedDB dengan Promise wrapper
+    if (typeof window !== 'undefined' && window.indexedDB) {
+      const deleteDbAsync = (name) =>
+        new Promise((resolve) => {
+          try {
+            const req = indexedDB.deleteDatabase(name);
+            req.onsuccess = () => resolve(true);
+            req.onerror = () => resolve(false);
+            req.onblocked = () => resolve(false);
+            // Fallback timeout jika browser seperti Brave memblokir onblocked
+            setTimeout(() => resolve(false), 500);
+          } catch {
+            resolve(false);
+          }
+        });
+
       try {
         if (typeof indexedDB.databases === 'function') {
-          const dbs = await indexedDB.databases();
+          const dbs = await indexedDB.databases().catch(() => []);
           for (const d of dbs) {
             if (d.name) {
-              indexedDB.deleteDatabase(d.name);
+              await deleteDbAsync(d.name);
             }
           }
-        } else {
-          indexedDB.deleteDatabase('KasirLaundryDB');
         }
+        await deleteDbAsync('KasirLaundryDB');
       } catch (e) {
-        console.warn('[Reset] Error saat menghapus IndexedDB:', e);
-        indexedDB.deleteDatabase('KasirLaundryDB');
+        console.warn('[Reset] Error saat menghapus native IndexedDB:', e);
       }
     }
 
-    // 3. Hapus LocalStorage & SessionStorage
+    // 4. Hapus LocalStorage & SessionStorage
     localStorage.clear();
     sessionStorage.clear();
 
-    // 4. Hapus Cache Storage (aset cache PWA/Service Worker)
+    // 5. Hapus Cache Storage (aset cache PWA/Service Worker)
     if ('caches' in window) {
       try {
         const cacheKeys = await caches.keys();
@@ -55,7 +76,7 @@ export async function clearAllLocalData({ reload = true, redirectUrl = '/login' 
       }
     }
 
-    // 5. Unregister semua Service Worker lama
+    // 6. Unregister semua Service Worker lama
     if ('serviceWorker' in navigator) {
       try {
         const registrations = await navigator.serviceWorker.getRegistrations();
@@ -70,11 +91,14 @@ export async function clearAllLocalData({ reload = true, redirectUrl = '/login' 
     console.error('[Reset] Terjadi kesalahan saat mereset data lokal:', err);
   } finally {
     if (reload) {
-      if (redirectUrl) {
-        window.location.href = redirectUrl;
-      } else {
-        window.location.reload();
-      }
+      // Berikan jeda kecil agar disk commit selesai sebelum navigasi/reload
+      setTimeout(() => {
+        if (redirectUrl) {
+          window.location.href = redirectUrl;
+        } else {
+          window.location.reload();
+        }
+      }, 150);
     }
   }
 }

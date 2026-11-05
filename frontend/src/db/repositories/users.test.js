@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { addUser, updateUser, deleteUser, getKasirUsersQuery, changePassword } from './users.js';
+import { addUser, updateUser, deleteUser, getKasirUsersQuery, changePassword, registerUser } from './users.js';
 import bcrypt from 'bcryptjs';
 import { db } from '../../db.js';
 
@@ -19,11 +19,34 @@ vi.mock('../../db.js', () => ({
       update: vi.fn(),
       where: vi.fn(),
       filter: vi.fn(),
+      clear: vi.fn(),
     },
     settings: {
       get: vi.fn(),
       add: vi.fn(),
       update: vi.fn(),
+    },
+    cart: {
+      clear: vi.fn(),
+    },
+    draftOrder: {
+      delete: vi.fn(),
+      clear: vi.fn(),
+    },
+    orders: {
+      clear: vi.fn(),
+    },
+    pelanggan: {
+      clear: vi.fn(),
+    },
+    inventory: {
+      clear: vi.fn(),
+    },
+    inventoryEvents: {
+      clear: vi.fn(),
+    },
+    products: {
+      clear: vi.fn(),
     },
   },
 }));
@@ -57,6 +80,26 @@ describe('users repository - addUser, updateUser, deleteUser', () => {
       await expect(
         addUser({ fullname: 'Budi Baru', username: 'budi', password: 'secretpassword' })
       ).rejects.toThrow(/Username "budi" sudah terdaftar/i);
+    });
+
+    it('allows same username if belonging to a different store', async () => {
+      sessionStorage.setItem('user', JSON.stringify({ storeId: 'store-123' }));
+      db.users.where.mockReturnValue({
+        equals: vi.fn().mockReturnValue({
+          first: vi.fn().mockResolvedValue({ id: 1, username: 'budi', storeId: 'store-456', deletedAt: null }),
+        }),
+      });
+      db.users.add.mockResolvedValue(10);
+
+      const newId = await addUser({
+        fullname: 'Budi Toko Baru',
+        username: 'budi',
+        password: 'password123',
+        role: 'kasir',
+      });
+
+      expect(newId).toBe(10);
+      expect(db.users.add).toHaveBeenCalledTimes(1);
     });
 
     it('successfully adds new cashier without asking for storeCode and hashes password', async () => {
@@ -165,6 +208,55 @@ describe('users repository - addUser, updateUser, deleteUser', () => {
       const updateCall = db.users.update.mock.calls[0][1];
       expect(updateCall.isDirty).toBe(1);
       expect(bcrypt.compareSync('newsecret123', updateCall.password)).toBe(true);
+    });
+  });
+
+  describe('registerUser', () => {
+    it('allows registering same username for a different store via backend', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          data: {
+            user: {
+              id: 'uuid-user-2',
+              storeId: 'store-uuid-2',
+              storeCode: 'STORE02',
+              storeName: 'Toko Dua',
+              username: 'owner',
+              fullname: 'Owner Toko Dua',
+              role: 'owner',
+            },
+            token: 'jwt-token-123',
+          },
+        }),
+      });
+
+      db.settings.get.mockResolvedValue({ id: 1, storeCode: 'STORE01', storeId: 'store-uuid-1' });
+      db.users.where.mockReturnValue({
+        equals: vi.fn().mockReturnValue({
+          first: vi.fn().mockResolvedValue({ id: 1, username: 'owner', role: 'owner', storeId: 'store-uuid-1' }),
+        }),
+      });
+      db.users.add.mockResolvedValue(2);
+      db.settings.update.mockResolvedValue(1);
+      db.cart = { clear: vi.fn().mockResolvedValue() };
+      db.draftOrder = { delete: vi.fn().mockResolvedValue() };
+      db.orders = { clear: vi.fn().mockResolvedValue() };
+      db.pelanggan = { clear: vi.fn().mockResolvedValue() };
+      db.inventory = { clear: vi.fn().mockResolvedValue() };
+      db.inventoryEvents = { clear: vi.fn().mockResolvedValue() };
+      db.products = { clear: vi.fn().mockResolvedValue() };
+
+      const newId = await registerUser({
+        storeCode: 'STORE02',
+        fullname: 'Owner Toko Dua',
+        username: 'owner',
+        password: 'password123',
+        role: 'owner',
+      });
+
+      expect(newId).toBe(2);
+      expect(global.fetch).toHaveBeenCalledTimes(1);
     });
   });
 });

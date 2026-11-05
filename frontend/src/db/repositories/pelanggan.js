@@ -8,7 +8,7 @@ export const getPelangganQuery = async () => {
   const all = await db.pelanggan.toArray();
   const nonDeleted = all.filter(p => !p.deletedAt);
   if (!storeId) return nonDeleted;
-  return nonDeleted.filter(p => !p.storeId || p.storeId === storeId);
+  return nonDeleted.filter(p => p.storeId === storeId);
 };
 
 export const getPelangganByIdQuery = async (id, fallbackNama = null) => {
@@ -18,7 +18,7 @@ export const getPelangganByIdQuery = async (id, fallbackNama = null) => {
   const matchesStore = (item) => {
     if (!item || item.deletedAt) return false;
     if (!storeId) return true;
-    return !item.storeId || item.storeId === storeId;
+    return item.storeId === storeId;
   };
 
   // 1. Jika ID berupa number murni (Dexie integer primary key)

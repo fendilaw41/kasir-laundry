@@ -58,3 +58,7 @@ export const updateCartItemQty = async (id, delta) => {
     return await db.cart.update(id, withUpdatedSyncMeta({ quantity: newQty }));
   }
 };
+
+export const clearCart = async () => {
+  return await db.cart.clear();
+};

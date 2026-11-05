@@ -1,5 +1,5 @@
-import { Body, Controller, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -9,7 +9,7 @@ import { Public } from './public.decorator';
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Public()
   @Post('register')
@@ -30,6 +30,24 @@ export class AuthController {
         token: result.token,
         user: result.user,
       },
+    };
+  }
+
+  @Public()
+  @Get('store-info')
+  @ApiOperation({
+    summary: 'Cek Informasi Toko Berdasarkan Store Code - Public',
+    description: 'Mengambil nama dan info toko berdasarkan Store Code untuk validasi registrasi dan personalisasi instalasi PWA.',
+  })
+  @ApiQuery({ name: 'code', required: true, example: 'STORE01', description: 'Kode Toko unik' })
+  @ApiResponse({ status: 200, description: 'Info toko berhasil ditemukan.' })
+  @ApiResponse({ status: 400, description: 'Kode Toko tidak valid.' })
+  @ApiResponse({ status: 404, description: 'Toko tidak ditemukan.' })
+  async getStoreInfo(@Query('code') code: string) {
+    const store = await this.authService.getStoreInfo(code);
+    return {
+      success: true,
+      data: store,
     };
   }
 

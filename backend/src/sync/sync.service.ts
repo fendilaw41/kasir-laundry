@@ -303,11 +303,15 @@ export class SyncService {
       }
       const store = await this.getOrCreateStoreFromClient(storeId);
 
+      const validHp = pel.hp && pel.hp !== '-' && pel.hp.trim().length >= 4;
+      const cleanNama = pel.nama ? pel.nama.trim() : '';
+
       const existingPelanggan = await this.prisma.pelanggan.findFirst({
         where: {
           OR: [
             { id: pel.id },
-            ...(pel.hp ? [{ storeId: store.id, hp: pel.hp }] : []),
+            ...(validHp ? [{ storeId: store.id, hp: pel.hp.trim() }] : []),
+            ...(cleanNama ? [{ storeId: store.id, nama: { equals: cleanNama, mode: 'insensitive' as const } }] : []),
           ],
         },
       });

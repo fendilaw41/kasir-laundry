@@ -49,6 +49,7 @@ export class OrdersService {
               nama: dto.pelanggan.nama,
               hp: dto.pelanggan.hp,
               alamat: dto.pelanggan.alamat,
+              deletedAt: null,
             },
             create: {
               id: dto.pelanggan.id,
@@ -60,9 +61,18 @@ export class OrdersService {
           });
           finalPelangganId = pel.id;
         } else {
-          // Cari by HP atau nama di store ini
+          // Cari by HP (hanya jika HP valid & bukan '-') ATAU by Nama di store ini yang BELUM DIHAPUS
+          const validHp = dto.pelanggan.hp && dto.pelanggan.hp !== '-' && dto.pelanggan.hp.trim().length >= 4;
+          const cleanNama = dto.pelanggan.nama.trim();
+
           const existing = await tx.pelanggan.findFirst({
-            where: { storeId, hp: dto.pelanggan.hp },
+            where: {
+              storeId,
+              deletedAt: null,
+              ...(validHp
+                ? { hp: dto.pelanggan.hp.trim() }
+                : { nama: { equals: cleanNama, mode: 'insensitive' } }),
+            },
           });
 
           if (existing) {
@@ -71,9 +81,9 @@ export class OrdersService {
             const created = await tx.pelanggan.create({
               data: {
                 storeId,
-                nama: dto.pelanggan.nama,
-                hp: dto.pelanggan.hp,
-                alamat: dto.pelanggan.alamat,
+                nama: cleanNama,
+                hp: dto.pelanggan.hp || '-',
+                alamat: dto.pelanggan.alamat || null,
               },
             });
             finalPelangganId = created.id;
@@ -305,10 +315,13 @@ export class OrdersService {
   }
 
   /**
-   * Ambil semua order (opsional filter per storeId)
+   * Ambil semua order (opsional filter per storeId dan includeDeleted untuk sinkronisasi tombstone)
    */
-  async findAll(storeId?: string) {
-    const where: any = { deletedAt: null };
+  async findAll(storeId?: string, includeDeleted: boolean = false) {
+    const where: any = {};
+    if (!includeDeleted) {
+      where.deletedAt = null;
+    }
     if (storeId) {
       where.storeId = storeId;
     }

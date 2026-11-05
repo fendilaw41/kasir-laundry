@@ -62,9 +62,14 @@ export class OrdersController {
     description: 'Mengambil daftar seluruh pesanan laundry beserta relasi item dan pelanggan.',
   })
   @ApiQuery({ name: 'storeId', required: false, description: 'ID Toko (opsional)' })
+  @ApiQuery({ name: 'includeDeleted', required: false, description: 'Sertakan order yang dihapus/tombstone untuk sinkronisasi', type: Boolean })
   @ApiResponse({ status: 200, description: 'Daftar order berhasil dimuat.' })
-  async findAll(@Query('storeId') storeId?: string) {
-    const data = await this.ordersService.findAll(storeId);
+  async findAll(
+    @Query('storeId') storeId?: string,
+    @Query('includeDeleted') includeDeleted?: string,
+  ) {
+    const isIncludeDeleted = includeDeleted === 'true' || includeDeleted === '1';
+    const data = await this.ordersService.findAll(storeId, isIncludeDeleted);
     const inventory = storeId ? await this.ordersService.findInventory(storeId) : [];
     const products = storeId ? await this.ordersService.findProducts(storeId) : [];
     return {

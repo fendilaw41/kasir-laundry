@@ -4,7 +4,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { pullOrdersFromBackend, syncTwoWay } from '../services/syncService';
 import { isStatusLunas } from '../utils/paymentStatus';
 import { useState, useEffect } from 'react';
-import { TransactionListSkeleton } from '../components/common/Skeleton';
+import { Skeleton, TransactionListSkeleton } from '../components/common/Skeleton';
 
 const isSameDay = (dateA, dateB) => {
   if (!dateA || !dateB) return false;
@@ -111,9 +111,23 @@ const Reports = () => {
             <div className="d-flex justify-content-between align-items-start mb-3">
               <div>
                 <small className="opacity-75 d-block mb-1">Total Omzet {isTodayOnly ? 'Hari Ini' : 'Periode Ini'}</small>
-                <h2 className="text-white fw-bold mb-0">
-                  {showBalance ? `Rp ${data?.reduce((acc, o) => acc + o.total, 0).toLocaleString()}` : 'Rp ••••••••'}
-                </h2>
+                {data === undefined ? (
+                  <div className="py-1">
+                    <Skeleton
+                      width="180px"
+                      height="32px"
+                      borderRadius="8px"
+                      style={{
+                        background: 'linear-gradient(90deg, rgba(255,255,255,0.18) 25%, rgba(255,255,255,0.38) 37%, rgba(255,255,255,0.18) 63%)',
+                        backgroundSize: '200% 100%'
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <h2 className="text-white fw-bold mb-0">
+                    {showBalance ? `Rp ${(data?.reduce((acc, o) => acc + (Number(o?.total) || 0), 0) || 0).toLocaleString('id-ID')}` : 'Rp ••••••••'}
+                  </h2>
+                )}
               </div>
               <div className="d-flex align-items-center gap-2">
                 <button
@@ -132,13 +146,39 @@ const Reports = () => {
               <div className="d-flex gap-3 pt-2 border-top border-white border-opacity-25">
                 <div className="flex-fill">
                   <small className="opacity-75 d-block" style={{ fontSize: '0.65rem' }}>TOTAL DISKON</small>
-                  <span className="fw-bold" style={{ fontSize: '0.9rem' }}>
-                    Rp {data?.reduce((acc, o) => acc + (o.diskon || 0), 0).toLocaleString()}
-                  </span>
+                  {data === undefined ? (
+                    <Skeleton
+                      width="80px"
+                      height="16px"
+                      borderRadius="4px"
+                      className="mt-1"
+                      style={{
+                        background: 'linear-gradient(90deg, rgba(255,255,255,0.18) 25%, rgba(255,255,255,0.38) 37%, rgba(255,255,255,0.18) 63%)',
+                        backgroundSize: '200% 100%'
+                      }}
+                    />
+                  ) : (
+                    <span className="fw-bold" style={{ fontSize: '0.9rem' }}>
+                      Rp {(data?.reduce((acc, o) => acc + (Number(o?.diskon) || 0), 0) || 0).toLocaleString('id-ID')}
+                    </span>
+                  )}
                 </div>
                 <div className="flex-fill border-start ps-3 border-white border-opacity-25">
                   <small className="opacity-75 d-block" style={{ fontSize: '0.65rem' }}>JUMLAH ORDER</small>
-                  <span className="fw-bold" style={{ fontSize: '0.9rem' }}>{data?.length || 0} transaksi</span>
+                  {data === undefined ? (
+                    <Skeleton
+                      width="75px"
+                      height="16px"
+                      borderRadius="4px"
+                      className="mt-1"
+                      style={{
+                        background: 'linear-gradient(90deg, rgba(255,255,255,0.18) 25%, rgba(255,255,255,0.38) 37%, rgba(255,255,255,0.18) 63%)',
+                        backgroundSize: '200% 100%'
+                      }}
+                    />
+                  ) : (
+                    <span className="fw-bold" style={{ fontSize: '0.9rem' }}>{data?.length || 0} transaksi</span>
+                  )}
                 </div>
               </div>
             )}
@@ -172,7 +212,7 @@ const Reports = () => {
             </button>
           </div>
           <span className="badge bg-white text-muted border rounded-pill px-2.5 py-1 shadow-xs fw-semibold" style={{ fontSize: '0.74rem' }}>
-            {data?.length || 0} transaksi
+            {data === undefined ? <Skeleton width="55px" height="12px" /> : `${data?.length || 0} transaksi`}
           </span>
         </div>
 
@@ -236,7 +276,7 @@ const Reports = () => {
         <div className="d-flex justify-content-between align-items-center mb-3 px-1">
           <h6 className="fw-bold mb-0">Riwayat Transaksi</h6>
           <span className="badge bg-primary-light text-primary rounded-pill px-3 py-2" style={{ fontSize: '0.7rem', backgroundColor: '#eef2ff' }}>
-            {data?.length || 0} Data
+            {data === undefined ? <Skeleton width="45px" height="12px" /> : `${data?.length || 0} Data`}
           </span>
         </div>
         {data === undefined ? (

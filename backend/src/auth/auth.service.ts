@@ -20,7 +20,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   /**
    * Registrasi user baru (Owner atau Kasir)
@@ -191,13 +191,22 @@ export class AuthService {
     const currentStoreId = matchedUser.storeId;
 
     // Ambil data pendukung toko untuk hidrasi Dexie di browser/device baru
-    const [settings, products, storeUsers, pelanggan, inventory] = await Promise.all([
+    let [settings, products, storeUsers, pelanggan, inventory] = await Promise.all([
       this.prisma.settings.findUnique({ where: { storeId: currentStoreId } }),
       this.prisma.product.findMany({ where: { storeId: currentStoreId, deletedAt: null } }),
       this.prisma.user.findMany({ where: { storeId: currentStoreId, deletedAt: null } }),
       this.prisma.pelanggan.findMany({ where: { storeId: currentStoreId, deletedAt: null } }),
       this.prisma.inventory.findMany({ where: { storeId: currentStoreId, deletedAt: null } }),
     ]);
+
+    // Jika store di server belum memiliki produk (misal store baru atau baru di-reset),
+    // otomatis inisialisasi master data produk default agar produk tidak hilang saat login dari device baru/Brave!
+    if (products.length === 0) {
+      this.logger.log(`Menginisialisasi produk default server untuk store ${currentStoreId}...`);
+      await this.seedDefaultMasterDataForStore(currentStoreId);
+      products = await this.prisma.product.findMany({ where: { storeId: currentStoreId, deletedAt: null } });
+      inventory = await this.prisma.inventory.findMany({ where: { storeId: currentStoreId, deletedAt: null } });
+    }
 
     this.logger.log(`User ${matchedUser.username} berhasil login online ke store ${matchedUser.store.code || currentStoreId}`);
 
@@ -323,6 +332,98 @@ export class AuthService {
     return {
       success: true,
       message: 'Password berhasil diubah',
+    };
+  }
+
+  /**
+   * Menginisialisasi produk dan inventori default di PostgreSQL jika toko belum memiliki master data
+   */
+  async seedDefaultMasterDataForStore(storeId: string) {
+    const rawProducts = [
+      // Cuci Lipat
+      { code: 'CLR', category: 'CUCI LIPAT', name: 'Reguler (2-3 hari)', price: 5000 },
+      { code: 'CLE', category: 'CUCI LIPAT', name: 'Express (1 Hari)', price: 7000 },
+      { code: 'CLP', category: 'CUCI LIPAT', name: 'Pagi Sore (8 Jam)', price: 9000 },
+      { code: 'CLK', category: 'CUCI LIPAT', name: 'Kilat (4 Jam)', price: 12000 },
+
+      // Cuci Setrika
+      { code: 'CSR', category: 'CUCI SETRIKA', name: 'Reguler (2-3 hari)', price: 6000 },
+      { code: 'CSE', category: 'CUCI SETRIKA', name: 'Express (1 Hari)', price: 9000 },
+      { code: 'CSP', category: 'CUCI SETRIKA', name: 'Pagi Sore (8 Jam)', price: 11000 },
+      { code: 'CSK', category: 'CUCI SETRIKA', name: 'Kilat (4 Jam)', price: 14000 },
+
+      // Setrika Saja
+      { code: 'SSR', category: 'SETRIKA SAJA', name: 'Reguler (2-3 hari)', price: 5000 },
+      { code: 'SSE', category: 'SETRIKA SAJA', name: 'Express (1 Hari)', price: 7000 },
+      { code: 'SSP', category: 'SETRIKA SAJA', name: 'Pagi Sore (8 Jam)', price: 9000 },
+      { code: 'SSK', category: 'SETRIKA SAJA', name: 'Kilat (4 Jam)', price: 12000 },
+    ];
+
+    for (const p of rawProducts) {
+      await this.prisma.product.create({
+        data: {
+          storeId,
+          code: p.code,
+          category: p.category,
+          name: p.name,
+          price: p.price,
+        },
+      });
+    }
+
+    const defaultInv = [
+      { nama: 'Plastik', stok: 10 },
+      { nama: 'Deterjen', stok: 10 },
+      { nama: 'Molto', stok: 10 },
+    ];
+
+    for (const inv of defaultInv) {
+      const existing = await this.prisma.inventory.findFirst({
+        where: { storeId, nama: { equals: inv.nama, mode: 'insensitive' } },
+      });
+      if (!existing) {
+        await this.prisma.inventory.create({
+          data: {
+            storeId,
+            nama: inv.nama,
+            stok: inv.stok,
+            qty: 0,
+          },
+        });
+      }
+    }
+  }
+
+  /**
+   * Mengambil info toko publik berdasarkan kode toko (untuk register dan PWA personalisasi)
+   */
+  async getStoreInfo(code: string) {
+    if (!code || !code.trim()) {
+      throw new BadRequestException('Kode Toko wajib diisi.');
+    }
+
+    const cleanCode = code.trim().toUpperCase();
+    const store = await this.prisma.store.findFirst({
+      where: {
+        code: { equals: cleanCode, mode: 'insensitive' },
+      },
+      include: {
+        settings: true,
+      },
+    });
+
+    if (!store) {
+      throw new NotFoundException('Store tidak ditemukan.');
+    }
+
+    const storeName = store.settings?.namaLaundry || store.name;
+
+    return {
+      code: store.code,
+      name: storeName,
+      address: store.settings?.alamat || store.address || '',
+      city: store.settings?.kota || store.city || '',
+      phone: store.settings?.telepon || store.phone || '',
     };
   }
 }

@@ -178,8 +178,8 @@ export const updateOrder = async (id, data) => {
 
   const result = await db.orders.update(targetId, withUpdatedSyncMeta(data));
   
-  // Trigger sync ke backend secara asynchronous
-  syncOrderToBackend(targetId).catch(err => console.warn('Sync update order failed:', err));
+  // Trigger sync ke backend secara asynchronous tetapi di-await jika online
+  await syncOrderToBackend(targetId).catch(err => console.warn('Sync update order failed:', err));
 
   return result;
 };
@@ -199,8 +199,8 @@ export const deleteOrder = async (id) => {
   // Soft delete supaya penghapusan order ikut ter-sync (tombstone), bukan hard delete.
   const result = await db.orders.update(targetId, withUpdatedSyncMeta({ deletedAt: new Date() }));
   
-  // Trigger sync ke backend secara asynchronous
-  syncOrderToBackend(targetId).catch(err => console.warn('Sync delete order failed:', err));
+  // Trigger sync ke backend secara asynchronous tetapi di-await jika online
+  await syncOrderToBackend(targetId).catch(err => console.warn('Sync delete order failed:', err));
 
   return result;
 };

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { withNewSyncMeta, withUpdatedSyncMeta } from '../syncMeta.js';
 import { syncAllDirtyMasterData, syncUsersToBackend, syncInventoryToBackend, pullOrdersFromBackend } from '../../services/syncService.js';
 import { getActiveStoreId } from './storeHelper.js';
+import { clearDraftOrder } from './draftOrder.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -12,6 +13,33 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 const hydrateFromBackend = async (data) => {
   const { user, store, settings, products, users, pelanggan, inventory } = data;
   const targetStoreId = store?.id || settings?.storeId || user?.storeId;
+
+  const existingSetting = await db.settings.get(1);
+  const previousStoreId = existingSetting?.storeId;
+
+  // Jika store yang login berbeda dari store sebelumnya di Dexie,
+  // bersihkan draft, cart, dan seluruh data lokal toko sebelumnya agar tidak terjadi kebocoran antar tenant!
+  if (previousStoreId && targetStoreId && previousStoreId !== targetStoreId) {
+    console.log(`[StoreSwitch] Berpindah store dari ${previousStoreId} ke ${targetStoreId}. Membersihkan data store lama...`);
+    if (db.cart?.clear) await db.cart.clear();
+    await clearDraftOrder();
+    if (db.orders?.clear) await db.orders.clear();
+    if (db.pelanggan?.clear) await db.pelanggan.clear();
+    if (db.inventory?.clear) await db.inventory.clear();
+    if (db.inventoryEvents?.clear) await db.inventoryEvents.clear();
+    if (db.products?.clear) await db.products.clear();
+    if (db.users?.clear) await db.users.clear();
+    if (db.conversations?.clear) await db.conversations.clear();
+    if (db.conversationMembers?.clear) await db.conversationMembers.clear();
+    if (db.messages?.clear) await db.messages.clear();
+    if (db.chatLog?.clear) await db.chatLog.clear();
+  } else {
+    // Sekalipun store sama, selalu bersihkan draftOrder jika pelanggan di dalamnya bukan milik store ini
+    const currentDraft = db.draftOrder?.get ? await db.draftOrder.get('current') : null;
+    if (currentDraft?.pelanggan?.storeId && targetStoreId && currentDraft.pelanggan.storeId !== targetStoreId) {
+      await clearDraftOrder();
+    }
+  }
 
   // 1. Simpan / Update Settings & Store
   if (settings || store) {
@@ -122,14 +150,39 @@ const hydrateFromBackend = async (data) => {
     if (hasMissingServerProducts) {
       syncProductsToBackend(false).catch(err => console.warn('[Hydrate] Sync missing products failed:', err));
     }
-  } else if (products && products.length === 0) {
-    // Skenario: DB product di PostgreSQL masih KOSONG!
-    // Hanya saat database produk di server masih kosong, sync produk default dari Dexie ke backend satu kali saja!
+  } else if (!products || products.length === 0) {
+    // Skenario: DB product di PostgreSQL dan lokal masih KOSONG!
     const localProductCount = await db.products.count();
-    if (localProductCount > 0) {
-      console.log('[Sync] Produk di server masih kosong. Menginisialisasi produk ke DB...');
-      syncProductsToBackend(true).catch(err => console.warn('[Hydrate] Init products failed:', err));
+    if (localProductCount === 0) {
+      console.log('[Hydrate] Produk lokal kosong, menginisialisasi layanan default...');
+      const rawProducts = [
+        // Cuci Lipat
+        { code: 'CLR', category: 'CUCI LIPAT', name: 'Reguler (2-3 hari)', price: 5000 },
+        { code: 'CLE', category: 'CUCI LIPAT', name: 'Express (1 Hari)', price: 7000 },
+        { code: 'CLP', category: 'CUCI LIPAT', name: 'Pagi Sore (8 Jam)', price: 9000 },
+        { code: 'CLK', category: 'CUCI LIPAT', name: 'Kilat (4 Jam)', price: 12000 },
+
+        // Cuci Setrika
+        { code: 'CSR', category: 'CUCI SETRIKA', name: 'Reguler (2-3 hari)', price: 6000 },
+        { code: 'CSE', category: 'CUCI SETRIKA', name: 'Express (1 Hari)', price: 9000 },
+        { code: 'CSP', category: 'CUCI SETRIKA', name: 'Pagi Sore (8 Jam)', price: 11000 },
+        { code: 'CSK', category: 'CUCI SETRIKA', name: 'Kilat (4 Jam)', price: 14000 },
+
+        // Setrika Saja
+        { code: 'SSR', category: 'SETRIKA SAJA', name: 'Reguler (2-3 hari)', price: 5000 },
+        { code: 'SSE', category: 'SETRIKA SAJA', name: 'Express (1 Hari)', price: 7000 },
+        { code: 'SSP', category: 'SETRIKA SAJA', name: 'Pagi Sore (8 Jam)', price: 9000 },
+        { code: 'SSK', category: 'SETRIKA SAJA', name: 'Kilat (4 Jam)', price: 12000 },
+      ];
+      await db.products.bulkAdd(rawProducts.map(p => ({
+        ...p,
+        uuid: crypto.randomUUID(),
+        storeId: targetStoreId,
+        updatedAt: new Date(),
+        isDirty: 1,
+      })));
     }
+    syncProductsToBackend(true).catch(err => console.warn('[Hydrate] Init products failed:', err));
   }
 
   // 4. Hidrasi Pelanggan
@@ -199,12 +252,14 @@ const hydrateFromBackend = async (data) => {
         await db.inventory.add(invPayload);
       }
     }
-  } else if (inventory && inventory.length === 0) {
+  } else if (!inventory || inventory.length === 0) {
     const localInvCount = await db.inventory.count();
-    if (localInvCount > 0) {
-      console.log('[Sync] Inventory di server masih kosong. Menginisialisasi inventory ke DB...');
-      syncInventoryToBackend(true).catch(err => console.warn('[Hydrate] Init inventory failed:', err));
+    if (localInvCount === 0) {
+      await db.inventory.add({ uuid: crypto.randomUUID(), storeId: targetStoreId, nama: 'Plastik', stok: 15, isDirty: 1 });
+      await db.inventory.add({ uuid: crypto.randomUUID(), storeId: targetStoreId, nama: 'Deterjen', stok: 10, isDirty: 1 });
+      await db.inventory.add({ uuid: crypto.randomUUID(), storeId: targetStoreId, nama: 'Molto', stok: 10, isDirty: 1 });
     }
+    syncInventoryToBackend(true).catch(err => console.warn('[Hydrate] Init inventory failed:', err));
   }
 };
 
@@ -261,7 +316,7 @@ export const loginUser = async (username, password, storeCode) => {
           }
           // Master data & order sudah sinkron setelah hidrasi.
           syncAllDirtyMasterData(false).catch(err => console.warn('Sync master data failed:', err));
-          pullOrdersFromBackend().catch(err => console.warn('Pull orders on login failed:', err));
+          pullOrdersFromBackend(true).catch(err => console.warn('Pull orders on login failed:', err));
           return finalUser;
         }
       } else if (response.status === 401 || response.status === 404) {
@@ -315,14 +370,9 @@ export const registerUser = async ({ storeCode, fullname, username, password, ro
   const setting = await db.settings.get(1);
   if (normalizedRole === 'owner') {
     const localOwner = await db.users.where('role').equals('owner').first();
-    if (localOwner && (!setting?.storeCode || setting.storeCode.toLowerCase() === cleanStoreCode.toLowerCase())) {
+    if (localOwner && setting?.storeCode && setting.storeCode.toLowerCase() === cleanStoreCode.toLowerCase()) {
       throw new Error(`Toko ini sudah memiliki akun Owner (${localOwner.username}). Hanya boleh 1 Owner per Toko.`);
     }
-  }
-
-  const existingLocalUser = await db.users.where('username').equals(cleanUsername).first();
-  if (existingLocalUser) {
-    throw new Error(`Username "${cleanUsername}" sudah terdaftar.`);
   }
 
   // Panggil endpoint register di backend untuk validasi resmi
@@ -351,6 +401,21 @@ export const registerUser = async ({ storeCode, fullname, username, password, ro
     if (token) {
       sessionStorage.setItem('token', token);
       localStorage.setItem('auth_token', token);
+    }
+
+    // Bersihkan draft order dan cart saat registrasi store baru
+    await clearDraftOrder();
+    if (db.cart?.clear) await db.cart.clear();
+
+    // Jika registrasi toko baru, bersihkan data toko lama dari Dexie agar tidak tercampur
+    const previousStoreId = setting?.storeId;
+    if (previousStoreId && registeredUser.storeId && previousStoreId !== registeredUser.storeId) {
+      if (db.orders?.clear) await db.orders.clear();
+      if (db.pelanggan?.clear) await db.pelanggan.clear();
+      if (db.inventory?.clear) await db.inventory.clear();
+      if (db.inventoryEvents?.clear) await db.inventoryEvents.clear();
+      if (db.products?.clear) await db.products.clear();
+      if (db.users?.clear) await db.users.clear();
     }
 
     // Simpan ke Dexie lokal
@@ -406,9 +471,9 @@ export const addUser = async (userData) => {
   const cleanUsername = username.trim();
   const storeId = await getActiveStoreId();
 
-  // Cek apakah username sudah ada di lokal
+  // Cek apakah username sudah ada di lokal pada store yang sama
   const existingUser = await db.users.where('username').equals(cleanUsername).first();
-  if (existingUser && !existingUser.deletedAt) {
+  if (existingUser && !existingUser.deletedAt && (!storeId || !existingUser.storeId || existingUser.storeId === storeId)) {
     throw new Error(`Username "${cleanUsername}" sudah terdaftar.`);
   }
 

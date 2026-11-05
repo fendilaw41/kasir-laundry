@@ -12,7 +12,7 @@ import { formatWhatsAppMessage } from '../utils/whatsapp';
 import { getTrackingUrl } from '../utils/tracking';
 import { getStatusLunasByMetode, isStatusLunas } from '../utils/paymentStatus';
 import PrintLayout from '../components/PrintLayout';
-import { OrderDetailSkeleton } from '../components/common/Skeleton';
+import { Skeleton, OrderDetailSkeleton } from '../components/common/Skeleton';
 
 const isSameInventory = (a, b) => {
   if (!a || !b) return false;
@@ -296,7 +296,20 @@ const OrderDetail = () => {
                 <span className="badge bg-white text-danger fw-bold shadow-sm"><i className="bi bi-star-fill me-1"></i> PRIORITAS</span>
               </div>
             )}
-            <h5 className="text-white fw-bold mb-0">{settings?.namaLaundry || 'Kasir Laundry'}</h5>
+            {settings === undefined ? (
+              <Skeleton
+                width="150px"
+                height="22px"
+                borderRadius="6px"
+                className="my-1"
+                style={{
+                  background: 'linear-gradient(90deg, rgba(255,255,255,0.2) 25%, rgba(255,255,255,0.4) 37%, rgba(255,255,255,0.2) 63%)',
+                  backgroundSize: '200% 100%'
+                }}
+              />
+            ) : (
+              <h5 className="text-white fw-bold mb-0">{settings?.namaLaundry || 'Kasir Laundry'}</h5>
+            )}
             <small className="opacity-75">{settings?.motto || 'Solusi Laundry Bersih & Cepat'}</small>
           </div>
 

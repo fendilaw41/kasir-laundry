@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { TOAST_MESSAGES } from '../../constants/appConstants';
 import { calculateOrderEstimatedDays } from '../../utils/estimateCalculator';
+import { getActiveStoreIdSync } from '../../db/repositories/storeHelper';
 
 export const useTransaksi = () => {
   const cartItems = useLiveQuery(getCartQuery);
@@ -17,7 +18,14 @@ export const useTransaksi = () => {
 
   const navigate = useNavigate();
 
-  const selectedPelanggan = draftOrder?.pelanggan || null;
+  const activeStoreId = getActiveStoreIdSync();
+  const isPelangganValidForStore = (pel) => {
+    if (!pel) return false;
+    if (!activeStoreId || !pel.storeId) return true;
+    return pel.storeId === activeStoreId;
+  };
+
+  const selectedPelanggan = isPelangganValidForStore(draftOrder?.pelanggan) ? draftOrder.pelanggan : null;
   const selectedInventory = draftOrder?.inventory || [];
 
   const setSelectedPelanggan = async (pelanggan) => {
@@ -27,6 +35,13 @@ export const useTransaksi = () => {
   const [showModal, setShowModal] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [newPelanggan, setNewPelanggan] = useState({ nama: '', hp: '', alamat: '' });
+
+  // Bersihkan draft order otomatis jika pelanggan berasal dari store lain
+  useEffect(() => {
+    if (draftOrder?.pelanggan && !isPelangganValidForStore(draftOrder.pelanggan)) {
+      updateDraftOrder({ pelanggan: null });
+    }
+  }, [draftOrder?.pelanggan, activeStoreId]);
 
   // Munculkan modal otomatis jika pelanggan belum dipilih
   useEffect(() => {
@@ -119,8 +134,10 @@ export const useTransaksi = () => {
     // Siapkan data untuk dikirim ke halaman pembayaran
     const orderData = {
       userId: user.uuid || user.id,
-      pelangganId: selectedPelanggan.id,
+      pelangganId: selectedPelanggan.uuid || selectedPelanggan.id,
       pelangganNama: selectedPelanggan.nama,
+      pelangganHp: selectedPelanggan.hp || '-',
+      pelangganAlamat: selectedPelanggan.alamat || '-',
       items: cartItems,
       subtotal: subtotal,
       diskon: nilaiDiskon,

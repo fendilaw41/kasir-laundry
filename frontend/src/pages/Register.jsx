@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { registerUser } from '../db/repositories/users';
 import { db } from '../db';
+import { updatePwaManifest, promptPwaInstall, fetchStoreInfoByCode } from '../utils/pwaHelper';
+import { Skeleton } from '../components/common/Skeleton';
 
 const Register = () => {
   const [storeCode, setStoreCode] = useState('');
@@ -11,16 +13,108 @@ const Register = () => {
   const [message, setMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // PWA & Store State
+  const [storeInfo, setStoreInfo] = useState(null);
+  const [isCheckingStore, setIsCheckingStore] = useState(false);
+  const [showInstallPopup, setShowInstallPopup] = useState(false);
+  const [installManualHelp, setInstallManualHelp] = useState(false);
+  const [installSuccess, setInstallSuccess] = useState(false);
+
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    // Coba autofill storeCode jika sudah ada di settings
+    // 1. Prioritaskan query param ?code=STORE02 dari URL jika ada
+    const urlCode = searchParams.get('code');
+    if (urlCode) {
+      setStoreCode(urlCode.trim().toUpperCase());
+      return;
+    }
+
+    // 2. Coba autofill storeCode jika sudah ada di settings atau storage
     db.settings.get(1).then((s) => {
       if (s?.storeCode) {
-        setStoreCode(s.storeCode);
+        setStoreCode(s.storeCode.toUpperCase());
+      } else {
+        const lastCode = localStorage.getItem('last_store_code');
+        if (lastCode) {
+          setStoreCode(lastCode.toUpperCase());
+        }
       }
     });
-  }, []);
+  }, [searchParams]);
+
+  // Debounce check nama store dari backend / lokal saat storeCode berubah
+  useEffect(() => {
+    const cleanCode = storeCode.trim().toUpperCase();
+    if (!cleanCode || cleanCode.length < 3) {
+      setStoreInfo(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsCheckingStore(true);
+      try {
+        let info = await fetchStoreInfoByCode(cleanCode);
+
+        // Fallback ke Dexie lokal jika offline / cocok
+        if (!info) {
+          const localSettings = await db.settings.get(1);
+          if (localSettings?.storeCode?.toUpperCase() === cleanCode) {
+            info = {
+              code: cleanCode,
+              name: localSettings.namaLaundry || 'Kasir Laundry',
+              address: localSettings.alamat || '',
+              city: localSettings.kota || '',
+              phone: localSettings.telepon || '',
+            };
+          }
+        }
+
+        if (info) {
+          setStoreInfo(info);
+          updatePwaManifest(info.name);
+          localStorage.setItem('last_store_code', cleanCode);
+
+          // Munculkan popup jika belum di-dismiss di sesi ini untuk toko ini
+          const dismissed = sessionStorage.getItem(`pwa_dismissed_${cleanCode}`);
+          if (!dismissed) {
+            setShowInstallPopup(true);
+          }
+        } else {
+          setStoreInfo(null);
+        }
+      } catch (err) {
+        console.warn('[Register] Gagal memeriksa kode toko:', err);
+      } finally {
+        setIsCheckingStore(false);
+      }
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [storeCode]);
+
+  const handleInstallApp = async () => {
+    const res = await promptPwaInstall();
+    if (res?.outcome === 'accepted') {
+      setInstallSuccess(true);
+      setTimeout(() => {
+        setShowInstallPopup(false);
+        setInstallSuccess(false);
+      }, 2000);
+    } else {
+      setInstallManualHelp(true);
+    }
+  };
+
+  const handleCloseInstallPopup = () => {
+    if (storeInfo?.code) {
+      sessionStorage.setItem(`pwa_dismissed_${storeInfo.code}`, 'true');
+    }
+    setShowInstallPopup(false);
+    setInstallManualHelp(false);
+  };
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -60,6 +154,114 @@ const Register = () => {
         zIndex: 1050,
       }}
     >
+      {/* Modal Popup Install PWA Android / Desktop */}
+      {showInstallPopup && storeInfo && (
+        <>
+          <div
+            className="modal-backdrop fade show"
+            style={{
+              backdropFilter: 'blur(6px)',
+              backgroundColor: 'rgba(15, 23, 42, 0.65)',
+              zIndex: 1080,
+            }}
+            onClick={handleCloseInstallPopup}
+          ></div>
+          <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1085 }}>
+            <div className="modal-dialog modal-dialog-centered mx-auto px-3" style={{ maxWidth: '380px' }}>
+              <div className="modal-content border-0 shadow-lg text-center p-4" style={{ borderRadius: '28px' }}>
+                {/* Close Button Top Right */}
+                <button
+                  type="button"
+                  className="btn-close position-absolute top-0 end-0 m-3 shadow-none"
+                  aria-label="Close"
+                  onClick={handleCloseInstallPopup}
+                ></button>
+
+                {/* App Icon Preview */}
+                <div
+                  className="mx-auto d-flex align-items-center justify-content-center shadow-sm mb-3"
+                  style={{
+                    width: '74px',
+                    height: '74px',
+                    background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)',
+                    borderRadius: '22px',
+                  }}
+                >
+                  <i className="bi bi-phone text-white fs-1"></i>
+                </div>
+
+                <span className="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-1 mb-2 fw-semibold" style={{ fontSize: '11px' }}>
+                  Aplikasi Siap Diinstall
+                </span>
+
+                <h5 className="fw-bold mb-1 text-dark" style={{ letterSpacing: '-0.3px' }}>
+                  Install Aplikasi {storeInfo.name}
+                </h5>
+                <p className="text-muted small mb-3" style={{ fontSize: '12px', lineHeight: '1.5' }}>
+                  Pasang aplikasi kasir <strong>{storeInfo.name}</strong> langsung di layar utama smartphone Android Anda untuk akses cepat &amp; fitur offline.
+                </p>
+
+                {/* Outlet Details Card */}
+                <div className="bg-light p-3 rounded-4 mb-3 text-start small border">
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Nama App:</span>
+                    <span className="fw-bold text-dark text-truncate ps-2">{storeInfo.name}</span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Kode Toko:</span>
+                    <span className="badge bg-secondary-subtle text-dark border px-2 py-0.5">{storeInfo.code}</span>
+                  </div>
+                  {storeInfo.address && (
+                    <div className="d-flex justify-content-between">
+                      <span className="text-muted">Alamat:</span>
+                      <span className="text-dark text-truncate ps-2" style={{ maxWidth: '180px' }}>{storeInfo.address}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Status Sukses Install */}
+                {installSuccess ? (
+                  <div className="alert alert-success py-2 px-3 rounded-3 small mb-2 d-flex align-items-center justify-content-center gap-2">
+                    <i className="bi bi-check-circle-fill"></i>
+                    <span>Aplikasi berhasil dipasang di perangkat!</span>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-lg rounded-pill fw-bold w-100 shadow-sm mb-2 d-flex align-items-center justify-content-center gap-2"
+                      style={{ fontSize: '14px', height: '48px' }}
+                      onClick={handleInstallApp}
+                    >
+                      <i className="bi bi-download"></i>
+                      <span>Install Aplikasi Sekarang</span>
+                    </button>
+
+                    {installManualHelp && (
+                      <div className="alert alert-info py-2 px-3 text-start rounded-3 mb-2 small" style={{ fontSize: '11px', lineHeight: '1.4' }}>
+                        <i className="bi bi-info-circle-fill me-1"></i>
+                        Jika prompt tidak muncul otomatis:
+                        <br />
+                        Buka menu browser titik 3 (<strong>⋮</strong>) di pojok kanan atas, lalu pilih <strong>&quot;Tambahkan ke Layar Utama&quot;</strong> atau <strong>&quot;Install Aplikasi&quot;</strong>.
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      className="btn btn-light rounded-pill py-2 w-100 text-muted fw-semibold"
+                      style={{ fontSize: '13px' }}
+                      onClick={handleCloseInstallPopup}
+                    >
+                      Lanjut Registrasi Dulu
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       <div className="container">
         <div className="row justify-content-center">
           <div className="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
@@ -76,12 +278,22 @@ const Register = () => {
                       marginBottom: '16px',
                     }}
                   >
-                    <span style={{ fontSize: '38px', fontWeight: '900', color: '#fff', letterSpacing: '-2px' }}>K</span>
+                    <span style={{ fontSize: '38px', fontWeight: '900', color: '#fff', letterSpacing: '-2px' }}>
+                      {storeInfo?.name ? storeInfo.name.charAt(0).toUpperCase() : 'K'}
+                    </span>
                   </div>
-                  <h3 className="fw-bold mb-1" style={{ letterSpacing: '0.5px', color: '#0134d4' }}>
-                    KASIR LAUNDRY
-                  </h3>
-                  <p className="text-muted small mb-0">Pendaftaran Akun Owner Toko</p>
+                  {isCheckingStore ? (
+                    <div className="d-flex justify-content-center my-1">
+                      <Skeleton width="180px" height="28px" borderRadius="8px" />
+                    </div>
+                  ) : (
+                    <h3 className="fw-bold mb-1" style={{ letterSpacing: '0.5px', color: '#0134d4' }}>
+                      {(storeInfo?.name || 'KASIR LAUNDRY').toUpperCase()}
+                    </h3>
+                  )}
+                  <p className="text-muted small mb-0">
+                    {storeInfo?.name ? `Pendaftaran Akun Owner - ${storeInfo.name}` : 'Pendaftaran Akun Owner Toko'}
+                  </p>
                 </div>
 
                 <div className="register-form mt-3">
@@ -95,9 +307,17 @@ const Register = () => {
 
                   <form onSubmit={handleRegister}>
                     <div className="form-group mb-3">
-                      <label className="form-label small fw-bold text-muted">
-                        Kode Toko <span className="text-danger">*</span>
-                      </label>
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <label className="form-label small fw-bold text-muted mb-0">
+                          Kode Toko <span className="text-danger">*</span>
+                        </label>
+                        {isCheckingStore && (
+                          <span className="small text-muted d-flex align-items-center gap-1" style={{ fontSize: '11px' }}>
+                            <span className="spinner-border spinner-border-sm" role="status" style={{ width: '10px', height: '10px' }}></span>
+                            Cek toko...
+                          </span>
+                        )}
+                      </div>
                       <input
                         className="form-control form-control-lg bg-light border-0 fw-bold text-primary"
                         style={{ fontSize: '15px' }}
@@ -107,7 +327,30 @@ const Register = () => {
                         onChange={(e) => setStoreCode(e.target.value.toUpperCase())}
                         required
                       />
-                      <div className="form-text text-muted small" style={{ fontSize: '11px' }}>
+
+                      {/* Store Detected Feedback & PWA Quick Trigger */}
+                      {storeInfo && (
+                        <div className="mt-2 p-2 px-3 rounded-3 bg-primary-light border border-primary border-opacity-25 d-flex align-items-center justify-content-between shadow-xs" style={{ backgroundColor: '#f0f5ff' }}>
+                          <div className="overflow-hidden me-2">
+                            <span className="text-muted d-block" style={{ fontSize: '10px', fontWeight: '600', letterSpacing: '0.5px' }}>OUTLET TERDETEKSI</span>
+                            <div className="fw-bold text-primary text-truncate" style={{ fontSize: '13px' }}>
+                              <i className="bi bi-patch-check-fill text-primary me-1"></i>
+                              {storeInfo.name}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-primary rounded-pill px-2.5 py-1 fw-bold shadow-xs flex-shrink-0 d-flex align-items-center gap-1"
+                            style={{ fontSize: '11px' }}
+                            onClick={() => setShowInstallPopup(true)}
+                          >
+                            <i className="bi bi-phone"></i>
+                            <span>Install App</span>
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="form-text text-muted small mt-1" style={{ fontSize: '11px' }}>
                         Diberikan oleh administrator sistem saat outlet didaftarkan.
                       </div>
                     </div>

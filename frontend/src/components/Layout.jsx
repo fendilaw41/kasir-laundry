@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getSettingsQuery } from '../db/repositories/settings';
+import { Skeleton } from './common/Skeleton';
 import OfflineAlertBanner from './OfflineAlertBanner';
 
 const Layout = ({ user, onLogout }) => {
@@ -47,8 +48,12 @@ const Layout = ({ user, onLogout }) => {
             <>
               {/* Tampilan Menu Utama (Logo & Toggler) */}
               <div className="logo-wrapper">
-                <Link to="/">
-                  <h5 className="mb-0 fw-bold text-primary">{titleApp}</h5>
+                <Link to="/" className="text-decoration-none">
+                  {settings === undefined ? (
+                    <Skeleton width="130px" height="22px" borderRadius="6px" className="my-1" />
+                  ) : (
+                    <h5 className="mb-0 fw-bold text-primary">{settings?.namaLaundry || 'Kasir Laundry'}</h5>
+                  )}
                 </Link>
               </div>
               <div className="navbar--toggler" id="affanNavbarToggler" onClick={onLogout} style={{ cursor: 'pointer' }}>
@@ -171,7 +176,11 @@ const Layout = ({ user, onLogout }) => {
                     </button>
                   </div>
                   <div className="page-heading">
-                    <h6 className="mb-0 fw-bold">{getPageTitle()}</h6>
+                    {settings === undefined && getPageTitle() === titleApp ? (
+                      <Skeleton width="120px" height="18px" borderRadius="6px" />
+                    ) : (
+                      <h6 className="mb-0 fw-bold">{getPageTitle()}</h6>
+                    )}
                   </div>
                   <div className="setting-wrapper d-flex gap-3 align-items-center">
                     {location.pathname === '/chat' && (

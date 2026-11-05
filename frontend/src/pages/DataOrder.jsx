@@ -279,10 +279,14 @@ const DataOrder = ({ user }) => {
                     </div>
                   )}
 
-                  {/* Kasir boleh delete jika masih proses (hanya request delete). Owner boleh di Proses dan Selesai */}
+                  {/* Kasir boleh delete jika masih proses (hanya request delete). Owner boleh langsung hapus di Proses dan Selesai */}
                   {((activeTab === 'Proses') || (activeTab === 'Selesai' && user?.role === 'owner')) && (
                     <div className="col-4 text-end">
-                      <button className="btn btn-outline-danger btn-sm w-100 fw-bold shadow-sm" onClick={() => requestDelete(order.id)} title={BUTTON_TITLE.DELETE}>
+                      <button
+                        className="btn btn-outline-danger btn-sm w-100 fw-bold shadow-sm"
+                        onClick={() => (user?.role === 'owner' ? hardDelete(order.id) : requestDelete(order.id))}
+                        title={BUTTON_TITLE.DELETE}
+                      >
                         Hapus
                       </button>
                     </div>
