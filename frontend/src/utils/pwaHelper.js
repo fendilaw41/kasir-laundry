@@ -2,6 +2,8 @@
  * Utilitas PWA Helper: Menangani dynamic manifest dan instalasi PWA di Android / Desktop
  */
 
+const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:3000/api';
+
 let deferredPrompt = null;
 const installListeners = new Set();
 
@@ -133,7 +135,7 @@ export async function fetchStoreInfoByCode(storeCode) {
 
   try {
     const cleanCode = storeCode.trim().toUpperCase();
-    const res = await fetch(`/api/auth/store-info?code=${encodeURIComponent(cleanCode)}`);
+    const res = await fetch(`${API_BASE_URL}/auth/store-info?code=${encodeURIComponent(cleanCode)}`);
     if (!res.ok) {
       return null;
     }
@@ -147,4 +149,3 @@ export async function fetchStoreInfoByCode(storeCode) {
     return null;
   }
 }
-

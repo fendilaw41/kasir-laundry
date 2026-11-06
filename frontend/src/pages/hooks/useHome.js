@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../../db';
+import { getActiveStoreId } from '../../db/repositories/storeHelper';
 import { getPelangganQuery, addPelanggan, updatePelanggan, deletePelanggan } from '../../db/repositories/pelanggan';
 import { getInventoryQuery, updateInventoryStok, approveInventory, rejectInventory, addInventoryManual } from '../../db/repositories/inventory';
 import { getOrdersQuery } from '../../db/repositories/orders';
@@ -17,6 +19,8 @@ export const useHome = () => {
   }, []);
   const [showPelangganModal, setShowPelangganModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
+  const [showSearchOrderModal, setShowSearchOrderModal] = useState(false);
+  const [searchOrderQuery, setSearchOrderQuery] = useState('');
   const [showOmzet, setShowOmzet] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
   const [editPelanggan, setEditPelanggan] = useState({ show: false, data: { id: null, nama: '', hp: '', alamat: '' } });
@@ -25,8 +29,23 @@ export const useHome = () => {
   const [newPelanggan, setNewPelanggan] = useState({ nama: '', hp: '', alamat: '' });
 
   // Ambil data inventory
-  const inventory = useLiveQuery(getInventoryQuery);
-  const pelangganList = useLiveQuery(getPelangganQuery);
+  const inventory = useLiveQuery(getInventoryQuery, [], []);
+  const pelangganList = useLiveQuery(getPelangganQuery, [], []);
+
+  // Live Query Cari Order (Isolasi per Store aktif & awalnya kosong jika belum ketik)
+  const searchOrderResults = useLiveQuery(async () => {
+    const q = searchOrderQuery.trim().toLowerCase();
+    if (!q) return [];
+    const storeId = await getActiveStoreId();
+    const all = await db.orders.orderBy('createdAt').reverse().toArray();
+    const storeOrders = all.filter(o => !o.deletedAt && (!storeId || !o.storeId || o.storeId === storeId));
+    return storeOrders.filter(o =>
+      (o.pelangganNama && o.pelangganNama.toLowerCase().includes(q)) ||
+      (o.invoiceId && o.invoiceId.toLowerCase().includes(q)) ||
+      (o.id && String(o.id).toLowerCase() === q) ||
+      (o.items && Array.isArray(o.items) && o.items.some(it => it.nama?.toLowerCase().includes(q)))
+    ).slice(0, 30);
+  }, [searchOrderQuery], []);
 
   const [searchPelanggan, setSearchPelanggan] = useState('');
   const [searchInventory, setSearchInventory] = useState('');
@@ -131,6 +150,9 @@ export const useHome = () => {
   return {
     showPelangganModal, setShowPelangganModal,
     showInventoryModal, setShowInventoryModal,
+    showSearchOrderModal, setShowSearchOrderModal,
+    searchOrderQuery, setSearchOrderQuery,
+    searchOrderResults,
     showOmzet, setShowOmzet,
     confirmModal, setConfirmModal,
     editPelanggan, setEditPelanggan,

@@ -1,6 +1,7 @@
 export const TOAST_MESSAGES = {
   SUCCESS: 'Sukses',
   ERROR: 'Gagal',
+  SOON: 'Cooming Soon',
 };
 
 export const TOAST_SUCCESS = TOAST_MESSAGES.SUCCESS;

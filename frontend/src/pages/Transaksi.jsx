@@ -24,10 +24,7 @@ const Transaksi = () => {
   return (
     <div className="card shadow-sm mb-5 border-0" style={{ borderRadius: '28px' }}>
       <div className="card-body p-4">
-        <div className="text-center mb-4">
-          <h5 className="fw-bold mb-0">Transaksi</h5>
-          <small className="text-muted">Lengkapi detail laundry pelanggan</small>
-        </div>
+
 
         {/* Info Pelanggan - Mobile Card Style */}
         <div className={`p-4 rounded-4 mb-4 d-flex justify-content-between align-items-center border-0 shadow-sm transition-all ${selectedPelanggan ? 'bg-primary text-white scale-up' : 'bg-warning-light border'}`}

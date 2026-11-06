@@ -21,5 +21,10 @@ export interface StorageDriver {
   ): Promise<{ stream: Readable; mimeType?: string; contentLength?: number }>;
 
   deleteFile(storeId: string, filename: string): Promise<boolean>;
-}
 
+  getPresignedUrl?(
+    storeId: string,
+    filename: string,
+    expiresInSeconds?: number,
+  ): Promise<string>;
+}

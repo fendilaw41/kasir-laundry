@@ -102,151 +102,219 @@ const Login = ({ onLogin }) => {
 
   return (
     <div
-      className="login-wrapper d-flex align-items-start align-items-md-center justify-content-center w-100 py-3 py-md-4"
+      className="login-wrapper d-flex align-items-start align-items-sm-center justify-content-center w-100 py-3 py-sm-4"
       style={{
         position: 'fixed',
         top: 0,
         left: 0,
         height: '100vh',
         overflowY: 'auto',
-        backgroundColor: '#f4f7f6',
+        backgroundColor: '#f1f5f9',
         zIndex: 1050,
       }}
     >
-      <div className="container px-3">
-        <div className="row justify-content-center">
-          <div className="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
-            <div className="card p-3 p-sm-4 p-md-4 border-0 shadow-sm rounded-4">
-              <div className="card-body p-0">
-                {/* Header Logo & App Title */}
-                <div className="text-center mb-2.5">
-                  <div
-                    className="mx-auto d-flex align-items-center justify-content-center shadow-sm"
-                    style={{
-                      width: '54px',
-                      height: '54px',
-                      background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)',
-                      borderRadius: '16px',
-                      marginBottom: '10px',
-                    }}
-                  >
-                    <span style={{ fontSize: '28px', fontWeight: '900', color: '#fff', letterSpacing: '-1px' }}>
-                      {storeInfo?.name ? storeInfo.name.charAt(0).toUpperCase() : 'K'}
-                    </span>
-                  </div>
-                  {isCheckingStore ? (
-                    <div className="d-flex justify-content-center my-1">
-                      <Skeleton width="160px" height="24px" borderRadius="6px" />
-                    </div>
-                  ) : (
-                    <h4 className="fw-bold mb-0" style={{ letterSpacing: '0.3px', color: '#0134d4', fontSize: '1.2rem' }}>
-                      {(storeInfo?.name || 'KASIR LAUNDRY').toUpperCase()}
-                    </h4>
-                  )}
-                  <p className="text-muted small mb-0" style={{ fontSize: '11.5px' }}>
-                    {storeInfo?.name ? `Sistem Manajemen & Kasir - ${storeInfo.name}` : 'Sistem Manajemen & Kasir Toko'}
-                  </p>
-                </div>
-
-                <div className="register-form mt-2">
-                  <h6 className="mb-2.5 text-center fw-bold text-dark" style={{ fontSize: '14px' }}>Log In</h6>
-
-                  {error && (
-                    <div className="alert alert-danger rounded-3 py-1.5 px-3 small mb-2.5" role="alert" style={{ fontSize: '12px' }}>
-                      {error}
-                    </div>
-                  )}
-
-                  <form onSubmit={handleLogin}>
-                    <div className="form-group mb-2">
-                      <div className="d-flex justify-content-between align-items-center mb-1">
-                        <label className="form-label small fw-bold text-muted mb-0" style={{ fontSize: '12px' }}>
-                          Kode Toko
-                        </label>
-                        {isCheckingStore && (
-                          <span className="small text-muted d-flex align-items-center gap-1" style={{ fontSize: '10.5px' }}>
-                            <span className="spinner-border spinner-border-sm" role="status" style={{ width: '9px', height: '9px' }}></span>
-                            Cek toko...
-                          </span>
-                        )}
-                      </div>
-                      <input
-                        className="form-control bg-light border-0 fw-bold text-primary py-2 px-3"
-                        style={{ fontSize: '14px' }}
-                        type="text"
-                        placeholder="Masukan Kode (contoh: STORE02)"
-                        value={storeCode}
-                        onChange={(e) => setStoreCode(e.target.value.toUpperCase())}
-                      />
-
-                      {/* Store Detected Feedback (Compact) */}
-                      {storeInfo && (
-                        <div className="mt-1.5 p-1.5 px-2.5 rounded-3 border border-primary border-opacity-25 d-flex align-items-center justify-content-between" style={{ backgroundColor: '#f0f5ff' }}>
-                          <div className="d-flex align-items-center gap-1.5 overflow-hidden me-2" style={{ minWidth: 0 }}>
-                            <i className="bi bi-patch-check-fill text-primary flex-shrink-0" style={{ fontSize: '13px' }}></i>
-                            <span className="fw-bold text-primary text-truncate" style={{ fontSize: '12px' }}>
-                              {storeInfo.name}
-                            </span>
-                          </div>
-                          <span className="badge bg-primary rounded-pill px-2 py-0.5 flex-shrink-0" style={{ fontSize: '10px' }}>
-                            {storeInfo.code}
-                          </span>
-                        </div>
-                      )}
-
-                      {!storeInfo && (
-                        <div className="form-text text-muted mt-1" style={{ fontSize: '10.5px' }}>
-                          Masukkan kode toko tempat Anda terdaftar.
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="form-group mb-2">
-                      <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>Username</label>
-                      <input
-                        className="form-control bg-light border-0 py-2 px-3"
-                        style={{ fontSize: '14px' }}
-                        type="text"
-                        placeholder="Masukkan username"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <div className="form-group mb-3">
-                      <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>Password</label>
-                      <input
-                        className="form-control bg-light border-0 py-2 px-3"
-                        style={{ fontSize: '14px' }}
-                        type="password"
-                        placeholder="Masukkan password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <button
-                      className="btn btn-primary w-100 fw-bold shadow-sm py-2"
-                      style={{ borderRadius: '10px', fontSize: '14px' }}
-                      type="submit"
-                      disabled={loading}
-                    >
-                      {loading ? 'Memeriksa...' : 'Log In'}
-                    </button>
-                  </form>
-                </div>
-
-                <div className="login-meta-data text-center mt-2.5">
-                  <p className="mb-0 text-muted" style={{ fontSize: '12px' }}>
-                    Belum punya akun?{' '}
-                    <Link to="/register" className="fw-bold text-primary text-decoration-none">
-                      Register sekarang
-                    </Link>
-                  </p>
-                </div>
+      <div className="container px-3" style={{ maxWidth: '440px' }}>
+        <div
+          className="card border-0 shadow-sm"
+          style={{
+            borderRadius: '20px',
+            backgroundColor: '#ffffff',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03)',
+            border: '1px solid #e2e8f0',
+          }}
+        >
+          <div className="card-body p-4">
+            {/* Header Logo & Title */}
+            <div className="text-center mb-3">
+              <div
+                className="mx-auto d-flex align-items-center justify-content-center shadow-sm"
+                style={{
+                  width: '64px',
+                  height: '64px',
+                  background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)',
+                  borderRadius: '18px',
+                  marginBottom: '12px',
+                  boxShadow: '0 8px 16px -4px rgba(1, 52, 212, 0.35)',
+                }}
+              >
+                <span style={{ fontSize: '32px', fontWeight: '900', color: '#fff', letterSpacing: '-1px' }}>
+                  {storeInfo?.name ? storeInfo.name.charAt(0).toUpperCase() : 'K'}
+                </span>
               </div>
+              {isCheckingStore ? (
+                <div className="d-flex justify-content-center my-1">
+                  <Skeleton width="180px" height="26px" borderRadius="8px" />
+                </div>
+              ) : (
+                <h4
+                  className="fw-bold mb-1"
+                  style={{
+                    letterSpacing: '0.3px',
+                    color: '#0134d4',
+                    fontSize: '1.25rem',
+                  }}
+                >
+                  {(storeInfo?.name || 'KASIR LAUNDRY').toUpperCase()}
+                </h4>
+              )}
+              <p className="text-muted small mb-0" style={{ fontSize: '12px' }}>
+                {storeInfo?.name ? `Sistem Manajemen & Kasir - ${storeInfo.name}` : 'Sistem Manajemen & Kasir Toko'}
+              </p>
+            </div>
+
+            <div className="login-form">
+              <h5 className="mb-3 text-center fw-bold text-dark" style={{ fontSize: '16px' }}>
+                Log In
+              </h5>
+
+              {error && (
+                <div className="alert alert-danger rounded-3 py-2 px-3 small mb-3" role="alert" style={{ fontSize: '12.5px' }}>
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleLogin}>
+                {/* Kode Toko */}
+                <div className="form-group mb-3">
+                  <div className="d-flex justify-content-between align-items-center mb-1">
+                    <label className="form-label small fw-bold text-muted mb-0" style={{ fontSize: '12px' }}>
+                      Kode Toko
+                    </label>
+                    {isCheckingStore && (
+                      <span className="small text-muted d-flex align-items-center gap-1" style={{ fontSize: '11px' }}>
+                        <span className="spinner-border spinner-border-sm" role="status" style={{ width: '10px', height: '10px' }}></span>
+                        Cek toko...
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    className="form-control fw-bold text-primary"
+                    style={{
+                      height: '44px',
+                      backgroundColor: '#f8fafc',
+                      border: '1.5px solid #cbd5e1',
+                      borderRadius: '10px',
+                      fontSize: '15px',
+                      padding: '8px 14px',
+                    }}
+                    type="text"
+                    placeholder="Masukan Kode"
+                    value={storeCode}
+                    onChange={(e) => setStoreCode(e.target.value.toUpperCase())}
+                  />
+
+                  {/* Outlet Terverifikasi Card */}
+                  {storeInfo && (
+                    <div
+                      className="mt-2 p-2 px-3 rounded-3 d-flex align-items-center justify-content-between"
+                      style={{
+                        backgroundColor: '#eff6ff',
+                        border: '1px solid #bfdbfe',
+                        borderRadius: '10px',
+                      }}
+                    >
+                      <div className="d-flex align-items-center gap-2 overflow-hidden me-2" style={{ minWidth: 0 }}>
+                        <i className="bi bi-patch-check-fill text-primary flex-shrink-0" style={{ fontSize: '16px' }}></i>
+                        <div className="overflow-hidden">
+                          <div className="fw-bold text-primary text-truncate" style={{ fontSize: '13px', lineHeight: 1.2 }}>
+                            {storeInfo.name}
+                          </div>
+                          <span className="text-muted d-block" style={{ fontSize: '10px' }}>
+                            Outlet Aktif
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className="badge rounded-pill px-2.5 py-1 text-white flex-shrink-0"
+                        style={{ backgroundColor: '#0134d4', fontSize: '11px', fontWeight: '600' }}
+                      >
+                        {storeInfo.code}
+                      </span>
+                    </div>
+                  )}
+
+                  {!storeInfo && (
+                    <div className="form-text text-muted mt-1" style={{ fontSize: '11px' }}>
+                      Masukkan kode toko tempat Anda terdaftar.
+                    </div>
+                  )}
+                </div>
+
+                {/* Username */}
+                <div className="form-group mb-3">
+                  <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
+                    Username
+                  </label>
+                  <input
+                    className="form-control"
+                    style={{
+                      height: '44px',
+                      backgroundColor: '#f8fafc',
+                      border: '1.5px solid #cbd5e1',
+                      borderRadius: '10px',
+                      fontSize: '14px',
+                      color: '#0f172a',
+                      padding: '8px 14px',
+                    }}
+                    type="text"
+                    placeholder="Masukkan username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                  />
+                </div>
+
+                {/* Password */}
+                <div className="form-group mb-4">
+                  <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
+                    Password
+                  </label>
+                  <input
+                    className="form-control"
+                    style={{
+                      height: '44px',
+                      backgroundColor: '#f8fafc',
+                      border: '1.5px solid #cbd5e1',
+                      borderRadius: '10px',
+                      fontSize: '14px',
+                      color: '#0f172a',
+                      padding: '8px 14px',
+                    }}
+                    type="password"
+                    placeholder="Masukkan password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  className="btn btn-primary w-100 fw-bold shadow-sm"
+                  style={{
+                    height: '46px',
+                    borderRadius: '12px',
+                    fontSize: '15px',
+                    backgroundColor: '#0134d4',
+                    borderColor: '#0134d4',
+                    boxShadow: '0 4px 12px rgba(1, 52, 212, 0.25)',
+                  }}
+                  type="submit"
+                  disabled={loading}
+                >
+                  {loading ? 'Memeriksa...' : 'Log In'}
+                </button>
+              </form>
+            </div>
+
+            {/* Footer */}
+            <div className="login-meta-data text-center mt-3 pt-1">
+              <p className="mb-0 text-muted" style={{ fontSize: '13px' }}>
+                Belum punya akun?{' '}
+                <Link to="/register" className="fw-bold text-decoration-none" style={{ color: '#0134d4' }}>
+                  Register sekarang
+                </Link>
+              </p>
             </div>
           </div>
         </div>

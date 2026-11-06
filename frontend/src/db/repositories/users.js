@@ -62,55 +62,51 @@ const hydrateFromBackend = async (data) => {
       updatedAt: new Date(settings?.updatedAt || new Date()),
       isDirty: 0,
     };
-
     await db.settings.put(settingPayload);
   }
 
-  // 2. Hidrasi semua Users dari Store ke Dexie
+  // 2. Hidrasi semua Users dari Store ke Dexie (Instant In-Memory Mapping + Bulk Put)
   const userList = (users && users.length > 0) ? users : (user ? [user] : []);
-  for (const u of userList) {
-    if (!u || !u.username) continue;
-    let existingUser = null;
-    if (u.id) {
-      existingUser = await db.users.where('uuid').equals(u.id).first();
+  if (userList.length > 0) {
+    const existingUsers = await db.users.toArray();
+    const existingByUsername = new Map();
+    const existingByUuid = new Map();
+    for (const eu of existingUsers) {
+      if (eu.username) existingByUsername.set(eu.username, eu.id);
+      if (eu.uuid) existingByUuid.set(eu.uuid, eu.id);
     }
-    if (!existingUser && u.username) {
-      existingUser = await db.users.where('username').equals(u.username).first();
-    }
-    const userPayload = {
-      uuid: u.id || existingUser?.uuid || crypto.randomUUID(),
-      storeId: u.storeId || store?.id,
-      username: u.username,
-      password: u.password,
-      fullname: u.fullname || u.username,
-      role: u.role || 'kasir',
-      updatedAt: new Date(u.updatedAt || new Date()),
-      isDirty: 0,
-    };
 
-    if (existingUser) {
-      await db.users.update(existingUser.id, userPayload);
-    } else {
-      const duplicateUuid = await db.users.where('uuid').equals(userPayload.uuid).first();
-      if (duplicateUuid) {
-        await db.users.update(duplicateUuid.id, userPayload);
-      } else {
-        await db.users.add(userPayload);
-      }
-    }
+    const userPayloads = userList.filter(u => u && u.username).map(u => {
+      const existingId = existingByUuid.get(u.id) || existingByUsername.get(u.username);
+      return {
+        ...(existingId ? { id: existingId } : {}),
+        uuid: u.id || crypto.randomUUID(),
+        storeId: u.storeId || store?.id,
+        username: u.username,
+        password: u.password,
+        fullname: u.fullname || u.username,
+        role: u.role || 'kasir',
+        updatedAt: new Date(u.updatedAt || new Date()),
+        isDirty: 0,
+      };
+    });
+    await db.users.bulkPut(userPayloads);
   }
 
-  // 3. Hidrasi Products
+  // 3. Hidrasi Products (Instant In-Memory Mapping + Bulk Put)
   if (products && products.length > 0) {
-    for (const p of products) {
-      let existingProd = await db.products.where('uuid').equals(p.id).first();
-      if (!existingProd && p.code) {
-        existingProd = await db.products.where('code').equals(p.code).first();
-      }
-      if (!existingProd && p.category && p.name) {
-        existingProd = await db.products.filter(item => item.category === p.category && item.name === p.name).first();
-      }
-      const prodPayload = {
+    const existingProds = await db.products.toArray();
+    const existingByCode = new Map();
+    const existingByUuid = new Map();
+    for (const ep of existingProds) {
+      if (ep.code) existingByCode.set(ep.code, ep.id);
+      if (ep.uuid) existingByUuid.set(ep.uuid, ep.id);
+    }
+
+    const prodPayloads = products.map(p => {
+      const existingId = existingByUuid.get(p.id) || (p.code && existingByCode.get(p.code));
+      return {
+        ...(existingId ? { id: existingId } : {}),
         uuid: p.id,
         storeId: p.storeId || targetStoreId,
         code: p.code || null,
@@ -121,81 +117,33 @@ const hydrateFromBackend = async (data) => {
         deletedAt: p.deletedAt ? new Date(p.deletedAt) : null,
         isDirty: 0,
       };
-      if (existingProd) {
-        await db.products.update(existingProd.id, prodPayload);
-      } else {
-        await db.products.add(prodPayload);
-      }
+    });
+    await db.products.bulkPut(prodPayloads);
+
+    // Hapus produk lokal duplikat/dummy yang code-nya sama tapi isDirty: 1
+    const serverProductUuids = new Set(prodPayloads.map(p => p.uuid));
+    const toDeleteProdIds = existingProds
+      .filter(lp => lp.isDirty === 1 && !serverProductUuids.has(lp.uuid) && lp.code && products.some(sp => sp.code === lp.code))
+      .map(lp => lp.id);
+    if (toDeleteProdIds.length > 0) {
+      await db.products.bulkDelete(toDeleteProdIds);
     }
-
-    // Bersihkan duplikat lokal dan deteksi produk lokal yang belum masuk server
-    const allLocalProds = await db.products.toArray();
-    const serverProductIds = new Set(products.map(p => p.id));
-    let hasMissingServerProducts = false;
-
-    for (const lp of allLocalProds) {
-      if (!serverProductIds.has(lp.uuid)) {
-        const hasMatchedServer = products.some(p => (p.code && p.code === lp.code) || (p.category === lp.category && p.name === lp.name));
-        if (hasMatchedServer && lp.isDirty === 1) {
-          // Hapus produk lokal duplikat lama
-          await db.products.delete(lp.id);
-        } else if (!hasMatchedServer) {
-          // Produk ini belum ada di server (misal CUCI LIPAT / CUCI SETRIKA), tandai untuk disinkronkan ke DB
-          await db.products.update(lp.id, { isDirty: 1 });
-          hasMissingServerProducts = true;
-        }
-      }
-    }
-
-    if (hasMissingServerProducts) {
-      syncProductsToBackend(false).catch(err => console.warn('[Hydrate] Sync missing products failed:', err));
-    }
-  } else if (!products || products.length === 0) {
-    // Skenario: DB product di PostgreSQL dan lokal masih KOSONG!
-    const localProductCount = await db.products.count();
-    if (localProductCount === 0) {
-      console.log('[Hydrate] Produk lokal kosong, menginisialisasi layanan default...');
-      const rawProducts = [
-        // Cuci Lipat
-        { code: 'CLR', category: 'CUCI LIPAT', name: 'Reguler (2-3 hari)', price: 5000 },
-        { code: 'CLE', category: 'CUCI LIPAT', name: 'Express (1 Hari)', price: 7000 },
-        { code: 'CLP', category: 'CUCI LIPAT', name: 'Pagi Sore (8 Jam)', price: 9000 },
-        { code: 'CLK', category: 'CUCI LIPAT', name: 'Kilat (4 Jam)', price: 12000 },
-
-        // Cuci Setrika
-        { code: 'CSR', category: 'CUCI SETRIKA', name: 'Reguler (2-3 hari)', price: 6000 },
-        { code: 'CSE', category: 'CUCI SETRIKA', name: 'Express (1 Hari)', price: 9000 },
-        { code: 'CSP', category: 'CUCI SETRIKA', name: 'Pagi Sore (8 Jam)', price: 11000 },
-        { code: 'CSK', category: 'CUCI SETRIKA', name: 'Kilat (4 Jam)', price: 14000 },
-
-        // Setrika Saja
-        { code: 'SSR', category: 'SETRIKA SAJA', name: 'Reguler (2-3 hari)', price: 5000 },
-        { code: 'SSE', category: 'SETRIKA SAJA', name: 'Express (1 Hari)', price: 7000 },
-        { code: 'SSP', category: 'SETRIKA SAJA', name: 'Pagi Sore (8 Jam)', price: 9000 },
-        { code: 'SSK', category: 'SETRIKA SAJA', name: 'Kilat (4 Jam)', price: 12000 },
-      ];
-      await db.products.bulkAdd(rawProducts.map(p => ({
-        ...p,
-        uuid: crypto.randomUUID(),
-        storeId: targetStoreId,
-        updatedAt: new Date(),
-        isDirty: 1,
-      })));
-    }
-    syncProductsToBackend(true).catch(err => console.warn('[Hydrate] Init products failed:', err));
   }
 
-  // 4. Hidrasi Pelanggan
+  // 4. Hidrasi Pelanggan (Instant In-Memory Mapping + Bulk Put)
   if (pelanggan && pelanggan.length > 0) {
-    for (const pel of pelanggan) {
-      let existingPel = await db.pelanggan.where('uuid').equals(pel.id).first();
-      if (!existingPel && pel.hp) {
-        existingPel = await db.pelanggan.where('hp').equals(pel.hp).first();
-      }
-      if (!existingPel && pel.nama) {
-        existingPel = await db.pelanggan.where('nama').equals(pel.nama).first();
-      }
-      const pelPayload = {
+    const existingPel = await db.pelanggan.toArray();
+    const existingByHp = new Map();
+    const existingByUuid = new Map();
+    for (const ep of existingPel) {
+      if (ep.hp) existingByHp.set(ep.hp, ep.id);
+      if (ep.uuid) existingByUuid.set(ep.uuid, ep.id);
+    }
+
+    const pelPayloads = pelanggan.map(pel => {
+      const existingId = existingByUuid.get(pel.id) || (pel.hp && existingByHp.get(pel.hp));
+      return {
+        ...(existingId ? { id: existingId } : {}),
         uuid: pel.id,
         storeId: pel.storeId || targetStoreId,
         nama: pel.nama,
@@ -204,37 +152,24 @@ const hydrateFromBackend = async (data) => {
         updatedAt: new Date(pel.updatedAt || new Date()),
         isDirty: 0,
       };
-      if (existingPel) {
-        await db.pelanggan.update(existingPel.id, pelPayload);
-      } else {
-        await db.pelanggan.add(pelPayload);
-      }
-    }
-
-    // Bersihkan duplikat pelanggan lokal yang HP atau namanya sama tapi masih isDirty: 1
-    const allLocalPel = await db.pelanggan.toArray();
-    const serverPelIds = new Set(pelanggan.map(p => p.id));
-    for (const lp of allLocalPel) {
-      if (!serverPelIds.has(lp.uuid) && lp.isDirty === 1) {
-        const hasMatchedServer = pelanggan.some(p => (p.hp && p.hp === lp.hp) || p.nama === lp.nama);
-        if (hasMatchedServer) {
-          await db.pelanggan.delete(lp.id);
-        }
-      }
-    }
+    });
+    await db.pelanggan.bulkPut(pelPayloads);
   }
 
-  // 5. Hidrasi Inventory
+  // 5. Hidrasi Inventory (Instant In-Memory Mapping + Bulk Put)
   if (inventory && inventory.length > 0) {
-    for (const inv of inventory) {
-      let existingInv = null;
-      if (inv.id) {
-        existingInv = await db.inventory.where('uuid').equals(inv.id).first();
-      }
-      if (!existingInv && inv.nama) {
-        existingInv = await db.inventory.filter(i => i.nama && i.nama.toLowerCase() === inv.nama.toLowerCase()).first();
-      }
-      const invPayload = {
+    const existingInv = await db.inventory.toArray();
+    const existingByName = new Map();
+    const existingByUuid = new Map();
+    for (const ei of existingInv) {
+      if (ei.nama) existingByName.set(ei.nama.toLowerCase().trim(), ei.id);
+      if (ei.uuid) existingByUuid.set(ei.uuid, ei.id);
+    }
+
+    const invPayloads = inventory.map(inv => {
+      const existingId = existingByUuid.get(inv.id) || (inv.nama && existingByName.get(inv.nama.toLowerCase().trim()));
+      return {
+        ...(existingId ? { id: existingId } : {}),
         uuid: inv.id,
         storeId: inv.storeId || targetStoreId,
         nama: inv.nama,
@@ -246,20 +181,8 @@ const hydrateFromBackend = async (data) => {
         updatedAt: new Date(inv.updatedAt || new Date()),
         isDirty: 0,
       };
-      if (existingInv) {
-        await db.inventory.update(existingInv.id, invPayload);
-      } else {
-        await db.inventory.add(invPayload);
-      }
-    }
-  } else if (!inventory || inventory.length === 0) {
-    const localInvCount = await db.inventory.count();
-    if (localInvCount === 0) {
-      await db.inventory.add({ uuid: crypto.randomUUID(), storeId: targetStoreId, nama: 'Plastik', stok: 15, isDirty: 1 });
-      await db.inventory.add({ uuid: crypto.randomUUID(), storeId: targetStoreId, nama: 'Deterjen', stok: 10, isDirty: 1 });
-      await db.inventory.add({ uuid: crypto.randomUUID(), storeId: targetStoreId, nama: 'Molto', stok: 10, isDirty: 1 });
-    }
-    syncInventoryToBackend(true).catch(err => console.warn('[Hydrate] Init inventory failed:', err));
+    });
+    await db.inventory.bulkPut(invPayloads);
   }
 };
 

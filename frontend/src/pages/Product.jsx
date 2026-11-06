@@ -2,13 +2,16 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { getProductsQuery } from '../db/repositories/products';
 import { addProductToCart } from '../db/repositories/cart';
 import { useState, useMemo, useRef, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { TOAST_MESSAGES } from '../constants/appConstants';
 import { ProductListSkeleton } from '../components/common/Skeleton';
 
 const Product = () => {
   const products = useLiveQuery(getProductsQuery);
-  const [searchTerm, setSearchTerm] = useState('');
+  const outletCtx = useOutletContext();
+  const searchTerm = outletCtx?.productSearchTerm ?? '';
+  const setSearchTerm = outletCtx?.setProductSearchTerm ?? (() => {});
   const [selectedCategory, setSelectedCategory] = useState('ALL');
 
   // State untuk menyimpan jumlah qty sementara per produk
@@ -117,44 +120,12 @@ const Product = () => {
 
   return (
     <div className="product-page pb-5" style={{ backgroundColor: '#f8faff', minHeight: '100vh' }}>
-      {/* Search & Category Header - Menyatu & Menempel Rapi ke Header */}
-      <div
-        className="sticky-top shadow-xs px-3 pt-2 pb-2 mx-n3 mb-2"
-      >
-        {/* Search Input Bar */}
-        <div className="position-relative">
-          <i
-            className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"
-            style={{ fontSize: '0.85rem' }}
-          ></i>
-          <input
-            className="form-control rounded-pill ps-5 pe-5 py-2 border shadow-none"
-            type="text"
-            placeholder="Cari nama layanan"
-            style={{
-              fontSize: '0.84rem',
-              backgroundColor: '#f1f5f9',
-              borderColor: '#e2e8f0',
-            }}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          {searchTerm && (
-            <button
-              type="button"
-              className="btn btn-sm btn-link position-absolute top-50 end-0 translate-middle-y me-2 p-0 text-muted"
-              onClick={() => setSearchTerm('')}
-            >
-              <i className="bi bi-x-circle-fill fs-6"></i>
-            </button>
-          )}
-        </div>
-
-        {/* Category Filter Chips */}
-        {categories.length > 0 && (
+      {/* Category Filter Chips - Di Body & Tidak Menyambung Langsung dengan Header */}
+      {categories.length > 0 && (
+        <div className="pt-2 pb-1 mb-3">
           <div
             ref={categoryScrollRef}
-            className="d-flex align-items-center gap-2 pt-2 pb-1 no-scrollbar position-relative"
+            className="d-flex align-items-center gap-2 no-scrollbar position-relative"
             style={{
               scrollbarWidth: 'none',
               msOverflowStyle: 'none',
@@ -300,8 +271,8 @@ const Product = () => {
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Grid Produk Layanan */}
       {filteredProducts && filteredProducts.length > 0 ? (

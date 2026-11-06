@@ -3,12 +3,18 @@ import toast from 'react-hot-toast';
 import { useHome } from './hooks/useHome';
 import { TOAST_MESSAGES, CONFIRM_MESSAGES, BUTTON_TEXT, BUTTON_TITLE } from '../constants/appConstants';
 import { Skeleton, CustomerListSkeleton, InventoryListSkeleton } from '../components/common/Skeleton';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { getSettingsQuery } from '../db/repositories/settings';
 
 const Home = ({ user }) => {
   const navigate = useNavigate();
+  const settings = useLiveQuery(getSettingsQuery);
   const {
     showPelangganModal, setShowPelangganModal,
     showInventoryModal, setShowInventoryModal,
+    showSearchOrderModal, setShowSearchOrderModal,
+    searchOrderQuery, setSearchOrderQuery,
+    searchOrderResults,
     showOmzet, setShowOmzet,
     confirmModal, setConfirmModal,
     editPelanggan, setEditPelanggan,
@@ -50,8 +56,8 @@ const Home = ({ user }) => {
           <div
             className="d-flex align-items-center"
             style={{ cursor: 'pointer' }}
-            onClick={() => navigate('/setting?tab=password')}
-            title="Klik untuk Ubah Password"
+            onClick={() => navigate('/setting?tab=umum')}
+            title="Profil Laundry & Pengaturan"
           >
             <div className="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center me-3 shadow-sm flex-shrink-0" style={{ width: '48px', height: '48px' }}>
               <i className="bi bi-person-fill fs-3"></i>
@@ -66,6 +72,33 @@ const Home = ({ user }) => {
               <small className="text-white opacity-75 d-flex align-items-center gap-1">
                 <span>@{user.username}</span>
               </small>
+            </div>
+          </div>
+
+          {/* Nama Toko & Kode Toko Paling Kanan */}
+          <div
+            className="text-end text-white ps-2"
+            style={{ cursor: 'pointer', maxWidth: '170px' }}
+            onClick={() => navigate('/setting?tab=umum')}
+            title="Profil Toko & Pengaturan"
+          >
+            <div className="fw-bold text-truncate" style={{ fontSize: '0.88rem', lineHeight: '1.2' }}>
+              <i className="bi bi-shop me-1 text-white-50"></i>
+              {settings?.namaLaundry || 'KASIR LAUNDRY'}
+            </div>
+            <div className="mt-1">
+              <span
+                className="badge rounded-pill px-2 py-0.5 fw-semibold font-monospace"
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.22)',
+                  backdropFilter: 'blur(4px)',
+                  fontSize: '0.68rem',
+                  letterSpacing: '0.5px',
+                  color: '#ffffff'
+                }}
+              >
+                {settings?.storeCode || user?.storeCode || 'STORE'}
+              </span>
             </div>
           </div>
         </div>
@@ -209,7 +242,7 @@ const Home = ({ user }) => {
             {/* Promo (Hanya Owner) */}
             {user?.role === 'owner' && (
               <div className="col-3">
-                <div className="text-decoration-none customer-card-clickable d-block" onClick={() => toast.error(TOAST_MESSAGES.ERROR)} style={{ cursor: 'pointer' }}>
+                <div className="text-decoration-none customer-card-clickable d-block" onClick={() => toast.success(TOAST_MESSAGES.SOON)} style={{ cursor: 'pointer' }}>
                   <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#fff', border: '1px solid #bbdefb' }}>
                     <i className="bi bi-percent fs-5"></i>
                   </div>
@@ -240,7 +273,7 @@ const Home = ({ user }) => {
         user?.role === 'owner' && inventory?.filter(i => i.status === 'pending').length > 0 && (
           <div
             className="alert alert-info border-0 shadow-sm d-flex align-items-center mx-3 mt-3"
-            style={{ borderRadius: '12px', cursor: 'pointer', backgroundColor: '#fff' }}
+            style={{ borderRadius: '12px', cursor: 'pointer', backgroundColor: '#ad9696ff' }}
             onClick={() => {
               setInventoryTab('pending');
               setShowInventoryModal(true);

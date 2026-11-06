@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { fetchConversationsFromBackend } from '../services/chatService';
 import { getSettingsQuery } from '../db/repositories/settings';
+import { getActiveStoreId } from '../db/repositories/storeHelper';
 import { Skeleton } from './common/Skeleton';
 import OfflineAlertBanner from './OfflineAlertBanner';
 
@@ -12,11 +13,88 @@ const Layout = ({ user, onLogout }) => {
   const navigate = useNavigate();
   const settings = useLiveQuery(getSettingsQuery);
   const [chatHeaderState, setChatHeaderState] = useState(null);
+  const [homeSearchQuery, setHomeSearchQuery] = useState('');
+  const [homeSearchResults, setHomeSearchResults] = useState([]);
+  const [isHomeSearchOpen, setIsHomeSearchOpen] = useState(false);
+  const [productSearchTerm, setProductSearchTerm] = useState('');
+  const searchDropdownRef = React.useRef(null);
 
   const outletContext = useMemo(
-    () => ({ chatHeaderState, setChatHeaderState }),
-    [chatHeaderState]
+    () => ({
+      chatHeaderState,
+      setChatHeaderState,
+      productSearchTerm,
+      setProductSearchTerm,
+    }),
+    [chatHeaderState, productSearchTerm]
   );
+
+  // Close search dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchDropdownRef.current && !searchDropdownRef.current.contains(event.target)) {
+        setIsHomeSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Close search dropdown on route change
+  useEffect(() => {
+    setIsHomeSearchOpen(false);
+  }, [location.pathname]);
+
+  // Debounced search for Home
+  useEffect(() => {
+    const q = homeSearchQuery.trim().toLowerCase();
+    if (!q) {
+      setHomeSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const storeId = await getActiveStoreId();
+        const all = await db.orders.orderBy('createdAt').reverse().toArray();
+        const storeOrders = all.filter(o => !o.deletedAt && (!storeId || !o.storeId || o.storeId === storeId));
+        const matched = storeOrders.filter(o =>
+          (o.pelangganNama && o.pelangganNama.toLowerCase().includes(q)) ||
+          (o.invoiceId && o.invoiceId.toLowerCase().includes(q)) ||
+          (o.id && String(o.id).toLowerCase() === q)
+        ).slice(0, 10);
+        setHomeSearchResults(matched);
+      } catch (err) {
+        console.warn('Error searching home orders:', err);
+      }
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [homeSearchQuery]);
+
+  const handleHomeSearchKeyDown = async (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const q = homeSearchQuery.trim().toLowerCase();
+      if (!q) return;
+
+      const storeId = await getActiveStoreId();
+      const all = await db.orders.orderBy('createdAt').reverse().toArray();
+      const storeOrders = all.filter(o => !o.deletedAt && (!storeId || !o.storeId || o.storeId === storeId));
+      const matched = storeOrders.filter(o =>
+        (o.pelangganNama && o.pelangganNama.toLowerCase().includes(q)) ||
+        (o.invoiceId && o.invoiceId.toLowerCase().includes(q)) ||
+        (o.id && String(o.id).toLowerCase() === q)
+      );
+
+      if (matched.length === 1) {
+        setHomeSearchQuery('');
+        setIsHomeSearchOpen(false);
+        navigate(`/order/${matched[0].id || matched[0].uuid}`);
+      } else {
+        setHomeSearchResults(matched.slice(0, 10));
+        setIsHomeSearchOpen(true);
+      }
+    }
+  };
 
   // Ambil total pesan chat belum dibaca secara reaktif dari Dexie IndexedDB
   const totalUnreadChat = useLiveQuery(async () => {
@@ -87,17 +165,80 @@ const Layout = ({ user, onLogout }) => {
         <div className="container-fluid h-100 d-flex align-items-center justify-content-between px-3">
           {isMainMenu ? (
             <>
-              {/* Tampilan Menu Utama (Logo & Toggler) */}
-              <div className="logo-wrapper">
-                <Link to="/" className="text-decoration-none">
-                  {settings === undefined ? (
-                    <Skeleton width="130px" height="22px" borderRadius="6px" className="my-1" />
-                  ) : (
-                    <h5 className="mb-0 fw-bold text-primary">{settings?.namaLaundry || 'Kasir Laundry'}</h5>
+              {location.pathname === '/' ? (
+                /* Header Halaman Home: Searching Pelanggan & Kode Transaksi */
+                <div className="d-flex align-items-center flex-grow-1 me-2 position-relative">
+                  <i className="bi bi-search position-absolute start-0 ms-3 text-muted"></i>
+                  <input
+                    type="text"
+                    className="form-control rounded-pill ps-5 pe-4 py-1.5 border shadow-none"
+                    style={{
+                      fontSize: '0.82rem',
+                      backgroundColor: '#f1f5f9',
+                      borderColor: '#e2e8f0',
+                      height: '36px',
+                    }}
+                    placeholder="Cari pelanggan / Nomor Order..."
+                    value={homeSearchQuery}
+                    onChange={(e) => {
+                      setHomeSearchQuery(e.target.value);
+                      setIsHomeSearchOpen(true);
+                    }}
+                    onFocus={() => {
+                      if (homeSearchQuery.trim()) setIsHomeSearchOpen(true);
+                    }}
+                    onKeyDown={handleHomeSearchKeyDown}
+                  />
+                  {homeSearchQuery && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-link position-absolute end-0 me-2 p-0 text-muted"
+                      onClick={() => {
+                        setHomeSearchQuery('');
+                        setHomeSearchResults([]);
+                        setIsHomeSearchOpen(false);
+                      }}
+                    >
+                      <i className="bi bi-x-circle-fill" style={{ fontSize: '0.9rem' }}></i>
+                    </button>
                   )}
-                </Link>
-              </div>
-              <div className="navbar--toggler" id="affanNavbarToggler" onClick={onLogout} style={{ cursor: 'pointer' }}>
+                </div>
+              ) : location.pathname === '/product' ? (
+                /* Header Halaman Produk: Cari Layanan */
+                <div className="d-flex align-items-center flex-grow-1 me-2 position-relative">
+                  <i className="bi bi-search position-absolute start-0 ms-3 text-muted"></i>
+                  <input
+                    type="text"
+                    className="form-control rounded-pill ps-5 pe-4 py-1.5 border shadow-none"
+                    style={{
+                      fontSize: '0.82rem',
+                      backgroundColor: '#f1f5f9',
+                      borderColor: '#e2e8f0',
+                      height: '36px',
+                    }}
+                    placeholder="Cari nama layanan..."
+                    value={productSearchTerm}
+                    onChange={(e) => setProductSearchTerm(e.target.value)}
+                  />
+                  {productSearchTerm && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-link position-absolute end-0 me-2 p-0 text-muted"
+                      onClick={() => setProductSearchTerm('')}
+                    >
+                      <i className="bi bi-x-circle-fill" style={{ fontSize: '0.9rem' }}></i>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                /* Header Halaman Transaksi / Data Order */
+                <div className="logo-wrapper">
+                  <h5 className="mb-0 fw-bold text-primary">
+                    {location.pathname === '/transaksi' ? 'Transaksi' : location.pathname === '/orders' ? 'Data Order' : (settings?.namaLaundry || 'Kasir Laundry')}
+                  </h5>
+                </div>
+              )}
+              <div className="navbar--toggler flex-shrink-0" id="affanNavbarToggler" onClick={onLogout} style={{ cursor: 'pointer' }} title="Logout">
                 <i className="bi bi-box-arrow-right fs-4"></i>
               </div>
             </>
@@ -241,6 +382,107 @@ const Layout = ({ user, onLogout }) => {
           )}
         </div>
       </div>
+
+      {/* Dropdown Hasil Pencarian Home (Muncul di bawah header saat mencari / tekan enter) */}
+      {location.pathname === '/' && isHomeSearchOpen && homeSearchQuery.trim() && (
+        <div
+          ref={searchDropdownRef}
+          className="position-fixed shadow-lg bg-white border border-top-0 rounded-bottom-4 p-3"
+          style={{
+            top: '50px',
+            left: '12px',
+            right: '12px',
+            maxWidth: '480px',
+            margin: '0 auto',
+            maxHeight: '75vh',
+            overflowY: 'auto',
+            zIndex: 1055,
+          }}
+        >
+          <div className="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+            <span className="small text-muted fw-bold" style={{ fontSize: '11px' }}>
+              HASIL PENCARIAN ({homeSearchResults.length})
+            </span>
+            <button
+              type="button"
+              className="btn-close"
+              style={{ width: '8px', height: '8px' }}
+              onClick={() => setIsHomeSearchOpen(false)}
+            ></button>
+          </div>
+
+          {homeSearchResults.length === 0 ? (
+            <div className="text-center py-3 text-muted small">
+              <i className="bi bi-search d-block fs-3 text-muted opacity-50 mb-1"></i>
+              Tidak ditemukan order dengan kata kunci &quot;{homeSearchQuery}&quot;
+            </div>
+          ) : (
+            <div className="d-flex flex-column gap-2">
+              {homeSearchResults.map((order) => {
+                const isLunas = order.statusBayar === 'Lunas' || order.sisaBayar === 0;
+                const dateStr = order.createdAt
+                  ? new Date(order.createdAt).toLocaleDateString('id-ID', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })
+                  : '';
+                return (
+                  <div
+                    key={order.id || order.uuid}
+                    className="p-3 rounded-3 border bg-light d-flex justify-content-between align-items-center"
+                    style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
+                    onClick={() => {
+                      setHomeSearchQuery('');
+                      setIsHomeSearchOpen(false);
+                      navigate(`/order/${order.id || order.uuid}`);
+                    }}
+                  >
+                    <div className="overflow-hidden me-2" style={{ minWidth: 0 }}>
+                      <div className="d-flex align-items-center gap-1.5">
+                        <span className="fw-bold text-primary text-truncate" style={{ fontSize: '13px' }}>
+                          {order.invoiceId || `#${order.id}`}
+                        </span>
+                        &nbsp;
+                        <span
+                          className={`badge rounded-pill ${
+                            order.status === 'Selesai'
+                              ? 'bg-success'
+                              : order.status === 'Diambil'
+                              ? 'bg-secondary'
+                              : 'bg-primary'
+                          }`}
+                          style={{ fontSize: '9.5px' }}
+                        >
+                          {order.status || 'Baru'}
+                        </span>
+                      </div>
+                      <div className="small text-dark text-truncate mt-0.5" style={{ fontSize: '12px' }}>
+                        <i className="bi bi-person me-1 text-muted"></i>
+                        {order.pelangganNama || 'Pelanggan Umum'}
+                        {dateStr && <span className="text-muted ms-1">({dateStr})</span>}
+                      </div>
+                    </div>
+                    <div className="text-end flex-shrink-0">
+                      <div className="fw-bold text-primary" style={{ fontSize: '13px' }}>
+                        Rp {(order.total || 0).toLocaleString('id-ID')}
+                      </div>
+                      <span
+                        className={`badge rounded-pill ${
+                          isLunas ? 'bg-success-subtle text-success border border-success' : 'bg-warning-subtle text-dark border border-warning'
+                        }`}
+                        style={{ fontSize: '9px' }}
+                      >
+                        {isLunas ? 'Lunas' : 'Belum Lunas'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="page-content-wrapper pb-3">
         <OfflineAlertBanner />

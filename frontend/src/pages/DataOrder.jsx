@@ -125,24 +125,20 @@ const DataOrder = ({ user }) => {
 
   return (
     <div className="data-order-wrapper pb-5">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <h5 className="mb-0 fw-bold">Data Order</h5>
-          <small className="text-muted" style={{ fontSize: '0.72rem' }}>
-            {orders?.length || 0} order terdaftar
-          </small>
-        </div>
+      <div className="d-flex justify-content-between align-items-center mb-2.5 pt-1">
+        <small className="text-muted fw-semibold" style={{ fontSize: '0.78rem' }}>
+          <i className="bi bi-list-check me-1 mb-2 text-primary"></i>
+          {orders?.length || 0} order terdaftar
+        </small>
         <button
           type="button"
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="btn btn-sm btn-light border rounded-pill px-3 py-1 shadow-xs d-flex align-items-center gap-2 text-primary fw-semibold"
-          style={{ fontSize: '0.8rem' }}
-          title="Sinkronisasi"
+          className="btn btn-sm btn-light border rounded-pill px-2.5 mb-3 py-1 shadow-xs d-flex align-items-center gap-1.5 text-primary fw-semibold"
+          style={{ fontSize: '0.78rem' }}
+          title="Sinkronisasi Data"
         >
-          <i
-            className={`bi bi-arrow-clockwise`}
-          ></i>
+          <i className="bi bi-arrow-clockwise"></i>
         </button>
       </div>
 

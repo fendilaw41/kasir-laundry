@@ -484,24 +484,8 @@ const OrderDetail = () => {
                     className="dropdown-item py-2 small d-flex align-items-center"
                     onClick={() => setShowQrModal(true)}
                   >
-                    <i className="bi bi-qr-code-scan me-2 text-success fs-6"></i>
-                    <span>Tampilkan QR Code Cek Order</span>
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="dropdown-item py-2 small d-flex align-items-center"
-                    onClick={() => {
-                      const url = getTrackingUrl(order.invoiceId);
-                      if (navigator.clipboard) {
-                        navigator.clipboard.writeText(url).then(() => toast.success(TOAST_MESSAGES.SUCCESS));
-                      } else {
-                        toast.success(TOAST_MESSAGES.SUCCESS);
-                      }
-                    }}
-                  >
-                    <i className="bi bi-link-45deg me-2 text-primary fs-6"></i>
-                    <span>Salin Link Cek Order</span>
+                    <i className="bi bi-share me-2 text-success fs-6"></i>
+                    <span>Bagikan</span>
                   </button>
                 </li>
               </ul>
@@ -664,7 +648,7 @@ const OrderDetail = () => {
                 <div className="modal-content border-0 shadow-lg text-center p-4" style={{ borderRadius: '24px' }}>
                   <div className="d-flex justify-content-between align-items-center mb-3">
                     <h6 className="fw-bold mb-0 text-dark">
-                      <i className="bi bi-qr-code-scan text-primary me-2"></i>QR Code Cek Order
+                      <i className="bi bi-qr-code-scan text-primary me-2"></i>Bagikan Cek Order
                     </h6>
                     <button
                       type="button"

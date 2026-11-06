@@ -103,6 +103,16 @@ export class AuthService {
 
     this.logger.log(`User ${user.username} (${user.role}) berhasil didaftarkan ke store ${store.code}`);
 
+    // 6. Inisialisasi Master Data Produk & Inventory Default langsung saat Register
+    // Agar saat user login di device baru tidak lagi lambat melakukan seeding on-the-fly!
+    const existingProductsCount = await this.prisma.product.count({
+      where: { storeId: store.id, deletedAt: null },
+    });
+    if (existingProductsCount === 0) {
+      this.logger.log(`[Register] Otomatis menginisialisasi produk & inventory default untuk store ${store.code}...`);
+      await this.seedDefaultMasterDataForStore(store.id);
+    }
+
     const token = await this.jwtService.signAsync({
       sub: user.id,
       userId: user.id,

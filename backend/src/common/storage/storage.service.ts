@@ -20,7 +20,7 @@ export class StorageService {
       return customDriverOverride;
     }
     const envDriver = (process.env.STORAGE_DRIVER || 'local').toLowerCase();
-    return envDriver === 's3' || envDriver === 'minio' ? 's3' : 'local';
+    return envDriver === 's3' || envDriver === 'minio' || envDriver === 'r2' ? 's3' : 'local';
   }
 
   public getDriver(customDriverOverride?: string | null): StorageDriver {
@@ -51,6 +51,19 @@ export class StorageService {
     return driver.getFileStream(storeId, filename);
   }
 
+  async getPresignedUrl(
+    storeId: string,
+    filename: string,
+    expiresInSeconds: number = 3600,
+    customDriverOverride?: string | null,
+  ): Promise<string> {
+    const driver = this.getDriver(customDriverOverride);
+    if (typeof driver.getPresignedUrl === 'function') {
+      return driver.getPresignedUrl(storeId, filename, expiresInSeconds);
+    }
+    return `/api/chat/files/${storeId}/${filename}`;
+  }
+
   async deleteFile(
     storeId: string,
     filename: string,
@@ -60,4 +73,3 @@ export class StorageService {
     return driver.deleteFile(storeId, filename);
   }
 }
-

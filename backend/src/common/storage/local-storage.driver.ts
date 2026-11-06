@@ -91,6 +91,12 @@ export class LocalStorageDriver implements StorageDriver {
     };
   }
 
+  async getPresignedUrl(storeId: string, filename: string): Promise<string> {
+    const safeStoreId = this.sanitizeIdentifier(storeId);
+    const safeFilename = this.sanitizeFilename(filename);
+    return `/api/chat/files/${safeStoreId}/${safeFilename}`;
+  }
+
   async deleteFile(storeId: string, filename: string): Promise<boolean> {
     try {
       const safeStoreId = this.sanitizeIdentifier(storeId);
@@ -108,4 +114,3 @@ export class LocalStorageDriver implements StorageDriver {
     }
   }
 }
-
