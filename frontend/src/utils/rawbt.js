@@ -1,4 +1,9 @@
 import { getShortDisplayUrl } from './tracking.js';
+import {
+  cleanReceiptFooterText,
+  isFooterLinkOrder,
+  getReceiptTrackingUrl,
+} from './receiptFooter.js';
 
 export const printViaRawBT = (order, pelanggan, settings = null) => {
   if (!order) return;
@@ -61,13 +66,18 @@ export const printViaRawBT = (order, pelanggan, settings = null) => {
     text += centerText(line) + "\n";
   });
 
-  const footerStruk = (settings?.footerStruk || "kasirlaundry.my.id").split('\n');
-  footerStruk.forEach(line => {
-    text += centerText(line) + "\n";
-  });
+  const cleanFooter = cleanReceiptFooterText(settings?.footerStruk || "kasirlaundry.my.id");
+  if (cleanFooter) {
+    cleanFooter.split('\n').forEach(line => {
+      text += centerText(line) + "\n";
+    });
+  }
 
-  text += centerText("Cek Status Cucian:") + "\n";
-  text += centerText(getShortDisplayUrl(order.invoiceId)) + "\n";
+  // Thermal: HANYA link saja jika LINK_ORDER aktif
+  if (isFooterLinkOrder(settings?.footerStruk)) {
+    text += centerText("Cek Status Cucian:") + "\n";
+    text += centerText(getReceiptTrackingUrl(order.invoiceId)) + "\n";
+  }
 
   text += "\n\n\n\n"; // Feed paper
 

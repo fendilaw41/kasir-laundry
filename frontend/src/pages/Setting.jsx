@@ -22,7 +22,9 @@ import { Barcode } from '../components/common/Barcode';
 import {
   isFooterBarcode,
   isFooterLinkOrder,
+  cleanReceiptFooterText,
   formatReceiptFooterText,
+  getReceiptTrackingUrl,
 } from '../utils/receiptFooter';
 
 const Setting = ({ user }) => {
@@ -595,54 +597,91 @@ const Setting = ({ user }) => {
 
                 {/* Footer Struk */}
                 <div>
-                  <label className="text-muted small fw-semibold mb-1 d-block" style={{ fontSize: '0.74rem' }}>
-                    FOOTER STRUK (PESAN BAWAH / KETENTUAN)
-                  </label>
+                  <div className="d-flex justify-content-between align-items-center mb-1">
+                    <label className="text-muted small fw-semibold mb-0" style={{ fontSize: '0.74rem' }}>
+                      FOOTER STRUK (PESAN BAWAH)
+                    </label>
+                    <div className="d-flex gap-1">
+                      <span className={`badge rounded-pill ${isFooterLinkOrder(formData.footerStruk) ? 'bg-success' : 'bg-light text-muted border'}`} style={{ fontSize: '0.65rem' }}>
+                        Thermal: {isFooterLinkOrder(formData.footerStruk) ? 'Link ON' : 'Link OFF'}
+                      </span>
+                      <span className={`badge rounded-pill ${isFooterBarcode(formData.footerStruk) ? 'bg-primary' : 'bg-light text-muted border'}`} style={{ fontSize: '0.65rem' }}>
+                        PDF: {isFooterBarcode(formData.footerStruk) ? 'Barcode ON' : 'Barcode OFF'}
+                      </span>
+                    </div>
+                  </div>
                   <textarea
                     className="form-control bg-light border-0 py-2 rounded-3 text-dark fw-semibold"
                     style={{ fontSize: '0.88rem' }}
                     rows="3"
                     value={formData.footerStruk}
                     onChange={(e) => setFormData({ ...formData, footerStruk: e.target.value })}
-                    placeholder="Gunakan LINK_ORDER untuk link cek order, atau INVOICE untuk barcode."
+                    placeholder="Gunakan LINK_ORDER untuk link thermal, atau INVOICE untuk barcode PDF/Invoice."
                     disabled={!isOwner}
                   />
                   <div className="d-flex flex-wrap gap-2 mt-2">
                     <button
                       type="button"
-                      className="btn btn-sm btn-outline-primary rounded-pill py-1 px-3 d-flex align-items-center gap-1 shadow-none"
+                      className={`btn btn-sm rounded-pill py-1 px-3 d-flex align-items-center gap-1 shadow-none ${isFooterLinkOrder(formData.footerStruk) ? 'btn-success text-white' : 'btn-outline-success'
+                        }`}
                       style={{ fontSize: '0.72rem' }}
                       disabled={!isOwner}
                       onClick={() => {
                         const current = (formData.footerStruk || '').trim();
-                        setFormData({
-                          ...formData,
-                          footerStruk: current ? `${current}\nLINK_ORDER` : 'LINK_ORDER',
-                        });
+                        if (isFooterLinkOrder(current)) {
+                          // Toggle off: hapus token LINK_ORDER
+                          const updated = current
+                            .replace(/\{?\[?LINK_ORDER\]?\}?/gi, '')
+                            .replace(/^\s*[\r\n]/gm, '')
+                            .trim();
+                          setFormData({ ...formData, footerStruk: updated });
+                        } else {
+                          // Toggle on: tambahkan token LINK_ORDER
+                          setFormData({
+                            ...formData,
+                            footerStruk: current ? `${current}\nLINK_ORDER` : 'LINK_ORDER',
+                          });
+                        }
                       }}
-                      title="Gunakan link cek order"
+                      title="Klik untuk mengaktifkan/menonaktifkan link pada struk thermal"
                     >
-                      <i className="bi bi-link-45deg"></i> + LINK_ORDER
+                      <i className="bi bi-link-45deg"></i>
+                      {isFooterLinkOrder(formData.footerStruk) ? '✓ LINK_ORDER (Thermal Link Aktif)' : '+ LINK_ORDER (Thermal Link)'}
                     </button>
                     <button
                       type="button"
-                      className="btn btn-sm btn-outline-primary rounded-pill py-1 px-3 d-flex align-items-center gap-1 shadow-none"
+                      className={`btn btn-sm rounded-pill py-1 px-3 d-flex align-items-center gap-1 shadow-none ${isFooterBarcode(formData.footerStruk) ? 'btn-primary text-white' : 'btn-outline-primary'
+                        }`}
                       style={{ fontSize: '0.72rem' }}
                       disabled={!isOwner}
                       onClick={() => {
                         const current = (formData.footerStruk || '').trim();
-                        setFormData({
-                          ...formData,
-                          footerStruk: current ? `${current}\nINVOICE` : 'INVOICE',
-                        });
+                        if (isFooterBarcode(current)) {
+                          // Toggle off: hapus token INVOICE/BARCODE
+                          const updated = current
+                            .replace(/\{?\[?(?:INVOICE|BARCODE)\]?\}?/gi, '')
+                            .replace(/^\s*[\r\n]/gm, '')
+                            .trim();
+                          setFormData({ ...formData, footerStruk: updated });
+                        } else {
+                          // Toggle on: tambahkan token INVOICE
+                          setFormData({
+                            ...formData,
+                            footerStruk: current ? `${current}\nINVOICE` : 'INVOICE',
+                          });
+                        }
                       }}
-                      title="Gunakan barcode nota"
+                      title="Klik untuk mengaktifkan/menonaktifkan barcode pada nota PDF/A4"
                     >
-                      <i className="bi bi-upc-scan"></i> + INVOICE (Barcode)
+                      <i className="bi bi-upc-scan"></i>
+                      {isFooterBarcode(formData.footerStruk) ? '✓ INVOICE (Barcode PDF Aktif)' : '+ INVOICE (Barcode PDF)'}
                     </button>
                   </div>
                   <small className="text-muted d-block mt-2" style={{ fontSize: '0.7rem' }}>
-                    Tulis <strong>LINK_ORDER</strong> untuk mencetak tautan cek order, atau <strong>INVOICE</strong> untuk menampilkan barcode nota.
+                    <i className="bi bi-info-circle me-1"></i>
+                    <strong>Pengaturan Terpisah:</strong>
+                    Tulis <strong>LINK_ORDER</strong> hanya untuk mengaktifkan link <em>"Cek Status Cucian"</em> di struk thermal.
+                    Tulis <strong>INVOICE</strong> hanya untuk mengaktifkan <em>Barcode</em> di nota PDF/Invoice (keduanya tidak digabung).
                   </small>
                 </div>
               </div>
@@ -691,12 +730,12 @@ const Setting = ({ user }) => {
                     </div>
                   </div>
                   <div className="mt-2 text-muted" style={{ fontSize: '9px', whiteSpace: 'pre-wrap' }}>
-                    {formatReceiptFooterText(formData.footerStruk, '8126-00001') || (
-                      !isFooterBarcode(formData.footerStruk) && 'Terima kasih atas kepercayaan Anda'
-                    )}
-                    {isFooterBarcode(formData.footerStruk) && (
-                      <div className="mt-2 pt-1">
-                        <Barcode value="8126-00001" width={1.1} height={34} fontSize={8} />
+                    {cleanReceiptFooterText(formData.footerStruk) || 'Terima kasih atas kepercayaan Anda'}
+                    {/* Thermal: HANYA tampilkan link jika LINK_ORDER aktif (TIDAK ADA barcode) */}
+                    {isFooterLinkOrder(formData.footerStruk) && (
+                      <div className="mt-2 pt-1 text-center" style={{ borderTop: '1px dotted #000' }}>
+                        <div className="fw-bold text-dark">Cek Status Cucian:</div>
+                        <div style={{ wordBreak: 'break-all', color: '#0d5afd' }}>{getReceiptTrackingUrl('8126-00001')}</div>
                       </div>
                     )}
                   </div>

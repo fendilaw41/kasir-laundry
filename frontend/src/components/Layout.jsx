@@ -1,6 +1,8 @@
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useState, useEffect, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../db';
+import { fetchConversationsFromBackend } from '../services/chatService';
 import { getSettingsQuery } from '../db/repositories/settings';
 import { Skeleton } from './common/Skeleton';
 import OfflineAlertBanner from './OfflineAlertBanner';
@@ -15,6 +17,45 @@ const Layout = ({ user, onLogout }) => {
     () => ({ chatHeaderState, setChatHeaderState }),
     [chatHeaderState]
   );
+
+  // Ambil total pesan chat belum dibaca secara reaktif dari Dexie IndexedDB
+  const totalUnreadChat = useLiveQuery(async () => {
+    try {
+      if (!db.conversations) return 0;
+      const convs = await db.conversations.toArray();
+      const currentUserId = String(user?.uuid || user?.id || user?.userId || '');
+      const currentUsername = (user?.username || '').toLowerCase().trim();
+
+      const userConvs = convs.filter((conv) => {
+        if (user?.role === 'kasir' && conv.members && Array.isArray(conv.members)) {
+          return conv.members.some((m) => {
+            const memberUserId = String(m.userId || m.user?.id || m.user?.uuid || '');
+            const memberUsername = (m.user?.username || '').toLowerCase().trim();
+            return (
+              (memberUserId && memberUserId === currentUserId) ||
+              (currentUsername && memberUsername === currentUsername)
+            );
+          });
+        }
+        return true;
+      });
+
+      return userConvs.reduce((sum, c) => sum + (Number(c.unreadCount) || 0), 0);
+    } catch {
+      return 0;
+    }
+  }, [user]) || 0;
+
+  // Sinkronisasi data percakapan dari backend saat user aktif
+  useEffect(() => {
+    if (user) {
+      fetchConversationsFromBackend().catch(() => {});
+      const interval = setInterval(() => {
+        fetchConversationsFromBackend().catch(() => {});
+      }, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   // Reset header chat jika pindah halaman selain /chat
   useEffect(() => {
@@ -234,7 +275,17 @@ const Layout = ({ user, onLogout }) => {
                 </li>
                 <li className={location.pathname === '/chat' ? 'active' : ''}>
                   <Link to="/chat">
-                    <i className={`bi ${location.pathname === '/chat' ? 'bi-chat-dots-fill' : 'bi-chat-dots'}`} style={{ fontSize: '20px' }}></i>
+                    <div className="position-relative d-inline-block">
+                      <i className={`bi ${location.pathname === '/chat' ? 'bi-chat-dots-fill' : 'bi-chat-dots'}`} style={{ fontSize: '20px' }}></i>
+                      {totalUnreadChat > 0 && (
+                        <span
+                          className="badge bg-success rounded-pill px-2 py-1 position-absolute top-0 start-100 translate-middle"
+                          style={{ fontSize: '0.7rem', flexShrink: 0 }}
+                        >
+                          {totalUnreadChat}
+                        </span>
+                      )}
+                    </div>
                     <span>Chat</span>
                   </Link>
                 </li>

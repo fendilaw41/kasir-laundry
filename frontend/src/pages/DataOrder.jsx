@@ -142,7 +142,6 @@ const DataOrder = ({ user }) => {
         >
           <i
             className={`bi bi-arrow-clockwise`}
-            style={!isRefreshing ? { display: 'inline-block' } : { width: '0.85rem', height: '0.85rem', borderWidth: '0.15em' }}
           ></i>
         </button>
       </div>

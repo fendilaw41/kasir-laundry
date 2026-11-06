@@ -1,4 +1,9 @@
 import { getShortDisplayUrl } from './tracking.js';
+import {
+  cleanReceiptFooterText,
+  isFooterLinkOrder,
+  getReceiptTrackingUrl,
+} from './receiptFooter.js';
 
 /**
  * Utilitas untuk mencetak langsung ke printer Bluetooth menggunakan Web Bluetooth API
@@ -90,6 +95,10 @@ export const printDirectBluetooth = async (order, pelanggan, settings = null) =>
       return label + " ".repeat(Math.max(1, spaces)) + value + "\n";
     };
 
+    const cleanFooter = cleanReceiptFooterText(settings?.footerStruk || 'kasirlaundry.my.id');
+    const linkOrderActive = isFooterLinkOrder(settings?.footerStruk);
+    const receiptTrackingUrl = getReceiptTrackingUrl(order.invoiceId);
+
     let footerContent = new Uint8Array([
       ...encoder.encode("--------------------------------\n"),
       ...commands.boldOn,
@@ -100,8 +109,8 @@ export const printDirectBluetooth = async (order, pelanggan, settings = null) =>
       ...encoder.encode("--------------------------------\n"),
       ...commands.center,
       ...encoder.encode(`${settings?.headerStruk || 'Terima kasih atas kunjungan anda'}\n`),
-      ...encoder.encode(`${settings?.footerStruk || 'kasirlaundry.my.id'}\n`),
-      ...encoder.encode(`Cek Status: ${getShortDisplayUrl(order.invoiceId)}\n`),
+      ...(cleanFooter ? encoder.encode(`${cleanFooter}\n`) : []),
+      ...(linkOrderActive ? encoder.encode(`Cek Status Cucian:\n${receiptTrackingUrl}\n`) : []),
       ...commands.feed,
       ...commands.cut
     ]);

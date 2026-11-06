@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   isFooterBarcode,
   isFooterLinkOrder,
+  cleanReceiptFooterText,
   formatReceiptFooterText,
   getReceiptTrackingUrl,
 } from './receiptFooter';
@@ -15,7 +16,8 @@ describe('receiptFooter helper', () => {
     expect(isFooterBarcode('LINK_ORDER')).toBe(false);
 
     const formatted = formatReceiptFooterText('LINK_ORDER', mockInvoiceId);
-    expect(formatted).toContain('https://kasirlaundry.netlify.app/c/');
+    expect(formatted).toContain('/c/');
+    expect(formatted).toContain('kasir-laundry-frontend.onrender.com');
   });
 
   it('mendeteksi INVOICE untuk menampilkan barcode dan bukan link', () => {
@@ -37,9 +39,16 @@ describe('receiptFooter helper', () => {
     expect(formatted).toBe('Terima kasih atas kepercayaan Anda');
   });
 
-  it('menghasilkan URL pelacakan lengkap dengan domain https://kasirlaundry.netlify.app/c/...', () => {
+  it('cleanReceiptFooterText membersihkan token LINK_ORDER dan INVOICE dari teks pesan', () => {
+    const raw = 'Simpan nota ini.\nLINK_ORDER\nINVOICE';
+    expect(isFooterLinkOrder(raw)).toBe(true);
+    expect(isFooterBarcode(raw)).toBe(true);
+    expect(cleanReceiptFooterText(raw)).toBe('Simpan nota ini.');
+  });
+
+  it('menghasilkan URL pelacakan lengkap dengan domain https://kasir-laundry-frontend.onrender.com/c/...', () => {
     const url = getReceiptTrackingUrl(mockInvoiceId);
-    expect(url.startsWith('https://kasirlaundry.netlify.app/c/')).toBe(true);
+    expect(url.startsWith('https://kasir-laundry-frontend.onrender.com/c/')).toBe(true);
   });
 });
 

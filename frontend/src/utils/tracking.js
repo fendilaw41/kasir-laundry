@@ -61,8 +61,9 @@ export const decodeTrackingCode = (code) => {
 export const getTrackingUrl = (invoiceId, explicitOrigin = null) => {
   if (!invoiceId) return '';
   const shortCode = encodeTrackingCode(invoiceId);
-  const origin = explicitOrigin || (typeof window !== 'undefined' && window.location?.origin && !window.location.origin.includes('localhost') ? window.location.origin : 'https://kasirlaundry.netlify.app');
-  return `${origin}/c/${shortCode}`;
+  const defaultDomain = import.meta.env?.VITE_PUBLIC_TRACKING_URL || 'https://kasir-laundry-frontend.onrender.com';
+  const origin = explicitOrigin || (typeof window !== 'undefined' && window.location?.origin && !window.location.origin.includes('localhost') ? window.location.origin : defaultDomain);
+  return `${origin.replace(/\/+$/, '')}/c/${shortCode}`;
 };
 
 /**
@@ -167,7 +168,7 @@ export const fetchPublicOrder = async (code) => {
         try {
           localStorage.setItem(`tracked_order_${serverOrder.invoiceId}`, JSON.stringify(serverOrder));
           localStorage.setItem(`tracked_order_${serverOrder.shortCode}`, JSON.stringify(serverOrder));
-        } catch {}
+        } catch { }
 
         return {
           order: serverOrder,
@@ -220,7 +221,7 @@ export const fetchPublicOrder = async (code) => {
         source: 'cache-offline',
       };
     }
-  } catch {}
+  } catch { }
 
   throw new Error(
     `Pesanan "${code}" belum tersimpan di memori perangkat. Silakan hubungkan internet untuk memuat data dari server.`

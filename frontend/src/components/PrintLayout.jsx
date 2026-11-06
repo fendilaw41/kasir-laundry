@@ -2,9 +2,11 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { getTrackingUrl, getShortDisplayUrl } from '../utils/tracking';
 import { Barcode } from './common/Barcode';
+import { QRCodeSVG } from './common/QRCodeSVG';
 import {
   isFooterBarcode,
   isFooterLinkOrder,
+  cleanReceiptFooterText,
   formatReceiptFooterText,
   getReceiptTrackingUrl,
 } from '../utils/receiptFooter';
@@ -16,11 +18,14 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
 
   const trackingUrl = getTrackingUrl(order.invoiceId);
   const trackingDisplayUrl = getShortDisplayUrl(order.invoiceId);
-  const qrUrl = `https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=${encodeURIComponent(trackingUrl)}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(trackingUrl)}`;
 
+  // Saklar terpisah:
+  // - hasLinkOrder: Hanya untuk mengaktifkan link di Cetak Thermal
+  // - hasBarcode: Hanya untuk mengaktifkan barcode di Cetak PDF/Invoice (A4)
   const hasBarcode = isFooterBarcode(settings.footerStruk);
   const hasLinkOrder = isFooterLinkOrder(settings.footerStruk);
-  const formattedFooter = formatReceiptFooterText(settings.footerStruk, order.invoiceId);
+  const cleanFooter = cleanReceiptFooterText(settings.footerStruk);
   const receiptTrackingUrl = getReceiptTrackingUrl(order.invoiceId);
 
   return (
@@ -134,19 +139,12 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
             {settings.headerStruk && (
               <div style={{ whiteSpace: 'pre-line', marginBottom: '5px' }}>{settings.headerStruk}</div>
             )}
-            {formattedFooter && (
-              <div style={{ whiteSpace: 'pre-line', marginTop: '5px' }}>{formattedFooter}</div>
+            {cleanFooter && (
+              <div style={{ whiteSpace: 'pre-line', marginTop: '5px' }}>{cleanFooter}</div>
             )}
 
-            {/* Jika footer dikonfigurasi INVOICE -> Muncul Barcode bukan link */}
-            {hasBarcode && (
-              <div style={{ marginTop: '8px', paddingTop: '4px' }}>
-                <Barcode value={order.invoiceId} width={1.4} height={42} fontSize={10} />
-              </div>
-            )}
-
-            {/* Jika bukan barcode dan bukan LINK_ORDER yang sudah ada di teks -> tampilkan link default */}
-            {!hasBarcode && !hasLinkOrder && (
+            {/* Print Thermal: HANYA pakai link saja jika LINK_ORDER aktif (tanpa barcode) */}
+            {hasLinkOrder && (
               <div style={{ marginTop: '8px', borderTop: '1px dotted #000', paddingTop: '6px' }}>
                 <div style={{ fontWeight: 'bold' }}>Cek Status Cucian:</div>
                 <div style={{ wordBreak: 'break-all' }}>{receiptTrackingUrl}</div>
@@ -238,41 +236,64 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
             </table>
           </div>
 
-          <div style={{ marginTop: '50px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: '14px', maxWidth: '420px' }}>
+          <div style={{ marginTop: '35px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ fontSize: '14px', maxWidth: '440px' }}>
                 <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>Informasi Tambahan:</div>
-                {formattedFooter && (
-                  <div style={{ whiteSpace: 'pre-line' }}>{formattedFooter}</div>
+                {cleanFooter && (
+                  <div style={{ whiteSpace: 'pre-line', marginBottom: '10px' }}>{cleanFooter}</div>
                 )}
-                {hasBarcode ? (
-                  <div style={{ marginTop: '12px' }}>
-                    <Barcode value={order.invoiceId} width={1.6} height={46} fontSize={11} style={{ textAlign: 'left' }} />
+
+                {/* Nota PDF (A4): QR Code Cek Status Pesanan */}
+                <div style={{ marginTop: '14px', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '10px', backgroundColor: '#fff' }}>
+                  <QRCodeSVG value={trackingUrl} size={90} />
+                  <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#1e293b', marginTop: '6px', textAlign: 'center' }}>
+                    Harap scan barcode untuk cek status
                   </div>
-                ) : ''}
+                </div>
               </div>
-              <div style={{ textAlign: 'center', minWidth: '200px' }}>
+              <div style={{ textAlign: 'center', minWidth: '180px' }}>
                 <div style={{ marginBottom: '60px' }}>Hormat Kami,</div>
                 <div style={{ borderTop: '1px solid #000', width: '150px', margin: '0 auto' }}>{settings.namaLaundry}</div>
               </div>
             </div>
-            <div style={{ textAlign: 'center', marginTop: '40px', color: '#999', fontSize: '12px' }}>
+            <div style={{ textAlign: 'center', marginTop: '30px', color: '#999', fontSize: '12px' }}>
               {settings.headerStruk}
             </div>
           </div>
         </div>
       )}
 
-      {/* 3. Label & QR Code */}
-      {(printType === 'label' || printType === 'qr') && (
-        <div id="label-receipt" className="print-section">
-          <div style={{ fontSize: '12px', fontWeight: 'bold' }}>{pelanggan?.nama || 'UMUM'}</div>
-          <div style={{ fontSize: '10px' }}>#{order.invoiceId}</div>
-          {printType === 'qr' && (
-            <img src={qrUrl} alt="QR" style={{ width: '80px', height: '80px', marginTop: '5px' }} />
-          )}
-          <div style={{ fontSize: '9px', marginTop: '3px', fontWeight: 'bold' }}>{trackingDisplayUrl}</div>
-          <div style={{ fontSize: '9px', marginTop: '1px' }}>{settings.namaLaundry}</div>
+      {/* 3. Label (Pcs) - Berisi label ringkas dan nama pelanggan */}
+      {printType === 'label' && (
+        <div id="label-receipt" className="print-section" style={{ width: '40mm', minHeight: '25mm', padding: '2mm', textAlign: 'center', border: '1px solid #ccc', backgroundColor: '#fff', boxSizing: 'border-box' }}>
+          <div style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', lineHeight: '1.2' }}>
+            {pelanggan?.nama || 'UMUM'}
+          </div>
+          <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#333', marginTop: '2px' }}>
+            #{order.invoiceId}
+          </div>
+          <div style={{ fontSize: '9px', color: '#555', marginTop: '2px' }}>
+            {order.items?.length ? `${order.items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0)} Pcs` : ''} {order.tipeLayanan ? `• ${order.tipeLayanan}` : ''}
+          </div>
+          <div style={{ fontSize: '8px', color: '#777', marginTop: '4px', borderTop: '1px dashed #ccc', paddingTop: '2px' }}>
+            {settings.namaLaundry}
+          </div>
+        </div>
+      )}
+
+      {/* 4. Label Barcode - Barcode 1D (Code 128) untuk scanner kasir mencari kode transaksi */}
+      {(printType === 'barcode' || printType === 'qr') && (
+        <div id="label-receipt" className="print-section" style={{ width: '40mm', minHeight: '25mm', padding: '2mm', textAlign: 'center', border: '1px solid #ccc', backgroundColor: '#fff', boxSizing: 'border-box' }}>
+          <div style={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', lineHeight: '1.2' }}>
+            {pelanggan?.nama || 'UMUM'}
+          </div>
+          <div style={{ margin: '2px 0' }}>
+            <Barcode value={order.invoiceId} width={1.2} height={30} fontSize={9} displayValue={true} />
+          </div>
+          <div style={{ fontSize: '8px', color: '#777', marginTop: '1px' }}>
+            {settings.namaLaundry}
+          </div>
         </div>
       )}
     </div>

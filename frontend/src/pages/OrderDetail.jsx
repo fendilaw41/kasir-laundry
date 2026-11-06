@@ -12,6 +12,7 @@ import { formatWhatsAppMessage } from '../utils/whatsapp';
 import { getTrackingUrl } from '../utils/tracking';
 import { getStatusLunasByMetode, isStatusLunas } from '../utils/paymentStatus';
 import PrintLayout from '../components/PrintLayout';
+import { QRCodeSVG } from '../components/common/QRCodeSVG';
 import { Skeleton, OrderDetailSkeleton } from '../components/common/Skeleton';
 
 const isSameInventory = (a, b) => {
@@ -36,6 +37,7 @@ const OrderDetail = () => {
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [showHpModal, setShowHpModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
   const [selectedInventory, setSelectedInventory] = useState([]);
   const [localInventoryUsed, setLocalInventoryUsed] = useState(null);
   const [newHp, setNewHp] = useState('');
@@ -445,7 +447,7 @@ const OrderDetail = () => {
                 <li><button className="dropdown-item py-2 small d-flex align-items-center" onClick={() => triggerPrint('thermal')}><i className="bi bi-file-earmark-text me-2 text-info fs-6"></i> Nota Thermal</button></li>
                 <li><button className="dropdown-item py-2 small d-flex align-items-center" onClick={() => triggerPrint('a4')}><i className="bi bi-file-earmark-pdf me-2 text-danger fs-6"></i> Nota PDF (A4)</button></li>
                 <li><button className="dropdown-item py-2 small d-flex align-items-center" onClick={() => triggerPrint('label')}><i className="bi bi-tag me-2 text-primary fs-6"></i> Label (Pcs)</button></li>
-                <li><button className="dropdown-item py-2 small d-flex align-items-center" onClick={() => triggerPrint('qr')}><i className="bi bi-qr-code me-2 text-dark fs-6"></i> Label QR Code</button></li>
+                <li><button className="dropdown-item py-2 small d-flex align-items-center" onClick={() => triggerPrint('barcode')}><i className="bi bi-upc-scan me-2 text-dark fs-6"></i> Label Barcode</button></li>
               </ul>
             </div>
           </div>
@@ -477,6 +479,15 @@ const OrderDetail = () => {
                   </button>
                 </li>
                 <li><hr className="dropdown-divider my-1" /></li>
+                <li>
+                  <button
+                    className="dropdown-item py-2 small d-flex align-items-center"
+                    onClick={() => setShowQrModal(true)}
+                  >
+                    <i className="bi bi-qr-code-scan me-2 text-success fs-6"></i>
+                    <span>Tampilkan QR Code Cek Order</span>
+                  </button>
+                </li>
                 <li>
                   <button
                     className="dropdown-item py-2 small d-flex align-items-center"
@@ -637,6 +648,64 @@ const OrderDetail = () => {
                     <button className="btn btn-outline-primary w-100 rounded-pill fw-bold py-3 shadow-sm" onClick={saveHpAndSend}>
                       <i className="bi bi-whatsapp me-2"></i>{BUTTON_TEXT.SAVE}
                     </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Modal QR Code Cek Status Cucian */}
+        {showQrModal && (
+          <>
+            <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}></div>
+            <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1065 }}>
+              <div className="modal-dialog modal-dialog-centered mx-auto" style={{ maxWidth: '360px' }}>
+                <div className="modal-content border-0 shadow-lg text-center p-4" style={{ borderRadius: '24px' }}>
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <h6 className="fw-bold mb-0 text-dark">
+                      <i className="bi bi-qr-code-scan text-primary me-2"></i>QR Code Cek Order
+                    </h6>
+                    <button
+                      type="button"
+                      className="btn-close"
+                      onClick={() => setShowQrModal(false)}
+                    ></button>
+                  </div>
+
+                  <div className="p-3 bg-light rounded-4 mb-3 d-inline-block shadow-sm">
+                    <QRCodeSVG
+                      value={getTrackingUrl(order.invoiceId)}
+                      size={180}
+                      className="rounded-3"
+                    />
+                  </div>
+
+                  <div className="small fw-bold text-dark mb-1">#{order.invoiceId}</div>
+                  <p className="text-muted small mb-3" style={{ fontSize: '0.78rem' }}>
+                    Arahkan kamera HP ke QR Code di atas untuk membuka status pesanan secara langsung.
+                  </p>
+
+                  <div className="d-flex gap-2">
+                    <button
+                      className="btn btn-outline-primary rounded-pill flex-fill py-2 fw-semibold small"
+                      onClick={() => {
+                        const url = getTrackingUrl(order.invoiceId);
+                        if (navigator.clipboard) {
+                          navigator.clipboard.writeText(url).then(() => toast.success(TOAST_MESSAGES.SUCCESS));
+                        }
+                      }}
+                    >
+                      <i className="bi bi-link-45deg me-1"></i>Salin Link
+                    </button>
+                    <a
+                      href={getTrackingUrl(order.invoiceId)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-primary rounded-pill flex-fill py-2 fw-semibold small"
+                    >
+                      <i className="bi bi-box-arrow-up-right me-1"></i>Buka Link
+                    </a>
                   </div>
                 </div>
               </div>
