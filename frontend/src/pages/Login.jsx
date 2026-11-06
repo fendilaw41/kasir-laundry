@@ -102,7 +102,7 @@ const Login = ({ onLogin }) => {
 
   return (
     <div
-      className="login-wrapper d-flex align-items-center justify-content-center w-100 py-4"
+      className="login-wrapper d-flex align-items-start align-items-md-center justify-content-center w-100 py-3 py-md-4"
       style={{
         position: 'fixed',
         top: 0,
@@ -113,95 +113,99 @@ const Login = ({ onLogin }) => {
         zIndex: 1050,
       }}
     >
-      <div className="container">
+      <div className="container px-3">
         <div className="row justify-content-center">
           <div className="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
-            <div className="card p-4 p-md-5 border-0 shadow-sm rounded-4">
+            <div className="card p-3 p-sm-4 p-md-4 border-0 shadow-sm rounded-4">
               <div className="card-body p-0">
-                <div className="text-center mb-4">
+                {/* Header Logo & App Title */}
+                <div className="text-center mb-2.5">
                   <div
                     className="mx-auto d-flex align-items-center justify-content-center shadow-sm"
                     style={{
-                      width: '76px',
-                      height: '76px',
+                      width: '54px',
+                      height: '54px',
                       background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)',
-                      borderRadius: '20px',
-                      marginBottom: '16px',
+                      borderRadius: '16px',
+                      marginBottom: '10px',
                     }}
                   >
-                    <span style={{ fontSize: '38px', fontWeight: '900', color: '#fff', letterSpacing: '-2px' }}>
+                    <span style={{ fontSize: '28px', fontWeight: '900', color: '#fff', letterSpacing: '-1px' }}>
                       {storeInfo?.name ? storeInfo.name.charAt(0).toUpperCase() : 'K'}
                     </span>
                   </div>
                   {isCheckingStore ? (
                     <div className="d-flex justify-content-center my-1">
-                      <Skeleton width="180px" height="28px" borderRadius="8px" />
+                      <Skeleton width="160px" height="24px" borderRadius="6px" />
                     </div>
                   ) : (
-                    <h3 className="fw-bold mb-1" style={{ letterSpacing: '0.5px', color: '#0134d4' }}>
+                    <h4 className="fw-bold mb-0" style={{ letterSpacing: '0.3px', color: '#0134d4', fontSize: '1.2rem' }}>
                       {(storeInfo?.name || 'KASIR LAUNDRY').toUpperCase()}
-                    </h3>
+                    </h4>
                   )}
-                  <p className="text-muted small mb-0">
+                  <p className="text-muted small mb-0" style={{ fontSize: '11.5px' }}>
                     {storeInfo?.name ? `Sistem Manajemen & Kasir - ${storeInfo.name}` : 'Sistem Manajemen & Kasir Toko'}
                   </p>
                 </div>
 
-                <div className="register-form mt-3">
-                  <h5 className="mb-3 text-center fw-bold text-dark">Log In</h5>
+                <div className="register-form mt-2">
+                  <h6 className="mb-2.5 text-center fw-bold text-dark" style={{ fontSize: '14px' }}>Log In</h6>
 
                   {error && (
-                    <div className="alert alert-danger rounded-3 py-2 px-3 small" role="alert">
+                    <div className="alert alert-danger rounded-3 py-1.5 px-3 small mb-2.5" role="alert" style={{ fontSize: '12px' }}>
                       {error}
                     </div>
                   )}
 
                   <form onSubmit={handleLogin}>
-                    <div className="form-group mb-3">
+                    <div className="form-group mb-2">
                       <div className="d-flex justify-content-between align-items-center mb-1">
-                        <label className="form-label small fw-bold text-muted mb-0">
+                        <label className="form-label small fw-bold text-muted mb-0" style={{ fontSize: '12px' }}>
                           Kode Toko
                         </label>
                         {isCheckingStore && (
-                          <span className="small text-muted d-flex align-items-center gap-1" style={{ fontSize: '11px' }}>
-                            <span className="spinner-border spinner-border-sm" role="status" style={{ width: '10px', height: '10px' }}></span>
+                          <span className="small text-muted d-flex align-items-center gap-1" style={{ fontSize: '10.5px' }}>
+                            <span className="spinner-border spinner-border-sm" role="status" style={{ width: '9px', height: '9px' }}></span>
                             Cek toko...
                           </span>
                         )}
                       </div>
                       <input
-                        className="form-control form-control-lg bg-light border-0 fw-bold text-primary"
-                        style={{ fontSize: '15px' }}
+                        className="form-control bg-light border-0 fw-bold text-primary py-2 px-3"
+                        style={{ fontSize: '14px' }}
                         type="text"
                         placeholder="Masukan Kode (contoh: STORE02)"
                         value={storeCode}
                         onChange={(e) => setStoreCode(e.target.value.toUpperCase())}
                       />
 
-                      {/* Store Detected Feedback */}
+                      {/* Store Detected Feedback (Compact) */}
                       {storeInfo && (
-                        <div className="mt-2 p-2 px-3 rounded-3 bg-primary-light border border-primary border-opacity-25 d-flex align-items-center justify-content-between shadow-xs" style={{ backgroundColor: '#f0f5ff' }}>
-                          <div className="overflow-hidden">
-                            <span className="text-muted d-block" style={{ fontSize: '10px', fontWeight: '600', letterSpacing: '0.5px' }}>OUTLET AKTIF</span>
-                            <div className="fw-bold text-primary text-truncate" style={{ fontSize: '13px' }}>
-                              <i className="bi bi-patch-check-fill text-primary me-1"></i>
+                        <div className="mt-1.5 p-1.5 px-2.5 rounded-3 border border-primary border-opacity-25 d-flex align-items-center justify-content-between" style={{ backgroundColor: '#f0f5ff' }}>
+                          <div className="d-flex align-items-center gap-1.5 overflow-hidden me-2" style={{ minWidth: 0 }}>
+                            <i className="bi bi-patch-check-fill text-primary flex-shrink-0" style={{ fontSize: '13px' }}></i>
+                            <span className="fw-bold text-primary text-truncate" style={{ fontSize: '12px' }}>
                               {storeInfo.name}
-                            </div>
+                            </span>
                           </div>
-                          <span className="badge bg-primary rounded-pill px-2 py-1" style={{ fontSize: '10px' }}>{storeInfo.code}</span>
+                          <span className="badge bg-primary rounded-pill px-2 py-0.5 flex-shrink-0" style={{ fontSize: '10px' }}>
+                            {storeInfo.code}
+                          </span>
                         </div>
                       )}
 
-                      <div className="form-text text-muted small mt-1" style={{ fontSize: '11px' }}>
-                        Masukkan kode toko tempat Anda terdaftar.
-                      </div>
+                      {!storeInfo && (
+                        <div className="form-text text-muted mt-1" style={{ fontSize: '10.5px' }}>
+                          Masukkan kode toko tempat Anda terdaftar.
+                        </div>
+                      )}
                     </div>
 
-                    <div className="form-group mb-3">
-                      <label className="form-label small fw-bold text-muted">Username</label>
+                    <div className="form-group mb-2">
+                      <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>Username</label>
                       <input
-                        className="form-control form-control-lg bg-light border-0"
-                        style={{ fontSize: '15px' }}
+                        className="form-control bg-light border-0 py-2 px-3"
+                        style={{ fontSize: '14px' }}
                         type="text"
                         placeholder="Masukkan username"
                         value={username}
@@ -210,11 +214,11 @@ const Login = ({ onLogin }) => {
                       />
                     </div>
 
-                    <div className="form-group mb-4">
-                      <label className="form-label small fw-bold text-muted">Password</label>
+                    <div className="form-group mb-3">
+                      <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>Password</label>
                       <input
-                        className="form-control form-control-lg bg-light border-0"
-                        style={{ fontSize: '15px' }}
+                        className="form-control bg-light border-0 py-2 px-3"
+                        style={{ fontSize: '14px' }}
                         type="password"
                         placeholder="Masukkan password"
                         value={password}
@@ -224,8 +228,8 @@ const Login = ({ onLogin }) => {
                     </div>
 
                     <button
-                      className="btn btn-primary btn-lg w-100 fw-bold shadow-sm"
-                      style={{ borderRadius: '12px' }}
+                      className="btn btn-primary w-100 fw-bold shadow-sm py-2"
+                      style={{ borderRadius: '10px', fontSize: '14px' }}
                       type="submit"
                       disabled={loading}
                     >
@@ -234,8 +238,8 @@ const Login = ({ onLogin }) => {
                   </form>
                 </div>
 
-                <div className="login-meta-data text-center mt-4">
-                  <p className="mb-0 text-muted small">
+                <div className="login-meta-data text-center mt-2.5">
+                  <p className="mb-0 text-muted" style={{ fontSize: '12px' }}>
                     Belum punya akun?{' '}
                     <Link to="/register" className="fw-bold text-primary text-decoration-none">
                       Register sekarang
