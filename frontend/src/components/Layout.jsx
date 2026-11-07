@@ -168,24 +168,38 @@ const Layout = ({ user, onLogout }) => {
               {location.pathname === '/' ? (
                 /* Header Halaman Home: Searching Pelanggan & Kode Transaksi */
                 <div className="d-flex align-items-center flex-grow-1 me-2 position-relative">
-                  <i className="bi bi-search position-absolute start-0 ms-3 text-muted"></i>
+                  <i
+                    className="bi bi-search position-absolute start-0 ms-3"
+                    style={{ color: '#0d6efd', fontSize: '0.92rem', zIndex: 2 }}
+                  ></i>
                   <input
                     type="text"
-                    className="form-control rounded-pill ps-5 pe-4 py-1.5 border shadow-none"
+                    className="form-control rounded-pill ps-5 pe-4 py-1.5 shadow-xs"
                     style={{
-                      fontSize: '0.82rem',
-                      backgroundColor: '#f1f5f9',
-                      borderColor: '#e2e8f0',
-                      height: '36px',
+                      fontSize: '0.84rem',
+                      fontWeight: 500,
+                      color: '#1e293b',
+                      backgroundColor: '#f0f5ff',
+                      border: '1.5px solid #b9d5ff',
+                      height: '38px',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.backgroundColor = '#ffffff';
+                      e.target.style.borderColor = '#0d6efd';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(13, 110, 253, 0.15)';
+                      if (homeSearchQuery.trim()) setIsHomeSearchOpen(true);
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.backgroundColor = '#f0f5ff';
+                      e.target.style.borderColor = '#b9d5ff';
+                      e.target.style.boxShadow = 'none';
                     }}
                     placeholder="Cari pelanggan / Nomor Order..."
                     value={homeSearchQuery}
                     onChange={(e) => {
                       setHomeSearchQuery(e.target.value);
                       setIsHomeSearchOpen(true);
-                    }}
-                    onFocus={() => {
-                      if (homeSearchQuery.trim()) setIsHomeSearchOpen(true);
                     }}
                     onKeyDown={handleHomeSearchKeyDown}
                   />
@@ -198,23 +212,40 @@ const Layout = ({ user, onLogout }) => {
                         setHomeSearchResults([]);
                         setIsHomeSearchOpen(false);
                       }}
+                      style={{ zIndex: 2 }}
                     >
-                      <i className="bi bi-x-circle-fill" style={{ fontSize: '0.9rem' }}></i>
+                      <i className="bi bi-x-circle-fill" style={{ fontSize: '0.92rem', color: '#64748b' }}></i>
                     </button>
                   )}
                 </div>
               ) : location.pathname === '/product' ? (
                 /* Header Halaman Produk: Cari Layanan */
                 <div className="d-flex align-items-center flex-grow-1 me-2 position-relative">
-                  <i className="bi bi-search position-absolute start-0 ms-3 text-muted"></i>
+                  <i
+                    className="bi bi-search position-absolute start-0 ms-3"
+                    style={{ color: '#0d6efd', fontSize: '0.92rem', zIndex: 2 }}
+                  ></i>
                   <input
                     type="text"
-                    className="form-control rounded-pill ps-5 pe-4 py-1.5 border shadow-none"
+                    className="form-control rounded-pill ps-5 pe-4 py-1.5 shadow-xs"
                     style={{
-                      fontSize: '0.82rem',
-                      backgroundColor: '#f1f5f9',
-                      borderColor: '#e2e8f0',
-                      height: '36px',
+                      fontSize: '0.84rem',
+                      fontWeight: 500,
+                      color: '#1e293b',
+                      backgroundColor: '#f0f5ff',
+                      border: '1.5px solid #b9d5ff',
+                      height: '38px',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.backgroundColor = '#ffffff';
+                      e.target.style.borderColor = '#0d6efd';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(13, 110, 253, 0.15)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.backgroundColor = '#f0f5ff';
+                      e.target.style.borderColor = '#b9d5ff';
+                      e.target.style.boxShadow = 'none';
                     }}
                     placeholder="Cari nama layanan..."
                     value={productSearchTerm}
@@ -225,8 +256,9 @@ const Layout = ({ user, onLogout }) => {
                       type="button"
                       className="btn btn-sm btn-link position-absolute end-0 me-2 p-0 text-muted"
                       onClick={() => setProductSearchTerm('')}
+                      style={{ zIndex: 2 }}
                     >
-                      <i className="bi bi-x-circle-fill" style={{ fontSize: '0.9rem' }}></i>
+                      <i className="bi bi-x-circle-fill" style={{ fontSize: '0.92rem', color: '#64748b' }}></i>
                     </button>
                   )}
                 </div>
@@ -238,8 +270,21 @@ const Layout = ({ user, onLogout }) => {
                   </h5>
                 </div>
               )}
-              <div className="navbar--toggler flex-shrink-0" id="affanNavbarToggler" onClick={onLogout} style={{ cursor: 'pointer' }} title="Logout">
-                <i className="bi bi-box-arrow-right fs-4"></i>
+              <div
+                className="navbar--toggler flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle border shadow-xs"
+                id="affanNavbarToggler"
+                onClick={onLogout}
+                style={{
+                  cursor: 'pointer',
+                  width: '38px',
+                  height: '38px',
+                  backgroundColor: '#f8fafc',
+                  borderColor: '#e2e8f0',
+                  color: '#0d6efd',
+                }}
+                title="Logout"
+              >
+                <i className="bi bi-box-arrow-right fs-5"></i>
               </div>
             </>
           ) : (
