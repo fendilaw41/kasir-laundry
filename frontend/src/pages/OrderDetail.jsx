@@ -447,9 +447,18 @@ const OrderDetail = ({ user }) => {
               </div>
               <div className="text-end ps-2">
                 <span className="fw-bold text-primary small d-block">{order.catatan || '-'}</span>
-                {!isCustomerNoteLocked ? (
-                  <small className="text-muted" style={{ fontSize: '0.65rem' }}><i className="bi bi-pencil-square me-1"></i>Edit</small>
-                ) : ''}
+                {!isCustomerNoteLocked && (
+                  <small
+                    className="text-primary fw-semibold cursor-pointer"
+                    style={{ fontSize: '0.65rem', cursor: 'pointer' }}
+                    onClick={() => {
+                      setCatatan(order.catatan || '');
+                      setShowNoteModal(true);
+                    }}
+                  >
+                    <i className="bi bi-pencil-square me-1"></i>Edit
+                  </small>
+                )}
               </div>
             </div>
 
@@ -464,9 +473,18 @@ const OrderDetail = ({ user }) => {
               </div>
               <div className="text-end ps-2">
                 <span className="fw-bold text-dark small d-block">{order.catatanKasir || '-'}</span>
-                {!isCashierNoteLocked ? (
-                  <small className="text-warning fw-semibold" style={{ fontSize: '0.65rem' }}><i className="bi bi-pencil-square me-1"></i>Edit</small>
-                ) : ''}
+                {!isCashierNoteLocked && (
+                  <small
+                    className="text-warning fw-semibold cursor-pointer"
+                    style={{ fontSize: '0.65rem', cursor: 'pointer' }}
+                    onClick={() => {
+                      setCatatanKasir(order.catatanKasir || '');
+                      setShowCashierNoteModal(true);
+                    }}
+                  >
+                    <i className="bi bi-pencil-square me-1"></i>Edit
+                  </small>
+                )}
               </div>
             </div>
           </div>

@@ -192,10 +192,13 @@ export class OrdersService {
           : [];
         const validProductIds = new Set(existingProducts.map((p) => p.id));
 
-        // Ambil semua produk toko untuk fallback matching nama jika productId null / belum terhubung
-        const storeProducts = await tx.product.findMany({
-          where: { storeId: order.storeId, deletedAt: null },
-        });
+        // Ambil semua produk toko untuk fallback matching nama HANYA jika ada item yang belum punya valid productId
+        const needsNameLookup = items.some((item) => !item.productId || !validProductIds.has(item.productId));
+        const storeProducts = needsNameLookup
+          ? await tx.product.findMany({
+            where: { storeId: order.storeId, deletedAt: null },
+          })
+          : [];
 
         // Insert item baru
         await tx.orderItem.createMany({
@@ -247,31 +250,8 @@ export class OrdersService {
         },
       });
 
-      // 6. Kurangi stok inventory jika ada inventory yang digunakan pada order baru
-      if (!beforeOrder && dto.inventoryUsed && Array.isArray(dto.inventoryUsed) && dto.inventoryUsed.length > 0) {
-        for (const inv of dto.inventoryUsed) {
-          const qty = Number(inv.quantity ?? inv.qty ?? 1);
-          const targetInv = await tx.inventory.findFirst({
-            where: {
-              storeId,
-              deletedAt: null,
-              OR: [
-                ...(inv.id ? [{ id: String(inv.id) }] : []),
-                ...(inv.uuid ? [{ id: String(inv.uuid) }] : []),
-                ...(inv.nama ? [{ nama: { equals: String(inv.nama), mode: 'insensitive' as const } }] : []),
-              ],
-            },
-          });
-
-          if (targetInv) {
-            const newStok = Math.max(0, targetInv.stok - qty);
-            await tx.inventory.update({
-              where: { id: targetInv.id },
-              data: { stok: newStok },
-            });
-          }
-        }
-      }
+      // 6. Stok inventory sudah dikelola dan disinkronkan via /api/sync/inventory & /api/sync/inventory-events
+      // Tidak mengunci row inventory di sini agar mencegah lock contention dan delay transaksi.
 
       // 7. Dapatkan username pengubah
       let actorUsername = 'system';

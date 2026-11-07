@@ -142,13 +142,19 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
     }
   });
 
-  // Trigger sync ke backend secara asynchronous
+  // Trigger sync ke backend secara teratur (sekuensial) agar tidak membanjiri koneksi dan menghindari lock contention
   if (newId) {
-    syncOrderToBackend(newId).catch(err => console.warn('Sync order failed:', err));
-    if (orderData.inventoryUsed && orderData.inventoryUsed.length > 0) {
-      syncInventoryToBackend().catch(err => console.warn('Sync inventory after checkout failed:', err));
-      syncInventoryEventsToBackend().catch(err => console.warn('Sync inventory events after checkout failed:', err));
-    }
+    (async () => {
+      try {
+        await syncOrderToBackend(newId);
+        if (orderData.inventoryUsed && orderData.inventoryUsed.length > 0) {
+          await syncInventoryToBackend();
+          await syncInventoryEventsToBackend();
+        }
+      } catch (err) {
+        console.warn('[Orders] Background sync after checkout failed:', err);
+      }
+    })();
   }
 
   return newId;

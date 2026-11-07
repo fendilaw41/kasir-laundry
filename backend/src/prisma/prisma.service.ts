@@ -15,6 +15,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     }
     const pool = new Pool({
       connectionString,
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
       options: '-c timezone=UTC',
     });
 
