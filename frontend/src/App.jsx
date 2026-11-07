@@ -138,12 +138,12 @@ function App() {
           path="/login"
           element={<LoginRouteWrapper user={user} onLogin={handleLogin} />}
         />
-        <Route path="/register" element={<Register />} />
+        <Route path="/register" element={<RegisterRouteWrapper user={user} />} />
         <Route path="/reset" element={<Reset user={user} />} />
         {/* Rute Publik: Cek Status Pesanan Tanpa Login */}
         <Route path="/c/:code" element={<PublicTrackOrder />} />
-        <Route path="/daftar-toko" element={<RegisterStore />} />
-        <Route path="/register-store" element={<RegisterStore />} />
+        <Route path="/daftar-toko" element={<RegisterStoreRouteWrapper user={user} />} />
+        <Route path="/register-store" element={<RegisterStoreRouteWrapper user={user} />} />
         <Route element={<ProtectedLayout user={user} onLogout={handleLogout} />}>
           <Route path="/" element={<Home user={user} />} />
           <Route path="/transaksi" element={<Transaksi user={user} />} />
@@ -173,6 +173,22 @@ function LoginRouteWrapper({ user, onLogin }) {
     return <Navigate to={redirectPath} replace />;
   }
   return <Login onLogin={onLogin} />;
+}
+
+// Wrapper Register: jika user sudah login tapi membuka /register, arahkan ke Home / Dashboard
+function RegisterRouteWrapper({ user }) {
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
+  return <Register />;
+}
+
+// Wrapper RegisterStore: jika user sudah login tapi membuka /daftar-toko, arahkan ke Home / Dashboard
+function RegisterStoreRouteWrapper({ user }) {
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
+  return <RegisterStore />;
 }
 
 // Wrapper Layout terproteksi: jika user belum login, alihkan langsung ke /login dengan replace

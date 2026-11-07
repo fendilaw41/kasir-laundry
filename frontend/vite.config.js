@@ -13,6 +13,9 @@ export default defineConfig({
         short_name: 'Kasir Laundry',
         description: 'Aplikasi Kasir Laundry Berbasis PWA',
         theme_color: '#0134d4',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
         icons: [
           {
             src: 'img/core-img/favicon.svg',
