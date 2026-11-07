@@ -58,7 +58,7 @@ db.on('ready', async () => {
         jamBuka: '08.00 - 17.00',
         menerimaCucian: true,
         headerStruk: 'Terima kasih atas kunjungan anda',
-        footerStruk: 'Kami menerima Cuci Karpet, Bedcover, Boneka, dan Satuan\nkasirlaundry.my.id',
+        footerStruk: 'Kami menerima Cuci Karpet, Bedcover, Boneka, dan Satuan',
         lastInvoiceNumber: 0,
         lastOnlineAt: new Date(),
         offlineSince: null,
