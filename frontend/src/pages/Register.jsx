@@ -398,7 +398,7 @@ const Register = () => {
                           </span>
                         </div>
                       </div>
-                      <button
+                      {/* <button
                         type="button"
                         className="btn btn-sm rounded-pill px-2.5 py-1 fw-bold flex-shrink-0 d-flex align-items-center gap-1 shadow-xs"
                         style={{ fontSize: '11px', backgroundColor: '#0134d4', color: '#fff', border: 'none' }}
@@ -406,7 +406,7 @@ const Register = () => {
                       >
                         <i className="bi bi-phone"></i>
                         <span>Install</span>
-                      </button>
+                      </button> */}
                     </div>
                   )}
 

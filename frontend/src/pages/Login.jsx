@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { loginUser } from '../db/repositories/users';
 import { db } from '../db';
-import { fetchStoreInfoByCode, updatePwaManifest } from '../utils/pwaHelper';
+import { fetchStoreInfoByCode, updatePwaManifest, promptPwaInstall } from '../utils/pwaHelper';
 import { Skeleton } from '../components/common/Skeleton';
 
 const Login = ({ onLogin }) => {
   const [storeCode, setStoreCode] = useState('');
   const [hasSavedStore, setHasSavedStore] = useState(false);
   const [isPwaInstalled, setIsPwaInstalled] = useState(false);
+  const [installHelp, setInstallHelp] = useState(false);
+  const [savedUsernames, setSavedUsernames] = useState([]);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -57,12 +59,50 @@ const Login = ({ onLogin }) => {
             setHasSavedStore(true);
           }
         }
+
+        // 3. Baca riwayat username dari cache (localStorage) dan Dexie (db.users) untuk autocomplete
+        try {
+          const cachedList = JSON.parse(localStorage.getItem('saved_usernames') || '[]');
+          const dbUsers = (await db.users?.toArray()) || [];
+          const dbUsernames = dbUsers.map((u) => u.username).filter(Boolean);
+          const lastUser = localStorage.getItem('last_logged_username') || cachedList[0] || dbUsernames[0] || '';
+
+          const allUsernames = Array.from(
+            new Set([
+              ...(lastUser ? [lastUser] : []),
+              ...cachedList,
+              ...dbUsernames,
+            ])
+          ).filter((u) => typeof u === 'string' && u.trim().length > 0);
+
+          setSavedUsernames(allUsernames);
+
+          // Otomatis isi username dari cache sehingga user tinggal memasukkan password
+          if (lastUser) {
+            setUsername(lastUser);
+          }
+        } catch (err) {
+          console.warn('[Login] Gagal membaca cache username:', err);
+        }
       } catch (err) {
         console.warn('[Login] Belum ada pengaturan tersimpan:', err);
       }
     };
 
     initLogin();
+
+    const handleInstalled = () => {
+      setIsPwaInstalled(true);
+      localStorage.setItem('pwa_user_clicked_install', 'true');
+      db.settings.update(1, { isAppInstalled: true }).catch(() => {});
+    };
+
+    window.addEventListener('pwa:installed', handleInstalled);
+    window.addEventListener('appinstalled', handleInstalled);
+    return () => {
+      window.removeEventListener('pwa:installed', handleInstalled);
+      window.removeEventListener('appinstalled', handleInstalled);
+    };
   }, [searchParams]);
 
   // Cek nama toko dari backend / lokal saat storeCode berubah
@@ -117,6 +157,27 @@ const Login = ({ onLogin }) => {
     return () => clearTimeout(timer);
   }, [storeCode]);
 
+  const handleInstallApp = async () => {
+    // Sembunyikan tombol install segera saat diklik
+    setIsPwaInstalled(true);
+    localStorage.setItem('pwa_user_clicked_install', 'true');
+    try {
+      await db.settings.update(1, { isAppInstalled: true, appInstalledAt: new Date() });
+    } catch (e) {
+      console.warn('[PWA] Gagal simpan status install ke Dexie:', e);
+    }
+
+    try {
+      const res = await promptPwaInstall();
+      if (res?.outcome !== 'accepted') {
+        setInstallHelp(true);
+      }
+    } catch (err) {
+      console.warn('[PWA] prompt error:', err);
+      setInstallHelp(true);
+    }
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
@@ -124,6 +185,18 @@ const Login = ({ onLogin }) => {
 
     try {
       const user = await loginUser(username, password, storeCode.trim().toUpperCase());
+
+      // Simpan username ke cache agar autocomplete dan auto-fill berfungsi di login berikutnya
+      try {
+        const cleanUser = username.trim();
+        localStorage.setItem('last_logged_username', cleanUser);
+        const existing = JSON.parse(localStorage.getItem('saved_usernames') || '[]');
+        const updated = Array.from(new Set([cleanUser, ...existing]));
+        localStorage.setItem('saved_usernames', JSON.stringify(updated));
+      } catch (e) {
+        console.warn('[Login] Gagal menyimpan username ke cache:', e);
+      }
+
       onLogin(user);
       navigate(redirectPath, { replace: true });
     } catch (err) {
@@ -260,16 +333,33 @@ const Login = ({ onLogin }) => {
                             {storeInfo.name}
                           </div>
                           <span className="text-muted d-block" style={{ fontSize: '10px' }}>
-                            Outlet Aktif
+                            Outlet Terdeteksi
                           </span>
                         </div>
                       </div>
-                      <span
-                        className="badge rounded-pill px-2.5 py-1 text-white flex-shrink-0"
-                        style={{ backgroundColor: '#0134d4', fontSize: '11px', fontWeight: '600' }}
-                      >
-                        {storeInfo.code}
-                      </span>
+
+                      {/* Tombol Install PWA persis seperti di Register (Hanya muncul jika belum install) */}
+                      <div className="d-flex align-items-center gap-1.5 flex-shrink-0">
+                        {!isPwaInstalled ? (
+                          <button
+                            type="button"
+                            className="btn btn-sm rounded-pill px-2.5 py-1 fw-bold d-flex align-items-center gap-1 shadow-xs transition-all"
+                            style={{ fontSize: '11px', backgroundColor: '#0134d4', color: '#fff', border: 'none' }}
+                            onClick={handleInstallApp}
+                            title="Install Aplikasi ke Layar Utama"
+                          >
+                            <i className="bi bi-phone"></i>
+                            <span>Install</span>
+                          </button>
+                        ) : (
+                          <span
+                            className="badge rounded-pill px-2.5 py-1 text-white flex-shrink-0"
+                            style={{ backgroundColor: '#0134d4', fontSize: '11px', fontWeight: '600' }}
+                          >
+                            {storeInfo.code}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -291,11 +381,21 @@ const Login = ({ onLogin }) => {
                       padding: '8px 14px',
                     }}
                     type="text"
+                    name="username"
+                    autoComplete="username"
+                    list="saved-username-options"
                     placeholder="Masukkan username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     required
                   />
+
+                  {/* Datalist Browser Autocomplete dari Cache */}
+                  <datalist id="saved-username-options">
+                    {savedUsernames.map((u) => (
+                      <option key={u} value={u} />
+                    ))}
+                  </datalist>
                 </div>
 
                 {/* Password */}
@@ -315,6 +415,10 @@ const Login = ({ onLogin }) => {
                       padding: '8px 14px',
                     }}
                     type="password"
+                    name="password"
+                    autoComplete="new-password"
+                    data-lpignore="true"
+                    data-form-type="other"
                     placeholder="Masukkan password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
