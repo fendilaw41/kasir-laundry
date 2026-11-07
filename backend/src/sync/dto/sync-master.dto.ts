@@ -134,6 +134,9 @@ export class SyncMasterDataDto {
 
   @ApiPropertyOptional({ description: 'Daftar inventory / stok yang perlu di-sync', type: () => [SyncInventoryDto] })
   inventory?: SyncInventoryDto[];
+
+  @ApiPropertyOptional({ description: 'Daftar mutasi inventory yang perlu di-sync', type: () => [SyncInventoryEventDto] })
+  inventoryEvents?: SyncInventoryEventDto[];
 }
 
 export class SyncInventoryDto {
@@ -171,3 +174,44 @@ export class SyncInventoryDto {
   deletedAt?: string | Date | null;
 }
 
+
+export class SyncInventoryEventDto {
+  @ApiProperty({ description: 'UUID dari InventoryEvent', example: 'd3f81e69-0268-4a94-bfbe-d45e12f672fa' })
+  id: string;
+
+  @ApiPropertyOptional({ description: 'ID Toko (Store ID)', example: 'fbfe9436-b120-4fc4-bf30-85659c3cc56f' })
+  storeId?: string;
+
+  @ApiPropertyOptional({ description: 'ID Inventory (UUID / string)', example: 'inv-uuid' })
+  inventoryId?: string;
+
+  @ApiPropertyOptional({ description: 'Nama Barang', example: 'Deterjen' })
+  inventoryName?: string;
+
+  @ApiProperty({ description: 'Jenis mutasi: ADD, SUBTRACT, ADJUST', example: 'ADD' })
+  type: string;
+
+  @ApiProperty({ description: 'Jumlah mutasi stok', example: 10 })
+  qty: number;
+
+  @ApiPropertyOptional({ description: 'Catatan mutasi', example: 'Penambahan stok manual' })
+  note?: string;
+
+  @ApiPropertyOptional({ description: 'Nomor nota transaksi jika tipe SUBTRACT', example: 'KSR-00001' })
+  invoiceId?: string;
+
+  @ApiPropertyOptional({ description: 'User pencatat / penyetujui', example: 'Owner' })
+  createdBy?: string;
+
+  @ApiPropertyOptional({ description: 'Kasir yang mengajukan (jika ada)', example: 'Kasir 1' })
+  kasirPengaju?: string;
+
+  @ApiPropertyOptional({ description: 'Waktu pembuatan di client', example: '2026-10-09T07:20:00.000Z' })
+  createdAt?: string | Date;
+
+  @ApiPropertyOptional({ description: 'Waktu update di client', example: '2026-10-09T07:20:00.000Z' })
+  updatedAt?: string | Date;
+
+  @ApiPropertyOptional({ description: 'Waktu dihapus di client (Soft Delete)', example: null })
+  deletedAt?: string | Date | null;
+}

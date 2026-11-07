@@ -1,6 +1,6 @@
 import { db } from '../../db.js';
 import { withNewSyncMeta, withUpdatedSyncMeta } from '../syncMeta.js';
-import { syncOrderToBackend, syncInventoryToBackend } from '../../services/syncService.js';
+import { syncOrderToBackend, syncInventoryToBackend, syncInventoryEventsToBackend } from '../../services/syncService.js';
 import { getActiveStoreId, getActiveStoreIdSync } from './storeHelper.js';
 import { getStatusLunasByMetode, isStatusLunas } from '../../utils/paymentStatus.js';
 
@@ -147,6 +147,7 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
     syncOrderToBackend(newId).catch(err => console.warn('Sync order failed:', err));
     if (orderData.inventoryUsed && orderData.inventoryUsed.length > 0) {
       syncInventoryToBackend().catch(err => console.warn('Sync inventory after checkout failed:', err));
+      syncInventoryEventsToBackend().catch(err => console.warn('Sync inventory events after checkout failed:', err));
     }
   }
 

@@ -98,6 +98,25 @@ CREATE TABLE "Inventory" (
 );
 
 -- CreateTable
+CREATE TABLE "InventoryEvent" (
+    "id" TEXT NOT NULL,
+    "storeId" TEXT NOT NULL,
+    "inventoryId" TEXT,
+    "inventoryName" TEXT,
+    "type" TEXT NOT NULL,
+    "qty" INTEGER NOT NULL DEFAULT 0,
+    "note" TEXT,
+    "invoiceId" TEXT,
+    "createdBy" TEXT,
+    "kasirPengaju" TEXT,
+    "createdAt" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(3) NOT NULL,
+    "deletedAt" TIMESTAMPTZ(3),
+
+    CONSTRAINT "InventoryEvent_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Order" (
     "id" TEXT NOT NULL,
     "storeId" TEXT NOT NULL,
@@ -239,6 +258,12 @@ CREATE INDEX "Pelanggan_storeId_updatedAt_idx" ON "Pelanggan"("storeId", "update
 CREATE INDEX "Inventory_storeId_updatedAt_idx" ON "Inventory"("storeId", "updatedAt");
 
 -- CreateIndex
+CREATE INDEX "InventoryEvent_storeId_updatedAt_idx" ON "InventoryEvent"("storeId", "updatedAt");
+
+-- CreateIndex
+CREATE INDEX "InventoryEvent_storeId_createdAt_idx" ON "InventoryEvent"("storeId", "createdAt");
+
+-- CreateIndex
 CREATE INDEX "Order_storeId_updatedAt_idx" ON "Order"("storeId", "updatedAt");
 
 -- CreateIndex
@@ -276,6 +301,9 @@ ALTER TABLE "Pelanggan" ADD CONSTRAINT "Pelanggan_storeId_fkey" FOREIGN KEY ("st
 
 -- AddForeignKey
 ALTER TABLE "Inventory" ADD CONSTRAINT "Inventory_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "InventoryEvent" ADD CONSTRAINT "InventoryEvent_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Order" ADD CONSTRAINT "Order_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

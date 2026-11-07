@@ -1,6 +1,6 @@
 import { db } from '../../db.js';
 import { withNewSyncMeta, withUpdatedSyncMeta } from '../syncMeta.js';
-import { syncInventoryToBackend } from '../../services/syncService.js';
+import { syncInventoryToBackend, syncInventoryEventsToBackend, pullInventoryEventsFromBackend } from '../../services/syncService.js';
 import { getActiveStoreId } from './storeHelper.js';
 
 export const getInventoryQuery = async () => {
@@ -125,6 +125,7 @@ export const updateInventoryStok = async (id, delta) => {
     });
 
     syncInventoryToBackend().catch(err => console.warn('[Sync] Sync inventory error:', err));
+    syncInventoryEventsToBackend().catch(err => console.warn('[Sync] Sync inventory events error:', err));
     return item.id;
   }
   throw new Error('Item tidak ditemukan');
@@ -162,6 +163,7 @@ export const approveInventory = async (item) => {
   });
 
   syncInventoryToBackend().catch(err => console.warn('[Sync] Sync inventory error:', err));
+  syncInventoryEventsToBackend().catch(err => console.warn('[Sync] Sync inventory events error:', err));
 };
 
 export const rejectInventory = async (item) => {
@@ -267,5 +269,6 @@ export const addInventoryManual = async (nama, stok, options = {}) => {
   }
 
   syncInventoryToBackend().catch(err => console.warn('[Sync] Sync inventory error:', err));
+  syncInventoryEventsToBackend().catch(err => console.warn('[Sync] Sync inventory events error:', err));
   return targetId;
 };

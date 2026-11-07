@@ -21,6 +21,7 @@ model Store {
   orders        Order[]
   pelanggan     Pelanggan[]
   inventory     Inventory[]
+  inventoryEvents InventoryEvent[]
   settings      Settings?
   syncLogs      SyncLog[]
   conversations Conversation[]
@@ -95,6 +96,26 @@ model Inventory {
   deletedAt DateTime? @db.Timestamptz(3)
 
   @@index([storeId, updatedAt])
+}
+
+model InventoryEvent {
+  id            String    @id @default(uuid())
+  storeId       String
+  store         Store     @relation(fields: [storeId], references: [id])
+  inventoryId   String?
+  inventoryName String?
+  type          String
+  qty           Int       @default(0)
+  note          String?
+  invoiceId     String?
+  createdBy     String?
+  kasirPengaju  String?
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt     DateTime? @db.Timestamptz(3)
+
+  @@index([storeId, updatedAt])
+  @@index([storeId, createdAt])
 }
 
 model Order {

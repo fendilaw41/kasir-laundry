@@ -570,6 +570,97 @@ export const syncInventoryToBackend = async (forceAll = false) => {
   }
 };
 
+
+/**
+ * Sinkronisasi InventoryEvents (mutasi pergerakan stok) yang berubah ke Backend
+ */
+export const syncInventoryEventsToBackend = async (forceAll = false) => {
+  if (isPublicRoute() || !getAuthToken()) return;
+  try {
+    const dirtyEvents = forceAll
+      ? await db.inventoryEvents.toArray()
+      : await db.inventoryEvents.filter(e => e.isDirty === 1).toArray();
+
+    if (dirtyEvents.length === 0) return;
+
+    const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const setting = await db.settings.get(1);
+    const storeId = storedUser.storeId || setting?.storeId;
+
+    if (!storeId) return;
+
+    const payloads = [];
+    for (const evt of dirtyEvents) {
+      if (!evt.uuid) {
+        evt.uuid = crypto.randomUUID();
+        await db.inventoryEvents.update(evt.id, { uuid: evt.uuid });
+      }
+
+      let invName = evt.inventoryName;
+      if (!invName && evt.inventoryId) {
+        const numId = parseInt(evt.inventoryId, 10);
+        let item = !isNaN(numId) ? await db.inventory.get(numId) : null;
+        if (!item) {
+          item = await db.inventory.where('uuid').equals(String(evt.inventoryId)).first();
+        }
+        if (item?.nama) {
+          invName = item.nama;
+          await db.inventoryEvents.update(evt.id, { inventoryName: invName });
+        }
+      }
+
+      let invId = evt.invoiceId;
+      if (!invId && evt.note) {
+        const m = evt.note.match(/([A-Za-z0-9]{4}-d{5})/);
+        if (m) {
+          invId = m[1];
+          await db.inventoryEvents.update(evt.id, { invoiceId: invId });
+        }
+      }
+
+      payloads.push({
+        id: evt.uuid,
+        storeId,
+        inventoryId: evt.inventoryId ? String(evt.inventoryId) : null,
+        inventoryName: invName || null,
+        type: evt.type || 'ADD',
+        qty: Number(evt.qty) || 0,
+        note: evt.note || null,
+        invoiceId: invId || null,
+        createdBy: evt.createdBy || null,
+        kasirPengaju: evt.kasirPengaju || null,
+        createdAt: evt.createdAt ? new Date(evt.createdAt).toISOString() : new Date().toISOString(),
+        updatedAt: evt.updatedAt ? new Date(evt.updatedAt).toISOString() : new Date().toISOString(),
+        deletedAt: evt.deletedAt ? new Date(evt.deletedAt).toISOString() : null,
+      });
+    }
+
+    const response = await fetch(`${API_BASE_URL}/sync/inventory-events`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payloads),
+    });
+
+    if (response.ok) {
+      const serverResult = await response.json().catch(() => ({}));
+      const serverItems = serverResult.data || serverResult || [];
+      for (const evt of dirtyEvents) {
+        const match = Array.isArray(serverItems)
+          ? serverItems.find(se => se.id === evt.uuid)
+          : null;
+        await db.inventoryEvents.update(evt.id, {
+          isDirty: 0,
+          storeId,
+          ...(match ? { uuid: match.id } : {}),
+        });
+      }
+      console.log(`[Sync] ${dirtyEvents.length} log mutasi inventory berhasil disinkronkan ke BE.`);
+    }
+  } catch (err) {
+    console.warn(`[Sync] Gagal sync inventory events (offline): ${err.message}`);
+  }
+};
+
 /**
  * Sinkronisasi seluruh master data (Users, Products, Pelanggan, Settings, Inventory)
  */
@@ -591,6 +682,7 @@ export const syncAllDirtyMasterData = async (forceAll = false) => {
     await syncProductsToBackend(forceAll);
     await syncPelangganToBackend(forceAll);
     await syncInventoryToBackend(forceAll);
+    await syncInventoryEventsToBackend(forceAll);
   } finally {
     isMasterSyncing = false;
   }
@@ -1061,6 +1153,157 @@ export const pullPelangganFromBackend = async (force = false) => {
   }
 };
 
+
+let isPullingInventoryEvents = false;
+let lastInventoryEventsPullTime = 0;
+const INVENTORY_EVENTS_PULL_COOLDOWN_MS = 15000;
+
+/**
+ * Tarik dan Sinkronkan riwayat mutasi InventoryEvents terbaru dari Backend ke Dexie
+ */
+export const pullInventoryEventsFromBackend = async (force = false) => {
+  if (isPublicRoute() || !getAuthToken()) return false;
+  const now = Date.now();
+
+  // Cegah multiple pull bersamaan & cooldown 15 detik
+  if (isPullingInventoryEvents) return false;
+  if (!force && (now - lastInventoryEventsPullTime < INVENTORY_EVENTS_PULL_COOLDOWN_MS)) {
+    return false;
+  }
+
+  isPullingInventoryEvents = true;
+
+  try {
+    const storedUser = getStoredUser();
+    const setting = await db.settings.get(1);
+    const storeId = storedUser.storeId || setting?.storeId;
+    if (!storeId) return false;
+
+    lastInventoryEventsPullTime = Date.now();
+
+    const response = await fetch(`${API_BASE_URL}/sync/inventory-events?storeId=${encodeURIComponent(storeId)}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) return false;
+
+    const result = await response.json();
+    const serverEvents = result.data || result || [];
+
+    if (Array.isArray(serverEvents) && serverEvents.length > 0) {
+      for (const se of serverEvents) {
+        let localEvt = null;
+        if (se.id) {
+          localEvt = await db.inventoryEvents.where('uuid').equals(se.id).first();
+        }
+        if (!localEvt && se.invoiceId && se.inventoryName) {
+          localEvt = await db.inventoryEvents
+            .filter(e => e.invoiceId === se.invoiceId && (e.inventoryName === se.inventoryName || e.inventoryId === se.inventoryId))
+            .first();
+        }
+
+        const evtPayload = {
+          uuid: se.id,
+          storeId: se.storeId || storeId,
+          inventoryId: se.inventoryId || undefined,
+          inventoryName: se.inventoryName || 'Barang Laundry',
+          type: se.type || 'ADD',
+          qty: Number(se.qty) || 0,
+          note: se.note || null,
+          invoiceId: se.invoiceId || null,
+          createdBy: se.createdBy || null,
+          kasirPengaju: se.kasirPengaju || null,
+          createdAt: se.createdAt ? new Date(se.createdAt) : new Date(),
+          updatedAt: se.updatedAt ? new Date(se.updatedAt) : new Date(),
+          deletedAt: se.deletedAt ? new Date(se.deletedAt) : null,
+          isDirty: 0,
+        };
+
+        if (localEvt) {
+          if (localEvt.isDirty !== 1 || force) {
+            await db.inventoryEvents.update(localEvt.id, evtPayload);
+          }
+        } else {
+          await db.inventoryEvents.add(evtPayload);
+        }
+      }
+      console.log(`[Sync] Berhasil menarik ${serverEvents.length} log mutasi stok dari endpoint sync/inventory-events.`);
+    }
+    return true;
+  } catch (err) {
+    console.warn('[Sync] Gagal menarik inventory events dari server (offline):', err.message);
+    return false;
+  } finally {
+    isPullingInventoryEvents = false;
+  }
+};
+
+/**
+ * Ambil langsung data pergerakan stok dari DB (PostgreSQL) via API /sync/inventory-events
+ */
+export const getInventoryEventsFromDB = async () => {
+  try {
+    const storedUser = getStoredUser();
+    const setting = await db.settings.get(1);
+    const storeId = storedUser.storeId || setting?.storeId;
+    if (!storeId) return null;
+
+    const response = await fetch(`${API_BASE_URL}/sync/inventory-events?storeId=${encodeURIComponent(storeId)}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) return null;
+
+    const result = await response.json();
+    const serverEvents = result.data || result || [];
+
+    // Sinkronkan ke IndexedDB lokal juga agar data lokal selalu sinkron dengan DB
+    if (Array.isArray(serverEvents) && serverEvents.length > 0) {
+      for (const se of serverEvents) {
+        let localEvt = null;
+        if (se.id) {
+          localEvt = await db.inventoryEvents.where('uuid').equals(se.id).first();
+        }
+        if (!localEvt && se.invoiceId && se.inventoryName) {
+          localEvt = await db.inventoryEvents
+            .filter(e => e.invoiceId === se.invoiceId && (e.inventoryName === se.inventoryName || e.inventoryId === se.inventoryId))
+            .first();
+        }
+
+        const evtPayload = {
+          uuid: se.id,
+          storeId: se.storeId || storeId,
+          inventoryId: se.inventoryId || undefined,
+          inventoryName: se.inventoryName || 'Barang Laundry',
+          type: se.type || 'ADD',
+          qty: Number(se.qty) || 0,
+          note: se.note || null,
+          invoiceId: se.invoiceId || null,
+          createdBy: se.createdBy || null,
+          kasirPengaju: se.kasirPengaju || null,
+          createdAt: se.createdAt ? new Date(se.createdAt) : new Date(),
+          updatedAt: se.updatedAt ? new Date(se.updatedAt) : new Date(),
+          deletedAt: se.deletedAt ? new Date(se.deletedAt) : null,
+          isDirty: 0,
+        };
+
+        if (localEvt) {
+          await db.inventoryEvents.update(localEvt.id, evtPayload);
+        } else {
+          await db.inventoryEvents.add(evtPayload);
+        }
+      }
+    }
+
+    return serverEvents;
+  } catch (err) {
+    console.warn('[Sync] Gagal get inventory events dari DB:', err.message);
+    return null;
+  }
+};
+
 /**
  * Sinkronisasi Penuh Dua Arah (Two-Way Sync):
  * 1. PUSH: Dorong perubahan master data & order lokal (termasuk dirty / forceAll) ke backend
@@ -1073,6 +1316,7 @@ export const syncTwoWay = async ({ forceAll = false } = {}) => {
     const pullSuccess = await pullOrdersFromBackend(true);
     await pullProductsFromBackend(true);
     await pullPelangganFromBackend(true);
+    await pullInventoryEventsFromBackend(true);
     return { success: true, pullSuccess };
   } catch (error) {
     console.error('[Sync] syncTwoWay gagal:', error);
@@ -1103,6 +1347,7 @@ if (typeof window !== 'undefined') {
       await pullOrdersFromBackend();
       await pullProductsFromBackend();
       await pullPelangganFromBackend();
+      await pullInventoryEventsFromBackend();
     });
 
     // 2. Cek sekali saat pertama kali aplikasi dibuka (Hanya sinkronkan jika user telah login & bukan halaman publik)
@@ -1113,6 +1358,7 @@ if (typeof window !== 'undefined') {
       await pullOrdersFromBackend();
       await pullProductsFromBackend();
       await pullPelangganFromBackend();
+      await pullInventoryEventsFromBackend();
     }, 2000);
 
     // 3. Periodic background sync (Hanya berjalan jika tab aktif, browser online, dan user login)
@@ -1123,6 +1369,7 @@ if (typeof window !== 'undefined') {
           await syncDirtyOrders();
           await pullOrdersFromBackend();
           await pullProductsFromBackend();
+          await pullInventoryEventsFromBackend();
         }
       }, syncInterval);
     }

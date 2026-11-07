@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SyncService } from './sync.service';
-import { SyncInventoryDto, SyncMasterDataDto, SyncPelangganDto, SyncProductDto, SyncSettingsDto, SyncUserDto } from './dto/sync-master.dto';
+import { SyncInventoryDto, SyncMasterDataDto, SyncPelangganDto, SyncProductDto, SyncSettingsDto, SyncUserDto, SyncInventoryEventDto } from './dto/sync-master.dto';
 
 @ApiTags('Master Sync & Audit Logs')
 @ApiBearerAuth('bearer')
@@ -145,6 +145,39 @@ export class SyncController {
   @ApiResponse({ status: 200, description: 'Daftar pelanggan berhasil dimuat.' })
   async getPelanggan(@Query('storeId') storeId: string) {
     const data = await this.syncService.getPelanggan(storeId);
+    return {
+      success: true,
+      data,
+    };
+  }
+
+
+  @Post('inventory-events')
+  @ApiOperation({
+    summary: 'Sinkronisasi Log Mutasi Stok / Inventory Events (Upsert)',
+    description: 'Menyimpan atau memperbarui riwayat mutasi pergerakan stok dari Dexie lokal ke PostgreSQL.',
+  })
+  @ApiBody({ type: [SyncInventoryEventDto] })
+  @ApiResponse({ status: 201, description: 'Inventory events berhasil disinkronkan.' })
+  async syncInventoryEvents(@Body() dtos: SyncInventoryEventDto[]) {
+    const data = await this.syncService.upsertInventoryEvents(dtos);
+    return {
+      success: true,
+      message: `${data.length} event inventory berhasil disinkronkan`,
+      data,
+    };
+  }
+
+  @Get('inventory-events')
+  @ApiOperation({
+    summary: 'Mendapatkan Daftar Log Mutasi Stok / Inventory Events',
+    description: 'Mengambil daftar riwayat pergerakan stok berdasarkan ID Toko.',
+  })
+  @ApiQuery({ name: 'storeId', required: true, description: 'Filter berdasarkan ID Toko' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Jumlah data (default 500)' })
+  @ApiResponse({ status: 200, description: 'Daftar pergerakan stok berhasil dimuat.' })
+  async getInventoryEvents(@Query('storeId') storeId: string, @Query('limit') limit?: number) {
+    const data = await this.syncService.getInventoryEvents(storeId, limit);
     return {
       success: true,
       data,

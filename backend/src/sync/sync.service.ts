@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { SyncInventoryDto, SyncMasterDataDto, SyncPelangganDto, SyncProductDto, SyncSettingsDto, SyncUserDto } from './dto/sync-master.dto';
+import { SyncInventoryDto, SyncMasterDataDto, SyncPelangganDto, SyncProductDto, SyncSettingsDto, SyncUserDto, SyncInventoryEventDto } from './dto/sync-master.dto';
 
 @Injectable()
 export class SyncService {
@@ -543,6 +543,94 @@ export class SyncService {
     });
   }
 
+
+
+  /**
+   * Upsert InventoryEvents (mutasi stok) dari Dexie ke PostgreSQL
+   */
+  async upsertInventoryEvents(events: SyncInventoryEventDto[], fallbackStoreId?: string) {
+    if (!events || events.length === 0) return [];
+
+    const results = [];
+    for (const evt of events) {
+      const storeId = evt.storeId || fallbackStoreId;
+      if (!storeId) {
+        this.logger.warn(`InventoryEvent ID ${evt.id} diabaikan: Tidak memiliki storeId.`);
+        continue;
+      }
+      const store = await this.getOrCreateStoreFromClient(storeId);
+
+      const targetId = evt.id || randomUUID();
+      const createdAt = evt.createdAt ? new Date(evt.createdAt) : new Date();
+      const updatedAt = evt.updatedAt ? new Date(evt.updatedAt) : new Date();
+      const deletedAt = evt.deletedAt ? new Date(evt.deletedAt) : null;
+
+      let resolvedInventoryName = evt.inventoryName || null;
+      if (!resolvedInventoryName && evt.inventoryId) {
+        const invItem = await this.prisma.inventory.findFirst({
+          where: {
+            storeId: store.id,
+            OR: [
+              { id: String(evt.inventoryId) },
+              { id: { contains: String(evt.inventoryId) } },
+            ],
+          },
+        });
+        if (invItem) {
+          resolvedInventoryName = invItem.nama;
+        } else {
+          // Fallback map umum jika ID berasal dari auto-increment integer Dexie
+          const fallbackMap: Record<string, string> = { '1': 'Plastik', '2': 'Deterjen', '3': 'Molto' };
+          resolvedInventoryName = fallbackMap[String(evt.inventoryId)] || null;
+        }
+      }
+
+      let resolvedInvoiceId = evt.invoiceId || null;
+      if (!resolvedInvoiceId && evt.note) {
+        const m = evt.note.match(/([A-Za-z0-9]{4}-d{5})/);
+        if (m) resolvedInvoiceId = m[1];
+      }
+
+      const eventData = {
+        storeId: store.id,
+        inventoryId: evt.inventoryId ? String(evt.inventoryId) : null,
+        inventoryName: resolvedInventoryName,
+        type: evt.type || 'ADD',
+        qty: Math.max(0, parseInt(String(evt.qty || 0), 10)),
+        note: evt.note || null,
+        invoiceId: resolvedInvoiceId,
+        createdBy: evt.createdBy || null,
+        kasirPengaju: evt.kasirPengaju || null,
+        createdAt,
+        updatedAt,
+        deletedAt,
+      };
+
+      const saved = await this.prisma.inventoryEvent.upsert({
+        where: { id: targetId },
+        update: eventData,
+        create: {
+          id: targetId,
+          ...eventData,
+        },
+      });
+
+      results.push(saved);
+    }
+    return results;
+  }
+
+  /**
+   * Mengambil daftar log mutasi inventory untuk toko tertentu
+   */
+  async getInventoryEvents(storeId: string, limit?: number) {
+    if (!storeId) return [];
+    return await this.prisma.inventoryEvent.findMany({
+      where: { storeId, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      take: limit ? Number(limit) : 500,
+    });
+  }
 
   /**
    * Mengambil riwayat log sinkronisasi & audit trail

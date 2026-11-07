@@ -219,12 +219,25 @@ const DataOrder = ({ user }) => {
               <div className="card-body p-3">
                 <div className="d-flex justify-content-between mb-1">
                   <div className="d-flex align-items-center flex-wrap gap-1">
-                    <span className="text-primary fw-bold small">ID: {order.invoiceId}</span>
+                    <span className="text-primary fw-bold small">{order.invoiceId}</span>
                     <i className="bi bi-clipboard ms-1 text-muted" style={{ cursor: 'pointer', fontSize: '0.8rem' }} onClick={(e) => handleCopy(e, `${order.invoiceId}/${order.id}`)}></i>
                     {order.isPriority && <span className="badge bg-danger ms-1" style={{ fontSize: '0.55rem' }}>PRIORITAS</span>}
-                    {isOwner && (
+                  
+                  </div>
+                  <span className="text-muted small">{new Date(order.createdAt).toLocaleString('id-ID')}</span>
+                </div>
+                <div className="d-flex justify-content-between mb-1">
+                  <span className="fw-bold">{order.pelangganNama || 'Umum'}</span>
+                  <span className="fw-bold">Rp {order.total.toLocaleString()}</span>
+                </div>
+                <div className="d-flex justify-content-between mb-2">
+                  <span className="small text-muted">Est Selesai :</span>
+                  <span className="small text-muted">{new Date(new Date(order.createdAt).getTime() + (order.estimasi * 86400000)).toLocaleDateString('id-ID')}</span>
+                </div>
+                <div className="d-flex justify-content-between mb-2">
+                  {isOwner && (
                       <span
-                        className="badge rounded-pill px-2 py-1 ms-1 d-inline-flex align-items-center gap-1"
+                        className="badge rounded-pill d-inline-flex align-items-center gap-1"
                         style={{
                           backgroundColor: '#eef2ff',
                           color: '#4338ca',
@@ -238,16 +251,6 @@ const DataOrder = ({ user }) => {
                         <span>Kasir: {getKasirUsername(order)}</span>
                       </span>
                     )}
-                  </div>
-                  <span className="text-muted small">{new Date(order.createdAt).toLocaleString('id-ID')}</span>
-                </div>
-                <div className="d-flex justify-content-between mb-1">
-                  <span className="fw-bold">{order.pelangganNama || 'Umum'}</span>
-                  <span className="fw-bold">Rp {order.total.toLocaleString()}</span>
-                </div>
-                <div className="d-flex justify-content-between mb-2">
-                  <span className="small text-muted">Est Selesai :</span>
-                  <span className="small text-muted">{new Date(new Date(order.createdAt).getTime() + (order.estimasi * 86400000)).toLocaleDateString('id-ID')}</span>
                 </div>
 
                 {order.catatan && (

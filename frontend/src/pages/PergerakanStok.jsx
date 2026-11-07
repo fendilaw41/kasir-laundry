@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getInventoryEventsQuery, getInventoryQuery } from '../db/repositories/inventory';
+import { getInventoryEventsFromDB } from '../services/syncService';
 
 export default function PergerakanStok({ user }) {
   const navigate = useNavigate();
@@ -15,8 +16,33 @@ export default function PergerakanStok({ user }) {
     setExpandedDetails((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const [dbEvents, setDbEvents] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Ambil langsung data pergerakan stok dari DB tabel inventoryEvent
+  const fetchFromDB = async () => {
+    setIsRefreshing(true);
+    try {
+      const data = await getInventoryEventsFromDB();
+      if (Array.isArray(data)) {
+        setDbEvents(data);
+      }
+    } catch (err) {
+      console.warn('[PergerakanStok] Gagal load dari DB:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFromDB();
+  }, []);
+
   const rawEvents = useLiveQuery(getInventoryEventsQuery, []);
   const inventoryList = useLiveQuery(getInventoryQuery, []);
+
+  // Prioritaskan data langsung dari DB tabel inventoryEvent, fallback ke Dexie lokal jika offline
+  const activeEvents = dbEvents !== null ? dbEvents : (rawEvents || []);
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
   const yesterdayStr = useMemo(() => {
@@ -51,20 +77,20 @@ export default function PergerakanStok({ user }) {
     if (inventoryList) {
       inventoryList.forEach((i) => i.nama && names.add(i.nama));
     }
-    if (rawEvents) {
-      rawEvents.forEach((e) => {
+    if (activeEvents) {
+      activeEvents.forEach((e) => {
         const name = e.inventoryName || inventoryMap[e.inventoryId];
         if (name) names.add(name);
       });
     }
     return Array.from(names).sort();
-  }, [inventoryList, rawEvents, inventoryMap]);
+  }, [inventoryList, activeEvents, inventoryMap]);
 
   // Filter events berdasarkan Tab, Tanggal, Item, dan Search Query
   const filteredEvents = useMemo(() => {
-    if (!rawEvents) return [];
+    if (!activeEvents) return [];
 
-    return rawEvents.filter((event) => {
+    return activeEvents.filter((event) => {
       // 1. Filter Tab
       if (activeTab === 'in' && event.type !== 'ADD') return false;
       if (activeTab === 'out' && event.type !== 'SUBTRACT') return false;
@@ -98,7 +124,7 @@ export default function PergerakanStok({ user }) {
 
       return true;
     });
-  }, [rawEvents, activeTab, filterDate, selectedItem, searchQuery, inventoryMap]);
+  }, [activeEvents, activeTab, filterDate, selectedItem, searchQuery, inventoryMap]);
 
   // Hitung akumulasi total Stock In dan Stock Out dari semua event toko
   const totals = useMemo(() => {
@@ -106,8 +132,8 @@ export default function PergerakanStok({ user }) {
     let totalOut = 0;
     let inCount = 0;
     let outCount = 0;
-    if (rawEvents) {
-      rawEvents.forEach((e) => {
+    if (activeEvents) {
+      activeEvents.forEach((e) => {
         const qty = Number(e.qty) || 0;
         if (e.type === 'ADD') {
           totalIn += qty;
@@ -119,7 +145,7 @@ export default function PergerakanStok({ user }) {
       });
     }
     return { totalIn, totalOut, inCount, outCount };
-  }, [rawEvents]);
+  }, [activeEvents]);
 
   // Grouping data event berdasarkan tanggal (YYYY-MM-DD) dan ringkas per item
   const groupedEvents = useMemo(() => {
@@ -321,7 +347,7 @@ export default function PergerakanStok({ user }) {
                   <i className="bi bi-box-arrow-up fs-5"></i>
                 </div>
               </div>
-              <h4 className="fw-bold text-primary mb-0">{totals.outCount}x Digunakan</h4>
+              <h4 className="fw-bold text-primary mb-0">{totals.outCount}x Use</h4>
               <small className="text-muted" style={{ fontSize: '0.7rem' }}>
                 Total -{totals.totalOut.toLocaleString()} Item
               </small>
@@ -375,55 +401,80 @@ export default function PergerakanStok({ user }) {
 
         {/* FILTER BAR (TANGGAL, ITEM BARANG, PENCARIAN) */}
         <div className="card border-0 shadow-sm rounded-4 mb-3 bg-white p-3">
-          {/* Baris 1: Filter Tanggal */}
-          <div className="mb-2 pb-2 border-bottom">
-            <div className="d-flex align-items-center justify-content-between mb-1.5">
-              <label className="form-label small fw-bold text-muted mb-0" style={{ fontSize: '0.7rem' }}>
-                <i className="bi bi-calendar3 me-1 text-primary"></i>Filter Tanggal:
-              </label>
-              {filterDate && (
+          {/* Baris 1: Filter Tanggal (Rapi, Terstruktur, Tanpa Tumpang Tindih & Tanpa Icon Kalender) */}
+          <div className="mb-2.5 pb-2.5 border-bottom">
+            <div className="d-flex align-items-center justify-content-between mb-2">
+              <span className="small fw-bold text-muted" style={{ fontSize: '0.72rem' }}>
+                Filter Tanggal
+              </span>
+              <div className="d-flex align-items-center gap-2">
+                {filterDate && (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-link p-0 text-decoration-none text-primary fw-semibold"
+                    style={{ fontSize: '0.72rem' }}
+                    onClick={() => setFilterDate('')}
+                  >
+                    Reset Filter
+                  </button>
+                )}
                 <button
                   type="button"
-                  className="btn btn-sm btn-link p-0 text-decoration-none text-primary fw-semibold"
-                  style={{ fontSize: '0.7rem' }}
-                  onClick={() => setFilterDate('')}
+                  className="btn btn-sm btn-outline-primary rounded-pill px-2 py-0 fw-semibold d-inline-flex align-items-center gap-1 border-0"
+                  style={{ fontSize: '0.7rem', backgroundColor: '#f0f5ff' }}
+                  onClick={fetchFromDB}
+                  disabled={isRefreshing}
                 >
-                  Tampilkan Semua Tanggal
+                  <i className={`bi bi-arrow-clockwise ${isRefreshing ? 'spin' : ''}`}></i>
                 </button>
-              )}
+              </div>
             </div>
-            <div className="d-flex align-items-center gap-1.5 flex-wrap">
-              <button
-                type="button"
-                className={`btn btn-sm rounded-pill px-3 py-1 fw-semibold transition-all ${!filterDate ? 'btn-primary text-white shadow-xs' : 'btn-light text-muted'}`}
-                style={{ fontSize: '0.72rem' }}
-                onClick={() => setFilterDate('')}
-              >
-                Semua
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm rounded-pill px-3 py-1 fw-semibold transition-all ${filterDate === todayStr ? 'btn-primary text-white shadow-xs' : 'btn-light text-muted'}`}
-                style={{ fontSize: '0.72rem' }}
-                onClick={() => setFilterDate(todayStr)}
-              >
-                Hari Ini
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm rounded-pill px-3 py-1 fw-semibold transition-all ${filterDate === yesterdayStr ? 'btn-primary text-white shadow-xs' : 'btn-light text-muted'}`}
-                style={{ fontSize: '0.72rem' }}
-                onClick={() => setFilterDate(yesterdayStr)}
-              >
-                Kemarin
-              </button>
-              <input
-                type="date"
-                className="form-control form-control-sm border-0 bg-light rounded-pill px-2.5 py-1 text-dark fw-medium"
-                style={{ fontSize: '0.72rem', flex: 1, minWidth: '130px' }}
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-              />
+            <div className="row g-1.5 align-items-center">
+              {/* Presets: 3 tombol sama proporsional */}
+              <div className="col-7">
+                <div className="d-flex gap-1">
+                  <button
+                    type="button"
+                    className={`btn btn-sm flex-fill rounded-pill py-1 px-1 fw-semibold text-center border-0 transition-all ${
+                      !filterDate ? 'btn-primary text-white shadow-xs' : 'btn-light text-muted'
+                    }`}
+                    style={{ fontSize: '0.72rem' }}
+                    onClick={() => setFilterDate('')}
+                  >
+                    Semua
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm flex-fill rounded-pill py-1 px-1 fw-semibold text-center border-0 transition-all ${
+                      filterDate === todayStr ? 'btn-primary text-white shadow-xs' : 'btn-light text-muted'
+                    }`}
+                    style={{ fontSize: '0.72rem' }}
+                    onClick={() => setFilterDate(todayStr)}
+                  >
+                    Hari Ini
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm flex-fill rounded-pill py-1 px-1 fw-semibold text-center border-0 transition-all ${
+                      filterDate === yesterdayStr ? 'btn-primary text-white shadow-xs' : 'btn-light text-muted'
+                    }`}
+                    style={{ fontSize: '0.72rem' }}
+                    onClick={() => setFilterDate(yesterdayStr)}
+                  >
+                    Kemarin
+                  </button>
+                </div>
+              </div>
+              {/* Date Input Khusus */}
+              <div className="col-5">
+                <input
+                  type="date"
+                  className="form-control form-control-sm border-0 bg-light rounded-pill px-2 py-1 text-dark fw-medium text-center"
+                  style={{ fontSize: '0.72rem', height: '31px' }}
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                />
+              </div>
             </div>
           </div>
 
@@ -497,7 +548,6 @@ export default function PergerakanStok({ user }) {
                 {/* TANGGAL GROUP HEADER */}
                 <div className="d-flex align-items-center justify-content-between mb-2 px-1">
                   <div className="d-flex align-items-center gap-1.5">
-                    <i className="bi bi-calendar3 text-primary" style={{ fontSize: '0.82rem' }}></i>
                     <span className="fw-bold text-dark" style={{ fontSize: '0.82rem' }}>
                       {formatDateHeading(group.dateObj)}
                     </span>
@@ -567,17 +617,29 @@ export default function PergerakanStok({ user }) {
                                       fontSize: '0.68rem',
                                     }}
                                   >
-                                    {isAdd ? `${summary.addCount}x Ditambah` : `${summary.useCount}x Digunakan`}
+                                    {isAdd ? `${summary.addCount}x Ditambah` : `${summary.useCount}x Use`}
                                   </span>
                                 </div>
 
-                                {/* JAM TRANSAKSI SAJA (BERSIH & LAPANG) */}
-                                {summary.lastTime && (
-                                  <div className="d-flex align-items-center gap-1 text-muted" style={{ fontSize: '0.74rem' }}>
-                                    <i className="bi bi-clock" style={{ fontSize: '0.7rem' }}></i>
-                                    <span>{summary.lastTime}</span>
-                                  </div>
-                                )}
+                                {/* JAM TRANSAKSI & INVOICE */}
+                                <div className="d-flex align-items-center gap-2 flex-wrap text-muted" style={{ fontSize: '0.74rem' }}>
+                                  {summary.lastTime && (
+                                    <div className="d-flex align-items-center gap-1">
+                                      <i className="bi bi-clock" style={{ fontSize: '0.7rem' }}></i>
+                                      <span>{summary.lastTime}</span>
+                                    </div>
+                                  )}
+                                  {summary.items.length === 1 && summary.items[0]?.invoiceId && (
+                                    <span
+                                      className="fw-bold text-primary text-decoration-underline"
+                                      style={{ cursor: 'pointer' }}
+                                      onClick={() => navigate(`/order/${encodeURIComponent(summary.items[0].invoiceId)}`)}
+                                      title={`Buka Detail Order #${summary.items[0].invoiceId}`}
+                                    >
+                                      #{summary.items[0].invoiceId}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
 
@@ -619,9 +681,10 @@ export default function PergerakanStok({ user }) {
                                       </span>
                                       {it.invoiceId ? (
                                         <span
-                                          className="fw-bold text-primary cursor-pointer text-decoration-underline"
-                                          onClick={() => navigate(`/orders?tab=Proses`)}
-                                          title="Buka Data Order"
+                                          className="fw-bold text-primary text-decoration-underline"
+                                          style={{ cursor: 'pointer' }}
+                                          onClick={() => navigate(`/order/${encodeURIComponent(it.invoiceId)}`)}
+                                          title={`Buka Detail Order #${it.invoiceId}`}
                                         >
                                           #{it.invoiceId}
                                         </span>
