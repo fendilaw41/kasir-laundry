@@ -11,6 +11,10 @@ const Login = ({ onLogin }) => {
   const [isPwaInstalled, setIsPwaInstalled] = useState(false);
   const [installHelp, setInstallHelp] = useState(false);
   const [savedUsernames, setSavedUsernames] = useState([]);
+  const [showTopInstallAlert, setShowTopInstallAlert] = useState(false);
+  const [showInstallPopup, setShowInstallPopup] = useState(false);
+  const [installManualHelp, setInstallManualHelp] = useState(false);
+  const [installSuccess, setInstallSuccess] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -38,6 +42,21 @@ const Login = ({ onLogin }) => {
           if (!s?.isAppInstalled) {
             await db.settings.update(1, { isAppInstalled: true });
           }
+        }
+
+        // Tampilkan alert menggantung di paling atas jika belum di-install & belum 3x diabaikan
+        try {
+          const isForever = localStorage.getItem('pwa_dismissed_forever') === 'true';
+          if (!installed && !isForever) {
+            const dismissData = JSON.parse(localStorage.getItem('pwa_alert_dismiss_info') || '{}');
+            const count = Number(dismissData.count) || 0;
+            const today = new Date().toISOString().split('T')[0];
+            if (count < 3 && dismissData.lastDate !== today) {
+              setShowTopInstallAlert(true);
+            }
+          }
+        } catch (e) {
+          if (!installed) setShowTopInstallAlert(true);
         }
 
         // 2. Cek apakah ada storeCode dari URL, Dexie settings, atau localStorage
@@ -157,24 +176,56 @@ const Login = ({ onLogin }) => {
     return () => clearTimeout(timer);
   }, [storeCode]);
 
+  // User klik close (X) pada alert menggantung: abaikan hari ini, simpan hitungan maks 3x (muncul besok pagi)
+  const handleDismissTopAlert = () => {
+    setShowTopInstallAlert(false);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const dismissData = JSON.parse(localStorage.getItem('pwa_alert_dismiss_info') || '{}');
+      const newCount = (Number(dismissData.count) || 0) + 1;
+      const newInfo = {
+        count: newCount,
+        lastDate: today,
+      };
+      localStorage.setItem('pwa_alert_dismiss_info', JSON.stringify(newInfo));
+      if (newCount >= 3) {
+        localStorage.setItem('pwa_dismissed_forever', 'true');
+      }
+    } catch (e) {
+      console.warn('[PWA] Error simpan dismiss info:', e);
+    }
+  };
+
+  const handleCloseInstallPopup = () => {
+    setShowInstallPopup(false);
+    setInstallManualHelp(false);
+  };
+
   const handleInstallApp = async () => {
-    // Sembunyikan tombol install segera saat diklik
-    setIsPwaInstalled(true);
-    localStorage.setItem('pwa_user_clicked_install', 'true');
     try {
       await db.settings.update(1, { isAppInstalled: true, appInstalledAt: new Date() });
     } catch (e) {
       console.warn('[PWA] Gagal simpan status install ke Dexie:', e);
     }
+    localStorage.setItem('pwa_user_clicked_install', 'true');
+    localStorage.setItem('pwa_dismissed_forever', 'true');
+    setIsPwaInstalled(true);
+    setShowTopInstallAlert(false);
 
     try {
       const res = await promptPwaInstall();
-      if (res?.outcome !== 'accepted') {
-        setInstallHelp(true);
+      if (res?.outcome === 'accepted') {
+        setInstallSuccess(true);
+        setTimeout(() => {
+          setShowInstallPopup(false);
+          setInstallSuccess(false);
+        }, 2000);
+      } else {
+        setInstallManualHelp(true);
       }
     } catch (err) {
       console.warn('[PWA] prompt error:', err);
-      setInstallHelp(true);
+      setInstallManualHelp(true);
     }
   };
 
@@ -219,6 +270,160 @@ const Login = ({ onLogin }) => {
         zIndex: 1050,
       }}
     >
+      {/* Alert Install PWA Menggantung Paling Atas (Muncul besok pagi jika diabaikan, maks 3x) */}
+      {showTopInstallAlert && !isPwaInstalled && (
+        <div
+          className="position-fixed top-0 start-0 w-100 d-flex justify-content-center px-3 pt-2"
+          style={{ zIndex: 1060, pointerEvents: 'none' }}
+        >
+          <div
+            className="alert border-0 shadow-lg rounded-pill py-1.5 px-3 d-flex align-items-center justify-content-between gap-2.5 transition-all"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.96)',
+              backdropFilter: 'blur(8px)',
+              border: '1.5px solid #bfdbfe',
+              maxWidth: '200px',
+              width: '100%',
+              pointerEvents: 'auto',
+              boxShadow: '0 8px 24px -4px rgba(1, 52, 212, 0.25)',
+            }}
+          >
+            {/* Tombol Install Saja di Dalam Alert */}
+            <button
+              type="button"
+              className="btn btn-sm rounded-pill flex-fill fw-bold text-white d-flex align-items-center justify-content-center gap-1.5 shadow-xs border-0 py-1.5"
+              style={{ backgroundColor: '#0134d4', fontSize: '12.5px' }}
+              onClick={() => setShowInstallPopup(true)}
+            >
+              <i className="bi bi-phone"></i>
+              <span>Install App</span>
+            </button>
+
+            {/* Tombol Close jika diabaikan */}
+            <button
+              type="button"
+              className="btn-close shadow-none flex-shrink-0"
+              style={{ fontSize: '11px', padding: '6px' }}
+              aria-label="Tutup"
+              onClick={handleDismissTopAlert}
+              title="Abaikan untuk hari ini"
+            ></button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Popup Panduan Install PWA Android / Desktop (Copas dari Register) */}
+      {showInstallPopup && (
+        <>
+          <div
+            className="modal-backdrop fade show"
+            style={{
+              backdropFilter: 'blur(6px)',
+              backgroundColor: 'rgba(15, 23, 42, 0.65)',
+              zIndex: 1080,
+            }}
+            onClick={handleCloseInstallPopup}
+          ></div>
+          <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1085 }}>
+            <div className="modal-dialog modal-dialog-centered mx-auto px-3" style={{ maxWidth: '380px' }}>
+              <div className="modal-content border-0 shadow-lg text-center p-4" style={{ borderRadius: '24px' }}>
+                {/* Close Button Top Right */}
+                <button
+                  type="button"
+                  className="btn-close position-absolute top-0 end-0 m-3 shadow-none"
+                  aria-label="Close"
+                  onClick={handleCloseInstallPopup}
+                ></button>
+
+                {/* App Icon Preview */}
+                <div
+                  className="mx-auto d-flex align-items-center justify-content-center shadow-sm mb-3"
+                  style={{
+                    width: '68px',
+                    height: '68px',
+                    background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)',
+                    borderRadius: '20px',
+                  }}
+                >
+                  <i className="bi bi-phone text-white fs-1"></i>
+                </div>
+
+                <span className="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-1 mb-2 fw-semibold" style={{ fontSize: '11px' }}>
+                  Aplikasi Siap Diinstall
+                </span>
+
+                <h5 className="fw-bold mb-1 text-dark" style={{ letterSpacing: '-0.3px' }}>
+                  Install Aplikasi {storeInfo?.name || 'Kasir Laundry'}
+                </h5>
+                <p className="text-muted small mb-3" style={{ fontSize: '12px', lineHeight: '1.5' }}>
+                  Pasang aplikasi kasir <strong>{storeInfo?.name || 'Kasir Laundry'}</strong> langsung di layar utama smartphone Android Anda untuk akses cepat &amp; fitur offline.
+                </p>
+
+                {/* Outlet Details Card */}
+                {storeInfo && (
+                  <div className="bg-light p-3 rounded-3 mb-3 text-start small border">
+                    <div className="d-flex justify-content-between mb-1">
+                      <span className="text-muted">Nama App:</span>
+                      <span className="fw-bold text-dark text-truncate ps-2">{storeInfo.name}</span>
+                    </div>
+                    {storeInfo.code && (
+                      <div className="d-flex justify-content-between mb-1">
+                        <span className="text-muted">Kode Toko:</span>
+                        <span className="badge bg-secondary-subtle text-dark border px-2 py-0.5">{storeInfo.code}</span>
+                      </div>
+                    )}
+                    {storeInfo.address && (
+                      <div className="d-flex justify-content-between">
+                        <span className="text-muted">Alamat:</span>
+                        <span className="text-dark text-truncate ps-2" style={{ maxWidth: '180px' }}>{storeInfo.address}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Status Sukses Install */}
+                {installSuccess ? (
+                  <div className="alert alert-success py-2 px-3 rounded-3 small mb-2 d-flex align-items-center justify-content-center gap-2">
+                    <i className="bi bi-check-circle-fill"></i>
+                    <span>Aplikasi berhasil dipasang di perangkat!</span>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-lg rounded-pill fw-bold w-100 shadow-sm mb-2 d-flex align-items-center justify-content-center gap-2"
+                      style={{ fontSize: '14px', height: '46px', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
+                      onClick={handleInstallApp}
+                    >
+                      <i className="bi bi-download"></i>
+                      <span>Install Aplikasi Sekarang</span>
+                    </button>
+
+                    {installManualHelp && (
+                      <div className="alert alert-info py-2 px-3 text-start rounded-3 mb-2 small" style={{ fontSize: '11px', lineHeight: '1.4' }}>
+                        <i className="bi bi-info-circle-fill me-1"></i>
+                        Jika prompt tidak muncul otomatis:
+                        <br />
+                        Buka menu browser titik 3 (<strong>⋮</strong>) di pojok kanan atas, lalu pilih <strong>&quot;Tambahkan ke Layar Utama&quot;</strong> atau <strong>&quot;Install Aplikasi&quot;</strong>.
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      className="btn btn-light rounded-pill py-2 w-100 text-muted fw-semibold"
+                      style={{ fontSize: '13px' }}
+                      onClick={handleCloseInstallPopup}
+                    >
+                      Nanti Saja
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       <div className="container px-3" style={{ maxWidth: '440px' }}>
         <div
           className="card border-0 shadow-sm"
@@ -340,25 +545,12 @@ const Login = ({ onLogin }) => {
 
                       {/* Tombol Install PWA persis seperti di Register (Hanya muncul jika belum install) */}
                       <div className="d-flex align-items-center gap-1.5 flex-shrink-0">
-                        {!isPwaInstalled ? (
-                          <button
-                            type="button"
-                            className="btn btn-sm rounded-pill px-2.5 py-1 fw-bold d-flex align-items-center gap-1 shadow-xs transition-all"
-                            style={{ fontSize: '11px', backgroundColor: '#0134d4', color: '#fff', border: 'none' }}
-                            onClick={handleInstallApp}
-                            title="Install Aplikasi ke Layar Utama"
-                          >
-                            <i className="bi bi-phone"></i>
-                            <span>Install</span>
-                          </button>
-                        ) : (
-                          <span
+                        <span
                             className="badge rounded-pill px-2.5 py-1 text-white flex-shrink-0"
                             style={{ backgroundColor: '#0134d4', fontSize: '11px', fontWeight: '600' }}
                           >
                             {storeInfo.code}
                           </span>
-                        )}
                       </div>
                     </div>
                   </div>
