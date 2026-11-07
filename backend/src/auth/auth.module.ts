@@ -13,7 +13,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
       secret:
         process.env.JWT_SECRET || 'kasir_laundry_super_secret_jwt_key_2026',
       signOptions: {
-        expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as any,
+        expiresIn: (process.env.JWT_EXPIRES_IN || '30d') as any,
       },
     }),
   ],

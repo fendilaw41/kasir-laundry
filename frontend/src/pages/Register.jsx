@@ -7,6 +7,7 @@ import { Skeleton } from '../components/common/Skeleton';
 
 const Register = () => {
   const [storeCode, setStoreCode] = useState('');
+  const [hasSavedStore, setHasSavedStore] = useState(false);
   const [fullname, setFullname] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -25,24 +26,35 @@ const Register = () => {
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    // 1. Prioritaskan query param ?code=STORE02 dari URL jika ada
-    const urlCode = searchParams.get('code');
-    if (urlCode) {
-      setStoreCode(urlCode.trim().toUpperCase());
-      return;
-    }
+    const initRegister = async () => {
+      try {
+        const s = await db.settings.get(1);
 
-    // 2. Coba autofill storeCode jika sudah ada di settings atau storage
-    db.settings.get(1).then((s) => {
-      if (s?.storeCode) {
-        setStoreCode(s.storeCode.toUpperCase());
-      } else {
-        const lastCode = localStorage.getItem('last_store_code');
-        if (lastCode) {
-          setStoreCode(lastCode.toUpperCase());
+        // 1. Prioritaskan query param ?code=STORE02 dari URL jika ada
+        const urlCode = searchParams.get('code');
+        const savedCode = urlCode
+          ? urlCode.trim().toUpperCase()
+          : (s?.storeCode || localStorage.getItem('last_store_code') || '').trim().toUpperCase();
+
+        if (savedCode) {
+          setStoreCode(savedCode);
+          if (s?.storeCode && s.storeCode.toUpperCase() === savedCode && s.namaLaundry) {
+            setStoreInfo({
+              code: savedCode,
+              name: s.namaLaundry,
+              address: s.alamat || '',
+              city: s.kota || '',
+              phone: s.telepon || '',
+            });
+            setHasSavedStore(true);
+          }
         }
+      } catch (err) {
+        console.warn('[Register] Belum ada pengaturan tersimpan:', err);
       }
-    });
+    };
+
+    initRegister();
   }, [searchParams]);
 
   // Debounce check nama store dari backend / lokal saat storeCode berubah
@@ -74,16 +86,21 @@ const Register = () => {
 
         if (info) {
           setStoreInfo(info);
+          setHasSavedStore(true);
           updatePwaManifest(info.name);
           localStorage.setItem('last_store_code', cleanCode);
+          db.settings.update(1, { storeCode: cleanCode, namaLaundry: info.name }).catch(() => {});
 
-          // Munculkan popup jika belum di-dismiss di sesi ini untuk toko ini
+          // Munculkan popup HANYA jika belum pernah install PWA dan belum di-dismiss
+          const localSettings = await db.settings.get(1);
+          const isInstalled = localSettings?.isAppInstalled === true || localStorage.getItem('pwa_user_clicked_install') === 'true';
           const dismissed = sessionStorage.getItem(`pwa_dismissed_${cleanCode}`);
-          if (!dismissed) {
+          if (!dismissed && !isInstalled) {
             setShowInstallPopup(true);
           }
         } else {
           setStoreInfo(null);
+          setHasSavedStore(false);
         }
       } catch (err) {
         console.warn('[Register] Gagal memeriksa kode toko:', err);
@@ -96,6 +113,13 @@ const Register = () => {
   }, [storeCode]);
 
   const handleInstallApp = async () => {
+    try {
+      await db.settings.update(1, { isAppInstalled: true, appInstalledAt: new Date() });
+    } catch (e) {
+      console.warn('[PWA] Gagal simpan status install ke Dexie:', e);
+    }
+    localStorage.setItem('pwa_user_clicked_install', 'true');
+
     const res = await promptPwaInstall();
     if (res?.outcome === 'accepted') {
       setInstallSuccess(true);

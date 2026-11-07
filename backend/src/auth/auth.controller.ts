@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags } 
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { RegisterStoreDto } from './dto/register-store.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { Public } from './public.decorator';
 
@@ -10,6 +11,26 @@ import { Public } from './public.decorator';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) { }
+
+  @Public()
+  @Post('register-store')
+  @ApiOperation({
+    summary: 'Daftarkan Store Baru - Public (Password Protected)',
+    description: 'Menambahkan data Store dan Settings awal ke database PostgreSQL dengan validasi password otorisasi.',
+  })
+  @ApiBody({ type: RegisterStoreDto })
+  @ApiResponse({ status: 201, description: 'Store baru berhasil didaftarkan.' })
+  @ApiResponse({ status: 400, description: 'Validasi gagal.' })
+  @ApiResponse({ status: 401, description: 'Password otorisasi salah.' })
+  @ApiResponse({ status: 409, description: 'Kode Toko sudah terdaftar.' })
+  async registerStore(@Body() dto: RegisterStoreDto) {
+    const result = await this.authService.registerStore(dto);
+    return {
+      success: true,
+      message: result.message,
+      data: result.store,
+    };
+  }
 
   @Public()
   @Post('register')

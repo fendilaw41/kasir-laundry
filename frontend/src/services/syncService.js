@@ -20,6 +20,22 @@ export const getStoredUser = () => {
 /**
  * Mengambil JWT Bearer Token dari storage browser (sessionStorage / localStorage / user)
  */
+/**
+ * Helper untuk mendeteksi apakah rute aktif saat ini adalah rute publik (tidak perlu sinkronisasi data privat)
+ */
+export const isPublicRoute = () => {
+  if (typeof window === 'undefined') return false;
+  const path = window.location.pathname;
+  return (
+    path === '/daftar-toko' ||
+    path === '/register-store' ||
+    path === '/login' ||
+    path === '/register' ||
+    path === '/reset' ||
+    path.startsWith('/c/')
+  );
+};
+
 export const getAuthToken = () => {
   try {
     return (
@@ -553,6 +569,7 @@ export const syncInventoryToBackend = async (forceAll = false) => {
  * Sinkronisasi seluruh master data (Users, Products, Pelanggan, Settings, Inventory)
  */
 export const syncAllDirtyMasterData = async (forceAll = false) => {
+  if (isPublicRoute() || !getAuthToken()) return;
   if (isMasterSyncing) return;
 
   try {
@@ -578,6 +595,7 @@ export const syncAllDirtyMasterData = async (forceAll = false) => {
  * Sinkronisasi seluruh order yang belum ter-sync (isDirty: 1) atau forceAll untuk re-sync
  */
 export const syncDirtyOrders = async (forceAll = false) => {
+  if (isPublicRoute() || !getAuthToken()) return;
   // Cegah multiple sync bersamaan (Concurrency Lock)
   if (isSyncing) return;
 
@@ -651,6 +669,7 @@ const ORDER_PULL_COOLDOWN_MS = 15000; // Cooldown 15 detik untuk mencegah spam r
  * @param {boolean} force - jika true, abaikan cooldown 15 detik (misal saat klik refresh manual)
  */
 export const pullOrdersFromBackend = async (force = false) => {
+  if (isPublicRoute() || !getAuthToken()) return false;
   const now = Date.now();
 
   // 1. Concurrency Lock: Jangan panggil jika sedang berjalan
@@ -904,6 +923,7 @@ export const pullOrdersFromBackend = async (force = false) => {
  * Tarik dan Sinkronkan Produk / Layanan terbaru dari Backend ke Dexie
  */
 export const pullProductsFromBackend = async (force = false) => {
+  if (isPublicRoute() || !getAuthToken()) return false;
   try {
     const storedUser = getStoredUser();
     const setting = await db.settings.get(1);
@@ -967,6 +987,7 @@ export const pullProductsFromBackend = async (force = false) => {
  * Tarik dan Sinkronkan Pelanggan terbaru dari Backend ke Dexie
  */
 export const pullPelangganFromBackend = async (force = false) => {
+  if (isPublicRoute() || !getAuthToken()) return false;
   try {
     const storedUser = getStoredUser();
     const setting = await db.settings.get(1);
@@ -1054,9 +1075,17 @@ if (typeof window !== 'undefined') {
   // Default: 10 menit (600.000 ms) agar aplikasi sangat ringan & bebas lag
   const syncInterval = parseInt(import.meta.env.VITE_SYNC_INTERVAL_MS || '600000', 10);
 
+  const shouldRunAutoSync = () => {
+    if (!navigator.onLine) return false;
+    if (isPublicRoute()) return false;
+    if (!getAuthToken()) return false;
+    return true;
+  };
+
   if (isAutoSyncEnabled) {
     // 1. Sync instan saat internet kembali menyala
     window.addEventListener('online', async () => {
+      if (!shouldRunAutoSync()) return;
       console.log('[Sync] Jaringan online terdeteksi, memulai sinkronisasi...');
       await syncAllDirtyMasterData();
       await syncDirtyOrders();
@@ -1065,21 +1094,20 @@ if (typeof window !== 'undefined') {
       await pullPelangganFromBackend();
     });
 
-    // 2. Cek sekali saat pertama kali aplikasi dibuka (Hanya sinkronkan data yang kotor/belum tersinkron lalu tarik order & produk)
-    if (navigator.onLine) {
-      setTimeout(async () => {
-        await syncAllDirtyMasterData(false);
-        await syncDirtyOrders(false);
-        await pullOrdersFromBackend();
-        await pullProductsFromBackend();
-        await pullPelangganFromBackend();
-      }, 2000);
-    }
+    // 2. Cek sekali saat pertama kali aplikasi dibuka (Hanya sinkronkan jika user telah login & bukan halaman publik)
+    setTimeout(async () => {
+      if (!shouldRunAutoSync()) return;
+      await syncAllDirtyMasterData(false);
+      await syncDirtyOrders(false);
+      await pullOrdersFromBackend();
+      await pullProductsFromBackend();
+      await pullPelangganFromBackend();
+    }, 2000);
 
-    // 3. Periodic background sync (Hanya berjalan jika tab aktif & browser online)
+    // 3. Periodic background sync (Hanya berjalan jika tab aktif, browser online, dan user login)
     if (syncInterval > 0) {
       setInterval(async () => {
-        if (navigator.onLine && (!document.hidden || document.visibilityState === 'visible')) {
+        if (shouldRunAutoSync() && (!document.hidden || document.visibilityState === 'visible')) {
           await syncAllDirtyMasterData();
           await syncDirtyOrders();
           await pullOrdersFromBackend();

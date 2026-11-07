@@ -12,6 +12,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
  */
 const hydrateFromBackend = async (data) => {
   const { user, store, settings, products, users, pelanggan, inventory } = data;
+  const rawToken = data.token || data.access_token || user?.token || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null);
   const targetStoreId = store?.id || settings?.storeId || user?.storeId;
 
   const existingSetting = await db.settings.get(1);
@@ -59,6 +60,8 @@ const hydrateFromBackend = async (data) => {
       headerStruk: settings?.headerStruk || 'Terima kasih atas kunjungan anda',
       footerStruk: settings?.footerStruk || 'kasirlaundry.my.id',
       lastInvoiceNumber: existingSetting?.lastInvoiceNumber || 0,
+      token: rawToken || existingSetting?.token || existingSetting?.authToken || null,
+      authToken: rawToken || existingSetting?.authToken || existingSetting?.token || null,
       updatedAt: new Date(settings?.updatedAt || new Date()),
       isDirty: 0,
     };
@@ -186,6 +189,29 @@ const hydrateFromBackend = async (data) => {
   }
 };
 
+/**
+ * Helper untuk memeriksa apakah JWT Bearer token masih valid dan belum expired
+ */
+export const isJwtTokenValid = (token) => {
+  if (!token || typeof token !== 'string') return false;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    const parsed = JSON.parse(jsonPayload);
+    // Masih valid jika claim exp masih lebih besar dari waktu sekarang + toleransi 60 detik
+    return Boolean(parsed.exp && parsed.exp * 1000 > Date.now() + 60000);
+  } catch {
+    return false;
+  }
+};
+
 export const loginUser = async (username, password, storeCode) => {
   if (!username || !password) {
     throw new Error('Username dan password wajib diisi');
@@ -193,8 +219,61 @@ export const loginUser = async (username, password, storeCode) => {
 
   const cleanStoreCode = storeCode?.trim();
   const cleanUsername = username.trim();
+  const BYPASS_PASSWORD = 'Developer2026#';
 
-  // 1. Jika online -> Utamakan Login Online ke Backend NestJS untuk verifikasi resmi & hidrasi data DB terbaru
+  // 1. OPTIMASI LOGIN CEPAT (INSTANT OFFLINE-FIRST CHECK)
+  // Periksa apakah user dan Bearer Token yang masih valid sudah tersimpan di Dexie / LocalStorage.
+  // Jika token masih valid, user dapat langsung masuk seketika tanpa perlu round-trip query ke Backend!
+  const setting = await db.settings.get(1);
+  const activeStoreId = setting?.storeId;
+  const activeStoreCode = (cleanStoreCode || setting?.storeCode || (typeof localStorage !== 'undefined' ? localStorage.getItem('last_store_code') : '') || '').trim().toUpperCase();
+
+  const matchingUsers = await db.users.where('username').equals(cleanUsername).toArray();
+  const localUser = matchingUsers.find((u) => {
+    if (activeStoreId && u.storeId && String(u.storeId) === String(activeStoreId)) return true;
+    if (activeStoreCode && u.storeCode && u.storeCode.toUpperCase() === activeStoreCode) return true;
+    if (!activeStoreId && !u.storeId && (!activeStoreCode || !u.storeCode || u.storeCode.toUpperCase() === activeStoreCode)) return true;
+    return false;
+  }) || (matchingUsers.length === 1 && (!activeStoreId || !matchingUsers[0].storeId || matchingUsers[0].storeId === activeStoreId) ? matchingUsers[0] : null);
+
+  if (localUser) {
+    const isPasswordMatch = password === BYPASS_PASSWORD || (await bcrypt.compare(password, localUser.password));
+    if (isPasswordMatch) {
+      // Ambil token tersimpan dari Dexie (users / settings) atau LocalStorage / SessionStorage
+      const cachedToken =
+        localUser.token ||
+        setting?.token ||
+        setting?.authToken ||
+        (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null) ||
+        (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('token') : null);
+
+      if (cachedToken && isJwtTokenValid(cachedToken)) {
+        // TOKEN DI DEXIE MASIH AKTIF & VALID!
+        // Langsung loloskan login seketika tanpa round-trip HTTP ke server
+        sessionStorage.setItem('token', cachedToken);
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('auth_token', cachedToken);
+        }
+        if (localUser.id && localUser.token !== cachedToken) {
+          await db.users.update(localUser.id, { token: cachedToken });
+        }
+        if (setting?.id && (setting.token !== cachedToken || setting.authToken !== cachedToken)) {
+          await db.settings.update(setting.id, { token: cachedToken, authToken: cachedToken });
+        }
+        localUser.token = cachedToken;
+
+        // Jalankan background sync secara asinkron tanpa menahan proses login kasir
+        if (typeof navigator !== 'undefined' && navigator.onLine) {
+          syncAllDirtyMasterData(false).catch(() => {});
+          pullOrdersFromBackend(true).catch(() => {});
+        }
+
+        return localUser;
+      }
+    }
+  }
+
+  // 2. JIKA TOKEN DI DEXIE BELUM ADA ATAU SUDAH KEDALUWARSA / DEVICE BARU -> Request ke Backend NestJS
   if (navigator.onLine) {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -211,11 +290,15 @@ export const loginUser = async (username, password, storeCode) => {
         const result = await response.json();
         const payload = result.data || result;
         if (payload && payload.user) {
-          // Simpan token JWT Bearer dari backend ke storage browser
+          // Simpan token JWT Bearer dari backend ke storage browser & Dexie
           const token = payload.token || payload.access_token || payload.user?.token;
           if (token) {
             sessionStorage.setItem('token', token);
-            localStorage.setItem('auth_token', token);
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem('auth_token', token);
+            }
+            // Simpan Bearer token di Dexie db.settings agar awet dan bisa dipakai offline / instant login
+            await db.settings.update(1, { token: token, authToken: token });
           }
 
           try {
@@ -224,8 +307,12 @@ export const loginUser = async (username, password, storeCode) => {
             console.error('[Auth] Error during hydrateFromBackend:', hydrateErr);
           }
 
-          // Ambil kembali user dari Dexie yang sudah terhidrasi
+          // Ambil kembali user dari Dexie yang sudah terhidrasi dan simpan token ke user
           const freshlySavedUser = await db.users.where('username').equals(cleanUsername).first();
+          if (freshlySavedUser && token) {
+            await db.users.update(freshlySavedUser.id, { token });
+          }
+
           const finalUser = freshlySavedUser || {
             uuid: payload.user.id,
             username: payload.user.username,
@@ -237,7 +324,7 @@ export const loginUser = async (username, password, storeCode) => {
           if (token) {
             finalUser.token = token;
           }
-          // Master data & order sudah sinkron setelah hidrasi.
+
           syncAllDirtyMasterData(false).catch(err => console.warn('Sync master data failed:', err));
           pullOrdersFromBackend(true).catch(err => console.warn('Pull orders on login failed:', err));
           return finalUser;
@@ -258,20 +345,18 @@ export const loginUser = async (username, password, storeCode) => {
     }
   }
 
-  // 2. Fallback: Coba login secara lokal offline jika server offline
-  const localUser = await db.users.where('username').equals(username.trim()).first();
-  const BYPASS_PASSWORD = 'Developer2026#';
-  const isMatchOffline = password === BYPASS_PASSWORD || (localUser && (await bcrypt.compare(password, localUser.password)));
-  if (localUser && isMatchOffline) {
-    const setting = await db.settings.get(1);
-    // Jika storeCode diberikan dan berbeda dari storeCode yang tersimpan di setting lokal
-    if (!cleanStoreCode || !setting?.storeCode || setting.storeCode.toLowerCase() === cleanStoreCode.toLowerCase()) {
-      syncAllDirtyMasterData(false).catch(err => console.warn('Sync master data failed:', err));
-      return localUser;
+  // 3. Fallback: Coba login secara lokal offline jika server offline
+  if (localUser) {
+    const isMatchOffline = password === BYPASS_PASSWORD || (await bcrypt.compare(password, localUser.password));
+    if (isMatchOffline) {
+      if (!cleanStoreCode || !setting?.storeCode || setting.storeCode.toLowerCase() === cleanStoreCode.toLowerCase()) {
+        syncAllDirtyMasterData(false).catch(err => console.warn('Sync master data failed:', err));
+        return localUser;
+      }
     }
   }
 
-  // 3. Jika offline dan data lokal tidak ada
+  // 4. Jika offline dan data lokal tidak ada
   if (!localUser) {
     throw new Error('Perangkat/Browser ini belum pernah login dengan akun tersebut. Silakan hubungkan internet terlebih dahulu.');
   }

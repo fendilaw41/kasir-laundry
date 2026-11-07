@@ -20,17 +20,44 @@ import UbahPassword from './pages/UbahPassword';
 import Chat from './pages/Chat';
 import Reset from './pages/Reset';
 import PublicTrackOrder from './pages/PublicTrackOrder';
+import RegisterStore from './pages/RegisterStore';
 import { clearDraftOrder } from './db/repositories/draftOrder';
 import { clearCart } from './db/repositories/cart';
 import { updatePwaManifest } from './utils/pwaHelper';
+import { db } from './db';
 
 function App() {
   const [user, setUser] = useState(() => {
-    const loggedInUser = sessionStorage.getItem('user');
-    return loggedInUser ? JSON.parse(loggedInUser) : null;
+    try {
+      const loggedInUser = sessionStorage.getItem('user') || (typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null);
+      return loggedInUser ? JSON.parse(loggedInUser) : null;
+    } catch {
+      return null;
+    }
   });
 
   const settings = useLiveQuery(getSettingsQuery);
+
+  useEffect(() => {
+    // Sinkronkan token dari localStorage ke tabel settings Dexie jika belum ada
+    const syncTokenToSettings = async () => {
+      try {
+        const storedToken = (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null) || sessionStorage.getItem('token');
+        if (storedToken) {
+          const s = await db.settings.get(1);
+          if (s && (!s.token || s.token !== storedToken)) {
+            await db.settings.update(1, {
+              token: storedToken,
+              authToken: storedToken,
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Sync token to settings warning:', err);
+      }
+    };
+    syncTokenToSettings();
+  }, []);
 
   useEffect(() => {
     if (settings && settings.namaLaundry) {
@@ -48,6 +75,9 @@ function App() {
     const { password: _, ...safeUser } = userData;
     setUser(safeUser);
     sessionStorage.setItem('user', JSON.stringify(safeUser));
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('user', JSON.stringify(safeUser));
+    }
   };
 
   const handleLogout = async () => {
@@ -62,6 +92,10 @@ function App() {
     sessionStorage.removeItem('token');
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user');
+    try {
+      
+      await db.settings.update(1, { token: null, authToken: null });
+    } catch (e) {}
   };
 
   useEffect(() => {
@@ -78,6 +112,10 @@ function App() {
       sessionStorage.removeItem('token');
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user');
+      try {
+        
+        await db.settings.update(1, { token: null, authToken: null });
+      } catch (e) {}
     };
 
     window.addEventListener('auth:unauthorized', handleUnauthorized);
@@ -98,6 +136,8 @@ function App() {
         <Route path="/reset" element={<Reset user={user} />} />
         {/* Rute Publik: Cek Status Pesanan Tanpa Login */}
         <Route path="/c/:code" element={<PublicTrackOrder />} />
+        <Route path="/daftar-toko" element={<RegisterStore />} />
+        <Route path="/register-store" element={<RegisterStore />} />
         <Route element={<ProtectedLayout user={user} onLogout={handleLogout} />}>
           <Route path="/" element={<Home user={user} />} />
           <Route path="/transaksi" element={<Transaksi user={user} />} />

@@ -7,6 +7,8 @@ import { Skeleton } from '../components/common/Skeleton';
 
 const Login = ({ onLogin }) => {
   const [storeCode, setStoreCode] = useState('');
+  const [hasSavedStore, setHasSavedStore] = useState(false);
+  const [isPwaInstalled, setIsPwaInstalled] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -18,26 +20,49 @@ const Login = ({ onLogin }) => {
   const redirectPath = searchParams.get('redirect') || '/';
 
   useEffect(() => {
-    // 1. Prioritaskan query param ?code=STORE02 dari URL jika ada
-    const urlCode = searchParams.get('code');
-    if (urlCode) {
-      setStoreCode(urlCode.trim().toUpperCase());
-      return;
-    }
+    const initLogin = async () => {
+      try {
+        const s = await db.settings.get(1);
 
-    // 2. Autofill kode toko jika sudah tersimpan di browser sebelumnya
-    db.settings.get(1).then((s) => {
-      if (s?.storeCode) {
-        setStoreCode(s.storeCode.toUpperCase());
-      } else {
-        const lastCode = localStorage.getItem('last_store_code');
-        if (lastCode) {
-          setStoreCode(lastCode.toUpperCase());
+        // 1. Cek apakah aplikasi sudah diinstall (PWA standalone / cache Dexie)
+        const standalone = typeof window !== 'undefined' && (
+          window.matchMedia('(display-mode: standalone)').matches ||
+          window.navigator.standalone === true ||
+          document.referrer.includes('android-app://')
+        );
+        const installed = standalone || s?.isAppInstalled === true || localStorage.getItem('pwa_user_clicked_install') === 'true';
+        if (installed) {
+          setIsPwaInstalled(true);
+          if (!s?.isAppInstalled) {
+            await db.settings.update(1, { isAppInstalled: true });
+          }
         }
+
+        // 2. Cek apakah ada storeCode dari URL, Dexie settings, atau localStorage
+        const urlCode = searchParams.get('code');
+        const savedCode = urlCode
+          ? urlCode.trim().toUpperCase()
+          : (s?.storeCode || localStorage.getItem('last_store_code') || '').trim().toUpperCase();
+
+        if (savedCode) {
+          setStoreCode(savedCode);
+          if (s?.storeCode && s.storeCode.toUpperCase() === savedCode && s.namaLaundry) {
+            setStoreInfo({
+              code: savedCode,
+              name: s.namaLaundry,
+              address: s.alamat || '',
+              city: s.kota || '',
+              phone: s.telepon || '',
+            });
+            setHasSavedStore(true);
+          }
+        }
+      } catch (err) {
+        console.warn('[Login] Belum ada pengaturan tersimpan:', err);
       }
-    }).catch((err) => {
-      console.warn('[Login] Belum ada pengaturan tersimpan:', err);
-    });
+    };
+
+    initLogin();
   }, [searchParams]);
 
   // Cek nama toko dari backend / lokal saat storeCode berubah
@@ -45,6 +70,7 @@ const Login = ({ onLogin }) => {
     const cleanCode = storeCode.trim().toUpperCase();
     if (!cleanCode || cleanCode.length < 3) {
       setStoreInfo(null);
+      setHasSavedStore(false);
       return;
     }
 
@@ -69,10 +95,17 @@ const Login = ({ onLogin }) => {
 
         if (info) {
           setStoreInfo(info);
+          setHasSavedStore(true);
           updatePwaManifest(info.name);
           localStorage.setItem('last_store_code', cleanCode);
+          // Simpan permanen ke Dexie db.settings selamanya
+          db.settings.update(1, {
+            storeCode: cleanCode,
+            namaLaundry: info.name,
+          }).catch(() => {});
         } else {
           setStoreInfo(null);
+          setHasSavedStore(false);
         }
       } catch (err) {
         console.warn('[Login] Gagal cek info toko:', err);
@@ -174,49 +207,56 @@ const Login = ({ onLogin }) => {
               )}
 
               <form onSubmit={handleLogin}>
-                {/* Kode Toko */}
-                <div className="form-group mb-3">
-                  <div className="d-flex justify-content-between align-items-center mb-1">
-                    <label className="form-label small fw-bold text-muted mb-0" style={{ fontSize: '12px' }}>
-                      Kode Toko
-                    </label>
-                    {isCheckingStore && (
-                      <span className="small text-muted d-flex align-items-center gap-1" style={{ fontSize: '11px' }}>
-                        <span className="spinner-border spinner-border-sm" role="status" style={{ width: '10px', height: '10px' }}></span>
-                        Cek toko...
-                      </span>
-                    )}
+                {/* Kode Toko: Hanya tampilkan input jika BELUM ADA toko tersimpan di Dexie */}
+                {!hasSavedStore && (
+                  <div className="form-group mb-3">
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <label className="form-label small fw-bold text-muted mb-0" style={{ fontSize: '12px' }}>
+                        Kode Toko
+                      </label>
+                      {isCheckingStore && (
+                        <span className="small text-muted d-flex align-items-center gap-1" style={{ fontSize: '11px' }}>
+                          <span className="spinner-border spinner-border-sm" role="status" style={{ width: '10px', height: '10px' }}></span>
+                          Cek toko...
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      className="form-control fw-bold text-primary"
+                      style={{
+                        height: '44px',
+                        backgroundColor: '#f8fafc',
+                        border: '1.5px solid #cbd5e1',
+                        borderRadius: '10px',
+                        fontSize: '15px',
+                        padding: '8px 14px',
+                      }}
+                      type="text"
+                      placeholder="Masukan Kode Toko (contoh: STORE02)"
+                      value={storeCode}
+                      onChange={(e) => setStoreCode(e.target.value.toUpperCase())}
+                    />
+                    <div className="form-text text-muted mt-1" style={{ fontSize: '11px' }}>
+                      Masukkan kode toko tempat Anda terdaftar.
+                    </div>
                   </div>
-                  <input
-                    className="form-control fw-bold text-primary"
-                    style={{
-                      height: '44px',
-                      backgroundColor: '#f8fafc',
-                      border: '1.5px solid #cbd5e1',
-                      borderRadius: '10px',
-                      fontSize: '15px',
-                      padding: '8px 14px',
-                    }}
-                    type="text"
-                    placeholder="Masukan Kode"
-                    value={storeCode}
-                    onChange={(e) => setStoreCode(e.target.value.toUpperCase())}
-                  />
+                )}
 
-                  {/* Outlet Terverifikasi Card */}
-                  {storeInfo && (
+                {/* Outlet Aktif Card: Tampil permanen jika toko tersimpan di Dexie */}
+                {storeInfo && (
+                  <div className="form-group mb-3">
                     <div
-                      className="mt-2 p-2 px-3 rounded-3 d-flex align-items-center justify-content-between"
+                      className="p-2 px-3 rounded-3 d-flex align-items-center justify-content-between shadow-xs"
                       style={{
                         backgroundColor: '#eff6ff',
                         border: '1px solid #bfdbfe',
-                        borderRadius: '10px',
+                        borderRadius: '12px',
                       }}
                     >
                       <div className="d-flex align-items-center gap-2 overflow-hidden me-2" style={{ minWidth: 0 }}>
-                        <i className="bi bi-patch-check-fill text-primary flex-shrink-0" style={{ fontSize: '16px' }}></i>
+                        <i className="bi bi-patch-check-fill text-primary flex-shrink-0" style={{ fontSize: '18px' }}></i>
                         <div className="overflow-hidden">
-                          <div className="fw-bold text-primary text-truncate" style={{ fontSize: '13px', lineHeight: 1.2 }}>
+                          <div className="fw-bold text-primary text-truncate" style={{ fontSize: '12.5px', lineHeight: 1.2 }}>
                             {storeInfo.name}
                           </div>
                           <span className="text-muted d-block" style={{ fontSize: '10px' }}>
@@ -231,14 +271,8 @@ const Login = ({ onLogin }) => {
                         {storeInfo.code}
                       </span>
                     </div>
-                  )}
-
-                  {!storeInfo && (
-                    <div className="form-text text-muted mt-1" style={{ fontSize: '11px' }}>
-                      Masukkan kode toko tempat Anda terdaftar.
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 {/* Username */}
                 <div className="form-group mb-3">
@@ -307,15 +341,17 @@ const Login = ({ onLogin }) => {
               </form>
             </div>
 
-            {/* Footer */}
-            <div className="login-meta-data text-center mt-3 pt-1">
-              <p className="mb-0 text-muted" style={{ fontSize: '13px' }}>
-                Belum punya akun?{' '}
-                <Link to="/register" className="fw-bold text-decoration-none" style={{ color: '#0134d4' }}>
-                  Register sekarang
-                </Link>
-              </p>
-            </div>
+            {/* Footer: Jika sudah pernah install aplikasi PWA maka link to register dihilangkan */}
+            {!isPwaInstalled && (
+              <div className="login-meta-data text-center mt-3 pt-1">
+                <p className="mb-0 text-muted" style={{ fontSize: '13px' }}>
+                  Belum punya akun?{' '}
+                  <Link to="/register" className="fw-bold text-decoration-none" style={{ color: '#0134d4' }}>
+                    Register sekarang
+                  </Link>
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

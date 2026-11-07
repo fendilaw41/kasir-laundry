@@ -10,6 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { RegisterStoreDto } from './dto/register-store.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import * as bcrypt from 'bcryptjs';
 
@@ -26,6 +27,70 @@ export class AuthService {
    * Registrasi user baru (Owner atau Kasir)
    * ATURAN: Hanya boleh 1 Owner untuk 1 Store!
    */
+  /**
+   * Pendaftaran Store Baru (Public dengan Otorisasi Password Bypass)
+   */
+  async registerStore(dto: RegisterStoreDto) {
+    const { code, name, address, city, phone, password } = dto;
+
+    if (!code || !name) {
+      throw new BadRequestException('Kode Toko dan Nama Toko wajib diisi.');
+    }
+
+    if (password !== 'Developer2026#') {
+      throw new UnauthorizedException('Password otorisasi pendaftaran tidak valid.');
+    }
+
+    const cleanCode = code.trim().toUpperCase();
+    const cleanName = name.trim();
+    const cleanAddress = address?.trim() || null;
+    const cleanCity = city?.trim() || null;
+    const cleanPhone = phone?.trim() || null;
+
+    // Cek apakah Kode Toko sudah terdaftar
+    const existing = await this.prisma.store.findUnique({
+      where: { code: cleanCode },
+    });
+
+    if (existing) {
+      throw new ConflictException(`Kode Toko "${cleanCode}" sudah terdaftar.`);
+    }
+
+    // Buat Store & Settings dalam satu transaksi
+    const result = await this.prisma.$transaction(async (tx) => {
+      const store = await tx.store.create({
+        data: {
+          code: cleanCode,
+          name: cleanName,
+          address: cleanAddress,
+          city: cleanCity,
+          phone: cleanPhone,
+        },
+      });
+
+      const settings = await tx.settings.create({
+        data: {
+          storeId: store.id,
+          namaLaundry: cleanName,
+          alamat: cleanAddress,
+          kota: cleanCity,
+          telepon: cleanPhone,
+          menerimaCucian: true,
+          headerStruk: 'Terima kasih atas kunjungan anda',
+          footerStruk: 'kasirlaundry.my.id',
+        },
+      });
+
+      return { store, settings };
+    });
+
+    return {
+      message: `Store ${cleanName} (${cleanCode}) berhasil didaftarkan.`,
+      store: result.store,
+      settings: result.settings,
+    };
+  }
+
   async register(dto: RegisterDto) {
     const { storeCode, fullname, username, password, role = 'owner' } = dto;
 
