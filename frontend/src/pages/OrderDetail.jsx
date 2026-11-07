@@ -14,6 +14,7 @@ import { getStatusLunasByMetode, isStatusLunas } from '../utils/paymentStatus';
 import PrintLayout from '../components/PrintLayout';
 import { QRCodeSVG } from '../components/common/QRCodeSVG';
 import { Skeleton, OrderDetailSkeleton } from '../components/common/Skeleton';
+import { db } from '../db';
 
 const isSameInventory = (a, b) => {
   if (!a || !b) return false;
@@ -32,9 +33,25 @@ const OrderDetail = () => {
   const pelanggan = useLiveQuery(() => order ? getPelangganByIdQuery(order.pelangganId, order.pelangganNama) : null, [order]);
   const settings = useLiveQuery(getSettingsQuery);
 
+  const allUsers = useLiveQuery(() => db.users.toArray(), []);
+  const currentUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+  const isOwner = currentUser?.role === 'owner';
+
   const [catatan, setCatatan] = useState('');
+  const [catatanKasir, setCatatanKasir] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
+  const [showCashierNoteModal, setShowCashierNoteModal] = useState(false);
+
+  const getKasirUsername = () => {
+    if (order?.kasirUsername) return order.kasirUsername;
+    if (order?.user?.username) return order.user.username;
+    if (order?.userId && allUsers) {
+      const u = allUsers.find(userItem => userItem.uuid === order.userId || String(userItem.id) === String(order.userId));
+      if (u) return u.username || u.fullname;
+    }
+    return '-';
+  };
   const [showHpModal, setShowHpModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
@@ -56,10 +73,11 @@ const OrderDetail = () => {
   useEffect(() => {
     if (order) {
       setCatatan(order.catatan || '');
+      setCatatanKasir(order.catatanKasir || '');
       setSelectedInventory(order.inventoryUsed || []);
       setLocalInventoryUsed(order.inventoryUsed || []);
     }
-  }, [order?.id, JSON.stringify(order?.inventoryUsed), order?.catatan]);
+  }, [order?.id, JSON.stringify(order?.inventoryUsed), order?.catatan, order?.catatanKasir]);
 
   if (!order) return <OrderDetailSkeleton />;
 
@@ -89,6 +107,16 @@ const OrderDetail = () => {
       await updateOrder(order.id, { catatan });
       toast.success(TOAST_MESSAGES.SUCCESS);
       setShowNoteModal(false);
+    } catch (error) {
+      toast.error(TOAST_MESSAGES.ERROR);
+    }
+  };
+
+  const updateCatatanKasir = async () => {
+    try {
+      await updateOrder(order.id, { catatanKasir });
+      toast.success(TOAST_MESSAGES.SUCCESS);
+      setShowCashierNoteModal(false);
     } catch (error) {
       toast.error(TOAST_MESSAGES.ERROR);
     }
@@ -317,10 +345,19 @@ const OrderDetail = () => {
 
           {/* Info Ringkas */}
           <div className="card-body p-3 small border-bottom">
-            <div className="d-flex justify-content-between mb-1">
+            <div className="d-flex justify-content-between mb-1 align-items-center">
               <span className="text-primary fw-bold">ID: {order.invoiceId || 'KL'}</span>
               <span className="text-muted">{new Date(order.createdAt).toLocaleString('id-ID')}</span>
             </div>
+            {isOwner && (
+              <div className="d-flex justify-content-between mb-1 align-items-center">
+                <span className="text-muted">Kasir / Operator :</span>
+                <span className="badge rounded-pill px-2 py-1 text-primary border border-primary-subtle fw-semibold" style={{ backgroundColor: '#eef2ff' }}>
+                  <i className="bi bi-person-fill me-1"></i>
+                  {getKasirUsername()}
+                </span>
+              </div>
+            )}
             <div className="d-flex justify-content-between mb-1">
               <h6 className="mb-0 fw-bold">{pelanggan?.nama || order.pelangganNama || 'Pelanggan Umum'}</h6>
               <div className="text-muted mb-1"><i className="bi bi-telephone me-1"></i> {pelanggan?.hp || order.pelangganHp || '-'}</div>
@@ -335,11 +372,30 @@ const OrderDetail = () => {
                 {order.statusBayar}
               </span>
             </div>
-            <div className="d-flex justify-content-between mt-1 align-items-start" onClick={() => setShowNoteModal(true)} style={{ cursor: 'pointer' }}>
-              <span>Catatan :</span>
-              <div className="text-end">
+
+            {/* Catatan Pelanggan */}
+            <div className="d-flex justify-content-between mt-2 pt-2 border-top align-items-start" onClick={() => setShowNoteModal(true)} style={{ cursor: 'pointer' }}>
+              <div>
+                <span className="fw-semibold text-secondary d-flex align-items-center gap-1">
+                  <i className="bi bi-tag-fill text-primary"></i> Catatan Pelanggan :
+                </span>
+               </div>
+              <div className="text-end ps-2">
                 <span className="fw-bold text-primary small d-block">{order.catatan || '-'}</span>
-                <small className="text-muted" style={{ fontSize: '0.65rem' }}><i className="bi bi-pencil-square me-1"></i>Catatan</small>
+                <small className="text-muted" style={{ fontSize: '0.65rem' }}><i className="bi bi-pencil-square me-1"></i>Edit</small>
+              </div>
+            </div>
+
+            {/* Catatan Kasir (Internal) */}
+            <div className="d-flex justify-content-between mt-2 pt-2 border-top align-items-start" onClick={() => setShowCashierNoteModal(true)} style={{ cursor: 'pointer', backgroundColor: '#fffdf0', margin: '0 -8px', padding: '8px', borderRadius: '8px' }}>
+              <div>
+                <span className="fw-bold text-warning-emphasis d-flex align-items-center gap-1">
+                  <i className="bi bi-shield-lock-fill text-warning"></i> Catatan Kasir :
+                </span>
+               </div>
+              <div className="text-end ps-2">
+                <span className="fw-bold text-dark small d-block">{order.catatanKasir || '-'}</span>
+                <small className="text-warning fw-semibold" style={{ fontSize: '0.65rem' }}><i className="bi bi-pencil-square me-1"></i>Edit</small>
               </div>
             </div>
           </div>
@@ -520,6 +576,38 @@ const OrderDetail = () => {
                       placeholder="Masukkan catatan pesanan di sini..."
                     ></textarea>
                     <button className="btn btn-outline-primary w-100 rounded-pill fw-bold py-3 shadow-sm" onClick={updateCatatan}>{BUTTON_TEXT.SAVE}</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Modal Edit Catatan Kasir (Internal) */}
+        {showCashierNoteModal && (
+          <>
+            <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(0,0,0,0.4)' }}></div>
+            <div className="modal fade show d-block" tabIndex="-1">
+              <div className="modal-dialog modal-dialog-centered mx-3">
+                <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '24px' }}>
+                  <div className="modal-header border-0 pb-0 pt-4 px-4">
+                    <div className="d-flex align-items-center gap-2">
+                      <i className="bi bi-shield-lock-fill text-warning fs-4"></i>
+                      <h5 className="fw-bold mb-0">Catatan Kasir</h5>
+                    </div>
+                    <button type="button" className="btn-close" onClick={() => setShowCashierNoteModal(false)}></button>
+                  </div>
+                  <div className="modal-body p-4">
+                   <textarea
+                      className="form-control border-0 bg-light rounded-4 p-3 mb-3"
+                      value={catatanKasir}
+                      onChange={(e) => setCatatanKasir(e.target.value)}
+                      rows="4"
+                      placeholder="Contoh: Baju putih ada noda luntur di kerah, kancing jas kurang 1..."
+                    ></textarea>
+                    <button className="btn btn-warning text-dark w-100 rounded-pill fw-bold py-3 shadow-sm" onClick={updateCatatanKasir}>
+                      {BUTTON_TEXT.SAVE}
+                    </button>
                   </div>
                 </div>
               </div>

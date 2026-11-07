@@ -252,6 +252,7 @@ export class SyncService {
 
     const settingsData = {
       namaLaundry: dto.namaLaundry || store.name,
+      motto: dto.motto || null,
       alamat: dto.alamat || store.address,
       kota: dto.kota || store.city,
       telepon: dto.telepon || store.phone,

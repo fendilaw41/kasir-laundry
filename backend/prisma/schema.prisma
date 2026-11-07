@@ -117,6 +117,7 @@ model Order {
   statusBayar   String?
   status        String?
   catatan       String?
+  catatanKasir  String?
   inventoryUsed Json?
   createdAt     DateTime   @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime   @updatedAt @db.Timestamptz(3)
@@ -148,6 +149,7 @@ model Settings {
   storeId        String   @id
   store          Store    @relation(fields: [storeId], references: [id])
   namaLaundry    String?
+  motto          String?
   alamat         String?
   kota           String?
   telepon        String?

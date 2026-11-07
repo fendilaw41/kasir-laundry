@@ -36,6 +36,11 @@ db.version(3).stores({
   messages: 'id, uuid, conversationId, senderId, senderName, content, type, imageUrl, status, createdAt, updatedAt, isDirty',
 });
 
+// Schema versi 4: catatanKasir internal & kasirUsername
+db.version(4).stores({
+  orders: '++id, &uuid, storeId, invoiceId, userId, kasirUsername, total, createdAt, pelangganId, diskon, metodeBayar, estimasi, tipeLayanan, isPriority, bayar, kembalian, statusBayar, status, catatan, catatanKasir, updatedAt, deletedAt, isDirty',
+});
+
 // Seed initial data if empty
 db.on('ready', async () => {
   try {

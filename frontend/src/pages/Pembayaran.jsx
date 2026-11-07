@@ -13,7 +13,9 @@ const Pembayaran = () => {
   const isPaymentOnly = location.state?.isPaymentOnly;
 
   const [jumlahBayar, setJumlahBayar] = useState('');
-  const [metodeBayar, setMetodeBayar] = useState(orderData?.metodeBayar || 'Tunai');
+  const [metodeBayar, setMetodeBayar] = useState(
+    orderData?.metodeBayar ? (orderData.metodeBayar.toLowerCase() === 'tunai' ? 'Cash' : orderData.metodeBayar) : 'Cash'
+  );
   const [amountError, setAmountError] = useState(false);
 
   if (!orderData) {
@@ -116,17 +118,39 @@ const Pembayaran = () => {
       </div>
 
       <div className="mb-4">
-        <label className="form-label text-center d-block">Metode Pembayaran</label>
-        <select
-          className="form-select text-center"
-          value={metodeBayar}
-          onChange={(e) => setMetodeBayar(e.target.value)}
-        >
-          <option value="Tunai">Tunai</option>
-          <option value="QRIS">QRIS</option>
-          <option value="Transfer">Transfer</option>
-          <option value="Deposit">Deposit</option>
-        </select>
+        <label className="form-label text-center d-block fw-semibold mb-2" style={{ fontSize: '0.9rem', color: '#64748b' }}>
+          Metode Pembayaran
+        </label>
+        <div className="row g-2">
+          {[
+            { key: 'Cash', label: 'Cash', icon: 'bi-cash-stack' },
+            { key: 'QRIS', label: 'QRIS', icon: 'bi-qr-code' },
+            { key: 'Transfer', label: 'Transfer', icon: 'bi-bank' },
+          ].map((item) => {
+            const isSelected = (metodeBayar || '').toLowerCase() === item.key.toLowerCase();
+            return (
+              <div className="col-4" key={item.key}>
+                <button
+                  type="button"
+                  className={`btn w-100 py-2 rounded-3 fw-bold d-flex flex-column align-items-center justify-content-center transition-all ${
+                    isSelected
+                      ? 'btn-primary text-white shadow-sm'
+                      : 'btn-outline-primary bg-white text-primary'
+                  }`}
+                  style={{
+                    height: '56px',
+                    borderWidth: isSelected ? '2px' : '1.5px',
+                    fontSize: '0.86rem',
+                  }}
+                  onClick={() => setMetodeBayar(item.key)}
+                >
+                  <i className={`bi ${item.icon} mb-1`} style={{ fontSize: '1.1rem' }}></i>
+                  <span>{item.label}</span>
+                </button>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div className="row g-2 mb-3">

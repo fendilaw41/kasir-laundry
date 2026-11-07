@@ -115,6 +115,7 @@ CREATE TABLE "Order" (
     "statusBayar" TEXT,
     "status" TEXT,
     "catatan" TEXT,
+    "catatanKasir" TEXT,
     "inventoryUsed" JSONB,
     "createdAt" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(3) NOT NULL,
@@ -142,6 +143,7 @@ CREATE TABLE "OrderItem" (
 CREATE TABLE "Settings" (
     "storeId" TEXT NOT NULL,
     "namaLaundry" TEXT,
+    "motto" TEXT,
     "alamat" TEXT,
     "kota" TEXT,
     "telepon" TEXT,

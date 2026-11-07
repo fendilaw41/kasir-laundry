@@ -165,6 +165,8 @@ export const ChatInboxList = ({
               const mUsername = (m.user?.username || '').toLowerCase().trim();
               return !myIds.includes(mUserId) && (!myUsername || mUsername !== myUsername);
             });
+            const convTitle = (!isGroup && (otherMember?.user?.fullname || otherMember?.user?.username)) || (conv.title && conv.title !== 'Percakapan' && conv.title !== 'Obrolan' ? conv.title : '') || otherMember?.user?.fullname || otherMember?.user?.username || conv.title || 'Obrolan';
+            const avatarLetter = (convTitle && convTitle !== 'Obrolan' ? convTitle : 'U').charAt(0).toUpperCase();
             const isWithOwner = Boolean(
               conv.isOwner ||
               otherMember?.user?.role === 'owner' ||
@@ -198,7 +200,7 @@ export const ChatInboxList = ({
                   ) : isGroup ? (
                     <i className="bi bi-people-fill fs-5"></i>
                   ) : (
-                    conv.title?.charAt(0).toUpperCase() || 'U'
+                    avatarLetter
                   )}
                 </div>
 
@@ -207,7 +209,7 @@ export const ChatInboxList = ({
                   <div className="d-flex align-items-center justify-content-between mb-1">
                     <div className="d-flex align-items-center gap-1 overflow-hidden">
                       <h6 className="mb-0 fw-semibold text-dark text-truncate d-flex align-items-center gap-1" style={{ fontSize: '0.9rem' }}>
-                        <span className="text-truncate">{conv.title}</span>
+                        <span className="text-truncate">{convTitle}</span>
                         {isWithOwner && (
                           <i
                             className="bi bi-patch-check-fill text-primary flex-shrink-0"

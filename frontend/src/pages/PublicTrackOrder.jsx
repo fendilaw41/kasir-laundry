@@ -149,6 +149,17 @@ export default function PublicTrackOrder() {
         {/* 4. ORDER DETAIL CONTENT */}
         {!loading && !errorMsg && order && (
           <>
+            {/* STORE BRANDING HEADER */}
+            <div className="card border-0 shadow-sm rounded-4 mb-3 bg-white text-center py-3 px-4">
+              <div className="d-flex align-items-center justify-content-center gap-2 mb-1">
+                <i className="bi bi-shop text-primary fs-5"></i>
+                <h5 className="fw-bold text-dark mb-0">{order.store?.name || 'Kasir Laundry'}</h5>
+              </div>
+              <p className="text-muted small mb-0 fst-italic">
+                {order.store?.motto || 'Solusi Laundry Bersih & Cepat'}
+              </p>
+            </div>
+
             {/* HERO ORDER CARD */}
             <div
               className="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden text-white position-relative"
@@ -415,7 +426,7 @@ export default function PublicTrackOrder() {
                     style={{ backgroundColor: '#f8fafc', borderLeft: '3px solid #0d5afd' }}
                   >
                     <small className="text-muted d-block fw-semibold mb-1" style={{ fontSize: '0.72rem' }}>
-                      <i className="bi bi-sticky-fill me-1 text-primary"></i> Catatan Kasir / Pakaian:
+                      <i className="bi bi-sticky-fill me-1 text-primary"></i> Catatan Khusus Pakaian:
                     </small>
                     <span className="text-dark" style={{ fontSize: '0.82rem' }}>
                       {order.catatan}
@@ -437,9 +448,7 @@ export default function PublicTrackOrder() {
                   </div>
                   <div className="flex-grow-1 overflow-hidden">
                     <h6 className="fw-bold text-dark mb-1">{order.store?.name || 'Kasir Laundry'}</h6>
-                    {order.store?.motto && (
-                      <p className="text-muted small mb-1">{order.store.motto}</p>
-                    )}
+                    <p className="text-muted small mb-1 fst-italic">{order.store?.motto || 'Solusi Laundry Bersih & Cepat'}</p>
                     {order.store?.address && (
                       <small className="text-muted d-block mb-1">
                         <i className="bi bi-geo-alt me-1"></i>

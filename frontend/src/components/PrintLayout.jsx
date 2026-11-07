@@ -56,6 +56,7 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
         <div id="thermal-receipt" className="print-section" style={{ width: '58mm', padding: '2mm', color: '#000', backgroundColor: '#fff', fontFamily: 'monospace' }}>
           <div style={{ textAlign: 'center', marginBottom: '10px' }}>
             <h4 style={{ margin: '0', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase' }}>{settings.namaLaundry}</h4>
+            {settings.motto && <div style={{ fontSize: '10px', fontStyle: 'italic', marginBottom: '2px' }}>{settings.motto}</div>}
             <div style={{ fontSize: '10px' }}>{settings.alamat}</div>
             <div style={{ fontSize: '10px' }}>{settings.kota}</div>
             <div style={{ fontSize: '10px' }}>Operasional: {settings.jamBuka}</div>
@@ -160,6 +161,7 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
           <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '15px' }}>
             <div>
               <h2 style={{ margin: 0, color: '#0134d4' }}>{settings.namaLaundry}</h2>
+              {settings.motto && <div style={{ fontSize: '13px', fontStyle: 'italic', color: '#555', marginBottom: '4px' }}>{settings.motto}</div>}
               <div style={{ fontSize: '14px', marginTop: '5px' }}>
                 <div>{settings.alamat}, {settings.kota}</div>
                 <div>Operasional: {settings.jamBuka}</div>

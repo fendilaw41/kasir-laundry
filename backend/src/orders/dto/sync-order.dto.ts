@@ -83,8 +83,11 @@ export class SyncOrderDto {
   @ApiPropertyOptional({ description: 'Status Pengerjaan (Proses, Selesai, Ambil)', example: 'Proses', default: 'Proses' })
   status?: string;
 
-  @ApiPropertyOptional({ description: 'Catatan tambahan pesanan', example: 'Pakaian putih dipisah' })
+  @ApiPropertyOptional({ description: 'Catatan tambahan pesanan (pelanggan)', example: 'Pakaian putih dipisah' })
   catatan?: string;
+
+  @ApiPropertyOptional({ description: 'Catatan internal kasir (tidak terlihat di nota/publik)', example: 'Kancing copot 1 di baju batik' })
+  catatanKasir?: string;
 
   @ApiPropertyOptional({ description: 'Daftar inventori/bahan yang digunakan', example: [{ id: 1, nama: 'Deterjen', quantity: 1 }] })
   inventoryUsed?: any;

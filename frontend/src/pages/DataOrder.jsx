@@ -7,9 +7,23 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { TOAST_MESSAGES, CONFIRM_MESSAGES, BUTTON_TITLE } from '../constants/appConstants';
 import { OrderListSkeleton } from '../components/common/Skeleton';
+import { db } from '../db';
 
 const DataOrder = ({ user }) => {
   const navigate = useNavigate();
+  const allUsers = useLiveQuery(() => db.users.toArray(), []);
+  const currentUserRole = user?.role || JSON.parse(sessionStorage.getItem('user') || '{}')?.role;
+  const isOwner = currentUserRole === 'owner';
+
+  const getKasirUsername = (order) => {
+    if (order.kasirUsername) return order.kasirUsername;
+    if (order.user?.username) return order.user.username;
+    if (order.userId && allUsers) {
+      const u = allUsers.find(userItem => userItem.uuid === order.userId || String(userItem.id) === String(order.userId));
+      if (u) return u.username || u.fullname;
+    }
+    return '-';
+  };
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get('tab') || 'Proses';
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -204,10 +218,26 @@ const DataOrder = ({ user }) => {
             <div className="card shadow-sm border-0 mb-3" key={order.id}>
               <div className="card-body p-3">
                 <div className="d-flex justify-content-between mb-1">
-                  <div className="d-flex align-items-center">
+                  <div className="d-flex align-items-center flex-wrap gap-1">
                     <span className="text-primary fw-bold small">ID: {order.invoiceId}</span>
-                    <i className="bi bi-clipboard ms-2 text-muted" style={{ cursor: 'pointer', fontSize: '0.8rem' }} onClick={(e) => handleCopy(e, `${order.invoiceId}/${order.id}`)}></i>
-                    {order.isPriority && <span className="badge bg-danger ms-2" style={{ fontSize: '0.55rem' }}>PRIORITAS</span>}
+                    <i className="bi bi-clipboard ms-1 text-muted" style={{ cursor: 'pointer', fontSize: '0.8rem' }} onClick={(e) => handleCopy(e, `${order.invoiceId}/${order.id}`)}></i>
+                    {order.isPriority && <span className="badge bg-danger ms-1" style={{ fontSize: '0.55rem' }}>PRIORITAS</span>}
+                    {isOwner && (
+                      <span
+                        className="badge rounded-pill px-2 py-1 ms-1 d-inline-flex align-items-center gap-1"
+                        style={{
+                          backgroundColor: '#eef2ff',
+                          color: '#4338ca',
+                          fontSize: '0.65rem',
+                          fontWeight: '600',
+                          border: '1px solid #c7d2fe'
+                        }}
+                        title="Kasir yang memproses order ini"
+                      >
+                        <i className="bi bi-person-fill"></i>
+                        <span>Kasir: {getKasirUsername(order)}</span>
+                      </span>
+                    )}
                   </div>
                   <span className="text-muted small">{new Date(order.createdAt).toLocaleString('id-ID')}</span>
                 </div>
@@ -221,9 +251,22 @@ const DataOrder = ({ user }) => {
                 </div>
 
                 {order.catatan && (
-                  <div className="mb-3 p-2 rounded-3 bg-light border-start border-3 border-info" style={{ fontSize: '0.7rem', backgroundColor: '#f0faff !important' }}>
-                    <i className="bi bi-pencil-square me-2 text-info"></i>
+                  <div className="mb-2 p-2 rounded-3 border-start border-3 border-info" style={{ fontSize: '0.7rem', backgroundColor: '#f0faff' }}>
+                    <div className="d-flex align-items-center gap-1 text-info fw-bold mb-0.5">
+                      <i className="bi bi-tag-fill"></i>
+                      <span>Catatan Pelanggan:</span>
+                    </div>
                     <span className="text-dark">{order.catatan}</span>
+                  </div>
+                )}
+
+                {order.catatanKasir && (
+                  <div className="mb-2 p-2 rounded-3 border-start border-3 border-warning" style={{ fontSize: '0.7rem', backgroundColor: '#fffdf0' }}>
+                    <div className="d-flex align-items-center gap-1 text-warning-emphasis fw-bold mb-0.5">
+                      <i className="bi bi-shield-lock-fill text-warning"></i>
+                      <span>Note Kasir:</span>
+                    </div>
+                    <span className="text-dark">{order.catatanKasir}</span>
                   </div>
                 )}
 

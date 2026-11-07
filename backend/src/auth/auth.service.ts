@@ -72,12 +72,13 @@ export class AuthService {
         data: {
           storeId: store.id,
           namaLaundry: cleanName,
+          motto: 'Solusi Laundry Bersih & Cepat',
           alamat: cleanAddress,
           kota: cleanCity,
           telepon: cleanPhone,
           menerimaCucian: true,
           headerStruk: 'Terima kasih atas kunjungan anda',
-          footerStruk: 'kasirlaundry.my.id',
+          footerStruk: 'LINK_ORDER',
         },
       });
 
@@ -313,6 +314,7 @@ export class AuthService {
         storeId: currentStoreId,
         storeCode: matchedUser.store.code,
         namaLaundry: matchedUser.store.name,
+        motto: 'Solusi Laundry Bersih & Cepat',
         alamat: matchedUser.store.address || '',
         kota: matchedUser.store.city || '',
         telepon: matchedUser.store.phone || '',

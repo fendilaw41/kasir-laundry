@@ -51,7 +51,7 @@ const hydrateFromBackend = async (data) => {
       storeCode: store?.code || settings?.storeCode || existingSetting?.storeCode || '',
       deviceId: existingSetting?.deviceId || crypto.randomUUID().substring(0, 4).toUpperCase(),
       namaLaundry: settings?.namaLaundry || store?.name || 'Laundry Store',
-      motto: settings?.motto || '',
+      motto: settings?.motto || existingSetting?.motto || 'Solusi Laundry Bersih & Cepat',
       alamat: settings?.alamat || store?.address || '',
       kota: settings?.kota || store?.city || '',
       telepon: settings?.telepon || store?.phone || '',

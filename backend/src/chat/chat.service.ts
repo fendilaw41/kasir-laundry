@@ -288,7 +288,13 @@ export class ChatService {
     });
 
     if (existingConv) {
-      return existingConv;
+      const otherMember = existingConv.members.find(
+        (m) => m.userId !== currentUser.userId,
+      );
+      return {
+        ...existingConv,
+        title: otherMember?.user?.fullname || targetUser.fullname,
+      };
     }
 
     // Buat percakapan DIRECT baru
@@ -318,7 +324,10 @@ export class ChatService {
       },
     });
 
-    return newConv;
+    return {
+      ...newConv,
+      title: targetUser.fullname,
+    };
   }
 
   /**

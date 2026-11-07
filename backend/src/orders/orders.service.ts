@@ -150,6 +150,7 @@ export class OrdersService {
         statusBayar: dto.statusBayar ? String(dto.statusBayar) : 'Belum Bayar',
         status: dto.status ? String(dto.status) : 'Proses',
         catatan: dto.catatan ? String(dto.catatan) : null,
+        catatanKasir: dto.catatanKasir ? String(dto.catatanKasir) : null,
         inventoryUsed: dto.inventoryUsed || undefined,
         createdAt,
         updatedAt,
@@ -330,6 +331,14 @@ export class OrdersService {
       include: {
         items: true,
         pelanggan: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullname: true,
+            role: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -366,6 +375,14 @@ export class OrdersService {
       include: {
         items: true,
         pelanggan: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullname: true,
+            role: true,
+          },
+        },
       },
     });
   }
@@ -504,7 +521,7 @@ export class OrdersService {
           order.store?.name ||
           'Kasir Laundry',
         motto:
-          (order.store?.settings as any)?.motto || 'Solusi Laundry Bersih & Cepat',
+          order.store?.settings?.motto || order.store?.settings?.headerStruk || 'Solusi Laundry Bersih & Cepat',
         address:
           order.store?.settings?.alamat || order.store?.address || '',
         city: order.store?.settings?.kota || order.store?.city || '',

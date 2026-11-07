@@ -73,19 +73,54 @@ const Chat = ({ user }) => {
       const isGroup = selectedConversation.type === 'GROUP' || selectedConversation.type === 'CROSS_STORE';
       const isCrossStore = selectedConversation.type === 'CROSS_STORE';
 
-      // Cek apakah lawan bicara adalah Owner (verifikasi badge biru)
+      // Temukan data lawan bicara untuk direct chat
       const otherMember = selectedConversation.members?.find((m) => {
         const mUserId = String(m.userId || m.user?.id || m.user?.uuid || '');
         const mUsername = (m.user?.username || '').toLowerCase().trim();
         return (mUserId && mUserId !== currentUserId) || (mUsername && mUsername !== currentUsername);
       });
+
+      const otherUser =
+        selectedConversation.targetUser ||
+        selectedConversation.otherUser ||
+        otherMember?.user;
+
+      const otherName =
+        otherUser?.fullname ||
+        otherUser?.username ||
+        otherMember?.fullname ||
+        otherMember?.username;
+
+      // Untuk DIRECT chat, nama lawan bicara harus selalu ditampilkan (jangan pernah tampil 'Obrolan')
+      let title = selectedConversation.title;
+      if (!isGroup) {
+        title = otherName || (title && title !== 'Obrolan' && title !== 'Percakapan' ? title : '') || otherMember?.user?.fullname || 'Obrolan';
+      } else {
+        title = title || 'Grup Obrolan';
+      }
+
       const isOwner = Boolean(
         selectedConversation.isOwner ||
-        otherMember?.user?.role === 'owner' ||
-        (!isGroup && selectedConversation.members?.some(m => m.user?.role === 'owner' && String(m.userId || m.user?.id) !== currentUserId))
+        otherUser?.role?.toLowerCase() === 'owner' ||
+        otherMember?.user?.role?.toLowerCase() === 'owner' ||
+        (!isGroup && selectedConversation.members?.some(m => m.user?.role?.toLowerCase() === 'owner' && String(m.userId || m.user?.id) !== currentUserId))
       );
-      const title = selectedConversation.title || 'Obrolan';
-      const avatarLetter = title.charAt(0).toUpperCase() || 'U';
+
+      const avatarLetter = (title && title !== 'Obrolan' ? title : (otherName || 'U')).charAt(0).toUpperCase() || 'U';
+
+      // Subtitle: tampilkan role & cabang toko (misal: "kasir • Laundry 03")
+      let subtitle = selectedConversation.subtitle;
+      if (!subtitle) {
+        if (isCrossStore) {
+          subtitle = 'Obrolan Lintas Cabang';
+        } else if (isGroup) {
+          subtitle = `${selectedConversation.members?.length || 0} Anggota`;
+        } else if (otherUser) {
+          const roleLabel = otherUser.role ? (otherUser.role.toLowerCase() === 'owner' ? 'Owner' : 'Kasir') : '';
+          const storeLabel = otherUser.store?.name || '';
+          subtitle = [roleLabel, storeLabel].filter(Boolean).join(' • ');
+        }
+      }
 
       setChatHeaderState?.(prev => {
         // Cegah re-render berulang jika nilai header tidak berubah
@@ -93,6 +128,7 @@ const Chat = ({ user }) => {
           prev &&
           prev.type === 'chat' &&
           prev.title === title &&
+          prev.subtitle === subtitle &&
           prev.isGroup === isGroup &&
           prev.isCrossStore === isCrossStore &&
           prev.isOwner === isOwner &&
@@ -104,6 +140,7 @@ const Chat = ({ user }) => {
         return {
           type: 'chat',
           title,
+          subtitle,
           isGroup,
           isCrossStore,
           isOwner,

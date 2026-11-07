@@ -56,7 +56,17 @@ export const NewChatModal = ({ show, onClose, onConversationCreated, currentUser
         type: 'DIRECT',
         targetUserId: targetUser.id,
       });
-      onConversationCreated(conv);
+      const targetName = targetUser.fullname || targetUser.username;
+      const targetSubtitle = `${targetUser.role ? (targetUser.role.toLowerCase() === 'owner' ? 'Owner' : 'Kasir') : 'Kasir'}${targetUser.store?.name ? ` • ${targetUser.store.name}` : ''}`;
+      const resolvedConv = {
+        ...conv,
+        title: conv.title || targetName,
+        subtitle: targetSubtitle,
+        targetUser,
+        otherUser: targetUser,
+        isOwner: targetUser.role?.toLowerCase() === 'owner',
+      };
+      onConversationCreated(resolvedConv);
       onClose();
     } catch (err) {
       setErrorMsg(err.message || 'Gagal memulai chat.');

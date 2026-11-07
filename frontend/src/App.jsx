@@ -43,13 +43,18 @@ function App() {
     const syncTokenToSettings = async () => {
       try {
         const storedToken = (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null) || sessionStorage.getItem('token');
-        if (storedToken) {
-          const s = await db.settings.get(1);
-          if (s && (!s.token || s.token !== storedToken)) {
-            await db.settings.update(1, {
-              token: storedToken,
-              authToken: storedToken,
-            });
+        const s = await db.settings.get(1);
+        if (s) {
+          const updates = {};
+          if (storedToken && (!s.token || s.token !== storedToken)) {
+            updates.token = storedToken;
+            updates.authToken = storedToken;
+          }
+          if (!s.motto || s.motto.trim() === '') {
+            updates.motto = 'Solusi Laundry Bersih & Cepat';
+          }
+          if (Object.keys(updates).length > 0) {
+            await db.settings.update(1, updates);
           }
         }
       } catch (err) {
