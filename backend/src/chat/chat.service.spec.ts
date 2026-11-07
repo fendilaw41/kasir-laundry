@@ -165,7 +165,7 @@ describe('ChatService', () => {
         targetUserId: 'user-a2',
       });
 
-      expect(result).toBe(mockExisting);
+      expect(result).toEqual(expect.objectContaining({ id: "conv-exist-123", type: "DIRECT", title: "Kasir Toko A 2" }));
       expect(prisma.conversation.create).not.toHaveBeenCalled();
     });
   });

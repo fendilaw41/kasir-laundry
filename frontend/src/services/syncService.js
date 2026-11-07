@@ -253,6 +253,10 @@ export const syncOrderToBackend = async (orderId) => {
       if (serverOrder && serverOrder.id) {
         updateData.uuid = serverOrder.id;
       }
+      if (serverOrder && serverOrder.storeId) {
+        updateData.storeId = serverOrder.storeId;
+      }
+      updateData.deletedAt = serverOrder?.deletedAt ? new Date(serverOrder.deletedAt) : null;
       if (serverOrder && serverOrder.updatedAt) {
         updateData.updatedAt = new Date(serverOrder.updatedAt);
       }
@@ -806,7 +810,11 @@ export const pullOrdersFromBackend = async (force = false) => {
       const activeServerInvoices = new Set(serverOrders.map(o => o.invoiceId).filter(Boolean));
       const localOrdersInStore = await db.orders.filter(o => (!o.storeId || o.storeId === storeId) && !o.deletedAt && o.isDirty !== 1).toArray();
       
-      for (const lo of localOrdersInStore) {
+            for (const lo of localOrdersInStore) {
+        // JANGAN hapus pesanan yang baru dibuat dalam 30 menit terakhir (mencegah race condition saat checkout)
+        const isRecent = lo.createdAt && (Date.now() - new Date(lo.createdAt).getTime() < 30 * 60 * 1000);
+        if (isRecent) continue;
+
         const existsInServer = (lo.uuid && activeServerUuids.has(lo.uuid)) || (lo.invoiceId && activeServerInvoices.has(lo.invoiceId));
         if (!existsInServer) {
           await db.orders.update(lo.id, { deletedAt: new Date(), isDirty: 0 });

@@ -273,16 +273,18 @@ const Home = ({ user }) => {
         user?.role === 'owner' && inventory?.filter(i => i.status === 'pending').length > 0 && (
           <div
             className="alert alert-info border-0 shadow-sm d-flex align-items-center mx-3 mt-3"
-            style={{ borderRadius: '12px', cursor: 'pointer', backgroundColor: '#ad9696ff' }}
+            style={{ borderRadius: '12px', cursor: 'pointer', backgroundColor: '#e0f2fe', color: '#0369a1' }}
             onClick={() => {
               setInventoryTab('pending');
               setShowInventoryModal(true);
             }}
           >
             <i className="bi bi-box-seam fs-4 me-3 text-primary"></i>
-            <div>
+            <div className="flex-grow-1">
               <h6 className="alert-heading mb-1 fw-bold text-primary">Ada {inventory.filter(i => i.status === 'pending').length} Pengajuan Stok</h6>
-              <p className="small mb-0 text-primary opacity-75">Klik untuk meninjau dan menyetujui stok baru.</p>
+              <p className="small mb-0 opacity-85 text-dark">
+                Pengajuan oleh kasir: <strong className="text-primary">{Array.from(new Set(inventory.filter(i => i.status === 'pending').map(i => i.createdBy || 'Kasir'))).join(', ')}</strong>. Klik untuk meninjau dan menyetujui.
+              </p>
             </div>
           </div>
         )
@@ -494,7 +496,7 @@ const Home = ({ user }) => {
                   className="modal-content border-0 shadow-lg w-100"
                   style={{ borderRadius: '24px', height: '92vh', width: '100%' }}
                 >
-                  <div className="modal-header border-0 pb-0 pt-4 px-4">
+                  <div className="modal-header border-0 pb-0 pt-4 px-4 d-flex align-items-center justify-content-between">
                     <div>
                       <h5 className="fw-bold mb-0 text-success">Inventaris Barang</h5>
                       <small className="text-muted">Atur stok kebutuhan laundry</small>
@@ -502,6 +504,37 @@ const Home = ({ user }) => {
                     <button type="button" className="btn-close" onClick={() => setShowInventoryModal(false)}></button>
                   </div>
                   <div className="modal-body p-3 p-sm-4">
+                    {/* Banner Shortcut ke Pergerakan Stok */}
+                    <div
+                      className="p-3 mb-3 rounded-4 d-flex align-items-center justify-content-between border shadow-xs"
+                      style={{
+                        background: 'linear-gradient(135deg, #f0f5ff 0%, #e0ebff 100%)',
+                        borderColor: '#bcd2ff',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => {
+                        setShowInventoryModal(false);
+                        navigate('/pergerakan-stok');
+                      }}
+                    >
+                      <div className="d-flex align-items-center gap-3">
+                        <div
+                          className="rounded-circle d-flex align-items-center justify-content-center text-white flex-shrink-0"
+                          style={{ width: '40px', height: '40px', backgroundColor: '#0d5afd' }}
+                        >
+                          <i className="bi bi-clock-history fs-5"></i>
+                        </div>
+                        <div>
+                          <h6 className="mb-0 fw-bold" style={{ color: '#0b40b3', fontSize: '0.9rem' }}>
+                            Riwayat & Pergerakan Stok
+                          </h6>
+                          <small className="text-muted" style={{ fontSize: '0.75rem' }}>
+                            Pantau stok masuk & stok keluar
+                          </small>
+                        </div>
+                      </div>
+                      <i className="bi bi-chevron-right fs-5 text-primary"></i>
+                    </div>
                     {/* Tambah Stok Baru Quick Form */}
                     <div className="bg-light p-3 rounded-4 mb-4">
                       <form onSubmit={async (e) => {
@@ -601,14 +634,32 @@ const Home = ({ user }) => {
                                     title="Copy nama stok"
                                   ></i>
                                 </div>
-                                <div className="d-flex flex-wrap gap-1">
+                                <div className="d-flex flex-wrap gap-1 align-items-center">
                                   <span className={`badge rounded-pill ${item.stok < 5 ? 'bg-danger bg-opacity-10' : 'bg-success bg-opacity-10'}`} style={{ fontSize: '0.65rem' }}>
                                     Stok: {item.stok}
                                   </span>
-                                  {inventoryTab === 'pending' && item.status === 'pending' && (
-                                    <span className="badge bg-warning text-dark rounded-pill" style={{ fontSize: '0.65rem' }}>
-                                      +{item.qty} {item.unit || 'pcs'}
-                                    </span>
+                                  {item.status === 'pending' && (
+                                    <>
+                                      <span className="badge bg-warning text-dark rounded-pill" style={{ fontSize: '0.65rem' }}>
+                                        +{item.qty} {item.unit || 'pcs'}
+                                      </span>
+                                      {user?.role === 'owner' && (
+                                        <span
+                                          className="badge rounded-pill d-inline-flex align-items-center gap-1"
+                                          style={{
+                                            backgroundColor: '#eef2ff',
+                                            color: '#4338ca',
+                                            fontSize: '0.65rem',
+                                            fontWeight: '600',
+                                            border: '1px solid #c7d2fe'
+                                          }}
+                                          title="Kasir yang mengajukan stok"
+                                        >
+                                          <i className="bi bi-person-fill"></i>
+                                          <span>Kasir: {item.createdBy || 'Kasir'}</span>
+                                        </span>
+                                      )}
+                                    </>
                                   )}
                                 </div>
                               </div>

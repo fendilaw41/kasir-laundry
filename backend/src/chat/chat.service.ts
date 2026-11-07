@@ -170,7 +170,7 @@ export class ChatService {
             (m) => m.userId !== currentUser.userId,
           );
           if (otherMember?.user) {
-            displayName = otherMember.user.fullname;
+            displayName = otherMember.user.fullname?.trim() || otherMember.user.username?.trim();
           }
         }
 
@@ -246,7 +246,7 @@ export class ChatService {
 
     const targetUser = await this.prisma.user.findUnique({
       where: { id: targetUserId },
-      select: { id: true, fullname: true, storeId: true, role: true },
+      select: { id: true, fullname: true, username: true, storeId: true, role: true, store: { select: { id: true, name: true, code: true } } },
     });
 
     if (!targetUser) {
@@ -280,7 +280,7 @@ export class ChatService {
         members: {
           include: {
             user: {
-              select: { id: true, fullname: true, username: true, role: true, storeId: true },
+              select: { id: true, fullname: true, username: true, role: true, storeId: true, store: { select: { id: true, name: true, code: true } } },
             },
           },
         },
@@ -288,12 +288,12 @@ export class ChatService {
     });
 
     if (existingConv) {
-      const otherMember = existingConv.members.find(
+      const otherMember = existingConv.members?.find(
         (m) => m.userId !== currentUser.userId,
       );
       return {
         ...existingConv,
-        title: otherMember?.user?.fullname || targetUser.fullname,
+        title: otherMember?.user?.fullname?.trim() || otherMember?.user?.username?.trim() || targetUser.fullname?.trim() || targetUser.username?.trim(),
       };
     }
 
@@ -317,7 +317,7 @@ export class ChatService {
         members: {
           include: {
             user: {
-              select: { id: true, fullname: true, username: true, role: true, storeId: true },
+              select: { id: true, fullname: true, username: true, role: true, storeId: true, store: { select: { id: true, name: true, code: true } } },
             },
           },
         },
@@ -326,7 +326,7 @@ export class ChatService {
 
     return {
       ...newConv,
-      title: targetUser.fullname,
+      title: targetUser.fullname?.trim() || targetUser.username?.trim(),
     };
   }
 

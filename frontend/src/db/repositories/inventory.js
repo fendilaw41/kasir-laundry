@@ -11,6 +11,45 @@ export const getInventoryQuery = async () => {
   return nonDeleted.filter(item => !item.storeId || item.storeId === storeId);
 };
 
+export const getInventoryEventsQuery = async () => {
+  const storeId = await getActiveStoreId();
+
+  // Backfill riwayat mutasi keluar dari transaksi order yang memiliki inventoryUsed jika belum tercatat
+  try {
+    const ordersWithInv = await db.orders.filter(o => !o.deletedAt && Array.isArray(o.inventoryUsed) && o.inventoryUsed.length > 0).toArray();
+    const existingEvents = await db.inventoryEvents.toArray();
+    const existingKeys = new Set(existingEvents.filter(e => e.invoiceId).map(e => `${e.invoiceId}_${e.inventoryId || e.inventoryName}`));
+
+    for (const ord of ordersWithInv) {
+      for (const inv of ord.inventoryUsed) {
+        const invKey = `${ord.invoiceId}_${inv.id || inv.nama}`;
+        if (!existingKeys.has(invKey)) {
+          existingKeys.add(invKey);
+          await db.inventoryEvents.add(withNewSyncMeta({
+            storeId: ord.storeId || storeId || undefined,
+            inventoryId: inv.id || undefined,
+            inventoryName: inv.nama || 'Item Laundry',
+            type: 'SUBTRACT',
+            qty: Number(inv.quantity ?? inv.qty ?? 1),
+            note: `Transaksi order #${ord.invoiceId}`,
+            invoiceId: ord.invoiceId,
+            createdBy: ord.kasirUsername || 'Kasir',
+            createdAt: ord.createdAt ? new Date(ord.createdAt) : new Date()
+          }));
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[InventoryEvents] Backfill error:', err);
+  }
+
+  const allEvents = await db.inventoryEvents.toArray();
+  const nonDeleted = allEvents.filter(e => !e.deletedAt);
+  const scoped = storeId ? nonDeleted.filter(e => !e.storeId || e.storeId === storeId) : nonDeleted;
+
+  return scoped.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+};
+
 export const getInventoryById = async (id) => {
   if (!id) return null;
   const storeId = await getActiveStoreId();
@@ -76,10 +115,12 @@ export const updateInventoryStok = async (id, delta) => {
       await db.inventoryEvents.add(withNewSyncMeta({
         storeId: storeId || item.storeId || undefined,
         inventoryId: item.id,
+        inventoryName: item.nama,
         type,
         qty,
-        note: 'Manual stock adjustment',
-        createdBy: 'system'
+        note: delta > 0 ? 'Penyesuaian stok tambah manual' : 'Penyesuaian stok kurang manual',
+        createdBy: 'Owner',
+        createdAt: new Date()
       }));
     });
 
@@ -104,13 +145,18 @@ export const approveInventory = async (item) => {
       ...(storeId && !item.storeId ? { storeId } : {})
     }));
     if (pendingQty > 0) {
+      const storedUser = JSON.parse(typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('user') || '{}') : '{}');
+      const approver = storedUser?.username || storedUser?.fullname || 'Owner';
       await db.inventoryEvents.add(withNewSyncMeta({
         storeId: storeId || item.storeId || undefined,
         inventoryId: item.id,
+        inventoryName: item.nama,
         type: 'ADD',
         qty: pendingQty,
-        note: 'Approved inventory request',
-        createdBy: 'system'
+        note: `Pengajuan di-ACC Owner (Diajukan oleh: ${item.createdBy || 'Kasir'})`,
+        createdBy: approver,
+        kasirPengaju: item.createdBy || 'Kasir',
+        createdAt: new Date()
       }));
     }
   });
@@ -136,7 +182,8 @@ export const addInventoryManual = async (nama, stok, options = {}) => {
   const storeId = await getActiveStoreId();
   const cleanNama = nama.toLowerCase().trim();
   const isPending = Boolean(options?.isPending);
-  const createdBy = options?.user?.fullname || options?.user?.username || 'system';
+  const storedUser = JSON.parse(typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('user') || '{}') : '{}');
+  const createdBy = options?.user?.username || options?.user?.fullname || storedUser?.username || storedUser?.fullname || 'Kasir';
 
   const existing = await db.inventory.toArray();
   const existingItem = existing.find(i =>
@@ -183,10 +230,12 @@ export const addInventoryManual = async (nama, stok, options = {}) => {
           await db.inventoryEvents.add(withNewSyncMeta({
             storeId: storeId || existingItem.storeId || undefined,
             inventoryId: existingItem.id,
+            inventoryName: existingItem.nama,
             type: 'ADD',
             qty: qty,
-            note: 'Manual addition',
-            createdBy
+            note: 'Penambahan stok manual oleh Owner',
+            createdBy: createdBy || 'Owner',
+            createdAt: new Date()
           }));
         }
       });
@@ -205,10 +254,12 @@ export const addInventoryManual = async (nama, stok, options = {}) => {
           await db.inventoryEvents.add(withNewSyncMeta({
             storeId: storeId || undefined,
             inventoryId: targetId,
+            inventoryName: nama.trim(),
             type: 'ADD',
             qty: qty,
-            note: 'Initial manual addition',
-            createdBy
+            note: 'Stok awal barang baru oleh Owner',
+            createdBy: createdBy || 'Owner',
+            createdAt: new Date()
           }));
         }
       });

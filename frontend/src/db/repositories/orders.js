@@ -33,10 +33,8 @@ export const getOrderByIdQuery = async (id) => {
     order = await db.orders.get(numId);
   }
 
-  if (!order || order.deletedAt) return null;
+  if (!order) return null;
 
-  const storeId = getActiveStoreIdSync();
-  if (storeId && order.storeId && order.storeId !== storeId) return null;
   return order;
 };
 
@@ -66,8 +64,13 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
 
   await db.transaction('rw', [db.orders, db.inventory, db.inventoryEvents, db.cart, db.settings], async () => {
     const setting = await db.settings.get(1);
-    const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
-    const storeId = orderData.storeId || storedUser.storeId || setting?.storeId || undefined;
+    const storedUser = JSON.parse(
+      (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('user') : null) ||
+      (typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null) ||
+      '{}'
+    );
+    const activeStoreId = await getActiveStoreId();
+    const storeId = orderData.storeId || storedUser.storeId || setting?.storeId || activeStoreId || undefined;
     const deviceId = setting?.deviceId || crypto.randomUUID().substring(0, 4).toUpperCase();
     const nextNumber = (setting?.lastInvoiceNumber || 0) + 1;
     const invoiceId = `${deviceId}-${nextNumber.toString().padStart(5, '0')}`;
@@ -118,11 +121,15 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
             stok: newStok
           }));
           await db.inventoryEvents.add(withNewSyncMeta({
+            storeId: storeId || undefined,
             inventoryId: item.id,
+            inventoryName: item.nama,
             type: 'SUBTRACT',
             qty: qty,
-            note: `Checkout order ${invoiceId}`,
-            createdBy: orderData.userId || 'system'
+            note: `Transaksi order #${invoiceId}`,
+            invoiceId: invoiceId,
+            createdBy: orderData.kasirUsername || storedUser?.username || storedUser?.fullname || 'Kasir',
+            createdAt: new Date()
           }));
         }
       }

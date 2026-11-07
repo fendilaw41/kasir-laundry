@@ -155,6 +155,7 @@ const Layout = ({ user, onLogout }) => {
     if (path.startsWith('/order/')) return 'Detail Order';
     if (path === '/product') return 'Pilih Layanan';
     if (path === '/chat') return 'Chat';
+    if (path === '/pergerakan-stok' || path === '/inventory-movement') return 'Stock History';
     return titleApp;
   };
 

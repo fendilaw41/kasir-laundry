@@ -136,7 +136,7 @@ describe('OrdersService - Public Tracking', () => {
       await service.findAll('store-1', false);
       expect(prisma.order.findMany).toHaveBeenCalledWith({
         where: { deletedAt: null, storeId: 'store-1' },
-        include: { items: true, pelanggan: true },
+        include: { items: true, pelanggan: true, user: { select: { id: true, username: true, fullname: true, role: true } } },
         orderBy: { createdAt: 'desc' },
       });
     });
@@ -146,7 +146,7 @@ describe('OrdersService - Public Tracking', () => {
       await service.findAll('store-1', true);
       expect(prisma.order.findMany).toHaveBeenCalledWith({
         where: { storeId: 'store-1' },
-        include: { items: true, pelanggan: true },
+        include: { items: true, pelanggan: true, user: { select: { id: true, username: true, fullname: true, role: true } } },
         orderBy: { createdAt: 'desc' },
       });
     });

@@ -26,7 +26,7 @@ const isSameInventory = (a, b) => {
   return false;
 };
 
-const OrderDetail = () => {
+const OrderDetail = ({ user }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const order = useLiveQuery(() => getOrderByIdQuery(id), [id]);
@@ -34,7 +34,7 @@ const OrderDetail = () => {
   const settings = useLiveQuery(getSettingsQuery);
 
   const allUsers = useLiveQuery(() => db.users.toArray(), []);
-  const currentUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+  const currentUser = user || JSON.parse(typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('user') || '{}') : '{}');
   const isOwner = currentUser?.role === 'owner';
 
   const [catatan, setCatatan] = useState('');
@@ -79,7 +79,39 @@ const OrderDetail = () => {
     }
   }, [order?.id, JSON.stringify(order?.inventoryUsed), order?.catatan, order?.catatanKasir]);
 
-  if (!order) return <OrderDetailSkeleton />;
+  const [isQueryTimeout, setIsQueryTimeout] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsQueryTimeout(true);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [id]);
+
+  if (order === undefined || (order === null && !isQueryTimeout)) {
+    return <OrderDetailSkeleton />;
+  }
+
+  if (!order) {
+    return (
+      <div className="text-center py-5">
+        <div className="mb-3 text-muted">
+          <i className="bi bi-search fs-1"></i>
+        </div>
+        <h5 className="fw-bold">Pesanan Tidak Ditemukan</h5>
+        <p className="text-muted small">Data pesanan #{id} tidak ditemukan di penyimpanan lokal.</p>
+        <button className="btn btn-outline-primary rounded-pill px-4" onClick={() => navigate('/orders')}>
+          Kembali ke Data Order
+        </button>
+      </div>
+    );
+  }
+
+  const currentStatus = order?.status || 'Proses';
+  // Catatan pelanggan tidak bisa diedit jika status sudah Selesai, Ambil, atau Dibatalkan
+  const isCustomerNoteLocked = currentStatus === 'Selesai' || currentStatus === 'Ambil' || currentStatus === 'Dibatalkan';
+  // Catatan kasir tidak bisa diedit jika status sudah Diambil (Ambil) atau Dibatalkan
+  const isCashierNoteLocked = currentStatus === 'Ambil' || currentStatus === 'Dibatalkan';
 
   const displayedInventory = localInventoryUsed !== null ? localInventoryUsed : (order?.inventoryUsed || []);
 
@@ -103,6 +135,11 @@ const OrderDetail = () => {
   };
 
   const updateCatatan = async () => {
+    if (isCustomerNoteLocked) {
+      toast.error('Catatan pelanggan tidak dapat diedit karena cucian sudah selesai/diambil');
+      setShowNoteModal(false);
+      return;
+    }
     try {
       await updateOrder(order.id, { catatan });
       toast.success(TOAST_MESSAGES.SUCCESS);
@@ -113,6 +150,11 @@ const OrderDetail = () => {
   };
 
   const updateCatatanKasir = async () => {
+    if (isCashierNoteLocked) {
+      toast.error('Catatan kasir tidak dapat diedit karena pesanan sudah diambil pelanggan');
+      setShowCashierNoteModal(false);
+      return;
+    }
     try {
       await updateOrder(order.id, { catatanKasir });
       toast.success(TOAST_MESSAGES.SUCCESS);
@@ -317,6 +359,15 @@ const OrderDetail = () => {
       <PrintLayout order={order} pelanggan={pelanggan || { nama: order.pelangganNama, hp: order.pelangganHp }} printType={printType} />
 
       <div className="order-detail-wrapper pb-5">
+        {order?.deletedAt && (
+          <div className="alert alert-warning py-2 px-3 rounded-4 small mb-3 d-flex align-items-center gap-2 shadow-xs">
+            <i className="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
+            <div>
+              <strong>Pesanan Dibatalkan / Dihapus</strong>
+              <div className="text-muted" style={{ fontSize: '0.72rem' }}>Pesanan ini telah dibatalkan dari sistem operasional.</div>
+            </div>
+          </div>
+        )}
 
         <div className="card shadow-sm border-0 mb-3 overflow-hidden">
           {/* Banner */}
@@ -341,6 +392,27 @@ const OrderDetail = () => {
               <h5 className="text-white fw-bold mb-0">{settings?.namaLaundry || 'Kasir Laundry'}</h5>
             )}
             <small className="opacity-75">{settings?.motto || 'Solusi Laundry Bersih & Cepat'}</small>
+
+            {/* Operator / Kasir / Owner pembuat transaksi di pojok kanan bawah kotak biru (Khusus Owner) */}
+            {isOwner && (
+              <div className="position-absolute bottom-0 end-0 p-2">
+                <span
+                  className="badge rounded-pill px-2.5 py-1 text-white shadow-sm d-inline-flex align-items-center gap-1"
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+                    backdropFilter: 'blur(6px)',
+                    border: '1px solid rgba(255, 255, 255, 0.35)',
+                    fontSize: '0.68rem',
+                    fontWeight: '500',
+                    letterSpacing: '0.3px',
+                  }}
+                  title="Petugas yang melakukan transaksi"
+                >
+                  <i className="bi bi-person-circle"></i>
+                  <span>{getKasirUsername()}</span>
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Info Ringkas */}
@@ -349,15 +421,6 @@ const OrderDetail = () => {
               <span className="text-primary fw-bold">ID: {order.invoiceId || 'KL'}</span>
               <span className="text-muted">{new Date(order.createdAt).toLocaleString('id-ID')}</span>
             </div>
-            {isOwner && (
-              <div className="d-flex justify-content-between mb-1 align-items-center">
-                <span className="text-muted">Kasir / Operator :</span>
-                <span className="badge rounded-pill px-2 py-1 text-primary border border-primary-subtle fw-semibold" style={{ backgroundColor: '#eef2ff' }}>
-                  <i className="bi bi-person-fill me-1"></i>
-                  {getKasirUsername()}
-                </span>
-              </div>
-            )}
             <div className="d-flex justify-content-between mb-1">
               <h6 className="mb-0 fw-bold">{pelanggan?.nama || order.pelangganNama || 'Pelanggan Umum'}</h6>
               <div className="text-muted mb-1"><i className="bi bi-telephone me-1"></i> {pelanggan?.hp || order.pelangganHp || '-'}</div>
@@ -374,28 +437,36 @@ const OrderDetail = () => {
             </div>
 
             {/* Catatan Pelanggan */}
-            <div className="d-flex justify-content-between mt-2 pt-2 border-top align-items-start" onClick={() => setShowNoteModal(true)} style={{ cursor: 'pointer' }}>
+            <div
+              className={`d-flex justify-content-between mt-2 pt-2 border-top align-items-start ${isCustomerNoteLocked ? 'opacity-75' : ''}`}
+            >
               <div>
                 <span className="fw-semibold text-secondary d-flex align-items-center gap-1">
                   <i className="bi bi-tag-fill text-primary"></i> Catatan Pelanggan :
                 </span>
-               </div>
+              </div>
               <div className="text-end ps-2">
                 <span className="fw-bold text-primary small d-block">{order.catatan || '-'}</span>
-                <small className="text-muted" style={{ fontSize: '0.65rem' }}><i className="bi bi-pencil-square me-1"></i>Edit</small>
+                {!isCustomerNoteLocked ? (
+                  <small className="text-muted" style={{ fontSize: '0.65rem' }}><i className="bi bi-pencil-square me-1"></i>Edit</small>
+                ) : ''}
               </div>
             </div>
 
             {/* Catatan Kasir (Internal) */}
-            <div className="d-flex justify-content-between mt-2 pt-2 border-top align-items-start" onClick={() => setShowCashierNoteModal(true)} style={{ cursor: 'pointer', backgroundColor: '#fffdf0', margin: '0 -8px', padding: '8px', borderRadius: '8px' }}>
+            <div
+              className={`d-flex justify-content-between mt-2 pt-2 border-top align-items-start ${isCashierNoteLocked ? 'opacity-75' : ''}`}
+             >
               <div>
-                <span className="fw-bold text-warning-emphasis d-flex align-items-center gap-1">
+                <span className="fw-semibold text-warning-emphasis d-flex align-items-center gap-1">
                   <i className="bi bi-shield-lock-fill text-warning"></i> Catatan Kasir :
                 </span>
-               </div>
+              </div>
               <div className="text-end ps-2">
                 <span className="fw-bold text-dark small d-block">{order.catatanKasir || '-'}</span>
-                <small className="text-warning fw-semibold" style={{ fontSize: '0.65rem' }}><i className="bi bi-pencil-square me-1"></i>Edit</small>
+                {!isCashierNoteLocked ? (
+                  <small className="text-warning fw-semibold" style={{ fontSize: '0.65rem' }}><i className="bi bi-pencil-square me-1"></i>Edit</small>
+                ) : ''}
               </div>
             </div>
           </div>

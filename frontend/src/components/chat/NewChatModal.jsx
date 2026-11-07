@@ -1,3 +1,4 @@
+import { db } from '../../db';
 import React, { useState, useEffect } from 'react';
 import { getChatContacts, createConversation } from '../../services/chatService';
 import { ContactListSkeleton } from '../common/Skeleton';
