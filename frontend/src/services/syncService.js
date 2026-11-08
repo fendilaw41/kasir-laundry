@@ -850,7 +850,10 @@ export const pullOrdersFromBackend = async (force = false) => {
         catatan: so.catatan || null,
         catatanKasir: so.catatanKasir || localOrder?.catatanKasir || null,
         kasirUsername: so.user?.username || so.user?.fullname || localOrder?.kasirUsername || null,
-        inventoryUsed: so.inventoryUsed || [],
+        // Lindungi inventoryUsed: Jangan timpa dengan array kosong jika lokal sudah memiliki data
+        inventoryUsed: (Array.isArray(so.inventoryUsed) && so.inventoryUsed.length > 0)
+          ? so.inventoryUsed
+          : (localOrder?.inventoryUsed || []),
         items: serverItems,
         createdAt: so.createdAt ? new Date(so.createdAt) : new Date(),
         updatedAt: so.updatedAt ? new Date(so.updatedAt) : new Date(),
@@ -887,8 +890,8 @@ export const pullOrdersFromBackend = async (force = false) => {
 
       // 5. Simpan ke db.orders
       if (localOrder) {
-        // Jangan timpa jika data lokal memiliki perubahan yang belum di-sync (kecuali force=true)
-        if (localOrder.isDirty !== 1 || force) {
+        // JANGAN TIMPA pesanan lokal yang berstatus kotor (isDirty === 1) yang sedang menunggu sinkronisasi
+        if (localOrder.isDirty !== 1) {
           await db.orders.update(localOrder.id, orderPayload);
         }
       } else {
@@ -964,7 +967,15 @@ export const pullOrdersFromBackend = async (force = false) => {
           localProd = await db.products.where('uuid').equals(sp.id).first();
         }
         if (!localProd && sp.code) {
+          try {
+          try {
           localProd = await db.products.where('code').equals(sp.code).first();
+        } catch (e) {
+          localProd = await db.products.filter(p => p.code === sp.code).first();
+        }
+        } catch (e) {
+          localProd = await db.products.filter(p => p.code === sp.code).first();
+        }
         }
         if (!localProd && sp.category && sp.name) {
           localProd = await db.products.filter(p => p.category === sp.category && p.name === sp.name).first();

@@ -22,6 +22,7 @@ import Reset from './pages/Reset';
 import PublicTrackOrder from './pages/PublicTrackOrder';
 import RegisterStore from './pages/RegisterStore';
 import PergerakanStok from './pages/PergerakanStok';
+import Plan from './pages/Plan';
 import { clearDraftOrder } from './db/repositories/draftOrder';
 import { clearCart } from './db/repositories/cart';
 import { updatePwaManifest } from './utils/pwaHelper';
@@ -154,6 +155,8 @@ function App() {
           <Route path="/orders" element={<DataOrder user={user} />} />
           <Route path="/reports" element={<Reports user={user} />} />
           <Route path="/setting" element={<Setting user={user} />} />
+          <Route path="/plan" element={<Plan user={user} />} />
+          <Route path="/paket" element={<Plan user={user} />} />
           <Route path="/ubah-password" element={<UbahPassword user={user} />} />
           <Route path="/chat" element={<Chat user={user} />} />
           <Route path="/pergerakan-stok" element={<PergerakanStok user={user} />} />

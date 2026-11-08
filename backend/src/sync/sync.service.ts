@@ -1,13 +1,17 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 import { SyncInventoryDto, SyncMasterDataDto, SyncPelangganDto, SyncProductDto, SyncSettingsDto, SyncUserDto, SyncInventoryEventDto } from './dto/sync-master.dto';
 
 @Injectable()
 export class SyncService {
   private readonly logger = new Logger(SyncService.name);
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly subscriptionService: SubscriptionService,
+  ) { }
 
   /**
    * Mendapatkan atau mendaftarkan Store murni dari data yang dikirim oleh Frontend
@@ -458,6 +462,15 @@ export class SyncService {
         targetId = randomUUID();
       }
 
+      if (!targetInventory && !inv.deletedAt) {
+        try {
+          await this.subscriptionService.assertCanPerformAction(store.id, 'CREATE_INVENTORY');
+        } catch (err) {
+          this.logger.warn(`Batas item stok tercapai untuk store ${store.id}: ${err.message}`);
+          continue;
+        }
+      }
+
       const beforeInventory = targetInventory;
 
       const createdAt = inv.createdAt ? new Date(inv.createdAt) : new Date();
@@ -587,7 +600,7 @@ export class SyncService {
 
       let resolvedInvoiceId = evt.invoiceId || null;
       if (!resolvedInvoiceId && evt.note) {
-        const m = evt.note.match(/([A-Za-z0-9]{4}-d{5})/);
+        const m = evt.note.match(/([A-Za-z0-9]{4}-\d{5})/);
         if (m) resolvedInvoiceId = m[1];
       }
 

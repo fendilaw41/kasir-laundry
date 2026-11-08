@@ -21,6 +21,7 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
   const [typingUser, setTypingUser] = useState(null);
   const [selectedZoomImage, setSelectedZoomImage] = useState(null);
   const [showOffline3DaysModal, setShowOffline3DaysModal] = useState(false);
+  const isSendingRef = useRef(false);
 
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -205,8 +206,14 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
 
   // Submit pengiriman pesan dengan Optimistic UI (bubble muncul instan)
   const handleSendMessage = async (e) => {
-    e?.preventDefault();
-    if ((!inputValue.trim() && !selectedImage) || isSending) return;
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if ((!inputValue.trim() && !selectedImage) || isSending || isSendingRef.current) return;
+
+    isSendingRef.current = true;
+    setIsSending(true);
 
     const content = inputValue;
     const imgData = selectedImage;
@@ -233,7 +240,6 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
     setInputValue('');
     setSelectedImage(null);
     emitTyping(conversation.id, false);
-    setIsSending(true);
 
     try {
       const createdMsg = await sendMessage({
@@ -259,6 +265,7 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
         )
       );
     } finally {
+      isSendingRef.current = false;
       setIsSending(false);
     }
   };
@@ -266,6 +273,7 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      e.stopPropagation();
       handleSendMessage(e);
     }
   };

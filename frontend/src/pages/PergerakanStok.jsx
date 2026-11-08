@@ -4,11 +4,32 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { getInventoryEventsQuery, getInventoryQuery } from '../db/repositories/inventory';
 import { getInventoryEventsFromDB } from '../services/syncService';
 
+// Helper format tanggal lokal YYYY-MM-DD sesuai zona waktu browser pengguna (WIB)
+const getLocalDateStr = (dateVal) => {
+  if (!dateVal) return '';
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 export default function PergerakanStok({ user }) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'in' | 'out'
   const [selectedItem, setSelectedItem] = useState('ALL');
-  const [filterDate, setFilterDate] = useState(''); // '' (Semua) | 'YYYY-MM-DD'
+
+  // Helper tanggal hari ini & kemarin
+  const todayStr = useMemo(() => getLocalDateStr(new Date()), []);
+  const yesterdayStr = useMemo(() => {
+    const y = new Date();
+    y.setDate(y.getDate() - 1);
+    return getLocalDateStr(y);
+  }, []);
+
+  // Filter default: Hari Ini (bukan Semua) agar riwayat harian langsung fokus
+  const [filterDate, setFilterDate] = useState(() => getLocalDateStr(new Date()));
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedDetails, setExpandedDetails] = useState({});
 
@@ -41,15 +62,27 @@ export default function PergerakanStok({ user }) {
   const rawEvents = useLiveQuery(getInventoryEventsQuery, []);
   const inventoryList = useLiveQuery(getInventoryQuery, []);
 
-  // Prioritaskan data langsung dari DB tabel inventoryEvent, fallback ke Dexie lokal jika offline
-  const activeEvents = dbEvents !== null ? dbEvents : (rawEvents || []);
-
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
-  const yesterdayStr = useMemo(() => {
-    const y = new Date();
-    y.setDate(y.getDate() - 1);
-    return y.toISOString().split('T')[0];
-  }, []);
+  // Gabungkan event lokal Dexie (rawEvents) dan backend DB (dbEvents)
+  // Dexie memiliki live query real-time dan backfill dari orders lokal
+  const activeEvents = useMemo(() => {
+    const map = new Map();
+    // 1. Masukkan events dari backend DB (jika ada)
+    if (Array.isArray(dbEvents)) {
+      dbEvents.forEach((e) => {
+        const key = e.uuid || e.id || `${e.invoiceId}_${e.inventoryId || e.inventoryName}`;
+        map.set(key, e);
+      });
+    }
+    // 2. Masukkan / perbarui dengan events lokal dari Dexie (realtime & offline)
+    if (Array.isArray(rawEvents)) {
+      rawEvents.forEach((e) => {
+        const key = e.uuid || e.id || `${e.invoiceId}_${e.inventoryId || e.inventoryName}`;
+        map.set(key, e);
+      });
+    }
+    const combined = Array.from(map.values());
+    return combined.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [rawEvents, dbEvents]);
 
   // Format jam helper (misal: 14:25 WIB)
   const formatTimeOnly = (dateVal) => {
@@ -95,13 +128,10 @@ export default function PergerakanStok({ user }) {
       if (activeTab === 'in' && event.type !== 'ADD') return false;
       if (activeTab === 'out' && event.type !== 'SUBTRACT') return false;
 
-      // 2. Filter Tanggal
+      // 2. Filter Tanggal (berdasarkan tanggal lokal kalender)
       if (filterDate) {
-        const d = event.createdAt ? new Date(event.createdAt) : null;
-        if (d && !isNaN(d.getTime())) {
-          const key = d.toISOString().split('T')[0];
-          if (key !== filterDate) return false;
-        }
+        const eventDateStr = getLocalDateStr(event.createdAt);
+        if (eventDateStr !== filterDate) return false;
       }
 
       const itemName = (event.inventoryName || inventoryMap[event.inventoryId] || '').toLowerCase();
@@ -126,35 +156,57 @@ export default function PergerakanStok({ user }) {
     });
   }, [activeEvents, activeTab, filterDate, selectedItem, searchQuery, inventoryMap]);
 
-  // Hitung akumulasi total Stock In dan Stock Out dari semua event toko
+  // Hitung akumulasi total Stock In dan Stock Out sesuai filter tanggal & pencarian aktif
   const totals = useMemo(() => {
     let totalIn = 0;
     let totalOut = 0;
     let inCount = 0;
     let outCount = 0;
-    if (activeEvents) {
-      activeEvents.forEach((e) => {
-        const qty = Number(e.qty) || 0;
-        if (e.type === 'ADD') {
-          totalIn += qty;
-          inCount += 1;
-        } else if (e.type === 'SUBTRACT') {
-          totalOut += qty;
-          outCount += 1;
-        }
-      });
-    }
-    return { totalIn, totalOut, inCount, outCount };
-  }, [activeEvents]);
 
-  // Grouping data event berdasarkan tanggal (YYYY-MM-DD) dan ringkas per item
+    // Filter berdasarkan filterDate, selectedItem, dan searchQuery (tanpa activeTab agar kedua kartu selalu update)
+    const baseEvents = (activeEvents || []).filter((event) => {
+      if (filterDate) {
+        const eventDateStr = getLocalDateStr(event.createdAt);
+        if (eventDateStr !== filterDate) return false;
+      }
+      const itemName = (event.inventoryName || inventoryMap[event.inventoryId] || '').toLowerCase();
+      if (selectedItem !== 'ALL') {
+        if (itemName !== selectedItem.toLowerCase()) return false;
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const note = (event.note || '').toLowerCase();
+        const invoice = (event.invoiceId || '').toLowerCase();
+        const creator = (event.createdBy || '').toLowerCase();
+        if (!itemName.includes(q) && !note.includes(q) && !invoice.includes(q) && !creator.includes(q)) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    baseEvents.forEach((e) => {
+      const qty = Number(e.qty) || 0;
+      if (e.type === 'ADD') {
+        totalIn += qty;
+        inCount += 1;
+      } else if (e.type === 'SUBTRACT') {
+        totalOut += qty;
+        outCount += 1;
+      }
+    });
+
+    return { totalIn, totalOut, inCount, outCount };
+  }, [activeEvents, filterDate, selectedItem, searchQuery, inventoryMap]);
+
+  // Grouping data event berdasarkan tanggal lokal (YYYY-MM-DD) dan ringkas per item
   const groupedEvents = useMemo(() => {
     const groups = {};
 
     filteredEvents.forEach((event) => {
       const d = event.createdAt ? new Date(event.createdAt) : new Date();
-      // Format key: YYYY-MM-DD
-      const dateKey = !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : 'UNKNOWN';
+      // Format key: YYYY-MM-DD lokal
+      const dateKey = !isNaN(d.getTime()) ? getLocalDateStr(d) : 'UNKNOWN';
 
       if (!groups[dateKey]) {
         groups[dateKey] = {

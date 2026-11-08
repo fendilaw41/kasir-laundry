@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createOrderFromCheckout, updateOrder } from '../db/repositories/orders';
 import { clearDraftOrder } from '../db/repositories/draftOrder';
+import { getSubscriptionReport } from '../services/subscriptionService';
+import PlanGateModal from '../components/PlanGateModal';
 import { getStatusLunasByMetode } from '../utils/paymentStatus';
 import toast from 'react-hot-toast';
 import { TOAST_MESSAGES } from '../constants/appConstants';
@@ -17,6 +19,8 @@ const Pembayaran = () => {
     orderData?.metodeBayar ? (orderData.metodeBayar.toLowerCase() === 'tunai' ? 'Cash' : orderData.metodeBayar) : 'Cash'
   );
   const [amountError, setAmountError] = useState(false);
+  const [gateModalOpen, setGateModalOpen] = useState(false);
+  const [gateModalLimit, setGateModalLimit] = useState(30);
 
   if (!orderData) {
     return (
@@ -63,6 +67,15 @@ const Pembayaran = () => {
         toast.success(TOAST_MESSAGES.SUCCESS);
         navigate(`/order/${orderData.id}`);
       } else {
+        try {
+          const sub = await getSubscriptionReport();
+          if (sub?.isEnforced && sub?.usage?.transactions?.isExceeded) {
+            setGateModalLimit(sub.usage.transactions.totalLimit);
+            setGateModalOpen(true);
+            return;
+          }
+        } catch (e) {}
+
         const isFullyPaid = bayarNum >= total;
         const newId = await createOrderFromCheckout({
           orderData: {
@@ -79,7 +92,7 @@ const Pembayaran = () => {
         navigate(`/order/${newId}`);
       }
     } catch (error) {
-      toast.error(TOAST_MESSAGES.ERROR);
+      toast.error(error?.message || TOAST_MESSAGES.ERROR);
     }
   };
 
@@ -182,6 +195,13 @@ const Pembayaran = () => {
           Kembali
         </button>
       </div>
+      {/* POPUP RINGKAS BATAS TRANSAKSI */}
+      <PlanGateModal
+        isOpen={gateModalOpen}
+        onClose={() => setGateModalOpen(false)}
+        type="TRANSACTION_LIMIT"
+        customData={{ limit: gateModalLimit }}
+      />
     </div>
   );
 };

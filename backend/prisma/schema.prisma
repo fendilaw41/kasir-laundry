@@ -16,15 +16,16 @@ model Store {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
-  users         User[]
-  products      Product[]
-  orders        Order[]
-  pelanggan     Pelanggan[]
-  inventory     Inventory[]
+  users           User[]
+  products        Product[]
+  orders          Order[]
+  pelanggan       Pelanggan[]
+  inventory       Inventory[]
   inventoryEvents InventoryEvent[]
-  settings      Settings?
-  syncLogs      SyncLog[]
-  conversations Conversation[]
+  settings        Settings?
+  syncLogs        SyncLog[]
+  conversations   Conversation[]
+  subscription    StoreSubscription?
 }
 
 model User {
@@ -269,4 +270,36 @@ model Message {
   deletedAt      DateTime?     @db.Timestamptz(3)
 
   @@index([conversationId, createdAt])
+}
+
+enum SubscriptionPlan {
+  TRIAL
+  STARTER
+  BASIC
+  PRO
+  BUSINESS
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  GRACE_PERIOD
+}
+
+model StoreSubscription {
+  id                 String             @id @default(uuid())
+  storeId            String             @unique
+  store              Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  plan               SubscriptionPlan   @default(TRIAL)
+  status             SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart DateTime           @default(now()) @db.Timestamptz(3)
+  currentPeriodEnd   DateTime           @db.Timestamptz(3)
+  topupTransactions  Int                @default(0)
+  topupPhotos        Int                @default(0)
+  customBranding     Json?
+  notes              String?
+  createdAt          DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime           @updatedAt @db.Timestamptz(3)
+
+  @@index([storeId, status])
 }

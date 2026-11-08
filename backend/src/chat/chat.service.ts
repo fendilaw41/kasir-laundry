@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../common/storage/storage.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { randomUUID } from 'crypto';
@@ -27,6 +28,7 @@ export class ChatService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
+    private readonly subscriptionService: SubscriptionService,
   ) { }
 
   /**
@@ -611,6 +613,10 @@ export class ChatService {
   ) {
     if (!file) {
       throw new BadRequestException('Berkas foto tidak ditemukan dalam form upload.');
+    }
+
+    if (currentUser.storeId) {
+      await this.subscriptionService.assertCanPerformAction(currentUser.storeId, 'UPLOAD_CHAT_PHOTO');
     }
 
     // Validasi batas ukuran file (maksimal 5MB)

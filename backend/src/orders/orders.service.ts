@@ -1,12 +1,16 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SyncOrderDto } from './dto/sync-order.dto';
+import { SubscriptionService } from '../subscription/subscription.service';
 
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly subscriptionService: SubscriptionService,
+  ) { }
 
   /**
    * Mendapatkan Store dari ID yang dikirim oleh Frontend
@@ -164,6 +168,7 @@ export class OrdersService {
           data: orderData,
         });
       } else {
+        await this.subscriptionService.assertCanPerformAction(storeId, 'CREATE_ORDER');
         order = await tx.order.create({
           data: {
             id: dto.id,
@@ -437,6 +442,7 @@ export class OrdersService {
         store: {
           include: {
             settings: true,
+            subscription: true,
           },
         },
       },

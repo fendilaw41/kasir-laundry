@@ -4,9 +4,10 @@ import { ChatController } from './chat.controller';
 import { ChatGateway } from './chat.gateway';
 import { PrismaModule } from '../prisma/prisma.module';
 import { StorageModule } from '../common/storage/storage.module';
+import { SubscriptionModule } from '../subscription/subscription.module';
 
 @Module({
-  imports: [PrismaModule, StorageModule],
+  imports: [PrismaModule, StorageModule, SubscriptionModule],
   controllers: [ChatController],
   providers: [ChatService, ChatGateway],
   exports: [ChatService, ChatGateway],

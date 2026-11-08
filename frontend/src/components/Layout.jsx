@@ -159,10 +159,13 @@ const Layout = ({ user, onLogout }) => {
     return titleApp;
   };
 
+  const isPlanPage = location.pathname === '/plan' || location.pathname === '/paket';
+
   return (
     <>
-      {/* Header Area */}
-      <div className="header-area" id="headerArea">
+      {/* Header Area (Disembunyikan pada halaman Plan) */}
+      {!isPlanPage && (
+        <div className="header-area" id="headerArea">
         <div className="container-fluid h-100 d-flex align-items-center justify-content-between px-3">
           {isMainMenu ? (
             <>
@@ -428,6 +431,7 @@ const Layout = ({ user, onLogout }) => {
           )}
         </div>
       </div>
+      )}
 
       {/* Dropdown Hasil Pencarian Home (Muncul di bawah header saat mencari / tekan enter) */}
       {location.pathname === '/' && isHomeSearchOpen && homeSearchQuery.trim() && (
@@ -530,9 +534,9 @@ const Layout = ({ user, onLogout }) => {
         </div>
       )}
 
-      <div className="page-content-wrapper pb-3">
+      <div className="page-content-wrapper pb-3" style={isPlanPage ? { paddingTop: 0 } : undefined}>
         <OfflineAlertBanner />
-        <div className="container-fluid px-3">
+        <div className={`container-fluid ${isPlanPage ? 'px-0' : 'px-3'}`}>
           <Outlet context={outletContext} />
         </div>
       </div>

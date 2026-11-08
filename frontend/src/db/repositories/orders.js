@@ -75,6 +75,49 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
     const nextNumber = (setting?.lastInvoiceNumber || 0) + 1;
     const invoiceId = `${deviceId}-${nextNumber.toString().padStart(5, '0')}`;
 
+    // 1. Validasi awal inventori terpakai (Pre-flight validation)
+    const itemsToDeduct = [];
+    if (orderData.inventoryUsed && orderData.inventoryUsed.length > 0) {
+      for (const inv of orderData.inventoryUsed) {
+        let item = null;
+        if (typeof inv.id === 'number') {
+          item = await db.inventory.get(inv.id);
+        } else if (typeof inv.id === 'string' && /^\d+$/.test(inv.id.trim())) {
+          item = await db.inventory.get(parseInt(inv.id.trim(), 10));
+        }
+        if (!item && inv.uuid) {
+          item = await db.inventory.where('uuid').equals(inv.uuid).first();
+        }
+        if (!item && typeof inv.id === 'string' && inv.id.trim()) {
+          item = await db.inventory.where('uuid').equals(inv.id.trim()).first();
+        }
+        if (!item && (inv.nama || inv.name)) {
+          const searchName = (inv.nama || inv.name).trim().toLowerCase();
+          item = await db.inventory.filter(i => i.nama && i.nama.trim().toLowerCase() === searchName).first();
+        }
+
+        if (!item) {
+          throw new Error(`Barang inventori "${inv.nama || inv.name || inv.id}" tidak ditemukan di database. Transaksi dibatalkan.`);
+        }
+
+        const qty = Number(inv.quantity ?? inv.qty ?? 1);
+        if (qty <= 0) {
+          throw new Error(`Jumlah inventori "${item.nama}" harus lebih dari 0. Transaksi dibatalkan.`);
+        }
+
+        const currentStok = Number(item.stok) || 0;
+        if (currentStok <= 0) {
+          throw new Error(`Stok "${item.nama}" habis (0)! Transaksi dibatalkan.`);
+        }
+        if (currentStok < qty) {
+          throw new Error(`Stok "${item.nama}" tidak mencukupi (sisa: ${currentStok}, dibutuhkan: ${qty}). Transaksi dibatalkan.`);
+        }
+
+        itemsToDeduct.push({ item, qty, currentStok });
+      }
+    }
+
+    const orderDate = new Date();
     const resolvedStatusLunas = getStatusLunasByMetode(orderData.metodeBayar);
     newId = await db.orders.add(withNewSyncMeta({
       storeId,
@@ -90,49 +133,26 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
         ? (bayar >= total ? resolvedStatusLunas : 'DP')
         : (bayar > 0 ? (bayar >= total ? resolvedStatusLunas : 'DP') : 'Belum Bayar'),
       status: 'Proses',
-      createdAt: new Date()
+      createdAt: orderDate
     }));
 
-    // Kurangi stok untuk semua inventory yang dipilih melalui event log dan update stok di db.inventory
-    if (orderData.inventoryUsed && orderData.inventoryUsed.length > 0) {
-      for (const inv of orderData.inventoryUsed) {
-        let item = null;
-        if (inv.id) {
-          item = await db.inventory.get(parseInt(inv.id));
-        }
-        if (!item && inv.uuid) {
-          item = await db.inventory.where('uuid').equals(inv.uuid).first();
-        }
-        if (!item && inv.nama) {
-          item = await db.inventory.filter(i => i.nama && i.nama.toLowerCase() === inv.nama.toLowerCase()).first();
-        }
-
-        const qty = Number(inv.quantity ?? inv.qty ?? 1);
-        if (item) {
-          const currentStok = Number(item.stok) || 0;
-          if (currentStok <= 0) {
-            throw new Error(`Stok ${item.nama} habis (0)! Tidak bisa digunakan.`);
-          }
-          if (currentStok < qty) {
-            throw new Error(`Stok ${item.nama} tidak mencukupi (sisa: ${currentStok}, dibutuhkan: ${qty})`);
-          }
-          const newStok = Math.max(0, currentStok - qty);
-          await db.inventory.update(item.id, withUpdatedSyncMeta({
-            stok: newStok
-          }));
-          await db.inventoryEvents.add(withNewSyncMeta({
-            storeId: storeId || undefined,
-            inventoryId: item.id,
-            inventoryName: item.nama,
-            type: 'SUBTRACT',
-            qty: qty,
-            note: `Transaksi order #${invoiceId}`,
-            invoiceId: invoiceId,
-            createdBy: orderData.kasirUsername || storedUser?.username || storedUser?.fullname || 'Kasir',
-            createdAt: new Date()
-          }));
-        }
-      }
+    // 2. Kurangi stok dan simpan event log mutasi stok
+    for (const { item, qty, currentStok } of itemsToDeduct) {
+      const newStok = Math.max(0, currentStok - qty);
+      await db.inventory.update(item.id, withUpdatedSyncMeta({
+        stok: newStok
+      }));
+      await db.inventoryEvents.add(withNewSyncMeta({
+        storeId: storeId || item.storeId || undefined,
+        inventoryId: item.id,
+        inventoryName: item.nama,
+        type: 'SUBTRACT',
+        qty: qty,
+        note: `Transaksi order #${invoiceId}`,
+        invoiceId: invoiceId,
+        createdBy: orderData.kasirUsername || storedUser?.username || storedUser?.fullname || 'Kasir',
+        createdAt: orderDate
+      }));
     }
 
     await db.cart.clear();

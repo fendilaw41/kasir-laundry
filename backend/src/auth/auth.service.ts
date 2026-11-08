@@ -12,6 +12,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RegisterStoreDto } from './dto/register-store.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { SubscriptionService } from '../subscription/subscription.service';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
@@ -21,6 +22,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly subscriptionService: SubscriptionService,
   ) { }
 
   /**

@@ -1,9 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getOrdersSortedByDateQuery } from '../db/repositories/orders';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { pullOrdersFromBackend, syncTwoWay } from '../services/syncService';
+import { pullOrdersFromBackend } from '../services/syncService';
 import { isStatusLunas } from '../utils/paymentStatus';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Skeleton, TransactionListSkeleton } from '../components/common/Skeleton';
 
 const isSameDay = (dateA, dateB) => {
@@ -18,17 +18,67 @@ const isSameDay = (dateA, dateB) => {
   );
 };
 
-const Reports = () => {
+export const getAllowedMonths = (role) => {
+  const isRoleKasir = role?.toLowerCase() === 'kasir';
+  // Role kasir hanya boleh lihat data sebulan terakhir (1 bulan)
+  // Role owner maksimal 3 bulan terakhir (3 bulan)
+  const count = isRoleKasir ? 1 : 3;
+  const months = [];
+  const now = new Date();
+
+  for (let i = 0; i < count; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const value = `${year}-${month}`;
+    const label = d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    months.push({
+      value,
+      label: i === 0 ? `${label} (Bulan Ini)` : label,
+    });
+  }
+  return months;
+};
+
+const Reports = ({ user }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
   const isTodayOnly = searchParams.get('today') === 'true';
 
+  const currentUserRole = (
+    user?.role ||
+    (() => {
+      try {
+        return JSON.parse(
+          sessionStorage.getItem('user') ||
+          (typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null) ||
+          '{}'
+        )?.role;
+      } catch {
+        return null;
+      }
+    })() ||
+    'kasir'
+  ).toLowerCase();
+
+  const isOwner = currentUserRole === 'owner';
+  const isKasir = currentUserRole === 'kasir';
+
+  const allowedMonths = useMemo(() => getAllowedMonths(currentUserRole), [currentUserRole]);
+  const allowedMonthValues = useMemo(() => allowedMonths.map(m => m.value), [allowedMonths]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilter, setShowFilter] = useState(false);
-  const [filterMonth, setFilterMonth] = useState(new Date().toISOString().substring(0, 7));
+  const [filterMonth, setFilterMonth] = useState('All');
   const [filterBayar, setFilterBayar] = useState('Semua');
   const [showBalance, setShowBalance] = useState(false);
+
+  useEffect(() => {
+    if (filterMonth !== 'All' && !allowedMonthValues.includes(filterMonth)) {
+      setFilterMonth('All');
+    }
+  }, [filterMonth, allowedMonthValues]);
 
   useEffect(() => {
     if (navigator.onLine) {
@@ -41,23 +91,53 @@ const Reports = () => {
     const allOrders = await getOrdersSortedByDateQuery();
     const now = new Date();
 
+    // Batas waktu: role kasir hanya boleh lihat data sebulan terakhir saja (30 hari)
+    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    oneMonthAgo.setHours(0, 0, 0, 0);
+
+    // Batas waktu: role owner maksimal 3 bulan terakhir (awal bulan ke-3 terakhir)
+    const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1, 0, 0, 0, 0);
+
     return allOrders.filter(order => {
       const orderDate = new Date(order.createdAt);
-      const orderMonthStr = orderDate.toISOString().substring(0, 7);
+      if (isNaN(orderDate.getTime())) return false;
 
+      // 1. Role kasir hanya boleh lihat data sebulan terakhir saja
+      if (isKasir) {
+        if (orderDate < oneMonthAgo) {
+          return false;
+        }
+      } else {
+        // Owner hanya boleh lihat data maksimal 3 bulan terakhir saja
+        if (orderDate < threeMonthsAgo) {
+          return false;
+        }
+      }
+
+      // 2. Filter Search
       const matchesSearch = !searchTerm ||
         order.pelangganNama?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.invoiceId?.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesDate = isTodayOnly
-        ? isSameDay(order.createdAt, now)
-        : (filterMonth === 'All' || orderMonthStr === filterMonth);
+      // 3. Filter Tanggal / Periode
+      let matchesDate = false;
+      if (isTodayOnly) {
+        matchesDate = isSameDay(order.createdAt, now);
+      } else {
+        const orderMonthStr = orderDate.toISOString().substring(0, 7);
+        if (filterMonth === 'All') {
+          matchesDate = true;
+        } else {
+          matchesDate = allowedMonthValues.includes(filterMonth) && orderMonthStr === filterMonth;
+        }
+      }
 
+      // 4. Filter Status Bayar
       const matchesStatus = filterBayar === 'Semua' || (filterBayar === 'Lunas' ? isStatusLunas(order.statusBayar) : !isStatusLunas(order.statusBayar));
 
       return matchesSearch && matchesDate && matchesStatus;
     });
-  }, [searchTerm, isTodayOnly, filterMonth, filterBayar]);
+  }, [searchTerm, isTodayOnly, filterMonth, filterBayar, isKasir, allowedMonthValues]);
 
   // Grouping by Date for BCA style
   const groupedData = data?.reduce((acc, order) => {
@@ -94,7 +174,8 @@ const Reports = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `report-${isTodayOnly ? 'today' : filterMonth}.csv`);
+    const downloadSuffix = isTodayOnly ? 'today' : filterMonth === 'All' ? (isKasir ? '1-bulan' : '3-bulan') : filterMonth;
+    link.setAttribute('download', `report-${downloadSuffix}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -194,7 +275,10 @@ const Reports = () => {
                 isTodayOnly ? 'btn-primary text-white shadow-sm' : 'btn-light bg-white text-muted border'
               }`}
               style={{ fontSize: '0.78rem' }}
-              onClick={() => setSearchParams({ today: 'true' })}
+              onClick={() => {
+                setSearchParams({ today: 'true' });
+                setShowFilter(false);
+              }}
             >
               <i className="bi bi-calendar-check me-1"></i>
               Hari Ini
@@ -211,9 +295,6 @@ const Reports = () => {
               Semua Periode
             </button>
           </div>
-          <span className="badge bg-white text-muted border rounded-pill px-2.5 py-1 shadow-xs fw-semibold" style={{ fontSize: '0.74rem' }}>
-            {data === undefined ? <Skeleton width="55px" height="12px" /> : `${data?.length || 0} transaksi`}
-          </span>
         </div>
 
         {/* Search Bar */}
@@ -226,12 +307,15 @@ const Reports = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <i
-            className="bi bi-sliders text-primary ms-3"
-            style={{ cursor: 'pointer' }}
-            title="Filter Bulan & Periode"
-            onClick={() => setShowFilter(!showFilter)}
-          ></i>
+          {!isTodayOnly && (
+            <i
+              className="bi bi-sliders text-primary ms-3"
+              style={{ cursor: 'pointer' }}
+              title="Filter Bulan & Periode"
+              aria-label="Filter Bulan & Periode"
+              onClick={() => setShowFilter(!showFilter)}
+            ></i>
+          )}
           <i className="bi bi-download text-primary ms-3" style={{ cursor: 'pointer' }} onClick={() => handleDownload()} title="Download CSV"></i>
         </div>
 
@@ -259,15 +343,37 @@ const Reports = () => {
 
         {showFilter && !isTodayOnly && (
           <div className="mb-4 p-3 bg-white rounded shadow-sm border-0" style={{ borderRadius: '15px' }}>
-            <label className="small fw-bold text-muted mb-2">FILTER BULAN</label>
-            <div className="d-flex gap-2">
-              <input
-                type="month"
-                className="form-control border-light shadow-none"
-                value={filterMonth === 'All' ? '' : filterMonth}
-                onChange={(e) => setFilterMonth(e.target.value || 'All')}
-              />
-              <button className="btn btn-outline-primary px-3" onClick={() => setFilterMonth('All')}>Semua</button>
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <label className="small fw-bold text-muted mb-0">FILTER BULAN</label>
+              <span className="badge bg-light text-secondary border-0" style={{ fontSize: '0.7rem' }}>
+                {isKasir ? 'Maksimal 1 Bulan Terakhir' : 'Maksimal 3 Bulan Terakhir'}
+              </span>
+            </div>
+            <div className="d-flex gap-2 align-items-center">
+              <select
+                className="form-select border-light shadow-none fw-medium"
+                value={filterMonth}
+                onChange={(e) => setFilterMonth(e.target.value)}
+                style={{ borderRadius: '10px' }}
+                aria-label="Pilih Bulan"
+              >
+                <option value="All">
+                  {isKasir ? 'Semua (1 Bulan Terakhir)' : 'Semua (3 Bulan Terakhir)'}
+                </option>
+                {allowedMonths.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className={`btn btn-sm px-3 py-2 fw-semibold ${filterMonth === 'All' ? 'btn-primary text-white' : 'btn-outline-primary'}`}
+                style={{ borderRadius: '10px', whiteSpace: 'nowrap' }}
+                onClick={() => setFilterMonth('All')}
+              >
+                Semua
+              </button>
             </div>
           </div>
         )}

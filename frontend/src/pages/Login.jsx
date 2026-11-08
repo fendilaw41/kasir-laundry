@@ -5,12 +5,20 @@ import { db } from '../db';
 import { fetchStoreInfoByCode, updatePwaManifest, promptPwaInstall } from '../utils/pwaHelper';
 import { Skeleton } from '../components/common/Skeleton';
 
+// Cek apakah browser mendukung WebkitTextSecurity untuk memblokir peringatan password breach Chrome
+const isTextSecuritySupported =
+  typeof window !== 'undefined' &&
+  typeof CSS !== 'undefined' &&
+  CSS.supports &&
+  (CSS.supports('-webkit-text-security', 'disc') || CSS.supports('text-security', 'disc'));
+
 const Login = ({ onLogin }) => {
   const [storeCode, setStoreCode] = useState('');
   const [hasSavedStore, setHasSavedStore] = useState(false);
   const [isPwaInstalled, setIsPwaInstalled] = useState(false);
   const [installHelp, setInstallHelp] = useState(false);
   const [savedUsernames, setSavedUsernames] = useState([]);
+  const [showPassword, setShowPassword] = useState(false);
   const [showTopInstallAlert, setShowTopInstallAlert] = useState(false);
   const [showInstallPopup, setShowInstallPopup] = useState(false);
   const [installManualHelp, setInstallManualHelp] = useState(false);
@@ -484,7 +492,7 @@ const Login = ({ onLogin }) => {
                 </div>
               )}
 
-              <form onSubmit={handleLogin}>
+              <form onSubmit={handleLogin} autoComplete="off">
                 {/* Kode Toko: Hanya tampilkan input jika BELUM ADA toko tersimpan di Dexie */}
                 {!hasSavedStore && (
                   <div className="form-group mb-3">
@@ -538,19 +546,31 @@ const Login = ({ onLogin }) => {
                             {storeInfo.name}
                           </div>
                           <span className="text-muted d-block" style={{ fontSize: '10px' }}>
-                            Outlet Terdeteksi
+                            {hasSavedStore ? 'Outlet Aktif' : 'Outlet Terdeteksi'}
                           </span>
                         </div>
                       </div>
 
                       {/* Tombol Install PWA persis seperti di Register (Hanya muncul jika belum install) */}
                       <div className="d-flex align-items-center gap-1.5 flex-shrink-0">
-                        <span
+                        {!isPwaInstalled ? (
+                          <button
+                            type="button"
+                            className="btn btn-sm rounded-pill px-2.5 py-1 fw-bold flex-shrink-0 d-flex align-items-center gap-1 shadow-xs"
+                            style={{ fontSize: '11px', backgroundColor: '#0134d4', color: '#fff', border: 'none' }}
+                            onClick={() => setShowInstallPopup(true)}
+                          >
+                            <i className="bi bi-phone"></i>
+                            <span>Install</span>
+                          </button>
+                        ) : (
+                          <span
                             className="badge rounded-pill px-2.5 py-1 text-white flex-shrink-0"
                             style={{ backgroundColor: '#0134d4', fontSize: '11px', fontWeight: '600' }}
                           >
                             {storeInfo.code}
                           </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -595,27 +615,49 @@ const Login = ({ onLogin }) => {
                   <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
                     Password
                   </label>
-                  <input
-                    className="form-control"
-                    style={{
-                      height: '44px',
-                      backgroundColor: '#f8fafc',
-                      border: '1.5px solid #cbd5e1',
-                      borderRadius: '10px',
-                      fontSize: '14px',
-                      color: '#0f172a',
-                      padding: '8px 14px',
-                    }}
-                    type="password"
-                    name="password"
-                    autoComplete="new-password"
-                    data-lpignore="true"
-                    data-form-type="other"
-                    placeholder="Masukkan password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
+                  <div className="input-group">
+                    <input
+                      className="form-control"
+                      style={{
+                        height: '44px',
+                        backgroundColor: '#f8fafc',
+                        border: '1.5px solid #cbd5e1',
+                        borderTopLeftRadius: '10px',
+                        borderBottomLeftRadius: '10px',
+                        fontSize: '14px',
+                        color: '#0f172a',
+                        padding: '8px 14px',
+                        WebkitTextSecurity: showPassword ? 'none' : 'disc',
+                      }}
+                      type={isTextSecuritySupported ? 'text' : (showPassword ? 'text' : 'password')}
+                      name="access_code"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck="false"
+                      data-lpignore="true"
+                      data-form-type="other"
+                      placeholder="Masukkan password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-secondary"
+                      style={{
+                        border: '1.5px solid #cbd5e1',
+                        borderLeft: 'none',
+                        borderTopRightRadius: '10px',
+                        borderBottomRightRadius: '10px',
+                        backgroundColor: '#f8fafc',
+                        color: '#64748b',
+                      }}
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      <i className={`bi ${showPassword ? 'bi-eye-slash-fill' : 'bi-eye-fill'}`}></i>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Submit Button */}

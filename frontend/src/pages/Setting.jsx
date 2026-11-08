@@ -6,6 +6,8 @@ import { getProductsQuery, addProduct, updateProduct, deleteProduct as deletePro
 import { useLiveQuery } from 'dexie-react-hooks';
 import toast from 'react-hot-toast';
 import UbahPassword from './UbahPassword';
+import { getSubscriptionReport } from '../services/subscriptionService';
+import PlanGateModal from '../components/PlanGateModal';
 import {
   TOAST_MESSAGES,
   CONFIRM_MESSAGES,
@@ -48,6 +50,7 @@ const Setting = ({ user }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [userLimitModal, setUserLimitModal] = useState({ open: false, limit: 1, plan: '' });
   const [showPassword, setShowPassword] = useState(false);
 
   // State untuk Modal & Form Produk / Layanan
@@ -144,7 +147,16 @@ const Setting = ({ user }) => {
     }
   };
 
-  const openUserModal = (selectedUser = null) => {
+  const openUserModal = async (selectedUser = null) => {
+    if (!selectedUser) {
+      try {
+        const sub = await getSubscriptionReport();
+        if (sub?.usage?.users?.isExceeded) {
+          setUserLimitModal({ open: true, limit: sub.limits.maxUsers, plan: sub.plan });
+          return;
+        }
+      } catch (e) {}
+    }
     if (selectedUser) {
       setEditingUser(selectedUser);
       setUserFormData({
@@ -997,7 +1009,8 @@ const Setting = ({ user }) => {
         {activeTab === 'password' && (
           <UbahPassword user={user} isEmbedded={true} />
         )}
-      </div>
+
+        </div>
 
       {/* ======================================================== */}
       {/* MODAL TAMBAH / EDIT PRODUK (SHOPEE MOBILE SHEET STYLE)     */}
@@ -1258,6 +1271,13 @@ const Setting = ({ user }) => {
           </div>
         </>
       )}
+      {/* POPUP RINGKAS BATAS KASIR */}
+      <PlanGateModal
+        isOpen={userLimitModal.open}
+        onClose={() => setUserLimitModal({ ...userLimitModal, open: false })}
+        type="USER_LIMIT"
+        customData={{ limit: userLimitModal.limit, plan: userLimitModal.plan }}
+      />
     </div>
   );
 };

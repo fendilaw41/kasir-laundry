@@ -3,11 +3,13 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { SubscriptionModule } from '../subscription/subscription.module';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Module({
   imports: [
     PrismaModule,
+    SubscriptionModule,
     JwtModule.register({
       global: true,
       secret:

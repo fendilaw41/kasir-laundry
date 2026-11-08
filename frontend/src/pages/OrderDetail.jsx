@@ -4,7 +4,8 @@ import { getOrderByIdQuery, updateOrder } from '../db/repositories/orders';
 import { getPelangganByIdQuery, updatePelanggan, addPelanggan } from '../db/repositories/pelanggan';
 import { getInventoryQuery, getInventoryById, updateInventory } from '../db/repositories/inventory';
 import { getSettingsQuery } from '../db/repositories/settings';
-import { pullOrdersFromBackend } from '../services/syncService';
+import { pullOrdersFromBackend, syncOrderToBackend, syncInventoryToBackend, syncInventoryEventsToBackend } from '../services/syncService';
+import { withNewSyncMeta, withUpdatedSyncMeta } from '../db/syncMeta';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { TOAST_MESSAGES, CONFIRM_MESSAGES, BUTTON_TEXT } from '../constants/appConstants';
@@ -65,7 +66,7 @@ const OrderDetail = ({ user }) => {
   // Tarik order terbaru dari server saat membuka halaman jika online
   useEffect(() => {
     if (navigator.onLine && id) {
-      pullOrdersFromBackend(true).catch(err => console.warn('[OrderDetail] Auto pull error:', err));
+      pullOrdersFromBackend().catch(err => console.warn('[OrderDetail] Auto pull error:', err));
     }
   }, [id]);
 
@@ -299,50 +300,99 @@ const OrderDetail = ({ user }) => {
         }
       }
 
-      for (const refItem of allItems) {
-        const oldItem = oldInv.find(i => isSameInventory(i, refItem));
-        const newItem = newInv.find(i => isSameInventory(i, refItem));
+      const targetOrderId = order.id || id;
+      const targetInvoiceId = order.invoiceId || `#${targetOrderId}`;
+      const storeId = order.storeId || currentUser?.storeId || undefined;
+      const actor = currentUser?.username || currentUser?.fullname || 'Kasir';
 
-        const oldQty = oldItem ? Number(oldItem.quantity ?? oldItem.qty ?? 1) : 0;
-        const newQty = newItem ? Number(newItem.quantity ?? newItem.qty ?? 1) : 0;
+      // Atomic Dexie transaction: Jika terjadi kegagalan, SEMUA perubahan dibatalkan (rollback)
+      await db.transaction('rw', [db.orders, db.inventory, db.inventoryEvents], async () => {
+        for (const refItem of allItems) {
+          const oldItem = oldInv.find(i => isSameInventory(i, refItem));
+          const newItem = newInv.find(i => isSameInventory(i, refItem));
 
-        const diff = newQty - oldQty;
-        if (diff > 0) {
-          const invId = refItem.id || refItem.uuid || refItem.nama;
-          const invData = await getInventoryById(invId);
-          const currentStok = invData ? Number(invData.stok || 0) : 0;
-          if (currentStok < diff) {
-            toast.error(TOAST_MESSAGES.ERROR);
-            return;
+          const oldQty = oldItem ? Number(oldItem.quantity ?? oldItem.qty ?? 1) : 0;
+          const newQty = newItem ? Number(newItem.quantity ?? newItem.qty ?? 1) : 0;
+
+          const diff = newQty - oldQty;
+          if (diff === 0) continue;
+
+          // Lookup item inventori di db.inventory
+          let invData = null;
+          if (typeof refItem.id === 'number') {
+            invData = await db.inventory.get(refItem.id);
+          } else if (typeof refItem.id === 'string' && /^\d+$/.test(refItem.id.trim())) {
+            invData = await db.inventory.get(parseInt(refItem.id.trim(), 10));
+          }
+          if (!invData && refItem.uuid) {
+            invData = await db.inventory.where('uuid').equals(refItem.uuid).first();
+          }
+          if (!invData && typeof refItem.id === 'string' && refItem.id.trim()) {
+            invData = await db.inventory.where('uuid').equals(refItem.id.trim()).first();
+          }
+          if (!invData && refItem.nama) {
+            const sName = refItem.nama.trim().toLowerCase();
+            invData = await db.inventory.filter(i => i.nama && i.nama.trim().toLowerCase() === sName).first();
+          }
+
+          if (!invData) {
+            throw new Error(`Data barang "${refItem.nama || 'inventori'}" tidak ditemukan di database. Perubahan dibatalkan.`);
+          }
+
+          const currentStok = Number(invData.stok || 0);
+
+          if (diff > 0) {
+            // Pemakaian inventori bertambah -> kurangi stok dan catat event SUBTRACT
+            if (currentStok < diff) {
+              throw new Error(`Stok "${invData.nama}" tidak mencukupi (sisa: ${currentStok}, dibutuhkan tambahan: ${diff}). Perubahan dibatalkan.`);
+            }
+            const newStok = Math.max(0, currentStok - diff);
+            await db.inventory.update(invData.id, withUpdatedSyncMeta({ stok: newStok }));
+            await db.inventoryEvents.add(withNewSyncMeta({
+              storeId: storeId || invData.storeId || undefined,
+              inventoryId: invData.id,
+              inventoryName: invData.nama,
+              type: 'SUBTRACT',
+              qty: diff,
+              note: `Penambahan penggunaan inventori order #${targetInvoiceId}`,
+              invoiceId: targetInvoiceId,
+              createdBy: actor,
+              createdAt: new Date(),
+            }));
+          } else {
+            // Pemakaian inventori berkurang -> kembalikan stok dan catat event ADD
+            const returnedQty = Math.abs(diff);
+            const newStok = currentStok + returnedQty;
+            await db.inventory.update(invData.id, withUpdatedSyncMeta({ stok: newStok }));
+            await db.inventoryEvents.add(withNewSyncMeta({
+              storeId: storeId || invData.storeId || undefined,
+              inventoryId: invData.id,
+              inventoryName: invData.nama,
+              type: 'ADD',
+              qty: returnedQty,
+              note: `Pengembalian inventori order #${targetInvoiceId}`,
+              invoiceId: targetInvoiceId,
+              createdBy: actor,
+              createdAt: new Date(),
+            }));
           }
         }
-      }
 
-      for (const refItem of allItems) {
-        const oldItem = oldInv.find(i => isSameInventory(i, refItem));
-        const newItem = newInv.find(i => isSameInventory(i, refItem));
-
-        const oldQty = oldItem ? Number(oldItem.quantity ?? oldItem.qty ?? 1) : 0;
-        const newQty = newItem ? Number(newItem.quantity ?? newItem.qty ?? 1) : 0;
-
-        const diff = newQty - oldQty;
-        if (diff !== 0) {
-          const invId = refItem.id || refItem.uuid || refItem.nama;
-          const invData = await getInventoryById(invId);
-          if (invData) {
-            const newStok = Math.max(0, (Number(invData.stok) || 0) - diff);
-            await updateInventory(invData.id, { stok: newStok });
-          }
-        }
-      }
+        // Simpan perubahan inventoryUsed ke order
+        await db.orders.update(targetOrderId, withUpdatedSyncMeta({ inventoryUsed: newInv }));
+      });
 
       setLocalInventoryUsed(newInv);
-      const targetOrderId = order.id || id;
-      await updateOrder(targetOrderId, { inventoryUsed: newInv });
       toast.success(TOAST_MESSAGES.SUCCESS);
       setShowInventoryModal(false);
+
+      // Trigger sync ke backend di background
+      syncInventoryToBackend().catch(err => console.warn('[Sync] inventory error:', err));
+      syncInventoryEventsToBackend().catch(err => console.warn('[Sync] inventoryEvents error:', err));
+      syncOrderToBackend(targetOrderId).catch(err => console.warn('[Sync] order error:', err));
     } catch (err) {
-      toast.error(TOAST_MESSAGES.ERROR);
+      console.error('[OrderDetail] saveInventory error:', err);
+      toast.error(err.message || TOAST_MESSAGES.ERROR);
     }
   };
 

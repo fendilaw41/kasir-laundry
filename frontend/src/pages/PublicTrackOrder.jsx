@@ -483,12 +483,25 @@ export default function PublicTrackOrder() {
               </div>
             </div>
 
-            {/* WATERMARK BUKTI ORDER RESMI */}
-            <div className="text-center text-muted small py-2">
-              <div className="d-flex align-items-center justify-content-center gap-1">
+            {/* WATERMARK PELACAKAN (DITAMPILKAN UNTUK TRIAL & STARTER) */}
+            <div className="text-center text-muted small py-3">
+              <div className="d-flex align-items-center justify-content-center gap-1 mb-1">
                 <i className="bi bi-shield-check text-success"></i>
                 <span>Tautan Resmi Pelacakan Cucian Online</span>
               </div>
+              {(!order.store?.subscription?.plan || ['TRIAL', 'STARTER'].includes(order.store?.subscription?.plan)) && (
+                <div style={{ fontSize: '0.74rem' }} className="text-muted opacity-85">
+                  Ditenagai oleh{' '}
+                  <a
+                    href="https://kasirlaundry.netlify.app"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary fw-semibold text-decoration-none"
+                  >
+                    Kasir Laundry
+                  </a>
+                </div>
+              )}
             </div>
           </>
         )}

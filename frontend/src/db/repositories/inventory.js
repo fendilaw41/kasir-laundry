@@ -39,6 +39,27 @@ export const getInventoryEventsQuery = async () => {
         }
       }
     }
+
+    // Selaraskan createdAt event di Dexie dengan createdAt order jika ada selisih tanggal
+    const orderMap = new Map();
+    ordersWithInv.forEach(o => {
+      if (o.invoiceId) orderMap.set(o.invoiceId, o);
+    });
+    for (const evt of existingEvents) {
+      if (evt.invoiceId && orderMap.has(evt.invoiceId)) {
+        const matchedOrd = orderMap.get(evt.invoiceId);
+        if (matchedOrd.createdAt) {
+          const ordTime = new Date(matchedOrd.createdAt).getTime();
+          const evtTime = new Date(evt.createdAt).getTime();
+          if (Math.abs(ordTime - evtTime) > 3600000) {
+            await db.inventoryEvents.update(evt.id, {
+              createdAt: new Date(matchedOrd.createdAt)
+            });
+            evt.createdAt = new Date(matchedOrd.createdAt);
+          }
+        }
+      }
+    }
   } catch (err) {
     console.warn('[InventoryEvents] Backfill error:', err);
   }

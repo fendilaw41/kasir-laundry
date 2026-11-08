@@ -41,6 +41,11 @@ db.version(4).stores({
   orders: '++id, &uuid, storeId, invoiceId, userId, kasirUsername, total, createdAt, pelangganId, diskon, metodeBayar, estimasi, tipeLayanan, isPriority, bayar, kembalian, statusBayar, status, catatan, catatanKasir, updatedAt, deletedAt, isDirty',
 });
 
+// Schema versi 5: indeks code & category pada tabel products
+db.version(5).stores({
+  products: '++id, &uuid, storeId, code, category, name, price, updatedAt, deletedAt, isDirty',
+});
+
 // Seed initial data if empty
 db.on('ready', async () => {
   try {

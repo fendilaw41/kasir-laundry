@@ -7,6 +7,7 @@ const SOCKET_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '');
 
 let socket = null;
 let isSyncing = false;
+const inFlightUploads = new Set(); // Mencegah duplikasi upload foto secara bersamaan
 
 /**
  * Mengambil JWT Bearer Token dari penyimpanan browser
@@ -251,7 +252,7 @@ export async function sendMessage({
     imageWidth,
     imageHeight,
     fileSize: imageBlob ? imageBlob.size : null,
-    status: 'PENDING',
+    status: 'SENDING', // Ditandai SENDING agar syncPendingMessages tidak mengunggah ulang bersamaan
     metadata,
     createdAt: now,
     updatedAt: now,
@@ -276,10 +277,22 @@ export async function sendMessage({
     try {
       let finalImageUrl = null;
 
-      // Jika ada lampiran foto, unggah ke server terlebih dahulu
+      // Jika ada lampiran foto, kunci proses upload agar tidak terpanggil ganda (maks 1x)
       if (imageBlob) {
-        const uploadResult = await uploadChatPhoto(imageBlob, conversationId);
-        finalImageUrl = uploadResult.imageUrl;
+        if (!inFlightUploads.has(uuid)) {
+          inFlightUploads.add(uuid);
+          try {
+            const uploadResult = await uploadChatPhoto(imageBlob, conversationId);
+            finalImageUrl = uploadResult.imageUrl;
+            // Simpan langsung URL foto ke Dexie agar imageBlob lokal tidak pernah diunggah ulang
+            await db.messages.update(localMessage.id, {
+              imageUrl: finalImageUrl,
+              imageBlob: null,
+            }).catch(() => {});
+          } finally {
+            inFlightUploads.delete(uuid);
+          }
+        }
       }
 
       const res = await fetch(`${API_BASE_URL}/chat/conversations/${conversationId}/messages`, {
@@ -320,22 +333,16 @@ export async function sendMessage({
           });
         }
 
-        // Trigger socket emit jika socket aktif
-        if (socket?.connected) {
-          socket.emit('send_message', {
-            uuid,
-            conversationId,
-            content: localMessage.content,
-            type: localMessage.type,
-            imageUrl: finalImageUrl,
-          });
-        }
-
         return { ...serverMsg, status: 'SENT' };
       }
     } catch (err) {
       console.warn('[Chat] Gagal mengirim online, pesan tetap tersimpan di antrian PENDING:', err);
+      // Gagal terkirim online: tandai status PENDING agar dicoba kembali saat sinkronisasi
+      await db.messages.update(localMessage.id, { status: 'PENDING' }).catch(() => {});
     }
+  } else {
+    // Offline mode: tandai PENDING untuk diunggah nanti saat kembali online
+    await db.messages.update(localMessage.id, { status: 'PENDING' }).catch(() => {});
   }
 
   return localMessage;
@@ -358,13 +365,24 @@ export async function syncPendingMessages() {
     console.log(`[Chat] Memulai sinkronisasi ${pendingMessages.length} pesan tertunda...`);
 
     for (const msg of pendingMessages) {
+      if (inFlightUploads.has(msg.uuid)) continue;
+
       try {
         let imageUrl = msg.imageUrl;
 
-        // Jika ada imageBlob dan belum diunggah, unggah sekarang
+        // Jika ada imageBlob dan belum diunggah, unggah sekarang dengan proteksi in-flight
         if (msg.imageBlob && !imageUrl) {
-          const uploadResult = await uploadChatPhoto(msg.imageBlob, msg.conversationId);
-          imageUrl = uploadResult.imageUrl;
+          inFlightUploads.add(msg.uuid);
+          try {
+            const uploadResult = await uploadChatPhoto(msg.imageBlob, msg.conversationId);
+            imageUrl = uploadResult.imageUrl;
+            await db.messages.update(msg.id, {
+              imageUrl,
+              imageBlob: null,
+            }).catch(() => {});
+          } finally {
+            inFlightUploads.delete(msg.uuid);
+          }
         }
 
         const res = await fetch(

@@ -8,11 +8,20 @@ import { SyncModule } from './sync/sync.module';
 import { AuthModule } from './auth/auth.module';
 import { StorageModule } from './common/storage/storage.module';
 import { ChatModule } from './chat/chat.module';
+import { SubscriptionModule } from './subscription/subscription.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 @Module({
-  imports: [PrismaModule, OrdersModule, SyncModule, AuthModule, StorageModule, ChatModule],
+  imports: [
+    PrismaModule,
+    OrdersModule,
+    SyncModule,
+    AuthModule,
+    StorageModule,
+    ChatModule,
+    SubscriptionModule,
+  ],
   controllers: [AppController],
   providers: [
     AppService,
@@ -27,6 +36,3 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
   ],
 })
 export class AppModule {}
-
-
-
