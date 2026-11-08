@@ -5,6 +5,7 @@ import { TOAST_MESSAGES } from '../constants/appConstants';
 import { fetchPublicOrder } from '../utils/tracking';
 import { isStatusLunas } from '../utils/paymentStatus';
 import { PublicTrackOrderSkeleton } from '../components/common/Skeleton';
+import { isSubscriptionEnabled } from '../services/subscriptionService';
 
 const TRACKING_STEPS = [
   { key: 'Baru', label: 'Diterima', icon: 'bi-inbox-fill', desc: 'Pesanan masuk antrean kasir' },
@@ -489,7 +490,7 @@ export default function PublicTrackOrder() {
                 <i className="bi bi-shield-check text-success"></i>
                 <span>Tautan Resmi Pelacakan Cucian Online</span>
               </div>
-              {(!order.store?.subscription?.plan || ['TRIAL', 'STARTER'].includes(order.store?.subscription?.plan)) && (
+              {isSubscriptionEnabled() && (!order.store?.subscription?.plan || ['TRIAL', 'STARTER'].includes(order.store?.subscription?.plan)) && (
                 <div style={{ fontSize: '0.74rem' }} className="text-muted opacity-85">
                   Ditenagai oleh{' '}
                   <a

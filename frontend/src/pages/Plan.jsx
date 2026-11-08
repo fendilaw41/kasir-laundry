@@ -398,49 +398,31 @@ export default function Plan({ user }) {
               </h6>
             </div>
 
-            <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bg-white">
-              <div
-                className="table-responsive"
-                style={{
-                  WebkitOverflowScrolling: 'touch',
-                  scrollbarWidth: 'thin',
-                }}
-              >
-                <table className="table table-hover align-middle mb-0 text-nowrap" style={{ fontSize: '0.8rem' }}>
+            <div className="card border-0 shadow-sm rounded-4 overflow-hidden bg-white mb-4">
+              <div className="table-responsive">
+                <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.8rem' }}>
                   <thead className="table-light border-bottom">
                     <tr>
-                      <th
-                        className="py-3 px-3 text-dark fw-bold bg-light"
-                        style={{
-                          position: 'sticky',
-                          left: 0,
-                          zIndex: 2,
-                          minWidth: '155px',
-                          boxShadow: '2px 0 5px rgba(0,0,0,0.03)',
-                        }}
-                      >
+                      <th className="py-3 px-3 text-dark fw-bold" style={{ position: 'sticky', left: 0, zIndex: 2, minWidth: '150px', width: '150px', backgroundColor: '#f8fafc', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Fitur
                       </th>
-                      <th className="py-3 px-3 text-center text-dark fw-bold" style={{ minWidth: '120px' }}>
+                      <th className="py-3 px-3 text-center text-dark fw-bold" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>
                         Trial (Gratis)
                         <div className="small fw-normal text-muted" style={{ fontSize: '0.7rem' }}>Rp 0</div>
                       </th>
-                      <th className="py-3 px-3 text-center text-dark fw-bold" style={{ minWidth: '125px' }}>
+                      <th className="py-3 px-3 text-center text-dark fw-bold" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>
                         Starter
                         <div className="small fw-normal text-muted" style={{ fontSize: '0.7rem' }}>25rb/bln</div>
                       </th>
-                      <th
-                        className="py-3 px-3 text-center fw-bold bg-primary-subtle text-primary border-start border-end"
-                        style={{ minWidth: '135px' }}
-                      >
+                      <th className="py-3 px-3 text-center fw-bold bg-primary-subtle text-primary border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>
                         Basic ⭐
                         <div className="small fw-semibold text-primary" style={{ fontSize: '0.7rem' }}>50rb/bln (Laris)</div>
                       </th>
-                      <th className="py-3 px-3 text-center text-dark fw-bold" style={{ minWidth: '125px' }}>
+                      <th className="py-3 px-3 text-center text-dark fw-bold" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>
                         Pro
                         <div className="small fw-normal text-muted" style={{ fontSize: '0.7rem' }}>100rb/bln</div>
                       </th>
-                      <th className="py-3 px-3 text-center text-dark fw-bold" style={{ minWidth: '145px' }}>
+                      <th className="py-3 px-3 text-center text-dark fw-bold" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>
                         Business
                         <div className="small fw-normal text-muted" style={{ fontSize: '0.7rem' }}>200rb/bln</div>
                       </th>
@@ -448,248 +430,205 @@ export default function Plan({ user }) {
                   </thead>
                   <tbody>
                     <tr>
-                      <td className="px-3 fw-medium bg-white" style={{ position: 'sticky', left: 0, zIndex: 1, boxShadow: '2px 0 5px rgba(0,0,0,0.03)' }}>
+                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Transaksi/bulan
                       </td>
-                      <td className="text-center">30</td>
-                      <td className="text-center">150</td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end">400</td>
-                      <td className="text-center">1.000</td>
-                      <td className="text-center">Unlimited* (3.000)</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>30</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>150</td>
+                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>400</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>1.000</td>
+                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>Unlimited* (3.000)</td>
                     </tr>
                     <tr>
-                      <td className="px-3 fw-medium bg-white" style={{ position: 'sticky', left: 0, zIndex: 1, boxShadow: '2px 0 5px rgba(0,0,0,0.03)' }}>
+                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Foto chat/bulan
                       </td>
-                      <td className="text-center">30</td>
-                      <td className="text-center">300</td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end">800</td>
-                      <td className="text-center">2.000</td>
-                      <td className="text-center">5.000</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>30</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>300</td>
+                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>800</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>2.000</td>
+                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>5.000</td>
                     </tr>
                     <tr>
-                      <td className="px-3 fw-medium bg-white" style={{ position: 'sticky', left: 0, zIndex: 1, boxShadow: '2px 0 5px rgba(0,0,0,0.03)' }}>
-                        Chat dg pelanggan
-                      </td>
-                      <td className="text-center text-success"><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success"><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success bg-primary-subtle border-start border-end"><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success"><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success"><i className="bi bi-check-circle-fill"></i></td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 fw-medium bg-white" style={{ position: 'sticky', left: 0, zIndex: 1, boxShadow: '2px 0 5px rgba(0,0,0,0.03)' }}>
+                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Bot transaksi (chat)
                       </td>
-                      <td className="text-center">10x</td>
-                      <td className="text-center text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end">200x</td>
-                      <td className="text-center">1.000x</td>
-                      <td className="text-center">Unlimited</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>10x</td>
+                      <td className="text-center text-muted opacity-40" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-x-circle-fill"></i></td>
+                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>200x</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>1.000x</td>
+                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>Unlimited</td>
                     </tr>
                     <tr>
-                      <td className="px-3 fw-medium bg-white" style={{ position: 'sticky', left: 0, zIndex: 1, boxShadow: '2px 0 5px rgba(0,0,0,0.03)' }}>
+                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Nota ke WhatsApp
                       </td>
-                      <td className="text-center text-success"><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success"><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success bg-primary-subtle border-start border-end"><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success"><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success"><i className="bi bi-check-circle-fill"></i></td>
+                      <td className="text-center text-success" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
+                      <td className="text-center text-success" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
+                      <td className="text-center text-success bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
+                      <td className="text-center text-success" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
+                      <td className="text-center text-success" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
                     </tr>
                     <tr>
-                      <td className="px-3 fw-medium bg-white" style={{ position: 'sticky', left: 0, zIndex: 1, boxShadow: '2px 0 5px rgba(0,0,0,0.03)' }}>
+                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Cetak nota
                       </td>
-                      <td className="text-center text-success"><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success"><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success bg-primary-subtle border-start border-end"><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success"><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success"><i className="bi bi-check-circle-fill"></i></td>
+                      <td className="text-center text-success" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
+                      <td className="text-center text-success" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
+                      <td className="text-center text-success bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
+                      <td className="text-center text-success" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
+                      <td className="text-center text-success" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
                     </tr>
                     <tr>
-                      <td className="px-3 fw-medium bg-white" style={{ position: 'sticky', left: 0, zIndex: 1, boxShadow: '2px 0 5px rgba(0,0,0,0.03)' }}>
+                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Invoice PDF
                       </td>
-                      <td className="text-center text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></td>
-                      <td className="text-center">20/bln</td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end">100/bln</td>
-                      <td className="text-center">Unlimited</td>
-                      <td className="text-center">Unlimited + logo</td>
+                      <td className="text-center text-muted opacity-40" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-x-circle-fill"></i></td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>20/bln</td>
+                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>100/bln</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>Unlimited</td>
+                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>Unlimited + logo</td>
                     </tr>
                     <tr>
-                      <td className="px-3 fw-medium bg-white" style={{ position: 'sticky', left: 0, zIndex: 1, boxShadow: '2px 0 5px rgba(0,0,0,0.03)' }}>
+                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Lacak order link
                       </td>
-                      <td className="text-center text-muted">Ada watermark</td>
-                      <td className="text-center text-muted">Ada watermark</td>
-                      <td className="text-center text-success fw-medium bg-primary-subtle border-start border-end">Tanpa watermark</td>
-                      <td className="text-center text-success">Tanpa watermark</td>
-                      <td className="text-center text-success">+ Tampilan custom</td>
+                      <td className="text-center text-muted" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>Ada watermark</td>
+                      <td className="text-center text-muted" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>Ada watermark</td>
+                      <td className="text-center text-success fw-medium bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>Tanpa watermark</td>
+                      <td className="text-center text-success" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>Tanpa watermark</td>
+                      <td className="text-center text-success" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>+ Tampilan custom</td>
                     </tr>
                     <tr>
-                      <td className="px-3 fw-medium bg-white" style={{ position: 'sticky', left: 0, zIndex: 1, boxShadow: '2px 0 5px rgba(0,0,0,0.03)' }}>
+                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Stok bahan
                       </td>
-                      <td className="text-center text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></td>
-                      <td className="text-center">5 item</td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end">20 item</td>
-                      <td className="text-center">50 item</td>
-                      <td className="text-center">Unlimited</td>
+                      <td className="text-center text-muted opacity-40" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-x-circle-fill"></i></td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>5 item</td>
+                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>20 item</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>50 item</td>
+                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>Unlimited</td>
                     </tr>
                     <tr>
-                      <td className="px-3 fw-medium bg-white" style={{ position: 'sticky', left: 0, zIndex: 1, boxShadow: '2px 0 5px rgba(0,0,0,0.03)' }}>
+                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Notifikasi stok menipis
                       </td>
-                      <td className="text-center text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></td>
-                      <td className="text-center text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></td>
-                      <td className="text-center text-success bg-primary-subtle border-start border-end"><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success"><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success"><i className="bi bi-check-circle-fill"></i></td>
+                      <td className="text-center text-muted opacity-40" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-x-circle-fill"></i></td>
+                      <td className="text-center text-muted opacity-40" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-x-circle-fill"></i></td>
+                      <td className="text-center text-success bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
+                      <td className="text-center text-success" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
+                      <td className="text-center text-success" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
                     </tr>
                     <tr>
-                      <td className="px-3 fw-medium bg-white" style={{ position: 'sticky', left: 0, zIndex: 1, boxShadow: '2px 0 5px rgba(0,0,0,0.03)' }}>
+                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Jumlah outlet
                       </td>
-                      <td className="text-center">1</td>
-                      <td className="text-center">1</td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end">1</td>
-                      <td className="text-center">2</td>
-                      <td className="text-center">5</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>1</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>1</td>
+                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>1</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>2</td>
+                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>5</td>
                     </tr>
                     <tr>
-                      <td className="px-3 fw-medium bg-white" style={{ position: 'sticky', left: 0, zIndex: 1, boxShadow: '2px 0 5px rgba(0,0,0,0.03)' }}>
+                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Jumlah kasir/user
                       </td>
-                      <td className="text-center">1</td>
-                      <td className="text-center">2</td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end">3</td>
-                      <td className="text-center">5</td>
-                      <td className="text-center">15</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>1</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>2</td>
+                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>3</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>5</td>
+                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>15</td>
                     </tr>
                     <tr>
-                      <td className="px-3 fw-medium bg-white" style={{ position: 'sticky', left: 0, zIndex: 1, boxShadow: '2px 0 5px rgba(0,0,0,0.03)' }}>
+                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Riwayat data
                       </td>
-                      <td className="text-center">1 bulan</td>
-                      <td className="text-center">3 bulan</td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end">6 bulan</td>
-                      <td className="text-center">12 bulan</td>
-                      <td className="text-center">24 bulan</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>1 bulan</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>3 bulan</td>
+                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>6 bulan</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>12 bulan</td>
+                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>24 bulan</td>
                     </tr>
                     <tr>
-                      <td className="px-3 fw-medium bg-white" style={{ position: 'sticky', left: 0, zIndex: 1, boxShadow: '2px 0 5px rgba(0,0,0,0.03)' }}>
+                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Foto disimpan
                       </td>
-                      <td className="text-center">30 hari</td>
-                      <td className="text-center">60 hari</td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end">90 hari</td>
-                      <td className="text-center">180 hari</td>
-                      <td className="text-center">365 hari</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>30 hari</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>60 hari</td>
+                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>90 hari</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>180 hari</td>
+                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>365 hari</td>
                     </tr>
                     <tr>
-                      <td className="px-3 fw-medium bg-white" style={{ position: 'sticky', left: 0, zIndex: 1, boxShadow: '2px 0 5px rgba(0,0,0,0.03)' }}>
+                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Tipe Support
                       </td>
-                      <td className="text-center">Panduan</td>
-                      <td className="text-center">Komunitas</td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end">Chat</td>
-                      <td className="text-center">Prioritas</td>
-                      <td className="text-center">Prioritas + Onboard</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>Panduan</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>Komunitas</td>
+                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>Chat</td>
+                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>Prioritas</td>
+                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>Prioritas + Onboard</td>
                     </tr>
                   </tbody>
                   <tfoot className="table-light border-top">
                     <tr>
-                      <td
-                        className="px-3 py-3 fw-bold bg-light"
-                        style={{ position: 'sticky', left: 0, zIndex: 2, boxShadow: '2px 0 5px rgba(0,0,0,0.03)' }}
-                      >
+                      <td className="px-3 py-3 fw-bold" style={{ position: 'sticky', left: 0, zIndex: 2, minWidth: '150px', width: '150px', backgroundColor: '#f8fafc', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Aksi Langganan
                       </td>
                       {/* TRIAL */}
-                      <td className="text-center py-3 px-2">
-                        {currentPlanKey === 'TRIAL' ? (
-                          <span className="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-1.5" style={{ fontSize: '0.72rem' }}>
-                            Paket Aktif
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-primary text-white rounded-pill px-3 py-1 fw-semibold text-nowrap shadow-xs"
-                            style={{ fontSize: '0.74rem' }}
-                            onClick={() => setConfirmModal({ open: true, planKey: 'TRIAL', planName: 'Trial (Gratis)' })}
-                          >
-                            Terapkan
-                          </button>
-                        )}
+                      <td className="text-center py-3 px-2" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-primary text-white rounded-pill px-3 py-1 fw-semibold text-nowrap shadow-xs"
+                          style={{ fontSize: '0.74rem' }}
+                          onClick={() => setConfirmModal({ open: true, planKey: 'TRIAL', planName: 'Trial (Gratis)' })}
+                        >
+                          Terapkan
+                        </button>
                       </td>
                       {/* STARTER */}
-                      <td className="text-center py-3 px-2">
-                        {currentPlanKey === 'STARTER' ? (
-                          <span className="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-1.5" style={{ fontSize: '0.72rem' }}>
-                            Paket Aktif
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-primary text-white rounded-pill px-3 py-1 fw-semibold text-nowrap shadow-xs"
-                            style={{ fontSize: '0.74rem' }}
-                            onClick={() => setConfirmModal({ open: true, planKey: 'STARTER', planName: 'Starter 25rb' })}
-                          >
-                            Terapkan
-                          </button>
-                        )}
+                      <td className="text-center py-3 px-2" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-primary text-white rounded-pill px-3 py-1 fw-semibold text-nowrap shadow-xs"
+                          style={{ fontSize: '0.74rem' }}
+                          onClick={() => setConfirmModal({ open: true, planKey: 'STARTER', planName: 'Starter 25rb' })}
+                        >
+                          Terapkan
+                        </button>
                       </td>
                       {/* BASIC */}
-                      <td className="text-center py-3 px-2 bg-primary-subtle border-start border-end">
-                        {currentPlanKey === 'BASIC' ? (
-                          <span className="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-1.5" style={{ fontSize: '0.72rem' }}>
-                            Paket Aktif
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-primary text-white rounded-pill px-3 py-1 fw-semibold text-nowrap shadow-xs"
-                            style={{ fontSize: '0.74rem' }}
-                            onClick={() => setConfirmModal({ open: true, planKey: 'BASIC', planName: 'Basic 50rb ⭐' })}
-                          >
-                            Terapkan
-                          </button>
-                        )}
+                      <td className="text-center py-3 px-2 bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-primary text-white rounded-pill px-3 py-1 fw-semibold text-nowrap shadow-xs"
+                          style={{ fontSize: '0.74rem' }}
+                          onClick={() => setConfirmModal({ open: true, planKey: 'BASIC', planName: 'Basic 50rb ⭐' })}
+                        >
+                          Terapkan
+                        </button>
                       </td>
                       {/* PRO */}
-                      <td className="text-center py-3 px-2">
-                        {currentPlanKey === 'PRO' ? (
-                          <span className="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-1.5" style={{ fontSize: '0.72rem' }}>
-                            Paket Aktif
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-primary text-white rounded-pill px-3 py-1 fw-semibold text-nowrap shadow-xs"
-                            style={{ fontSize: '0.74rem' }}
-                            onClick={() => setConfirmModal({ open: true, planKey: 'PRO', planName: 'Pro 100rb' })}
-                          >
-                            Terapkan
-                          </button>
-                        )}
+                      <td className="text-center py-3 px-2" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-primary text-white rounded-pill px-3 py-1 fw-semibold text-nowrap shadow-xs"
+                          style={{ fontSize: '0.74rem' }}
+                          onClick={() => setConfirmModal({ open: true, planKey: 'PRO', planName: 'Pro 100rb' })}
+                        >
+                          Terapkan
+                        </button>
                       </td>
                       {/* BUSINESS */}
-                      <td className="text-center py-3 px-2">
-                        {currentPlanKey === 'BUSINESS' ? (
-                          <span className="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-1.5" style={{ fontSize: '0.72rem' }}>
-                            Paket Aktif
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-primary text-white rounded-pill px-3 py-1 fw-semibold text-nowrap shadow-xs"
-                            style={{ fontSize: '0.74rem' }}
-                            onClick={() => setConfirmModal({ open: true, planKey: 'BUSINESS', planName: 'Business 200rb' })}
-                          >
-                            Terapkan
-                          </button>
-                        )}
+                      <td className="text-center py-3 px-2" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-primary text-white rounded-pill px-3 py-1 fw-semibold text-nowrap shadow-xs"
+                          style={{ fontSize: '0.74rem' }}
+                          onClick={() => setConfirmModal({ open: true, planKey: 'BUSINESS', planName: 'Business 200rb' })}
+                        >
+                          Terapkan
+                        </button>
                       </td>
                     </tr>
                   </tfoot>

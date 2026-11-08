@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { isSubscriptionEnabled } from '../services/subscriptionService';
 
 /**
  * Modal Popup Ringkas untuk Pembatasan Fitur / Kuota Paket (Plan Gate Modal)
@@ -9,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIMIT', customData = {} }) {
   const navigate = useNavigate();
 
-  if (!isOpen) return null;
+  if (!isOpen || !isSubscriptionEnabled()) return null;
 
   const getModalConfig = () => {
     switch (type) {

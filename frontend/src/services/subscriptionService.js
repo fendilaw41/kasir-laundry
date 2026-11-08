@@ -2,7 +2,19 @@ import { db } from '../db';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 const BILLING_WA = import.meta.env.VITE_BILLING_WHATSAPP_NUMBER || '6281234567890';
-const IS_FEATURE_ENABLED = import.meta.env.VITE_FEATURE_SUBSCRIPTION_ENABLED !== 'false';
+
+export const isSubscriptionEnabled = () => {
+  const val = String(import.meta.env.VITE_FEATURE_SUBSCRIPTION_ENABLED ?? '').trim().toLowerCase();
+  return val === 'true' || val === '1';
+};
+
+export const IS_FEATURE_ENABLED = isSubscriptionEnabled();
+
+export const isUpgradeBannerEnabled = () => {
+  if (!isSubscriptionEnabled()) return false;
+  const val = String(import.meta.env.VITE_SHOW_UPGRADE_BANNER ?? '').trim().toLowerCase();
+  return val === 'true' || val === '1';
+};
 
 export const PLAN_CONFIGS = {
   TRIAL: {
@@ -104,6 +116,36 @@ export const PLAN_CONFIGS = {
  * Mengambil status dan laporan penggunaan paket dari backend atau fallback ke kalkulasi Dexie
  */
 export async function getSubscriptionReport() {
+  if (!isSubscriptionEnabled()) {
+    return {
+      enabled: false,
+      plan: 'UNLIMITED',
+      status: 'ACTIVE',
+      isEnforced: false,
+      limits: {
+        maxTransactions: -1,
+        maxChatPhotos: -1,
+        botTransactions: -1,
+        maxPdfInvoice: -1,
+        watermarkTracking: false,
+        maxStockItems: -1,
+        lowStockNotification: true,
+        maxOutlets: 999,
+        maxUsers: 999,
+        dataHistoryMonths: 999,
+        photoRetentionDays: 999,
+        supportType: 'Full',
+      },
+      usage: {
+        transactions: { used: 0, limit: -1, topup: 0, totalLimit: -1, remaining: 9999, percentage: 0, isWarning: false, isExceeded: false },
+        photos: { used: 0, limit: -1, topup: 0, totalLimit: -1, remaining: 9999, percentage: 0, isWarning: false, isExceeded: false, retentionDays: 999, expiringSoonCount: 0 },
+        users: { used: 1, limit: 999, remaining: 999, isExceeded: false },
+        inventory: { used: 0, limit: -1, remaining: 999, isExceeded: false },
+      },
+      whatsappBillingNumber: BILLING_WA,
+    };
+  }
+
   const token = localStorage.getItem('token');
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
@@ -182,7 +224,7 @@ async function calculateOfflineUsage(storeId) {
     status: 'ACTIVE',
     currentPeriodStart: startOfMonth,
     currentPeriodEnd: new Date(now.getFullYear(), now.getMonth() + 1, 0),
-    isEnforced: IS_FEATURE_ENABLED,
+    isEnforced: isSubscriptionEnabled(),
     limits,
     usage: {
       transactions: {

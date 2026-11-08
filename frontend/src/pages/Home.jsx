@@ -6,7 +6,7 @@ import { TOAST_MESSAGES, CONFIRM_MESSAGES, BUTTON_TEXT, BUTTON_TITLE } from '../
 import { Skeleton, CustomerListSkeleton, InventoryListSkeleton } from '../components/common/Skeleton';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getSettingsQuery } from '../db/repositories/settings';
-import { getSubscriptionReport } from '../services/subscriptionService';
+import { getSubscriptionReport, isSubscriptionEnabled, isUpgradeBannerEnabled } from '../services/subscriptionService';
 import PlanGateModal from '../components/PlanGateModal';
 
 const Home = ({ user }) => {
@@ -248,8 +248,8 @@ const Home = ({ user }) => {
               </div>
             )}
 
-            {/* Plan / Paket (Hanya Owner) */}
-            {user?.role === 'owner' && (
+            {/* Plan / Paket (Hanya jika fitur langganan aktif & akun Owner) */}
+            {isSubscriptionEnabled() && user?.role === 'owner' && (
               <div className="col-3">
                 <Link to="/plan" className="text-decoration-none customer-card-clickable d-block">
                   <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#fff', border: '1px solid #bbdefb' }}>
@@ -265,7 +265,7 @@ const Home = ({ user }) => {
       </div >
 
             {/* Peringatan Kuota 80% */}
-      {subReport?.usage?.transactions?.isWarning && (
+      {isUpgradeBannerEnabled() && subReport?.usage?.transactions?.isWarning && (
         <div
           className="alert alert-warning border-0 shadow-sm d-flex align-items-center justify-content-between mx-3 mt-3"
           style={{ borderRadius: '12px', cursor: 'pointer' }}
@@ -285,7 +285,7 @@ const Home = ({ user }) => {
       )}
 
       {/* Batas Kuota 100% Tercapai */}
-      {subReport?.usage?.transactions?.isExceeded && (
+      {isUpgradeBannerEnabled() && subReport?.usage?.transactions?.isExceeded && (
         <div
           className="alert alert-danger border-0 shadow-sm d-flex align-items-center justify-content-between mx-3 mt-3 text-white"
           style={{ borderRadius: '12px', cursor: 'pointer', backgroundColor: '#dc2626' }}
@@ -593,13 +593,15 @@ const Home = ({ user }) => {
                         const stok = parseInt(form.stok.value);
                         const isKasir = user?.role === 'kasir';
 
-                        if (subReport?.limits?.maxStockItems === 0) {
-                          setGateModal({ open: true, type: 'STOCK_LOCKED', data: { plan: subReport?.plan } });
-                          return;
-                        }
-                        if (subReport?.limits?.maxStockItems !== -1 && (inventory?.length || 0) >= subReport?.limits?.maxStockItems) {
-                          setGateModal({ open: true, type: 'STOCK_LIMIT', data: { plan: subReport?.plan, limit: subReport?.limits?.maxStockItems } });
-                          return;
+                        if (isSubscriptionEnabled()) {
+                          if (subReport?.limits?.maxStockItems === 0) {
+                            setGateModal({ open: true, type: 'STOCK_LOCKED', data: { plan: subReport?.plan } });
+                            return;
+                          }
+                          if (subReport?.limits?.maxStockItems !== -1 && (inventory?.length || 0) >= subReport?.limits?.maxStockItems) {
+                            setGateModal({ open: true, type: 'STOCK_LIMIT', data: { plan: subReport?.plan, limit: subReport?.limits?.maxStockItems } });
+                            return;
+                          }
                         }
 
                         setConfirmModal({
