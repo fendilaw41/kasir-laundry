@@ -33,7 +33,7 @@ export class AuthService {
    * Pendaftaran Store Baru (Public dengan Otorisasi Password Bypass)
    */
   async registerStore(dto: RegisterStoreDto) {
-    const { code, name, address, city, phone, password } = dto;
+    const { code, name, address, city, phone, password, featureSubscriptionEnabled, showUpgradeBanner } = dto;
 
     if (!code || !name) {
       throw new BadRequestException('Kode Toko dan Nama Toko wajib diisi.');
@@ -48,6 +48,9 @@ export class AuthService {
     const cleanAddress = address?.trim() || null;
     const cleanCity = city?.trim() || null;
     const cleanPhone = phone?.trim() || null;
+
+    const subEnabled = typeof featureSubscriptionEnabled === 'boolean' ? featureSubscriptionEnabled : true;
+    const bannerEnabled = typeof showUpgradeBanner === 'boolean' ? showUpgradeBanner : subEnabled;
 
     // Cek apakah Kode Toko sudah terdaftar
     const existing = await this.prisma.store.findUnique({
@@ -67,6 +70,8 @@ export class AuthService {
           address: cleanAddress,
           city: cleanCity,
           phone: cleanPhone,
+          featureSubscriptionEnabled: subEnabled,
+          showUpgradeBanner: bannerEnabled,
         },
       });
 
@@ -191,6 +196,18 @@ export class AuthService {
       storeCode: store.code,
     });
 
+    let storeSubscription: any = null;
+    let masterPlans: any[] = [];
+
+    if (store.featureSubscriptionEnabled) {
+      try {
+        storeSubscription = await this.subscriptionService.getOrCreateSubscription(store.id);
+        masterPlans = await this.subscriptionService.getAllPlans();
+      } catch (err: any) {
+        this.logger.warn(`Gagal inisialisasi subscription store ${store.code}: ${err.message}`);
+      }
+    }
+
     return {
       message: 'Registrasi berhasil',
       token,
@@ -203,7 +220,12 @@ export class AuthService {
         fullname: user.fullname,
         role: user.role,
         token,
+        featureSubscriptionEnabled: store.featureSubscriptionEnabled,
+        showUpgradeBanner: store.showUpgradeBanner,
       },
+      storeSubscription,
+      subscription: storeSubscription,
+      plans: masterPlans,
     };
   }
 
@@ -310,6 +332,8 @@ export class AuthService {
         role: matchedUser.role,
         token,
         password: matchedUser.password, // Hash disimpan ke Dexie lokal agar device bisa login offline selanjutnya
+        featureSubscriptionEnabled: matchedUser.store.featureSubscriptionEnabled,
+        showUpgradeBanner: matchedUser.store.showUpgradeBanner,
       },
       store: matchedUser.store,
       settings: settings || {
@@ -365,6 +389,12 @@ export class AuthService {
         createdAt: inv.createdAt,
         updatedAt: inv.updatedAt,
       })),
+      storeSubscription: matchedUser.store.featureSubscriptionEnabled
+        ? await this.subscriptionService.getOrCreateSubscription(currentStoreId).catch(() => null)
+        : null,
+      plans: matchedUser.store.featureSubscriptionEnabled
+        ? await this.subscriptionService.getAllPlans().catch(() => [])
+        : [],
     };
   }
 

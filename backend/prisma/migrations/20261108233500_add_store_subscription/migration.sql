@@ -22,6 +22,18 @@ CREATE TABLE IF NOT EXISTS "StoreSubscription" (
     "currentPeriodEnd" TIMESTAMPTZ(3) NOT NULL,
     "topupTransactions" INTEGER NOT NULL DEFAULT 0,
     "topupPhotos" INTEGER NOT NULL DEFAULT 0,
+    "maxTransactions" INTEGER NOT NULL DEFAULT 30,
+    "usedTransactions" INTEGER NOT NULL DEFAULT 0,
+    "remainingTransactions" INTEGER NOT NULL DEFAULT 30,
+    "maxChatPhotos" INTEGER NOT NULL DEFAULT 30,
+    "usedPhotos" INTEGER NOT NULL DEFAULT 0,
+    "remainingPhotos" INTEGER NOT NULL DEFAULT 30,
+    "maxUsers" INTEGER NOT NULL DEFAULT 1,
+    "usedUsers" INTEGER NOT NULL DEFAULT 1,
+    "remainingUsers" INTEGER NOT NULL DEFAULT 0,
+    "maxStockItems" INTEGER NOT NULL DEFAULT 0,
+    "usedInventory" INTEGER NOT NULL DEFAULT 0,
+    "remainingInventory" INTEGER NOT NULL DEFAULT 0,
     "customBranding" JSONB,
     "notes" TEXT,
     "createdAt" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -29,6 +41,21 @@ CREATE TABLE IF NOT EXISTS "StoreSubscription" (
 
     CONSTRAINT "StoreSubscription_pkey" PRIMARY KEY ("id")
 );
+
+-- AlterTable StoreSubscription add quota and limit columns (jika tabel sudah pernah dibuat sebelumnya)
+ALTER TABLE "StoreSubscription"
+ADD COLUMN IF NOT EXISTS "maxTransactions" INTEGER NOT NULL DEFAULT 30,
+ADD COLUMN IF NOT EXISTS "usedTransactions" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN IF NOT EXISTS "remainingTransactions" INTEGER NOT NULL DEFAULT 30,
+ADD COLUMN IF NOT EXISTS "maxChatPhotos" INTEGER NOT NULL DEFAULT 30,
+ADD COLUMN IF NOT EXISTS "usedPhotos" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN IF NOT EXISTS "remainingPhotos" INTEGER NOT NULL DEFAULT 30,
+ADD COLUMN IF NOT EXISTS "maxUsers" INTEGER NOT NULL DEFAULT 1,
+ADD COLUMN IF NOT EXISTS "usedUsers" INTEGER NOT NULL DEFAULT 1,
+ADD COLUMN IF NOT EXISTS "remainingUsers" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN IF NOT EXISTS "maxStockItems" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN IF NOT EXISTS "usedInventory" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN IF NOT EXISTS "remainingInventory" INTEGER NOT NULL DEFAULT 0;
 
 -- CreateIndex
 CREATE UNIQUE INDEX IF NOT EXISTS "StoreSubscription_storeId_key" ON "StoreSubscription"("storeId");

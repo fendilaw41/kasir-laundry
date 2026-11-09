@@ -19,7 +19,7 @@ describe('SubscriptionService', () => {
       storeSubscription: {
         findUnique: jest.fn(),
         create: jest.fn(),
-        update: jest.fn(),
+        update: jest.fn().mockResolvedValue({}),
       },
       order: {
         count: jest.fn(),
@@ -37,6 +37,11 @@ describe('SubscriptionService', () => {
       },
       store: {
         findMany: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'store-test-1',
+          featureSubscriptionEnabled: true,
+          showUpgradeBanner: true,
+        }),
       },
     };
 
@@ -122,6 +127,16 @@ describe('SubscriptionService', () => {
   it('should bypass limit check when SUBSCRIPTION_ENFORCEMENT_ENABLED is false', async () => {
     process.env.SUBSCRIPTION_ENFORCEMENT_ENABLED = 'false';
     const result = await service.assertCanPerformAction('store-any', 'CREATE_ORDER');
+    expect(result).toBe(true);
+  });
+
+  it('should bypass limit check when store featureSubscriptionEnabled is false', async () => {
+    prisma.store.findUnique.mockResolvedValueOnce({
+      id: 'store-unlimited',
+      featureSubscriptionEnabled: false,
+      showUpgradeBanner: false,
+    });
+    const result = await service.assertCanPerformAction('store-unlimited', 'CREATE_ORDER');
     expect(result).toBe(true);
   });
 

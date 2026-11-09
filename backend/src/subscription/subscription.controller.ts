@@ -2,13 +2,14 @@ import {
   Controller,
   Get,
   Post,
+  Put,
+  Param,
   Body,
   UseGuards,
   ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SubscriptionService } from './subscription.service';
-import { getPlanLimits } from './subscription.constants';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/public.decorator';
 import { SubscriptionPlan } from '@prisma/client';
@@ -20,11 +21,36 @@ export class SubscriptionController {
 
   @Public()
   @Get('plans')
-  @ApiOperation({ summary: 'Mendapatkan daftar paket dan batas limit' })
-  getPlans() {
+  @ApiOperation({ summary: 'Mendapatkan daftar paket dan batas limit dari database' })
+  async getPlans() {
+    const plans = await this.subscriptionService.getAllPlans();
+    const plansMap: Record<string, any> = {};
+    for (const p of plans) {
+      plansMap[p.key] = p;
+    }
     return {
       success: true,
-      plans: getPlanLimits(),
+      plans,
+      plansMap,
+    };
+  }
+
+  @ApiBearerAuth('bearer')
+  @Put('plans/:key')
+  @ApiOperation({ summary: 'Update master plan di database (Khusus Owner)' })
+  async updatePlan(
+    @CurrentUser() user: any,
+    @Param('key') key: string,
+    @Body() body: any,
+  ) {
+    if (user.role !== 'owner') {
+      throw new ForbiddenException('Hanya akun Owner yang dapat mengubah konfigurasi master plan.');
+    }
+    const updated = await this.subscriptionService.updateMasterPlan(key, body);
+    return {
+      success: true,
+      message: `Konfigurasi master plan ${key} berhasil diperbarui.`,
+      data: updated,
     };
   }
 

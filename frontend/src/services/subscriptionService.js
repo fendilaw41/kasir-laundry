@@ -1,17 +1,45 @@
 import { db } from '../db';
+import { getPlanByKey, getAllPlansLocal, syncPlansFromBackend } from '../db/repositories/plans';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 const BILLING_WA = import.meta.env.VITE_BILLING_WHATSAPP_NUMBER || '6281234567890';
 
-export const isSubscriptionEnabled = () => {
+export const isSubscriptionEnabled = (overrideUser) => {
+  if (overrideUser && typeof overrideUser.featureSubscriptionEnabled === 'boolean') {
+    return overrideUser.featureSubscriptionEnabled;
+  }
+  if (typeof window !== 'undefined') {
+    try {
+      const storedUser = JSON.parse(
+        window.sessionStorage?.getItem('user') || window.localStorage?.getItem('user') || '{}'
+      );
+      if (typeof storedUser?.featureSubscriptionEnabled === 'boolean') {
+        return storedUser.featureSubscriptionEnabled;
+      }
+    } catch {}
+  }
   const val = String(import.meta.env.VITE_FEATURE_SUBSCRIPTION_ENABLED ?? '').trim().toLowerCase();
   return val === 'true' || val === '1';
 };
 
 export const IS_FEATURE_ENABLED = isSubscriptionEnabled();
 
-export const isUpgradeBannerEnabled = () => {
-  if (!isSubscriptionEnabled()) return false;
+export const isUpgradeBannerEnabled = (overrideUser) => {
+  if (!isSubscriptionEnabled(overrideUser)) return false;
+
+  if (overrideUser && typeof overrideUser.showUpgradeBanner === 'boolean') {
+    return overrideUser.showUpgradeBanner;
+  }
+  if (typeof window !== 'undefined') {
+    try {
+      const storedUser = JSON.parse(
+        window.sessionStorage?.getItem('user') || window.localStorage?.getItem('user') || '{}'
+      );
+      if (typeof storedUser?.showUpgradeBanner === 'boolean') {
+        return storedUser.showUpgradeBanner;
+      }
+    } catch {}
+  }
   const val = String(import.meta.env.VITE_SHOW_UPGRADE_BANNER ?? '').trim().toLowerCase();
   return val === 'true' || val === '1';
 };
@@ -153,6 +181,9 @@ export async function getSubscriptionReport() {
 
   if (token) {
     try {
+      // Sinkronkan update master plan dari DB ke Dexie di background
+      syncPlansFromBackend().catch(() => {});
+
       const res = await fetch(`${API_URL}/subscription/usage`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -162,10 +193,30 @@ export async function getSubscriptionReport() {
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
+          // Sinkronkan status flag fitur subscription ke session user jika ada perubahan dari server
+          try {
+            const curUser = JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}');
+            let changed = false;
+            if (typeof json.data.featureSubscriptionEnabled === 'boolean' && curUser.featureSubscriptionEnabled !== json.data.featureSubscriptionEnabled) {
+              curUser.featureSubscriptionEnabled = json.data.featureSubscriptionEnabled;
+              changed = true;
+            }
+            if (typeof json.data.showUpgradeBanner === 'boolean' && curUser.showUpgradeBanner !== json.data.showUpgradeBanner) {
+              curUser.showUpgradeBanner = json.data.showUpgradeBanner;
+              changed = true;
+            }
+            if (changed) {
+              if (typeof localStorage !== 'undefined') localStorage.setItem('user', JSON.stringify(curUser));
+              if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('user', JSON.stringify(curUser));
+            }
+          } catch {}
+
           // Cache ke settings Dexie jika memungkinkan
           try {
             await db.settings.where('id').equals(1).modify({
               cachedSubscription: json.data,
+              featureSubscriptionEnabled: json.data.featureSubscriptionEnabled,
+              showUpgradeBanner: json.data.showUpgradeBanner,
             });
           } catch (e) {}
           return json.data;
@@ -215,7 +266,8 @@ async function calculateOfflineUsage(storeId) {
     }
   } catch (e) {}
 
-  const limits = PLAN_CONFIGS[cachedPlan] || PLAN_CONFIGS.TRIAL;
+  const dbPlan = await getPlanByKey(cachedPlan);
+  const limits = dbPlan || PLAN_CONFIGS[cachedPlan] || PLAN_CONFIGS.TRIAL;
   const totalTrx = limits.maxTransactions;
   const trxPercent = totalTrx === -1 ? 0 : Math.min(100, Math.round((trxCount / totalTrx) * 100));
 
@@ -355,3 +407,6 @@ export async function topupQuota(type, amount) {
 
   return json;
 }
+
+export { syncPlansFromBackend, getPlanByKey, getAllPlansLocal } from '../db/repositories/plans';
+

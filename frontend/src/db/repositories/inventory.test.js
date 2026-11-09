@@ -3,7 +3,8 @@ import { getInventoryQuery, getInventoryById, addInventoryManual } from './inven
 import { db } from '../../db.js';
 
 vi.mock('../../services/syncService.js', () => ({
-  syncInventoryToBackend: vi.fn().mockResolvedValue(true)
+  syncInventoryToBackend: vi.fn().mockResolvedValue(true),
+  syncInventoryEventsToBackend: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock('../../db.js', () => ({

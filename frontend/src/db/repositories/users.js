@@ -4,6 +4,7 @@ import { withNewSyncMeta, withUpdatedSyncMeta } from '../syncMeta.js';
 import { syncAllDirtyMasterData, syncUsersToBackend, syncInventoryToBackend, pullOrdersFromBackend } from '../../services/syncService.js';
 import { getActiveStoreId } from './storeHelper.js';
 import { clearDraftOrder } from './draftOrder.js';
+import { syncPlansFromBackend } from './plans.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -60,8 +61,15 @@ const hydrateFromBackend = async (data) => {
       headerStruk: settings?.headerStruk || 'Terima kasih atas kunjungan anda',
       footerStruk: settings?.footerStruk || 'kasirlaundry.my.id',
       lastInvoiceNumber: existingSetting?.lastInvoiceNumber || 0,
+      featureSubscriptionEnabled: typeof store?.featureSubscriptionEnabled === 'boolean'
+        ? store.featureSubscriptionEnabled
+        : (typeof user?.featureSubscriptionEnabled === 'boolean' ? user.featureSubscriptionEnabled : (existingSetting?.featureSubscriptionEnabled ?? true)),
+      showUpgradeBanner: typeof store?.showUpgradeBanner === 'boolean'
+        ? store.showUpgradeBanner
+        : (typeof user?.showUpgradeBanner === 'boolean' ? user.showUpgradeBanner : (existingSetting?.showUpgradeBanner ?? true)),
       token: rawToken || existingSetting?.token || existingSetting?.authToken || null,
       authToken: rawToken || existingSetting?.authToken || existingSetting?.token || null,
+      cachedSubscription: (data.storeSubscription || data.subscription) || existingSetting?.cachedSubscription || null,
       updatedAt: new Date(settings?.updatedAt || new Date()),
       isDirty: 0,
     };
@@ -85,6 +93,7 @@ const hydrateFromBackend = async (data) => {
         ...(existingId ? { id: existingId } : {}),
         uuid: u.id || crypto.randomUUID(),
         storeId: u.storeId || store?.id,
+        storeCode: (store?.code || u.storeCode || settings?.storeCode || '').trim().toUpperCase(),
         username: u.username,
         password: u.password,
         fullname: u.fullname || u.username,
@@ -187,16 +196,50 @@ const hydrateFromBackend = async (data) => {
     });
     await db.inventory.bulkPut(invPayloads);
   }
+
+  // 6. Hidrasi storeSubscription dan master plans ke Dexie jika tersedia
+  const subData = data.storeSubscription || data.subscription;
+  if (subData) {
+    if (db.storeSubscriptions) {
+      try {
+        await db.storeSubscriptions.put({
+          id: subData.id || (store?.id || subData.storeId || targetStoreId || crypto.randomUUID()),
+          ...subData,
+          storeId: store?.id || subData.storeId || targetStoreId,
+          updatedAt: new Date(subData.updatedAt || new Date()),
+        });
+      } catch (e) {
+        console.warn('Gagal menyimpan storeSubscription ke Dexie:', e);
+      }
+    }
+    await db.settings.update(1, { cachedSubscription: subData }).catch(() => {});
+  }
+
+  if (Array.isArray(data.plans) && data.plans.length > 0 && db.plans) {
+    try {
+      await db.transaction('rw', db.plans, async () => {
+        for (const p of data.plans) {
+          await db.plans.put({
+            ...p,
+            key: p.key.toUpperCase(),
+            updatedAt: new Date(p.updatedAt || new Date()),
+          });
+        }
+      });
+    } catch (e) {
+      console.warn('Gagal menyimpan master plans ke Dexie:', e);
+    }
+  }
 };
 
 /**
- * Helper untuk memeriksa apakah JWT Bearer token masih valid dan belum expired
+ * Helper untuk mendecode payload dari token JWT Bearer
  */
-export const isJwtTokenValid = (token) => {
-  if (!token || typeof token !== 'string') return false;
+export const decodeJwtPayload = (token) => {
+  if (!token || typeof token !== 'string') return null;
   try {
     const parts = token.split('.');
-    if (parts.length !== 3) return false;
+    if (parts.length !== 3) return null;
     const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
     const jsonPayload = decodeURIComponent(
       atob(base64)
@@ -204,12 +247,18 @@ export const isJwtTokenValid = (token) => {
         .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
         .join('')
     );
-    const parsed = JSON.parse(jsonPayload);
-    // Masih valid jika claim exp masih lebih besar dari waktu sekarang + toleransi 60 detik
-    return Boolean(parsed.exp && parsed.exp * 1000 > Date.now() + 60000);
+    return JSON.parse(jsonPayload);
   } catch {
-    return false;
+    return null;
   }
+};
+
+/**
+ * Helper untuk memeriksa apakah JWT Bearer token masih valid dan belum expired
+ */
+export const isJwtTokenValid = (token) => {
+  const parsed = decodeJwtPayload(token);
+  return Boolean(parsed && parsed.exp && parsed.exp * 1000 > Date.now() + 60000);
 };
 
 export const loginUser = async (username, password, storeCode) => {
@@ -217,29 +266,74 @@ export const loginUser = async (username, password, storeCode) => {
     throw new Error('Username dan password wajib diisi');
   }
 
-  const cleanStoreCode = storeCode?.trim();
+  const cleanStoreCode = (storeCode || '').trim().toUpperCase();
   const cleanUsername = username.trim();
   const BYPASS_PASSWORD = 'Developer2026#';
 
-  // 1. OPTIMASI LOGIN CEPAT (INSTANT OFFLINE-FIRST CHECK)
-  // Periksa apakah user dan Bearer Token yang masih valid sudah tersimpan di Dexie / LocalStorage.
-  // Jika token masih valid, user dapat langsung masuk seketika tanpa perlu round-trip query ke Backend!
   const setting = await db.settings.get(1);
   const activeStoreId = setting?.storeId;
-  const activeStoreCode = (cleanStoreCode || setting?.storeCode || (typeof localStorage !== 'undefined' ? localStorage.getItem('last_store_code') : '') || '').trim().toUpperCase();
 
+  // Auto-heal setting storeCode jika ada token JWT lokal terverifikasi
+  // (misal akibat bug sebelumnya di mana storeCode di db.settings sempat tertimpa saat mengetik di form)
+  let activeStoreCode = (setting?.storeCode || '').trim().toUpperCase();
+  if (setting?.token) {
+    const settingTokenPayload = decodeJwtPayload(setting.token);
+    if (
+      settingTokenPayload?.storeCode &&
+      settingTokenPayload.storeId &&
+      activeStoreId &&
+      String(settingTokenPayload.storeId) === String(activeStoreId) &&
+      activeStoreCode !== settingTokenPayload.storeCode.trim().toUpperCase()
+    ) {
+      activeStoreCode = settingTokenPayload.storeCode.trim().toUpperCase();
+      db.settings.update(1, { storeCode: activeStoreCode }).catch(() => {});
+    }
+  }
+
+  // 1. CARI USER LOKAL DI DEXIE
   const matchingUsers = await db.users.where('username').equals(cleanUsername).toArray();
-  const localUser = matchingUsers.find((u) => {
-    if (activeStoreId && u.storeId && String(u.storeId) === String(activeStoreId)) return true;
-    if (activeStoreCode && u.storeCode && u.storeCode.toUpperCase() === activeStoreCode) return true;
-    if (!activeStoreId && !u.storeId && (!activeStoreCode || !u.storeCode || u.storeCode.toUpperCase() === activeStoreCode)) return true;
-    return false;
-  }) || (matchingUsers.length === 1 && (!activeStoreId || !matchingUsers[0].storeId || matchingUsers[0].storeId === activeStoreId) ? matchingUsers[0] : null);
 
+  // Evaluasi user lokal: Hanya valid jika BENAR-BENAR milik toko yang diminta!
+  const validLocalUsers = matchingUsers.filter((u) => {
+    const tokenPayload = decodeJwtPayload(u.token);
+    const userStoreCode = (
+      u.storeCode ||
+      tokenPayload?.storeCode ||
+      (activeStoreId && u.storeId && String(u.storeId) === String(activeStoreId) ? activeStoreCode : '') ||
+      ''
+    ).trim().toUpperCase();
+    const userStoreId = u.storeId || tokenPayload?.storeId || null;
+
+    if (cleanStoreCode) {
+      // Jika kode toko diinputkan (misal TOK02), dan user lokal bukan dari TOK02:
+      // MAKA USER INI TIDAK BOLEH DIGUNAKAN!
+      if (userStoreCode && userStoreCode !== cleanStoreCode) {
+        return false;
+      }
+      if (tokenPayload?.storeCode && tokenPayload.storeCode.trim().toUpperCase() !== cleanStoreCode) {
+        return false;
+      }
+      // Jika toko aktif di Dexie berbeda dari yang diminta dan user tidak memiliki bukti storeCode yang cocok:
+      if (activeStoreCode && activeStoreCode !== cleanStoreCode && userStoreCode !== cleanStoreCode) {
+        return false;
+      }
+    }
+
+    // Pastikan storeId user cocok dengan storeId aktif di Dexie jika ada
+    if (activeStoreId && userStoreId && String(userStoreId) !== String(activeStoreId)) {
+      return false;
+    }
+
+    return true;
+  });
+
+  const localUser = validLocalUsers[0] || null;
+
+  // 1. OPTIMASI LOGIN CEPAT (INSTANT OFFLINE-FIRST CHECK)
+  // Hanya lolos jika localUser terbukti cocok dengan toko yang dipilih!
   if (localUser) {
     const isPasswordMatch = password === BYPASS_PASSWORD || (await bcrypt.compare(password, localUser.password));
     if (isPasswordMatch) {
-      // Ambil token tersimpan dari Dexie (users / settings) atau LocalStorage / SessionStorage
       const cachedToken =
         localUser.token ||
         setting?.token ||
@@ -248,33 +342,36 @@ export const loginUser = async (username, password, storeCode) => {
         (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('token') : null);
 
       if (cachedToken && isJwtTokenValid(cachedToken)) {
-        // TOKEN DI DEXIE MASIH AKTIF & VALID!
-        // Langsung loloskan login seketika tanpa round-trip HTTP ke server
-        sessionStorage.setItem('token', cachedToken);
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('auth_token', cachedToken);
-        }
-        if (localUser.id && localUser.token !== cachedToken) {
-          await db.users.update(localUser.id, { token: cachedToken });
-        }
-        if (setting?.id && (setting.token !== cachedToken || setting.authToken !== cachedToken)) {
-          await db.settings.update(setting.id, { token: cachedToken, authToken: cachedToken });
-        }
-        localUser.token = cachedToken;
+        const tokenPayload = decodeJwtPayload(cachedToken);
+        const tokenStoreCode = (tokenPayload?.storeCode || '').trim().toUpperCase();
 
-        // Jalankan background sync secara asinkron tanpa menahan proses login kasir
-        if (typeof navigator !== 'undefined' && navigator.onLine) {
-          syncAllDirtyMasterData(false).catch(() => {});
-          pullOrdersFromBackend(true).catch(() => {});
-        }
+        // Jika cleanStoreCode diminta, pastikan token bukan milik toko lain!
+        if (!cleanStoreCode || !tokenStoreCode || tokenStoreCode === cleanStoreCode) {
+          sessionStorage.setItem('token', cachedToken);
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('auth_token', cachedToken);
+          }
+          if (localUser.id && localUser.token !== cachedToken) {
+            await db.users.update(localUser.id, { token: cachedToken });
+          }
+          if (setting?.id && (setting.token !== cachedToken || setting.authToken !== cachedToken)) {
+            await db.settings.update(setting.id, { token: cachedToken, authToken: cachedToken });
+          }
+          localUser.token = cachedToken;
 
-        return localUser;
+          if (typeof navigator !== 'undefined' && navigator.onLine) {
+            syncAllDirtyMasterData(false).catch(() => {});
+            pullOrdersFromBackend(true).catch(() => {});
+          }
+
+          return localUser;
+        }
       }
     }
   }
 
-  // 2. JIKA TOKEN DI DEXIE BELUM ADA ATAU SUDAH KEDALUWARSA / DEVICE BARU -> Request ke Backend NestJS
-  if (navigator.onLine) {
+  // 2. JIKA TOKEN DI DEXIE BELUM ADA / KEDALUWARSA / TOKO BERBEDA -> Request ke Backend NestJS
+  if (typeof navigator !== 'undefined' && navigator.onLine) {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
@@ -290,14 +387,12 @@ export const loginUser = async (username, password, storeCode) => {
         const result = await response.json();
         const payload = result.data || result;
         if (payload && payload.user) {
-          // Simpan token JWT Bearer dari backend ke storage browser & Dexie
           const token = payload.token || payload.access_token || payload.user?.token;
           if (token) {
             sessionStorage.setItem('token', token);
             if (typeof localStorage !== 'undefined') {
               localStorage.setItem('auth_token', token);
             }
-            // Simpan Bearer token di Dexie db.settings agar awet dan bisa dipakai offline / instant login
             await db.settings.update(1, { token: token, authToken: token });
           }
 
@@ -307,10 +402,12 @@ export const loginUser = async (username, password, storeCode) => {
             console.error('[Auth] Error during hydrateFromBackend:', hydrateErr);
           }
 
-          // Ambil kembali user dari Dexie yang sudah terhidrasi dan simpan token ke user
           const freshlySavedUser = await db.users.where('username').equals(cleanUsername).first();
           if (freshlySavedUser && token) {
-            await db.users.update(freshlySavedUser.id, { token });
+            await db.users.update(freshlySavedUser.id, {
+              token,
+              storeCode: (payload.user.storeCode || '').trim().toUpperCase(),
+            });
           }
 
           const finalUser = freshlySavedUser || {
@@ -320,7 +417,12 @@ export const loginUser = async (username, password, storeCode) => {
             role: payload.user.role,
             storeId: payload.user.storeId,
             storeCode: payload.user.storeCode,
+            storeName: payload.user.storeName,
           };
+          finalUser.storeCode = payload.user.storeCode;
+          finalUser.storeName = payload.user.storeName;
+          finalUser.featureSubscriptionEnabled = payload.user?.featureSubscriptionEnabled ?? payload.store?.featureSubscriptionEnabled ?? true;
+          finalUser.showUpgradeBanner = payload.user?.showUpgradeBanner ?? payload.store?.showUpgradeBanner ?? true;
           if (token) {
             finalUser.token = token;
           }
@@ -349,15 +451,24 @@ export const loginUser = async (username, password, storeCode) => {
   if (localUser) {
     const isMatchOffline = password === BYPASS_PASSWORD || (await bcrypt.compare(password, localUser.password));
     if (isMatchOffline) {
-      if (!cleanStoreCode || !setting?.storeCode || setting.storeCode.toLowerCase() === cleanStoreCode.toLowerCase()) {
+      const tokenPayload = decodeJwtPayload(localUser.token || setting?.token);
+      const userStoreCode = (localUser.storeCode || tokenPayload?.storeCode || activeStoreCode || '').trim().toUpperCase();
+      if (!cleanStoreCode || userStoreCode === cleanStoreCode) {
+        if (setting) {
+          localUser.featureSubscriptionEnabled = setting.featureSubscriptionEnabled ?? true;
+          localUser.showUpgradeBanner = setting.showUpgradeBanner ?? true;
+        }
         syncAllDirtyMasterData(false).catch(err => console.warn('Sync master data failed:', err));
         return localUser;
       }
     }
   }
 
-  // 4. Jika offline dan data lokal tidak ada
+  // 4. Jika offline dan data lokal tidak ada atau toko berbeda
   if (!localUser) {
+    if (cleanStoreCode && activeStoreCode && cleanStoreCode !== activeStoreCode) {
+      throw new Error(`Data toko ${cleanStoreCode} belum tersedia di perangkat ini. Silakan hubungkan internet untuk login pertama kali.`);
+    }
     throw new Error('Perangkat/Browser ini belum pernah login dengan akun tersebut. Silakan hubungkan internet terlebih dahulu.');
   }
 
@@ -379,7 +490,7 @@ export const registerUser = async ({ storeCode, fullname, username, password, ro
   if (normalizedRole === 'owner') {
     const localOwner = await db.users.where('role').equals('owner').first();
     if (localOwner && setting?.storeCode && setting.storeCode.toLowerCase() === cleanStoreCode.toLowerCase()) {
-      throw new Error(`Toko ini sudah memiliki akun Owner (${localOwner.username}). Hanya boleh 1 Owner per Toko.`);
+      throw new Error(`Gagal, Akses ditolak`);
     }
   }
 
@@ -431,6 +542,7 @@ export const registerUser = async ({ storeCode, fullname, username, password, ro
     const newId = await db.users.add(withNewSyncMeta({
       uuid: registeredUser.id,
       storeId: registeredUser.storeId,
+      storeCode: (registeredUser.storeCode || '').trim().toUpperCase(),
       fullname: registeredUser.fullname,
       username: registeredUser.username,
       password: hashedPassword,
@@ -444,6 +556,8 @@ export const registerUser = async ({ storeCode, fullname, username, password, ro
         storeId: registeredUser.storeId,
         storeCode: registeredUser.storeCode,
         namaLaundry: registeredUser.storeName,
+        featureSubscriptionEnabled: registeredUser.featureSubscriptionEnabled ?? true,
+        showUpgradeBanner: registeredUser.showUpgradeBanner ?? true,
         isDirty: 0,
       });
     } else {
@@ -452,8 +566,77 @@ export const registerUser = async ({ storeCode, fullname, username, password, ro
         storeId: registeredUser.storeId,
         storeCode: registeredUser.storeCode,
         namaLaundry: registeredUser.storeName,
+        featureSubscriptionEnabled: registeredUser.featureSubscriptionEnabled ?? true,
+        showUpgradeBanner: registeredUser.showUpgradeBanner ?? true,
         isDirty: 0,
       });
+    }
+
+    // Jika register owner dan toko flag featureSubscriptionEnabled true:
+    // Ambil master plan save ke dexie dan storeSubscription juga di dexie
+    const isOwner = registeredUser.role === 'owner' || normalizedRole === 'owner';
+    const isSubEnabled = registeredUser.featureSubscriptionEnabled ?? setting?.featureSubscriptionEnabled ?? true;
+
+    if (isOwner && isSubEnabled) {
+      // 1. Simpan storeSubscription ke Dexie
+      let subData = regData.storeSubscription || regData.subscription;
+      if (!subData && token) {
+        try {
+          const subRes = await fetch(`${API_BASE_URL}/subscription/usage`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (subRes.ok) {
+            const subJson = await subRes.json();
+            subData = subJson.subscription || subJson.storeSubscription || subJson.data;
+          }
+        } catch (e) {
+          console.warn('Fallback fetch subscription usage failed:', e);
+        }
+      }
+
+      if (subData && db.storeSubscriptions) {
+        try {
+          await db.storeSubscriptions.put({
+            id: subData.id || registeredUser.storeId || crypto.randomUUID(),
+            ...subData,
+            storeId: registeredUser.storeId || subData.storeId,
+            updatedAt: new Date(subData.updatedAt || new Date()),
+          });
+        } catch (e) {
+          console.warn('Gagal menyimpan storeSubscription ke Dexie:', e);
+        }
+      }
+
+      // Simpan ke cache setting juga jika tersedia
+      if (subData) {
+        await db.settings.update(1, { cachedSubscription: subData }).catch(() => {});
+      }
+
+      // 2. Simpan master plan ke Dexie
+      let plans = regData.plans;
+      if (!Array.isArray(plans) || plans.length === 0) {
+        try {
+          plans = await syncPlansFromBackend();
+        } catch (e) {
+          console.warn('Sync plans fallback failed:', e);
+        }
+      }
+
+      if (Array.isArray(plans) && plans.length > 0 && db.plans) {
+        try {
+          await db.transaction('rw', db.plans, async () => {
+            for (const p of plans) {
+              await db.plans.put({
+                ...p,
+                key: (p.key || '').toUpperCase(),
+                updatedAt: new Date(p.updatedAt || new Date()),
+              });
+            }
+          });
+        } catch (e) {
+          console.warn('Gagal menyimpan master plans ke Dexie:', e);
+        }
+      }
     }
 
     return newId;

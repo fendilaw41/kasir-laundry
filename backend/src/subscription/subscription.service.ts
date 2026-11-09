@@ -14,6 +14,8 @@ export interface UsageReport {
   status: string;
   currentPeriodStart: Date;
   currentPeriodEnd: Date;
+  featureSubscriptionEnabled: boolean;
+  showUpgradeBanner: boolean;
   isEnforced: boolean;
   limits: PlanLimits;
   usage: {
@@ -69,6 +71,168 @@ export class SubscriptionService {
   }
 
   /**
+   * Mengambil konfigurasi limit paket dari database MasterPlan (dengan fallback ke constants)
+   */
+  async getPlanConfig(planKey: string): Promise<PlanLimits> {
+    try {
+      const dbPlan = await this.prisma.masterPlan.findUnique({
+        where: { key: planKey },
+      });
+      if (dbPlan) {
+        return {
+          name: dbPlan.name,
+          price: dbPlan.price,
+          isPopular: dbPlan.isPopular,
+          maxTransactions: dbPlan.maxTransactions,
+          maxChatPhotos: dbPlan.maxChatPhotos,
+          botTransactions: dbPlan.botTransactions,
+          maxPdfInvoice: dbPlan.maxPdfInvoice,
+          customPdfLogo: dbPlan.customPdfLogo,
+          watermarkTracking: dbPlan.watermarkTracking,
+          customTrackingView: dbPlan.customTrackingView,
+          maxStockItems: dbPlan.maxStockItems,
+          lowStockNotification: dbPlan.lowStockNotification,
+          maxOutlets: dbPlan.maxOutlets,
+          maxUsers: dbPlan.maxUsers,
+          dataHistoryMonths: dbPlan.dataHistoryMonths,
+          photoRetentionDays: dbPlan.photoRetentionDays,
+          supportType: dbPlan.supportType,
+        };
+      }
+    } catch (err) {
+      this.logger.warn(`Gagal membaca MasterPlan '${planKey}' dari DB: ${err.message}`);
+    }
+
+    const defaultLimits = getPlanLimits();
+    return defaultLimits[planKey] || defaultLimits.TRIAL;
+  }
+
+  /**
+   * Seed data default master plan jika tabel di DB masih kosong
+   */
+  async seedDefaultPlans() {
+    const defaultLimits = getPlanLimits();
+    const defaults = [
+      {
+        ...defaultLimits.TRIAL,
+        id: 'plan-trial',
+        key: 'TRIAL',
+        name: 'Trial (Gratis)',
+        price: 0,
+        priceLabel: 'Gratis',
+        isPopular: false,
+        sortOrder: 1,
+        badgeColor: 'secondary',
+      },
+      {
+        ...defaultLimits.STARTER,
+        id: 'plan-starter',
+        key: 'STARTER',
+        name: 'Starter',
+        price: 25000,
+        priceLabel: '25rb/bln',
+        isPopular: false,
+        sortOrder: 2,
+        badgeColor: 'info',
+      },
+      {
+        ...defaultLimits.BASIC,
+        id: 'plan-basic',
+        key: 'BASIC',
+        name: 'Basic',
+        price: 50000,
+        priceLabel: '50rb/bln',
+        isPopular: true,
+        sortOrder: 3,
+        badgeColor: 'primary',
+      },
+      {
+        ...defaultLimits.PRO,
+        id: 'plan-pro',
+        key: 'PRO',
+        name: 'Pro',
+        price: 100000,
+        priceLabel: '100rb/bln',
+        isPopular: false,
+        sortOrder: 4,
+        badgeColor: 'warning',
+      },
+      {
+        ...defaultLimits.BUSINESS,
+        id: 'plan-business',
+        key: 'BUSINESS',
+        name: 'Business',
+        price: 200000,
+        priceLabel: '200rb/bln',
+        isPopular: false,
+        sortOrder: 5,
+        badgeColor: 'dark',
+      },
+    ];
+
+    for (const item of defaults) {
+      await this.prisma.masterPlan.upsert({
+        where: { key: item.key },
+        create: item,
+        update: {},
+      });
+    }
+  }
+
+  /**
+   * Mengambil semua daftar master plan yang aktif dari database
+   */
+  async getAllPlans() {
+    try {
+      const plans = await this.prisma.masterPlan.findMany({
+        where: { isActive: true },
+        orderBy: { sortOrder: 'asc' },
+      });
+      if (plans.length === 0) {
+        await this.seedDefaultPlans();
+        return this.prisma.masterPlan.findMany({
+          where: { isActive: true },
+          orderBy: { sortOrder: 'asc' },
+        });
+      }
+      return plans;
+    } catch (err) {
+      this.logger.warn(`Gagal mengambil list master plan dari DB: ${err.message}`);
+      const defaultLimits = getPlanLimits();
+      return Object.entries(defaultLimits).map(([key, p], idx) => ({
+        ...p,
+        id: `plan-${key.toLowerCase()}`,
+        key,
+        name: p.name,
+        price: p.price,
+        priceLabel: p.price === 0 ? 'Gratis' : `${p.price / 1000}rb/bln`,
+        isPopular: !!p.isPopular,
+        sortOrder: idx + 1,
+        isActive: true,
+        badgeColor: key === 'BASIC' ? 'primary' : key === 'PRO' ? 'warning' : 'secondary',
+      }));
+    }
+  }
+
+  /**
+   * Update konfigurasi master plan di DB
+   */
+  async updateMasterPlan(key: string, data: any) {
+    const existing = await this.prisma.masterPlan.findUnique({
+      where: { key: key.toUpperCase() },
+    });
+    if (!existing) {
+      throw new NotFoundException(`Master plan '${key}' tidak ditemukan.`);
+    }
+
+    const { id, key: _k, createdAt, updatedAt, ...allowedFields } = data;
+    return this.prisma.masterPlan.update({
+      where: { key: key.toUpperCase() },
+      data: allowedFields,
+    });
+  }
+
+  /**
    * Mendapatkan atau membuat subscription toko secara otomatis
    */
   async getOrCreateSubscription(storeId: string) {
@@ -82,6 +246,7 @@ export class SubscriptionService {
       const now = new Date();
       const periodEnd = new Date(now);
       periodEnd.setDate(periodEnd.getDate() + (trialDays > 0 ? trialDays : 30));
+      const planLimits = await this.getPlanConfig(defaultPlan);
 
       sub = await this.prisma.storeSubscription.create({
         data: {
@@ -90,6 +255,18 @@ export class SubscriptionService {
           status: SubscriptionStatus.ACTIVE,
           currentPeriodStart: now,
           currentPeriodEnd: periodEnd,
+          maxTransactions: planLimits.maxTransactions === -1 ? 999999 : planLimits.maxTransactions,
+          usedTransactions: 0,
+          remainingTransactions: planLimits.maxTransactions === -1 ? 999999 : planLimits.maxTransactions,
+          maxChatPhotos: planLimits.maxChatPhotos === -1 ? 999999 : planLimits.maxChatPhotos,
+          usedPhotos: 0,
+          remainingPhotos: planLimits.maxChatPhotos === -1 ? 999999 : planLimits.maxChatPhotos,
+          maxUsers: planLimits.maxUsers,
+          usedUsers: 1,
+          remainingUsers: Math.max(0, planLimits.maxUsers - 1),
+          maxStockItems: planLimits.maxStockItems === -1 ? 999999 : planLimits.maxStockItems,
+          usedInventory: 0,
+          remainingInventory: planLimits.maxStockItems === -1 ? 999999 : planLimits.maxStockItems,
         },
       });
       this.logger.log(`Created default subscription for store ${storeId} with plan ${defaultPlan}`);
@@ -112,8 +289,7 @@ export class SubscriptionService {
    */
   async getUsageReport(storeId: string): Promise<UsageReport> {
     const sub = await this.getOrCreateSubscription(storeId);
-    const allLimits = getPlanLimits();
-    const limits = allLimits[sub.plan] || allLimits.TRIAL;
+    const limits = await this.getPlanConfig(sub.plan);
 
     const periodStart = sub.currentPeriodStart;
     const warningPercentage = parseInt(process.env.SUBSCRIPTION_WARNING_PERCENTAGE || '80', 10);
@@ -181,12 +357,54 @@ export class SubscriptionService {
     const userLimit = limits.maxUsers;
     const inventoryLimit = limits.maxStockItems === -1 ? 999999 : limits.maxStockItems;
 
+    const store = await this.prisma.store.findUnique({
+      where: { id: storeId },
+      select: { featureSubscriptionEnabled: true, showUpgradeBanner: true },
+    });
+    const featureSubscriptionEnabled = store?.featureSubscriptionEnabled ?? true;
+    const showUpgradeBanner = store?.showUpgradeBanner ?? true;
+
+    const remainingUsers = Math.max(0, userLimit - usedUsers);
+    const remainingInventory = inventoryLimit === -1 ? 999999 : Math.max(0, inventoryLimit - usedInventory);
+
+    // Simpan snapshot kuota & limit per store langsung ke database StoreSubscription
+    if (this.prisma.storeSubscription?.update) {
+      try {
+        const updatePromise = this.prisma.storeSubscription.update({
+          where: { storeId },
+          data: {
+            maxTransactions: totalTrxLimit,
+            usedTransactions,
+            remainingTransactions: trxRemaining,
+            maxChatPhotos: totalPhotoLimit,
+            usedPhotos,
+            remainingPhotos: photoRemaining,
+            maxUsers: userLimit,
+            usedUsers,
+            remainingUsers,
+            maxStockItems: inventoryLimit,
+            usedInventory,
+            remainingInventory,
+          },
+        });
+        if (updatePromise && typeof updatePromise.catch === 'function') {
+          updatePromise.catch((err: any) => {
+            this.logger.warn(`Gagal update snapshot kuota store ${storeId} di DB: ${err.message}`);
+          });
+        }
+      } catch (err: any) {
+        this.logger.warn(`Gagal update snapshot kuota store ${storeId} di DB: ${err.message}`);
+      }
+    }
+
     return {
       plan: sub.plan,
       status: sub.status,
       currentPeriodStart: sub.currentPeriodStart,
       currentPeriodEnd: sub.currentPeriodEnd,
-      isEnforced: this.isEnforced(),
+      featureSubscriptionEnabled,
+      showUpgradeBanner,
+      isEnforced: featureSubscriptionEnabled && this.isEnforced(),
       limits,
       usage: {
         transactions: {
@@ -235,6 +453,15 @@ export class SubscriptionService {
     storeId: string,
     action: 'CREATE_ORDER' | 'UPLOAD_CHAT_PHOTO' | 'CREATE_USER' | 'CREATE_INVENTORY',
   ) {
+    const store = await this.prisma.store.findUnique({
+      where: { id: storeId },
+      select: { featureSubscriptionEnabled: true },
+    });
+
+    if (store && store.featureSubscriptionEnabled === false) {
+      return true; // Bypass jika fitur subscription dinonaktifkan untuk store ini
+    }
+
     if (!this.isEnforced()) {
       return true; // Bypass jika fitur enforcement dimatikan via ENV
     }
@@ -327,11 +554,10 @@ export class SubscriptionService {
       : await this.prisma.store.findMany({ select: { id: true } });
 
     let totalCleaned = 0;
-    const allLimits = getPlanLimits();
 
     for (const s of stores) {
       const sub = await this.getOrCreateSubscription(s.id);
-      const limits = allLimits[sub.plan] || allLimits.TRIAL;
+      const limits = await this.getPlanConfig(sub.plan);
       const retentionDays = limits.photoRetentionDays || 30;
 
       const cutoff = new Date();
@@ -387,6 +613,7 @@ export class SubscriptionService {
    */
   async updatePlan(storeId: string, plan: SubscriptionPlan, durationMonths = 1) {
     await this.getOrCreateSubscription(storeId);
+    const planLimits = await this.getPlanConfig(plan);
     const now = new Date();
     const periodEnd = new Date(now);
     periodEnd.setMonth(periodEnd.getMonth() + durationMonths);
@@ -400,6 +627,12 @@ export class SubscriptionService {
         currentPeriodEnd: periodEnd,
         topupTransactions: 0,
         topupPhotos: 0,
+        maxTransactions: planLimits.maxTransactions === -1 ? 999999 : planLimits.maxTransactions,
+        remainingTransactions: planLimits.maxTransactions === -1 ? 999999 : planLimits.maxTransactions,
+        maxChatPhotos: planLimits.maxChatPhotos === -1 ? 999999 : planLimits.maxChatPhotos,
+        remainingPhotos: planLimits.maxChatPhotos === -1 ? 999999 : planLimits.maxChatPhotos,
+        maxUsers: planLimits.maxUsers,
+        maxStockItems: planLimits.maxStockItems === -1 ? 999999 : planLimits.maxStockItems,
       },
     });
   }

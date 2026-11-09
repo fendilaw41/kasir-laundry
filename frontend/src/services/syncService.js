@@ -1,4 +1,5 @@
 import { db } from '../db.js';
+import { syncPlansFromBackend } from '../db/repositories/plans.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -1328,6 +1329,7 @@ export const syncTwoWay = async ({ forceAll = false } = {}) => {
     await pullProductsFromBackend(true);
     await pullPelangganFromBackend(true);
     await pullInventoryEventsFromBackend(true);
+    await syncPlansFromBackend().catch(() => {});
     return { success: true, pullSuccess };
   } catch (error) {
     console.error('[Sync] syncTwoWay gagal:', error);
@@ -1359,6 +1361,7 @@ if (typeof window !== 'undefined') {
       await pullProductsFromBackend();
       await pullPelangganFromBackend();
       await pullInventoryEventsFromBackend();
+      await syncPlansFromBackend().catch(() => {});
     });
 
     // 2. Cek sekali saat pertama kali aplikasi dibuka (Hanya sinkronkan jika user telah login & bukan halaman publik)
@@ -1370,6 +1373,7 @@ if (typeof window !== 'undefined') {
       await pullProductsFromBackend();
       await pullPelangganFromBackend();
       await pullInventoryEventsFromBackend();
+      await syncPlansFromBackend().catch(() => {});
     }, 2000);
 
     // 3. Periodic background sync (Hanya berjalan jika tab aktif, browser online, dan user login)
@@ -1381,6 +1385,7 @@ if (typeof window !== 'undefined') {
           await pullOrdersFromBackend();
           await pullProductsFromBackend();
           await pullInventoryEventsFromBackend();
+          await syncPlansFromBackend().catch(() => {});
         }
       }, syncInterval);
     }

@@ -1,0 +1,78 @@
+import { db } from '../../db';
+import { DEFAULT_PLANS } from './plans.constants';
+
+export { DEFAULT_PLANS } from './plans.constants';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+/**
+ * Query function untuk useLiveQuery di React component
+ */
+export const getPlansQuery = async () => {
+  if (!db.plans) return DEFAULT_PLANS;
+  const list = await db.plans.orderBy('sortOrder').toArray();
+  if (list && list.length > 0) {
+    return list.filter((p) => p.isActive !== false);
+  }
+  return DEFAULT_PLANS;
+};
+
+/**
+ * Mengambil daftar master plan lokal dari Dexie
+ */
+export const getAllPlansLocal = async () => {
+  try {
+    if (db.plans) {
+      const list = await db.plans.orderBy('sortOrder').toArray();
+      if (list && list.length > 0) {
+        return list.filter((p) => p.isActive !== false);
+      }
+    }
+  } catch (err) {
+    console.warn('Gagal membaca plans dari Dexie:', err);
+  }
+  return DEFAULT_PLANS;
+};
+
+/**
+ * Mengambil plan tertentu dari Dexie berdasarkan key (misal 'BASIC')
+ */
+export const getPlanByKey = async (key) => {
+  if (!key) return DEFAULT_PLANS[0];
+  const cleanKey = String(key).trim().toUpperCase();
+  try {
+    if (db.plans) {
+      const p = await db.plans.get(cleanKey);
+      if (p) return p;
+    }
+  } catch (err) {}
+  return DEFAULT_PLANS.find((p) => p.key === cleanKey) || DEFAULT_PLANS[0];
+};
+
+/**
+ * Sinkronisasi Master Plan dari database backend ke Dexie
+ */
+export const syncPlansFromBackend = async () => {
+  try {
+    const res = await fetch(`${API_URL}/subscription/plans`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    if (json.success && Array.isArray(json.plans) && json.plans.length > 0) {
+      if (db.plans) {
+        await db.transaction('rw', db.plans, async () => {
+          for (const plan of json.plans) {
+            await db.plans.put({
+              ...plan,
+              key: plan.key.toUpperCase(),
+              updatedAt: new Date(plan.updatedAt || new Date()),
+            });
+          }
+        });
+      }
+      return json.plans;
+    }
+  } catch (err) {
+    console.warn('Sync plans dari backend gagal, menggunakan data lokal Dexie:', err);
+  }
+  return getAllPlansLocal();
+};

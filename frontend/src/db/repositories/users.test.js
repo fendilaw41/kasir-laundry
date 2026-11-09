@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { addUser, updateUser, deleteUser, getKasirUsersQuery, changePassword, registerUser } from './users.js';
+import { addUser, updateUser, deleteUser, getKasirUsersQuery, changePassword, registerUser, loginUser } from './users.js';
 import bcrypt from 'bcryptjs';
 import { db } from '../../db.js';
 
@@ -48,6 +48,17 @@ vi.mock('../../db.js', () => ({
     products: {
       clear: vi.fn(),
     },
+    plans: {
+      put: vi.fn(),
+      bulkPut: vi.fn(),
+      orderBy: vi.fn(() => ({
+        toArray: vi.fn().mockResolvedValue([]),
+      })),
+    },
+    storeSubscriptions: {
+      put: vi.fn(),
+    },
+    transaction: vi.fn(async (mode, tables, cb) => cb()),
   },
 }));
 
@@ -225,8 +236,10 @@ describe('users repository - addUser, updateUser, deleteUser', () => {
               username: 'owner',
               fullname: 'Owner Toko Dua',
               role: 'owner',
+              featureSubscriptionEnabled: false,
             },
             token: 'jwt-token-123',
+            plans: [{ key: 'TRIAL', name: 'Trial' }],
           },
         }),
       });
@@ -257,6 +270,109 @@ describe('users repository - addUser, updateUser, deleteUser', () => {
 
       expect(newId).toBe(2);
       expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('saves master plans and storeSubscription to dexie when owner registers with featureSubscriptionEnabled: true', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: {
+            user: {
+              id: 'owner-sub-uuid',
+              storeId: 'store-sub-uuid',
+              storeCode: 'SUB01',
+              storeName: 'Toko Sub',
+              username: 'ownersub',
+              fullname: 'Owner Sub',
+              role: 'owner',
+              featureSubscriptionEnabled: true,
+            },
+            storeSubscription: {
+              id: 'sub-1',
+              storeId: 'store-sub-uuid',
+              plan: 'TRIAL',
+              status: 'ACTIVE',
+            },
+            plans: [
+              { key: 'TRIAL', name: 'Trial (Gratis)', maxTransactions: 30 },
+              { key: 'STARTER', name: 'Starter', maxTransactions: 150 },
+            ],
+            token: 'jwt-token-sub',
+          },
+        }),
+      });
+
+      db.settings.get.mockResolvedValue({ id: 1, storeCode: 'SUB01', storeId: 'store-sub-uuid' });
+      db.users.where.mockReturnValue({
+        equals: vi.fn().mockReturnValue({
+          first: vi.fn().mockResolvedValue(null),
+        }),
+      });
+      db.users.add.mockResolvedValue(10);
+      db.settings.update.mockResolvedValue(1);
+
+      const newId = await registerUser({
+        storeCode: 'SUB01',
+        fullname: 'Owner Sub',
+        username: 'ownersub',
+        password: 'password123',
+        role: 'owner',
+      });
+
+      expect(newId).toBe(10);
+      expect(db.storeSubscriptions.put).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'sub-1',
+          storeId: 'store-sub-uuid',
+          plan: 'TRIAL',
+        })
+      );
+      expect(db.plans.put).toHaveBeenCalledWith(
+        expect.objectContaining({
+          key: 'TRIAL',
+          name: 'Trial (Gratis)',
+          maxTransactions: 30,
+        })
+      );
+    });
+  });
+
+  describe('loginUser - multi-store validation', () => {
+    it('rejects when storeCode in login differs from user store and backend rejects', async () => {
+      // Setup Dexie dengan 1 user toko1 yang memiliki storeCode TOK01
+      const hash = await bcrypt.hash('secret123', 10);
+      db.settings.get.mockResolvedValue({
+        id: 1,
+        storeId: 'store-1-uuid',
+        storeCode: 'TOK01',
+      });
+
+      db.users.where = vi.fn().mockReturnValue({
+        equals: vi.fn().mockReturnValue({
+          toArray: vi.fn().mockResolvedValue([
+            {
+              id: 1,
+              username: 'toko1',
+              password: hash,
+              storeId: 'store-1-uuid',
+              storeCode: 'TOK01',
+              token: 'header.' + btoa(JSON.stringify({ userId: 'u1', storeCode: 'TOK01', exp: 9999999999 })) + '.sig',
+            },
+          ]),
+        }),
+      });
+
+      // Backend me-reject karena toko1 tidak ada di TOK02
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: vi.fn().mockResolvedValue({ message: 'Username atau password salah' }),
+      });
+
+      await expect(
+        loginUser('toko1', 'secret123', 'TOK02')
+      ).rejects.toThrow(/(Username.*password|Kode Toko)/i);
     });
   });
 });

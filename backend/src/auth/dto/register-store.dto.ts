@@ -18,5 +18,11 @@ export class RegisterStoreDto {
 
   @ApiProperty({ description: 'Password otorisasi admin / bypass', example: 'Developer2026#' })
   password: string;
+
+  @ApiPropertyOptional({ description: 'Status aktifasi fitur langganan (SaaS)', example: true, default: true })
+  featureSubscriptionEnabled?: boolean;
+
+  @ApiPropertyOptional({ description: 'Tampilkan banner peringatan upgrade paket', example: true, default: true })
+  showUpgradeBanner?: boolean;
 }
 

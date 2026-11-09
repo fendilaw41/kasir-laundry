@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
+import { SubscriptionService } from '../subscription/subscription.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('AuthService - getStoreInfo', () => {
@@ -24,6 +25,13 @@ describe('AuthService - getStoreInfo', () => {
         AuthService,
         { provide: PrismaService, useValue: prisma },
         { provide: JwtService, useValue: { sign: jest.fn() } },
+        {
+          provide: SubscriptionService,
+          useValue: {
+            assertCanPerformAction: jest.fn().mockResolvedValue(true),
+            getOrCreateSubscription: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

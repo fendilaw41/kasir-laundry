@@ -164,12 +164,8 @@ const Login = ({ onLogin }) => {
           setStoreInfo(info);
           setHasSavedStore(true);
           updatePwaManifest(info.name);
-          localStorage.setItem('last_store_code', cleanCode);
-          // Simpan permanen ke Dexie db.settings selamanya
-          db.settings.update(1, {
-            storeCode: cleanCode,
-            namaLaundry: info.name,
-          }).catch(() => {});
+          // Jangan update db.settings di sini sebelum login berhasil,
+          // agar data toko aktif tidak rusak sebelum autentikasi selesai.
         } else {
           setStoreInfo(null);
           setHasSavedStore(false);
@@ -245,10 +241,13 @@ const Login = ({ onLogin }) => {
     try {
       const user = await loginUser(username, password, storeCode.trim().toUpperCase());
 
-      // Simpan username ke cache agar autocomplete dan auto-fill berfungsi di login berikutnya
+      // Simpan username dan storeCode ke cache setelah login berhasil
       try {
         const cleanUser = username.trim();
         localStorage.setItem('last_logged_username', cleanUser);
+        if (storeCode?.trim()) {
+          localStorage.setItem('last_store_code', storeCode.trim().toUpperCase());
+        }
         const existing = JSON.parse(localStorage.getItem('saved_usernames') || '[]');
         const updated = Array.from(new Set([cleanUser, ...existing]));
         localStorage.setItem('saved_usernames', JSON.stringify(updated));

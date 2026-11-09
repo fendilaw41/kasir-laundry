@@ -343,3 +343,7 @@ ALTER TABLE "Message" ADD CONSTRAINT "Message_conversationId_fkey" FOREIGN KEY (
 
 -- AddForeignKey
 ALTER TABLE "Message" ADD CONSTRAINT "Message_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AlterTable
+ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "featureSubscriptionEnabled" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "showUpgradeBanner" BOOLEAN NOT NULL DEFAULT true;

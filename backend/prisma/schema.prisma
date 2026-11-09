@@ -13,6 +13,8 @@ model Store {
   address   String?
   city      String?
   phone     String?
+  featureSubscriptionEnabled Boolean @default(true)
+  showUpgradeBanner          Boolean @default(true)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
@@ -294,12 +296,60 @@ model StoreSubscription {
   status             SubscriptionStatus @default(ACTIVE)
   currentPeriodStart DateTime           @default(now()) @db.Timestamptz(3)
   currentPeriodEnd   DateTime           @db.Timestamptz(3)
-  topupTransactions  Int                @default(0)
-  topupPhotos        Int                @default(0)
-  customBranding     Json?
-  notes              String?
-  createdAt          DateTime           @default(now()) @db.Timestamptz(3)
-  updatedAt          DateTime           @updatedAt @db.Timestamptz(3)
+  topupTransactions     Int                @default(0)
+  topupPhotos           Int                @default(0)
+
+  // Snapshot Kuota & Limit per Store di DB
+  maxTransactions       Int                @default(30)
+  usedTransactions      Int                @default(0)
+  remainingTransactions Int                @default(30)
+
+  maxChatPhotos         Int                @default(30)
+  usedPhotos            Int                @default(0)
+  remainingPhotos       Int                @default(30)
+
+  maxUsers              Int                @default(1)
+  usedUsers             Int                @default(1)
+  remainingUsers        Int                @default(0)
+
+  maxStockItems         Int                @default(0)
+  usedInventory         Int                @default(0)
+  remainingInventory    Int                @default(0)
+
+  customBranding        Json?
+  notes                 String?
+  createdAt             DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime           @updatedAt @db.Timestamptz(3)
 
   @@index([storeId, status])
+}
+
+model MasterPlan {
+  id                   String   @id @default(uuid())
+  key                  String   @unique
+  name                 String
+  price                Int      @default(0)
+  priceLabel           String
+  isPopular            Boolean  @default(false)
+  maxTransactions      Int      @default(30)
+  maxChatPhotos        Int      @default(30)
+  botTransactions      Int      @default(0)
+  maxPdfInvoice        Int      @default(0)
+  customPdfLogo        Boolean  @default(false)
+  watermarkTracking    Boolean  @default(true)
+  customTrackingView   Boolean  @default(false)
+  maxStockItems        Int      @default(0)
+  lowStockNotification Boolean  @default(false)
+  maxOutlets           Int      @default(1)
+  maxUsers             Int      @default(1)
+  dataHistoryMonths    Int      @default(1)
+  photoRetentionDays   Int      @default(30)
+  supportType          String   @default("Panduan")
+  badgeColor           String?  @default("secondary")
+  sortOrder            Int      @default(1)
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([sortOrder, isActive])
 }

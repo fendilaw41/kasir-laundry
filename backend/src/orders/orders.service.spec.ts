@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { OrdersService } from './orders.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 
 describe('OrdersService - Public Tracking', () => {
@@ -73,6 +74,12 @@ describe('OrdersService - Public Tracking', () => {
         {
           provide: PrismaService,
           useValue: prisma,
+        },
+        {
+          provide: SubscriptionService,
+          useValue: {
+            assertCanPerformAction: jest.fn().mockResolvedValue(true),
+          },
         },
       ],
     }).compile();

@@ -14,6 +14,8 @@ const RegisterStore = () => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [featureSubscriptionEnabled, setFeatureSubscriptionEnabled] = useState(true);
+  const [showUpgradeBanner, setShowUpgradeBanner] = useState(true);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -78,6 +80,8 @@ const RegisterStore = () => {
           city: cleanCity || undefined,
           phone: cleanPhone || undefined,
           password,
+          featureSubscriptionEnabled,
+          showUpgradeBanner,
         }),
       });
 
@@ -96,6 +100,8 @@ const RegisterStore = () => {
         code: cleanCode,
         name: cleanName,
         phone: cleanPhone,
+        featureSubscriptionEnabled,
+        showUpgradeBanner,
         waNumber,
         waUrl,
       });
@@ -187,9 +193,21 @@ const RegisterStore = () => {
                     <span className="text-muted">Nama Toko:</span>
                     <span className="fw-bold text-dark">{successData.name}</span>
                   </div>
-                  <div className="d-flex justify-content-between">
+                  <div className="d-flex justify-content-between mb-1">
                     <span className="text-muted">No. WhatsApp:</span>
                     <span className="fw-bold text-dark">{successData.phone}</span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Fitur Subscription:</span>
+                    <span className={`fw-bold ${successData.featureSubscriptionEnabled ? 'text-success' : 'text-secondary'}`}>
+                      {successData.featureSubscriptionEnabled ? 'Aktif (Berlangganan)' : 'Nonaktif (Unlimited)'}
+                    </span>
+                  </div>
+                  <div className="d-flex justify-content-between">
+                    <span className="text-muted">Banner Upgrade:</span>
+                    <span className={`fw-bold ${successData.showUpgradeBanner ? 'text-warning' : 'text-muted'}`}>
+                      {successData.showUpgradeBanner ? 'Tampil' : 'Nonaktif'}
+                    </span>
                   </div>
                 </div>
 
@@ -224,6 +242,8 @@ const RegisterStore = () => {
                       setAddress('');
                       setCity('');
                       setPhone('');
+                      setFeatureSubscriptionEnabled(true);
+                      setShowUpgradeBanner(true);
                     }}
                   >
                     Daftarkan Store Lain
@@ -354,6 +374,67 @@ const RegisterStore = () => {
                   </div>
                 </div>
 
+                {/* Dropdown Fitur Subscription */}
+                <div className="form-group mb-2.5">
+                  <label className="form-label small fw-bold text-muted mb-1 d-flex align-items-center gap-1" style={{ fontSize: '12px' }}>
+                    <i className="bi bi-patch-check-fill text-primary"></i>
+                    Fitur Subscription<span className="text-danger">*</span>
+                  </label>
+                  <select
+                    className="form-select fw-bold"
+                    style={{
+                      height: '42px',
+                      backgroundColor: '#f8fafc',
+                      border: '1.5px solid #cbd5e1',
+                      borderRadius: '10px',
+                      fontSize: '14px',
+                      padding: '8px 14px',
+                      color: featureSubscriptionEnabled ? '#0134d4' : '#64748b',
+                    }}
+                    value={featureSubscriptionEnabled ? 'true' : 'false'}
+                    onChange={(e) => {
+                      const isTrue = e.target.value === 'true';
+                      setFeatureSubscriptionEnabled(isTrue);
+                      setShowUpgradeBanner(isTrue);
+                    }}
+                  >
+                    <option value="true">Aktif (Gunakan Tier Plan)</option>
+                    <option value="false">Nonaktif (Unlimited Toko)</option>
+                  </select>
+                  <div className="form-text text-muted" style={{ fontSize: '11px' }}>
+                    Jika aktif, kuota transaksi dan fitur berbayar akan dibatasi sesuai paket.
+                  </div>
+                </div>
+
+                {/* Banner Upgrade Plan Otomatis */}
+                <div className="form-group mb-2.5">
+                  <div className="d-flex align-items-center justify-content-between p-3 rounded-3 border bg-light" style={{ borderColor: '#e2e8f0' }}>
+                    <div>
+                      <div className="fw-bold small text-dark d-flex align-items-center gap-1" style={{ fontSize: '12.5px' }}>
+                        <i className={`bi ${showUpgradeBanner ? 'bi-megaphone-fill text-warning' : 'bi-megaphone text-muted'}`}></i>
+                        Tampilkan Banner Upgrade Plan
+                      </div>
+                      <div className="text-muted mt-2" style={{ fontSize: '12px' }}>
+                        {featureSubscriptionEnabled
+                          ? (showUpgradeBanner ? 'Otomatis aktif bersamaan dengan fitur subscription' : 'Banner upgrade dinonaktifkan')
+                          : 'Otomatis nonaktif karena fitur subscription dimatikan'}
+                      </div>
+                    </div>
+                    <div className="form-check form-switch m-0">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        role="switch"
+                        id="showUpgradeBannerSwitch"
+                        checked={showUpgradeBanner}
+                        disabled={!featureSubscriptionEnabled}
+                        onChange={(e) => setShowUpgradeBanner(e.target.checked)}
+                        style={{ cursor: featureSubscriptionEnabled ? 'pointer' : 'not-allowed', width: '2.5em', height: '1.3em' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {/* Password Otorisasi Bypass */}
                 <div className="form-group mb-3.5">
                   <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
@@ -379,7 +460,7 @@ const RegisterStore = () => {
                     />
                     <button
                       type="button"
-                      className="btn btn-outline-secondary"
+                      className="btn btn-sm btn-outline-secondary"
                       style={{
                         border: '1.5px solid #cbd5e1',
                         borderLeft: 'none',

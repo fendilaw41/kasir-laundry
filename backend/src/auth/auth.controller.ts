@@ -50,6 +50,9 @@ export class AuthController {
       data: {
         token: result.token,
         user: result.user,
+        storeSubscription: result.storeSubscription,
+        subscription: result.subscription,
+        plans: result.plans,
       },
     };
   }

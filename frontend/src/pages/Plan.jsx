@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getSettingsQuery } from '../db/repositories/settings';
+import { getPlansQuery, syncPlansFromBackend, DEFAULT_PLANS } from '../db/repositories/plans';
 import {
   PLAN_CONFIGS,
   getSubscriptionReport,
@@ -13,6 +14,9 @@ import {
 
 export default function Plan({ user }) {
   const settings = useLiveQuery(getSettingsQuery);
+  const rawPlans = useLiveQuery(getPlansQuery, [], []);
+  const plans = rawPlans && rawPlans.length > 0 ? rawPlans : DEFAULT_PLANS;
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [report, setReport] = useState(null);
@@ -35,6 +39,7 @@ export default function Plan({ user }) {
 
   useEffect(() => {
     fetchStatus();
+    syncPlansFromBackend().catch((err) => console.warn('Sync plans failed:', err));
   }, []);
 
   const handleApplyPlan = async (planKey) => {
@@ -46,7 +51,8 @@ export default function Plan({ user }) {
     setSubmitting(true);
     try {
       await applyPlan(planKey);
-      toast.success(`Paket berhasil diubah ke ${PLAN_CONFIGS[planKey]?.name || planKey}! Fitur dan batas kuota langsung aktif.`);
+      const targetPlan = plans.find((p) => p.key === planKey);
+      toast.success(`Paket berhasil diubah ke ${targetPlan?.name || planKey}! Fitur dan batas kuota langsung aktif.`);
       setConfirmModal({ open: false, planKey: null, planName: '' });
       await fetchStatus();
     } catch (err) {
@@ -72,7 +78,7 @@ export default function Plan({ user }) {
   };
 
   const currentPlanKey = report?.plan || 'TRIAL';
-  const currentPlan = PLAN_CONFIGS[currentPlanKey] || PLAN_CONFIGS.TRIAL;
+  const currentPlan = plans.find((p) => p.key === currentPlanKey) || DEFAULT_PLANS.find((p) => p.key === currentPlanKey) || DEFAULT_PLANS[0];
   const usage = report?.usage || {};
   const trx = usage.transactions || {};
   const photos = usage.photos || {};
@@ -406,230 +412,246 @@ export default function Plan({ user }) {
                       <th className="py-3 px-3 text-dark fw-bold" style={{ position: 'sticky', left: 0, zIndex: 2, minWidth: '150px', width: '150px', backgroundColor: '#f8fafc', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Fitur
                       </th>
-                      <th className="py-3 px-3 text-center text-dark fw-bold" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>
-                        Trial (Gratis)
-                        <div className="small fw-normal text-muted" style={{ fontSize: '0.7rem' }}>Rp 0</div>
-                      </th>
-                      <th className="py-3 px-3 text-center text-dark fw-bold" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>
-                        Starter
-                        <div className="small fw-normal text-muted" style={{ fontSize: '0.7rem' }}>25rb/bln</div>
-                      </th>
-                      <th className="py-3 px-3 text-center fw-bold bg-primary-subtle text-primary border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>
-                        Basic ⭐
-                        <div className="small fw-semibold text-primary" style={{ fontSize: '0.7rem' }}>50rb/bln (Laris)</div>
-                      </th>
-                      <th className="py-3 px-3 text-center text-dark fw-bold" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>
-                        Pro
-                        <div className="small fw-normal text-muted" style={{ fontSize: '0.7rem' }}>100rb/bln</div>
-                      </th>
-                      <th className="py-3 px-3 text-center text-dark fw-bold" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>
-                        Business
-                        <div className="small fw-normal text-muted" style={{ fontSize: '0.7rem' }}>200rb/bln</div>
-                      </th>
+                      {plans.map((p) => {
+                        const isPop = p.isPopular;
+                        return (
+                          <th
+                            key={p.key}
+                            className={`py-3 px-3 text-center ${isPop ? 'fw-bold bg-primary-subtle text-primary border-start border-end' : 'text-dark fw-bold'}`}
+                            style={{ minWidth: isPop ? '135px' : '115px', whiteSpace: 'nowrap' }}
+                          >
+                            {p.name} {isPop && '⭐'}
+                            <div className={`small ${isPop ? 'fw-semibold text-primary' : 'fw-normal text-muted'}`} style={{ fontSize: '0.7rem' }}>
+                              {p.priceLabel || (p.price === 0 ? 'Gratis' : `Rp ${p.price.toLocaleString('id-ID')}`)} {isPop && '(Laris)'}
+                            </div>
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
+                    {/* Transaksi/bulan */}
                     <tr>
                       <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Transaksi/bulan
                       </td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>30</td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>150</td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>400</td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>1.000</td>
-                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>Unlimited* (3.000)</td>
+                      {plans.map((p) => (
+                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                          {p.maxTransactions === -1 ? 'Unlimited*' : p.maxTransactions.toLocaleString('id-ID')}
+                        </td>
+                      ))}
                     </tr>
+
+                    {/* Foto chat/bulan */}
                     <tr>
                       <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Foto chat/bulan
                       </td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>30</td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>300</td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>800</td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>2.000</td>
-                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>5.000</td>
+                      {plans.map((p) => (
+                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                          {p.maxChatPhotos === -1 ? 'Unlimited' : p.maxChatPhotos.toLocaleString('id-ID')}
+                        </td>
+                      ))}
                     </tr>
+
+                    {/* Bot transaksi (chat) */}
                     <tr>
                       <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Bot transaksi (chat)
                       </td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>10x</td>
-                      <td className="text-center text-muted opacity-40" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-x-circle-fill"></i></td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>200x</td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>1.000x</td>
-                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>Unlimited</td>
+                      {plans.map((p) => (
+                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                          {p.botTransactions === 0 ? (
+                            <span className="text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></span>
+                          ) : p.botTransactions === -1 ? (
+                            'Unlimited'
+                          ) : (
+                            `${p.botTransactions}x`
+                          )}
+                        </td>
+                      ))}
                     </tr>
+
+                    {/* Nota ke WhatsApp */}
                     <tr>
                       <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Nota ke WhatsApp
                       </td>
-                      <td className="text-center text-success" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
+                      {plans.map((p) => (
+                        <td key={p.key} className={`text-center text-success ${p.isPopular ? 'bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                          <i className="bi bi-check-circle-fill"></i>
+                        </td>
+                      ))}
                     </tr>
+
+                    {/* Cetak nota */}
                     <tr>
                       <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Cetak nota
                       </td>
-                      <td className="text-center text-success" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
+                      {plans.map((p) => (
+                        <td key={p.key} className={`text-center text-success ${p.isPopular ? 'bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                          <i className="bi bi-check-circle-fill"></i>
+                        </td>
+                      ))}
                     </tr>
+
+                    {/* Invoice PDF */}
                     <tr>
                       <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Invoice PDF
                       </td>
-                      <td className="text-center text-muted opacity-40" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-x-circle-fill"></i></td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>20/bln</td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>100/bln</td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>Unlimited</td>
-                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>Unlimited + logo</td>
+                      {plans.map((p) => (
+                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                          {p.maxPdfInvoice === 0 ? (
+                            <span className="text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></span>
+                          ) : p.maxPdfInvoice === -1 ? (
+                            p.customPdfLogo ? 'Unlimited + logo' : 'Unlimited'
+                          ) : (
+                            `${p.maxPdfInvoice}/bln`
+                          )}
+                        </td>
+                      ))}
                     </tr>
+
+                    {/* Lacak order link */}
                     <tr>
                       <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Lacak order link
                       </td>
-                      <td className="text-center text-muted" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>Ada watermark</td>
-                      <td className="text-center text-muted" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>Ada watermark</td>
-                      <td className="text-center text-success fw-medium bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>Tanpa watermark</td>
-                      <td className="text-center text-success" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>Tanpa watermark</td>
-                      <td className="text-center text-success" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>+ Tampilan custom</td>
+                      {plans.map((p) => (
+                        <td key={p.key} className={`text-center ${p.isPopular ? 'bg-primary-subtle border-start border-end text-success fw-medium' : p.watermarkTracking ? 'text-muted' : 'text-success'}`} style={{ whiteSpace: 'nowrap' }}>
+                          {p.customTrackingView ? '+ Tampilan custom' : p.watermarkTracking ? 'Ada watermark' : 'Tanpa watermark'}
+                        </td>
+                      ))}
                     </tr>
+
+                    {/* Stok bahan */}
                     <tr>
                       <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Stok bahan
                       </td>
-                      <td className="text-center text-muted opacity-40" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-x-circle-fill"></i></td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>5 item</td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>20 item</td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>50 item</td>
-                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>Unlimited</td>
+                      {plans.map((p) => (
+                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                          {p.maxStockItems === 0 ? (
+                            <span className="text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></span>
+                          ) : p.maxStockItems === -1 ? (
+                            'Unlimited'
+                          ) : (
+                            `${p.maxStockItems} item`
+                          )}
+                        </td>
+                      ))}
                     </tr>
+
+                    {/* Notifikasi stok menipis */}
                     <tr>
                       <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Notifikasi stok menipis
                       </td>
-                      <td className="text-center text-muted opacity-40" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-x-circle-fill"></i></td>
-                      <td className="text-center text-muted opacity-40" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-x-circle-fill"></i></td>
-                      <td className="text-center text-success bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
-                      <td className="text-center text-success" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}><i className="bi bi-check-circle-fill"></i></td>
+                      {plans.map((p) => (
+                        <td key={p.key} className={`text-center ${p.isPopular ? 'bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                          {p.lowStockNotification ? (
+                            <i className="bi bi-check-circle-fill text-success"></i>
+                          ) : (
+                            <span className="text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></span>
+                          )}
+                        </td>
+                      ))}
                     </tr>
+
+                    {/* Jumlah outlet */}
                     <tr>
                       <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Jumlah outlet
                       </td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>1</td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>1</td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>1</td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>2</td>
-                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>5</td>
+                      {plans.map((p) => (
+                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                          {p.maxOutlets}
+                        </td>
+                      ))}
                     </tr>
+
+                    {/* Jumlah kasir/user */}
                     <tr>
                       <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Jumlah kasir/user
                       </td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>1</td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>2</td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>3</td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>5</td>
-                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>15</td>
+                      {plans.map((p) => (
+                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                          {p.maxUsers}
+                        </td>
+                      ))}
                     </tr>
+
+                    {/* Riwayat data */}
                     <tr>
                       <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Riwayat data
                       </td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>1 bulan</td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>3 bulan</td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>6 bulan</td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>12 bulan</td>
-                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>24 bulan</td>
+                      {plans.map((p) => (
+                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                          {p.dataHistoryMonths} bulan
+                        </td>
+                      ))}
                     </tr>
+
+                    {/* Foto disimpan */}
                     <tr>
                       <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Foto disimpan
                       </td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>30 hari</td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>60 hari</td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>90 hari</td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>180 hari</td>
-                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>365 hari</td>
+                      {plans.map((p) => (
+                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                          {p.photoRetentionDays} hari
+                        </td>
+                      ))}
                     </tr>
+
+                    {/* Tipe Support */}
                     <tr>
                       <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Tipe Support
                       </td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>Panduan</td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>Komunitas</td>
-                      <td className="text-center fw-bold bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>Chat</td>
-                      <td className="text-center" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>Prioritas</td>
-                      <td className="text-center" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>Prioritas + Onboard</td>
+                      {plans.map((p) => (
+                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                          {p.supportType}
+                        </td>
+                      ))}
                     </tr>
                   </tbody>
+
                   <tfoot className="table-light border-top">
                     <tr>
                       <td className="px-3 py-3 fw-bold" style={{ position: 'sticky', left: 0, zIndex: 2, minWidth: '150px', width: '150px', backgroundColor: '#f8fafc', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                         Aksi Langganan
                       </td>
-                      {/* TRIAL */}
-                      <td className="text-center py-3 px-2" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-primary text-white rounded-pill px-3 py-1 fw-semibold text-nowrap shadow-xs"
-                          style={{ fontSize: '0.74rem' }}
-                          onClick={() => setConfirmModal({ open: true, planKey: 'TRIAL', planName: 'Trial (Gratis)' })}
-                        >
-                          Terapkan
-                        </button>
-                      </td>
-                      {/* STARTER */}
-                      <td className="text-center py-3 px-2" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-primary text-white rounded-pill px-3 py-1 fw-semibold text-nowrap shadow-xs"
-                          style={{ fontSize: '0.74rem' }}
-                          onClick={() => setConfirmModal({ open: true, planKey: 'STARTER', planName: 'Starter 25rb' })}
-                        >
-                          Terapkan
-                        </button>
-                      </td>
-                      {/* BASIC */}
-                      <td className="text-center py-3 px-2 bg-primary-subtle border-start border-end" style={{ minWidth: '135px', width: '135px', whiteSpace: 'nowrap' }}>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-primary text-white rounded-pill px-3 py-1 fw-semibold text-nowrap shadow-xs"
-                          style={{ fontSize: '0.74rem' }}
-                          onClick={() => setConfirmModal({ open: true, planKey: 'BASIC', planName: 'Basic 50rb ⭐' })}
-                        >
-                          Terapkan
-                        </button>
-                      </td>
-                      {/* PRO */}
-                      <td className="text-center py-3 px-2" style={{ minWidth: '115px', width: '115px', whiteSpace: 'nowrap' }}>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-primary text-white rounded-pill px-3 py-1 fw-semibold text-nowrap shadow-xs"
-                          style={{ fontSize: '0.74rem' }}
-                          onClick={() => setConfirmModal({ open: true, planKey: 'PRO', planName: 'Pro 100rb' })}
-                        >
-                          Terapkan
-                        </button>
-                      </td>
-                      {/* BUSINESS */}
-                      <td className="text-center py-3 px-2" style={{ minWidth: '145px', width: '145px', whiteSpace: 'nowrap' }}>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-primary text-white rounded-pill px-3 py-1 fw-semibold text-nowrap shadow-xs"
-                          style={{ fontSize: '0.74rem' }}
-                          onClick={() => setConfirmModal({ open: true, planKey: 'BUSINESS', planName: 'Business 200rb' })}
-                        >
-                          Terapkan
-                        </button>
-                      </td>
+                      {plans.map((p) => {
+                        const isCurrent = currentPlanKey === p.key;
+                        return (
+                          <td
+                            key={p.key}
+                            className={`text-center py-3 px-2 ${p.isPopular ? 'bg-primary-subtle border-start border-end' : ''}`}
+                            style={{ minWidth: p.isPopular ? '135px' : '115px', whiteSpace: 'nowrap' }}
+                          >
+                            <button
+                              type="button"
+                              className={`btn btn-sm ${isCurrent ? 'btn-success' : 'btn-primary text-white'} rounded-pill px-3 py-1 fw-semibold text-nowrap shadow-xs`}
+                              style={{ fontSize: '0.74rem' }}
+                              disabled={isCurrent}
+                              onClick={() =>
+                                setConfirmModal({
+                                  open: true,
+                                  planKey: p.key,
+                                  planName: `${p.name} ${p.priceLabel || ''}`,
+                                })
+                              }
+                            >
+                              {isCurrent ? 'Aktif' : 'Terapkan'}
+                            </button>
+                          </td>
+                        );
+                      })}
                     </tr>
                   </tfoot>
                 </table>

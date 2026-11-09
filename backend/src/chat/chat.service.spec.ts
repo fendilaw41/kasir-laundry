@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ChatService, ChatUserPayload } from './chat.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../common/storage/storage.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 import { ForbiddenException, BadRequestException } from '@nestjs/common';
 
 describe('ChatService', () => {
@@ -57,11 +58,16 @@ describe('ChatService', () => {
       deleteFile: jest.fn(),
     };
 
+    const subscriptionService = {
+      assertCanPerformAction: jest.fn().mockResolvedValue(true),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ChatService,
         { provide: PrismaService, useValue: prisma },
         { provide: StorageService, useValue: storageService },
+        { provide: SubscriptionService, useValue: subscriptionService },
       ],
     }).compile();
 

@@ -1,4 +1,5 @@
 import Dexie from 'dexie';
+import { DEFAULT_PLANS } from './db/repositories/plans.constants';
 
 export const db = new Dexie('KasirLaundryDB');
 
@@ -46,9 +47,26 @@ db.version(5).stores({
   products: '++id, &uuid, storeId, code, category, name, price, updatedAt, deletedAt, isDirty',
 });
 
+// Schema versi 6: Master Subscription Plans & Store Subscriptions
+db.version(6).stores({
+  plans: '&key, name, price, sortOrder, isActive, updatedAt',
+  storeSubscriptions: 'id, &storeId, plan, status, updatedAt',
+});
+
 // Seed initial data if empty
 db.on('ready', async () => {
   try {
+    // Seed Master Plans jika belum ada
+    if (db.plans) {
+      const planCount = await db.plans.count();
+      if (planCount === 0) {
+        await db.plans.bulkPut(DEFAULT_PLANS.map((p) => ({
+          ...p,
+          updatedAt: new Date(),
+        })));
+      }
+    }
+
     // Seed Settings
     const sCount = await db.settings.count();
     if (sCount === 0) {
