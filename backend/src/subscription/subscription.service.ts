@@ -10,6 +10,8 @@ import { getPlanLimits, PlanLimits } from './subscription.constants';
 import { SubscriptionPlan, SubscriptionStatus } from '@prisma/client';
 
 export interface UsageReport {
+  id?: string;
+  storeId?: string;
   plan: string;
   status: string;
   currentPeriodStart: Date;
@@ -53,6 +55,13 @@ export interface UsageReport {
       remaining: number;
       isExceeded: boolean;
     };
+    products: {
+      used: number;
+      limit: number;
+      remaining: number;
+      percentage: number;
+      isExceeded: boolean;
+    };
   };
   whatsappBillingNumber: string;
 }
@@ -94,6 +103,7 @@ export class SubscriptionService {
           lowStockNotification: dbPlan.lowStockNotification,
           maxOutlets: dbPlan.maxOutlets,
           maxUsers: dbPlan.maxUsers,
+          maxProducts: (dbPlan as any).maxProducts ?? (getPlanLimits()[planKey]?.maxProducts ?? 5),
           dataHistoryMonths: dbPlan.dataHistoryMonths,
           photoRetentionDays: dbPlan.photoRetentionDays,
           supportType: dbPlan.supportType,
@@ -264,6 +274,9 @@ export class SubscriptionService {
           maxUsers: planLimits.maxUsers,
           usedUsers: 1,
           remainingUsers: Math.max(0, planLimits.maxUsers - 1),
+          maxProducts: planLimits.maxProducts === -1 ? 999999 : (planLimits.maxProducts ?? 5),
+          usedProducts: 0,
+          remainingProducts: planLimits.maxProducts === -1 ? 999999 : (planLimits.maxProducts ?? 5),
           maxStockItems: planLimits.maxStockItems === -1 ? 999999 : planLimits.maxStockItems,
           usedInventory: 0,
           remainingInventory: planLimits.maxStockItems === -1 ? 999999 : planLimits.maxStockItems,
@@ -345,6 +358,20 @@ export class SubscriptionService {
       },
     });
 
+    // 6. Hitung item produk / layanan aktif
+    const usedProducts = this.prisma.product
+      ? await this.prisma.product.count({
+          where: {
+            storeId,
+            deletedAt: null,
+          },
+        })
+      : 0;
+
+    const productLimit = limits.maxProducts === -1 ? 999999 : (limits.maxProducts ?? 50);
+    const productRemaining = limits.maxProducts === -1 ? 999999 : Math.max(0, productLimit - usedProducts);
+    const productPercentage = limits.maxProducts === -1 ? 0 : Math.min(100, Math.round((usedProducts / productLimit) * 100));
+
     // Perhitungan kalkulasi limit + topup
     const totalTrxLimit = limits.maxTransactions === -1 ? 999999 : limits.maxTransactions + sub.topupTransactions;
     const trxPercentage = limits.maxTransactions === -1 ? 0 : Math.min(100, Math.round((usedTransactions / totalTrxLimit) * 100));
@@ -398,6 +425,8 @@ export class SubscriptionService {
     }
 
     return {
+      id: sub.id,
+      storeId: sub.storeId,
       plan: sub.plan,
       status: sub.status,
       currentPeriodStart: sub.currentPeriodStart,
@@ -441,6 +470,13 @@ export class SubscriptionService {
           remaining: Math.max(0, inventoryLimit - usedInventory),
           isExceeded: limits.maxStockItems !== -1 && usedInventory >= inventoryLimit,
         },
+        products: {
+          used: usedProducts,
+          limit: limits.maxProducts ?? 50,
+          remaining: productRemaining,
+          percentage: productPercentage,
+          isExceeded: limits.maxProducts !== -1 && usedProducts >= productLimit,
+        },
       },
       whatsappBillingNumber: process.env.BILLING_WHATSAPP_NUMBER || '6281234567890',
     };
@@ -451,7 +487,7 @@ export class SubscriptionService {
    */
   async assertCanPerformAction(
     storeId: string,
-    action: 'CREATE_ORDER' | 'UPLOAD_CHAT_PHOTO' | 'CREATE_USER' | 'CREATE_INVENTORY',
+    action: 'CREATE_ORDER' | 'UPLOAD_CHAT_PHOTO' | 'CREATE_USER' | 'CREATE_INVENTORY' | 'CREATE_PRODUCT',
   ) {
     const store = await this.prisma.store.findUnique({
       where: { id: storeId },
@@ -536,6 +572,18 @@ export class SubscriptionService {
           whatsappBillingNumber: report.whatsappBillingNumber,
         });
       }
+    }
+
+    if (action === 'CREATE_PRODUCT' && report.usage.products.isExceeded) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        error: 'PRODUCT_LIMIT_EXCEEDED',
+        message: `Batas upload master produk (${report.limits.maxProducts} item) telah tercapai. Data produk lama tetap bisa digunakan. Upgrade paket untuk menambah produk baru.`,
+        canTopup: false,
+        current: report.usage.products.used,
+        limit: report.limits.maxProducts,
+        whatsappBillingNumber: report.whatsappBillingNumber,
+      });
     }
 
     return true;
@@ -632,6 +680,8 @@ export class SubscriptionService {
         maxChatPhotos: planLimits.maxChatPhotos === -1 ? 999999 : planLimits.maxChatPhotos,
         remainingPhotos: planLimits.maxChatPhotos === -1 ? 999999 : planLimits.maxChatPhotos,
         maxUsers: planLimits.maxUsers,
+        maxProducts: planLimits.maxProducts === -1 ? 999999 : (planLimits.maxProducts ?? 5),
+        remainingProducts: planLimits.maxProducts === -1 ? 999999 : (planLimits.maxProducts ?? 5),
         maxStockItems: planLimits.maxStockItems === -1 ? 999999 : planLimits.maxStockItems,
       },
     });

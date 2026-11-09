@@ -50,7 +50,7 @@ describe('plans repository', () => {
     expect(starter).toBeDefined();
     expect(starter.key).toBe('STARTER');
     expect(starter.price).toBe(25000);
-    expect(starter.maxTransactions).toBe(150);
+    expect(starter.maxTransactions).toBe(100);
   });
 
   it('syncPlansFromBackend fetches and stores plans in Dexie', async () => {

@@ -312,6 +312,10 @@ model StoreSubscription {
   usedUsers             Int                @default(1)
   remainingUsers        Int                @default(0)
 
+  maxProducts           Int                @default(5)
+  usedProducts          Int                @default(0)
+  remainingProducts     Int                @default(5)
+
   maxStockItems         Int                @default(0)
   usedInventory         Int                @default(0)
   remainingInventory    Int                @default(0)
@@ -342,6 +346,7 @@ model MasterPlan {
   lowStockNotification Boolean  @default(false)
   maxOutlets           Int      @default(1)
   maxUsers             Int      @default(1)
+  maxProducts          Int      @default(5)
   dataHistoryMonths    Int      @default(1)
   photoRetentionDays   Int      @default(30)
   supportType          String   @default("Panduan")

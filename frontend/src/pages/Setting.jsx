@@ -51,6 +51,7 @@ const Setting = ({ user }) => {
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [userLimitModal, setUserLimitModal] = useState({ open: false, limit: 1, plan: '' });
+  const [productLimitModal, setProductLimitModal] = useState({ open: false, limit: 5, plan: '' });
   const [showPassword, setShowPassword] = useState(false);
 
   // State untuk Modal & Form Produk / Layanan
@@ -173,7 +174,16 @@ const Setting = ({ user }) => {
     setShowUserModal(true);
   };
 
-  const openProductModal = (selectedProduct = null) => {
+  const openProductModal = async (selectedProduct = null) => {
+    if (!selectedProduct) {
+      try {
+        const sub = await getSubscriptionReport();
+        if (sub && sub.isEnforced && sub.usage?.products?.isExceeded) {
+          setProductLimitModal({ open: true, limit: sub.limits?.maxProducts ?? 5, plan: sub.plan });
+          return;
+        }
+      } catch (e) {}
+    }
     if (selectedProduct) {
       setEditingProduct(selectedProduct);
       setProductFormData({
@@ -1277,6 +1287,15 @@ const Setting = ({ user }) => {
         onClose={() => setUserLimitModal({ ...userLimitModal, open: false })}
         type="USER_LIMIT"
         customData={{ limit: userLimitModal.limit, plan: userLimitModal.plan }}
+        user={user}
+      />
+      {/* POPUP RINGKAS BATAS PRODUK */}
+      <PlanGateModal
+        isOpen={productLimitModal.open}
+        onClose={() => setProductLimitModal({ ...productLimitModal, open: false })}
+        type="PRODUCT_LIMIT"
+        customData={{ limit: productLimitModal.limit, plan: productLimitModal.plan }}
+        user={user}
       />
     </div>
   );

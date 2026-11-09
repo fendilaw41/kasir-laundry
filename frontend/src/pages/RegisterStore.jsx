@@ -1,8 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { db } from '../db';
 
 const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:3000/api';
 const APP_URL = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_APP_URL || import.meta.env?.VITE_PUBLIC_TRACKING_URL)) || (typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '');
+
+const PLAN_OPTIONS = [
+  { key: 'TRIAL', name: 'Trial (Gratis 30 Hari)' },
+  { key: 'STARTER', name: 'Starter (Rp 25.000 / bln)' },
+  { key: 'BASIC', name: 'Basic (Rp 50.000 / bln - Terpopuler ⭐)' },
+  { key: 'PRO', name: 'Pro (Rp 100.000 / bln)' },
+  { key: 'BUSINESS', name: 'Bisnis / Enterprise (Rp 200.000 / bln)' },
+];
 
 const RegisterStore = () => {
   const navigate = useNavigate();
@@ -12,10 +21,16 @@ const RegisterStore = () => {
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [phone, setPhone] = useState('');
+  const [selectedPlan, setSelectedPlan] = useState('TRIAL');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [featureSubscriptionEnabled, setFeatureSubscriptionEnabled] = useState(true);
   const [showUpgradeBanner, setShowUpgradeBanner] = useState(true);
+
+  // Status pengecekan store existing dengan owner
+  const [isExistingOwnerStore, setIsExistingOwnerStore] = useState(false);
+  const [isCheckingStore, setIsCheckingStore] = useState(false);
+  const [existingStoreInfo, setExistingStoreInfo] = useState(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -40,6 +55,50 @@ const RegisterStore = () => {
     return `Halo *${storeName}*,\n\nToko Anda telah berhasil didaftarkan di sistem Kasir Laundry dengan detail:\n🏪 *Nama Toko*: ${storeName}\n🔑 *Kode Toko*: ${storeCode}\n📍 *Alamat*: ${storeAddress || '-'}${storeCity ? ` (${storeCity})` : ''}\n\nSilakan segera selesaikan pendaftaran akun Owner Anda melalui tautan resmi berikut:\n👉 ${registerUrl}\n\nSetelah mendaftar, Anda dapat langsung login dan mengelola kasir serta operasional laundry Anda.\n\nTerima kasih! 🙏`;
   };
 
+  // Pengecekan otomatis apakah Kode Toko sudah terdaftar dan telah memiliki Owner
+  useEffect(() => {
+    const cleanCode = code.trim().toUpperCase();
+    if (!cleanCode || cleanCode.length < 3) {
+      setIsExistingOwnerStore(false);
+      setExistingStoreInfo(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsCheckingStore(true);
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/store-info?code=${encodeURIComponent(cleanCode)}`);
+        if (response.ok) {
+          const result = await response.json();
+          const info = result.data || result;
+          if (info && info.hasOwner) {
+            setIsExistingOwnerStore(true);
+            setExistingStoreInfo(info);
+            setName(info.name || '');
+            setAddress(info.address || '');
+            setCity(info.city || '');
+            setPhone(info.phone || '');
+            setFeatureSubscriptionEnabled(info.featureSubscriptionEnabled ?? true);
+            setShowUpgradeBanner(info.showUpgradeBanner ?? true);
+            if (info.currentPlan) {
+              setSelectedPlan(info.currentPlan.toUpperCase());
+            }
+            return;
+          }
+        }
+        setIsExistingOwnerStore(false);
+        setExistingStoreInfo(null);
+      } catch (err) {
+        setIsExistingOwnerStore(false);
+        setExistingStoreInfo(null);
+      } finally {
+        setIsCheckingStore(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [code]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -51,13 +110,19 @@ const RegisterStore = () => {
     const cleanCity = city.trim();
     const cleanPhone = phone.trim();
 
-    if (!cleanCode || !cleanName) {
-      setError('Kode Toko dan Nama Laundry wajib diisi.');
+    if (!cleanCode) {
+      setError('Kode Toko wajib diisi.');
       setLoading(false);
       return;
     }
 
-    if (!cleanPhone) {
+    if (!isExistingOwnerStore && !cleanName) {
+      setError('Nama Laundry wajib diisi.');
+      setLoading(false);
+      return;
+    }
+
+    if (!isExistingOwnerStore && !cleanPhone) {
       setError('Nomor WhatsApp wajib diisi untuk mengirim undangan registrasi.');
       setLoading(false);
       return;
@@ -75,28 +140,66 @@ const RegisterStore = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code: cleanCode,
-          name: cleanName,
+          name: cleanName || existingStoreInfo?.name || cleanCode,
           address: cleanAddress || undefined,
           city: cleanCity || undefined,
-          phone: cleanPhone || undefined,
+          phone: cleanPhone || existingStoreInfo?.phone || '08000000000',
           password,
           featureSubscriptionEnabled,
           showUpgradeBanner,
+          plan: isExistingOwnerStore ? selectedPlan : undefined,
         }),
       });
 
       const result = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(result.message || 'Gagal mendaftarkan store baru.');
+        throw new Error(result.message || 'Gagal memproses pendaftaran/perubahan paket store.');
       }
 
-      // Siapkan URL & pesan WhatsApp
+      // Skenario 1: Perpindahan / Update Paket Toko yang Sudah Ber-owner
+      if (isExistingOwnerStore) {
+        // Sinkronkan perubahan paket ke Dexie jika tersedia di lokal
+        if (result.subscription) {
+          try {
+            const targetStoreId = result.subscription.storeId || existingStoreInfo?.id;
+            if (db.storeSubscriptions && targetStoreId) {
+              const existingSub = await db.storeSubscriptions.where('storeId').equals(targetStoreId).first();
+              await db.storeSubscriptions.put({
+                id: existingSub?.id || result.subscription.id || crypto.randomUUID(),
+                ...result.subscription,
+                storeId: targetStoreId,
+                updatedAt: new Date(result.subscription.updatedAt || new Date()),
+              });
+            }
+            const setting = await db.settings.get(1);
+            if (setting?.storeId === targetStoreId || setting?.storeCode === cleanCode) {
+              await db.settings.update(1, { cachedSubscription: result.subscription }).catch(() => {});
+            }
+          } catch (dexieErr) {
+            console.warn('Gagal update Dexie setelah perubahan paket:', dexieErr);
+          }
+        }
+
+        setSuccessData({
+          isPlanUpdated: true,
+          code: cleanCode,
+          name: existingStoreInfo?.name || cleanName,
+          plan: selectedPlan,
+          featureSubscriptionEnabled,
+          showUpgradeBanner,
+          message: result.message || `Paket toko ${cleanCode} berhasil diperbarui ke ${selectedPlan}.`,
+        });
+        return;
+      }
+
+      // Skenario 2: Pendaftaran Toko Baru & Kirim Undangan WhatsApp
       const waNumber = formatWhatsAppNumber(cleanPhone);
       const waMessage = buildWhatsAppMessage(cleanCode, cleanName, cleanAddress, cleanCity);
       const waUrl = `https://api.whatsapp.com/send?phone=${waNumber}&text=${encodeURIComponent(waMessage)}`;
 
       setSuccessData({
+        isPlanUpdated: false,
         code: cleanCode,
         name: cleanName,
         phone: cleanPhone,
@@ -106,13 +209,27 @@ const RegisterStore = () => {
         waUrl,
       });
 
-      // Buka WhatsApp di tab baru secara otomatis
       window.open(waUrl, '_blank', 'noopener,noreferrer');
     } catch (err) {
-      setError(err.message || 'Terjadi kesalahan saat mendaftarkan store.');
+      setError(err.message || 'Terjadi kesalahan saat memproses store.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResetForm = () => {
+    setSuccessData(null);
+    setCode('');
+    setName('');
+    setAddress('');
+    setCity('');
+    setPhone('');
+    setPassword('');
+    setSelectedPlan('TRIAL');
+    setIsExistingOwnerStore(false);
+    setExistingStoreInfo(null);
+    setFeatureSubscriptionEnabled(true);
+    setShowUpgradeBanner(true);
   };
 
   return (
@@ -140,26 +257,32 @@ const RegisterStore = () => {
                 style={{
                   width: '64px',
                   height: '64px',
-                  background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)',
+                  background: isExistingOwnerStore
+                    ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)'
+                    : 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)',
                   borderRadius: '18px',
                   marginBottom: '12px',
-                  boxShadow: '0 8px 16px -4px rgba(1, 52, 212, 0.35)',
+                  boxShadow: isExistingOwnerStore
+                    ? '0 8px 16px -4px rgba(16, 185, 129, 0.35)'
+                    : '0 8px 16px -4px rgba(1, 52, 212, 0.35)',
                 }}
               >
-                <i className="bi bi-shop-window text-white fs-2"></i>
+                <i className={`bi ${isExistingOwnerStore ? 'bi-arrow-left-right text-white' : 'bi-shop-window text-white'} fs-2`}></i>
               </div>
               <h4
                 className="fw-bold mb-1"
                 style={{
                   letterSpacing: '0.3px',
-                  color: '#0134d4',
+                  color: isExistingOwnerStore ? '#059669' : '#0134d4',
                   fontSize: '1.25rem',
                 }}
               >
-                DAFTAR STORE BARU
+                {isExistingOwnerStore ? 'PINDAH / PERBARUI PAKET' : 'DAFTAR STORE BARU'}
               </h4>
               <p className="text-muted small mb-0" style={{ fontSize: '12px' }}>
-                Registrasi tenant toko laundry & kirim undangan pendaftaran Owner via WhatsApp
+                {isExistingOwnerStore
+                  ? 'Toko telah memiliki Owner. Pilih paket baru dan konfirmasi dengan password otorisasi.'
+                  : 'Registrasi tenant toko laundry & kirim undangan pendaftaran Owner via WhatsApp'}
               </p>
             </div>
 
@@ -170,7 +293,7 @@ const RegisterStore = () => {
               </div>
             )}
 
-            {/* Modal / Alert Sukses dengan Tombol WhatsApp */}
+            {/* Modal / Alert Sukses */}
             {successData ? (
               <div className="text-center py-2">
                 <div
@@ -179,9 +302,13 @@ const RegisterStore = () => {
                 >
                   <i className="bi bi-check-circle-fill fs-2"></i>
                 </div>
-                <h5 className="fw-bold text-dark mb-1">Store Berhasil Didaftarkan!</h5>
+                <h5 className="fw-bold text-dark mb-1">
+                  {successData.isPlanUpdated ? 'Paket Toko Berhasil Dipindahkan!' : 'Store Berhasil Didaftarkan!'}
+                </h5>
                 <p className="text-muted small mb-3" style={{ fontSize: '13px' }}>
-                  Toko <strong>{successData.name}</strong> (<code>{successData.code}</code>) telah tersimpan di database.
+                  {successData.isPlanUpdated
+                    ? `Paket langganan toko ${successData.name} telah berhasil diubah ke ${successData.plan}.`
+                    : `Toko ${successData.name} (${successData.code}) telah tersimpan di database.`}
                 </p>
 
                 <div className="p-3 rounded-3 bg-light border mb-3 text-start small">
@@ -193,10 +320,19 @@ const RegisterStore = () => {
                     <span className="text-muted">Nama Toko:</span>
                     <span className="fw-bold text-dark">{successData.name}</span>
                   </div>
-                  <div className="d-flex justify-content-between mb-1">
-                    <span className="text-muted">No. WhatsApp:</span>
-                    <span className="fw-bold text-dark">{successData.phone}</span>
-                  </div>
+                  {successData.isPlanUpdated ? (
+                    <div className="d-flex justify-content-between mb-1">
+                      <span className="text-muted">Paket Langganan:</span>
+                      <span className="badge bg-success-subtle text-success-emphasis border border-success-subtle px-2 py-0.5 fw-bold">
+                        {successData.plan}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="d-flex justify-content-between mb-1">
+                      <span className="text-muted">No. WhatsApp:</span>
+                      <span className="fw-bold text-dark">{successData.phone}</span>
+                    </div>
+                  )}
                   <div className="d-flex justify-content-between mb-1">
                     <span className="text-muted">Fitur Subscription:</span>
                     <span className={`fw-bold ${successData.featureSubscriptionEnabled ? 'text-success' : 'text-secondary'}`}>
@@ -212,81 +348,78 @@ const RegisterStore = () => {
                 </div>
 
                 <div className="d-grid gap-2 mb-3">
-                  <a
-                    href={successData.waUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-success fw-bold py-2.5 rounded-3 d-flex align-items-center justify-content-center gap-2 shadow-sm"
-                    style={{ fontSize: '14px' }}
-                  >
-                    <i className="bi bi-whatsapp fs-5"></i>
-                    Buka WhatsApp / Kirim Ulang
-                  </a>
+                  {successData.isPlanUpdated ? (
+                    <button
+                      type="button"
+                      className="btn btn-primary fw-bold py-2.5 rounded-3 shadow-sm"
+                      style={{ fontSize: '14px', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
+                      onClick={() => navigate('/login')}
+                    >
+                      Buka Halaman Login
+                    </button>
+                  ) : (
+                    <>
+                      <a
+                        href={successData.waUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-success fw-bold py-2.5 rounded-3 d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                        style={{ fontSize: '14px' }}
+                      >
+                        <i className="bi bi-whatsapp fs-5"></i>
+                        Buka WhatsApp / Kirim Ulang
+                      </a>
 
-                  <button
-                    type="button"
-                    className="btn btn-primary fw-bold py-2.5 rounded-3 shadow-sm"
-                    style={{ fontSize: '14px', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
-                    onClick={() => navigate(`/register?code=${successData.code}`)}
-                  >
-                    Lanjut Registrasi Akun Owner
-                  </button>
+                      <button
+                        type="button"
+                        className="btn btn-primary fw-bold py-2.5 rounded-3 shadow-sm"
+                        style={{ fontSize: '14px', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
+                        onClick={() => navigate(`/register?code=${successData.code}`)}
+                      >
+                        Lanjut Registrasi Akun Owner
+                      </button>
+                    </>
+                  )}
 
                   <button
                     type="button"
                     className="btn btn-outline-secondary py-2 rounded-3 small"
-                    onClick={() => {
-                      setSuccessData(null);
-                      setCode('');
-                      setName('');
-                      setAddress('');
-                      setCity('');
-                      setPhone('');
-                      setFeatureSubscriptionEnabled(true);
-                      setShowUpgradeBanner(true);
-                    }}
+                    onClick={handleResetForm}
                   >
-                    Daftarkan Store Lain
+                    Kelola / Daftarkan Store Lain
                   </button>
                 </div>
               </div>
             ) : (
               <form onSubmit={handleSubmit}>
+                {/* Banner Peringatan jika Toko Sudah Memiliki Owner */}
+                {isExistingOwnerStore && (
+                  <div
+                    className="alert alert-warning border-0 rounded-3 py-2 px-3 small mb-3 d-flex align-items-center gap-2"
+                    style={{ backgroundColor: '#fef3c7', color: '#92400e', fontSize: '12px' }}
+                  >
+                    <i className="bi bi-shield-lock-fill fs-5 text-warning flex-shrink-0"></i>
+                    <div>
+                      <strong>Toko Sudah Memiliki Owner:</strong> Kolom identitas dinonaktifkan. Anda dapat memindahkan paket langganan dan memasukkan password otorisasi.
+                    </div>
+                  </div>
+                )}
+
                 {/* Kode Toko */}
                 <div className="form-group mb-2.5">
-                  <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
-                    Kode Toko (Code) <span className="text-danger">*</span>
-                  </label>
-                  <div className="position-relative">
-                    <input
-                      className="form-control fw-bold text-primary"
-                      style={{
-                        height: '42px',
-                        backgroundColor: '#f8fafc',
-                        border: '1.5px solid #cbd5e1',
-                        borderRadius: '10px',
-                        fontSize: '14px',
-                        padding: '8px 14px',
-                      }}
-                      type="text"
-                      placeholder="Contoh: STORE02"
-                      value={code}
-                      onChange={(e) => setCode(e.target.value.toUpperCase())}
-                      required
-                    />
+                  <div className="d-flex justify-content-between align-items-center mb-1">
+                    <label className="form-label small fw-bold text-muted mb-0" style={{ fontSize: '12px' }}>
+                      Kode Toko (Code) <span className="text-danger">*</span>
+                    </label>
+                    {isCheckingStore && (
+                      <span className="text-muted small d-flex align-items-center gap-1" style={{ fontSize: '11px' }}>
+                        <span className="spinner-border spinner-border-sm" style={{ width: '10px', height: '10px' }}></span>
+                        Cek toko...
+                      </span>
+                    )}
                   </div>
-                  <div className="form-text text-muted" style={{ fontSize: '11px' }}>
-                    Kode unik identifikasi toko untuk login dan registrasi owner/kasir.
-                  </div>
-                </div>
-
-                {/* Nama Toko */}
-                <div className="form-group mb-2.5">
-                  <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
-                    Nama Laundry / Toko <span className="text-danger">*</span>
-                  </label>
                   <input
-                    className="form-control"
+                    className="form-control fw-bold text-primary"
                     style={{
                       height: '42px',
                       backgroundColor: '#f8fafc',
@@ -296,14 +429,74 @@ const RegisterStore = () => {
                       padding: '8px 14px',
                     }}
                     type="text"
+                    placeholder="Contoh: STORE02"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.toUpperCase())}
+                    required
+                  />
+                  <div className="form-text text-muted" style={{ fontSize: '11px' }}>
+                    Kode unik identifikasi toko untuk login dan registrasi owner/kasir.
+                  </div>
+                </div>
+
+                {/* DROPDOWN PILIHAN TIPE PAKET (Wajib aktif saat mode pindah plan atau toko memiliki owner) */}
+                {isExistingOwnerStore && (
+                  <div className="form-group mb-2.5">
+                    <label className="form-label small fw-bold text-primary mb-1 d-flex align-items-center gap-1" style={{ fontSize: '12px' }}>
+                      <i className="bi bi-gem-fill text-warning"></i>
+                      Pilihan Tipe Paket Langganan <span className="text-danger">*</span>
+                    </label>
+                    <select
+                      className="form-select fw-bold border-primary shadow-xs"
+                      style={{
+                        height: '42px',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '10px',
+                        fontSize: '14px',
+                        padding: '8px 14px',
+                        color: '#0134d4',
+                      }}
+                      value={selectedPlan}
+                      onChange={(e) => setSelectedPlan(e.target.value)}
+                    >
+                      {PLAN_OPTIONS.map((opt) => (
+                        <option key={opt.key} value={opt.key}>
+                          {opt.name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="form-text text-muted" style={{ fontSize: '11px' }}>
+                      Pilih paket baru untuk langsung memperbarui batas kuota dan fasilitas toko ini.
+                    </div>
+                  </div>
+                )}
+
+                {/* Nama Toko (Disabled jika toko sudah memiliki Owner) */}
+                <div className="form-group mb-2.5">
+                  <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
+                    Nama Laundry / Toko {!isExistingOwnerStore && <span className="text-danger">*</span>}
+                  </label>
+                  <input
+                    className="form-control"
+                    style={{
+                      height: '42px',
+                      backgroundColor: isExistingOwnerStore ? '#f1f5f9' : '#f8fafc',
+                      border: '1.5px solid #cbd5e1',
+                      borderRadius: '10px',
+                      fontSize: '14px',
+                      padding: '8px 14px',
+                      cursor: isExistingOwnerStore ? 'not-allowed' : 'text',
+                    }}
+                    type="text"
                     placeholder="Contoh: Laundry Bersih"
                     value={name}
+                    disabled={isExistingOwnerStore}
                     onChange={(e) => setName(e.target.value)}
-                    required
+                    required={!isExistingOwnerStore}
                   />
                 </div>
 
-                {/* Alamat Toko */}
+                {/* Alamat Toko (Disabled jika toko sudah memiliki Owner) */}
                 <div className="form-group mb-2.5">
                   <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
                     Alamat Lengkap
@@ -312,20 +505,22 @@ const RegisterStore = () => {
                     className="form-control"
                     style={{
                       height: '42px',
-                      backgroundColor: '#f8fafc',
+                      backgroundColor: isExistingOwnerStore ? '#f1f5f9' : '#f8fafc',
                       border: '1.5px solid #cbd5e1',
                       borderRadius: '10px',
                       fontSize: '14px',
                       padding: '8px 14px',
+                      cursor: isExistingOwnerStore ? 'not-allowed' : 'text',
                     }}
                     type="text"
                     placeholder="Contoh: Jl. Ahmad Yani No. 45"
                     value={address}
+                    disabled={isExistingOwnerStore}
                     onChange={(e) => setAddress(e.target.value)}
                   />
                 </div>
 
-                {/* Kota */}
+                {/* Kota (Disabled jika toko sudah memiliki Owner) */}
                 <div className="form-group mb-2.5">
                   <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
                     Kota
@@ -334,43 +529,49 @@ const RegisterStore = () => {
                     className="form-control"
                     style={{
                       height: '42px',
-                      backgroundColor: '#f8fafc',
+                      backgroundColor: isExistingOwnerStore ? '#f1f5f9' : '#f8fafc',
                       border: '1.5px solid #cbd5e1',
                       borderRadius: '10px',
                       fontSize: '14px',
                       padding: '8px 14px',
+                      cursor: isExistingOwnerStore ? 'not-allowed' : 'text',
                     }}
                     type="text"
                     placeholder="Contoh: Karawang"
                     value={city}
+                    disabled={isExistingOwnerStore}
                     onChange={(e) => setCity(e.target.value)}
                   />
                 </div>
 
-                {/* Nomor HP / WhatsApp */}
+                {/* Nomor HP / WhatsApp (Disabled jika toko sudah memiliki Owner) */}
                 <div className="form-group mb-2.5">
                   <label className="form-label small fw-bold text-muted mb-1 d-flex align-items-center gap-1" style={{ fontSize: '12px' }}>
                     <i className="bi bi-whatsapp text-success"></i>
-                    Nomor WhatsApp Owner <span className="text-danger">*</span>
+                    Nomor WhatsApp Owner {!isExistingOwnerStore && <span className="text-danger">*</span>}
                   </label>
                   <input
                     className="form-control"
                     style={{
                       height: '42px',
-                      backgroundColor: '#f8fafc',
+                      backgroundColor: isExistingOwnerStore ? '#f1f5f9' : '#f8fafc',
                       border: '1.5px solid #cbd5e1',
                       borderRadius: '10px',
                       fontSize: '14px',
                       padding: '8px 14px',
+                      cursor: isExistingOwnerStore ? 'not-allowed' : 'text',
                     }}
                     type="tel"
                     placeholder="Contoh: 081234567890"
                     value={phone}
+                    disabled={isExistingOwnerStore}
                     onChange={(e) => setPhone(e.target.value)}
-                    required
+                    required={!isExistingOwnerStore}
                   />
                   <div className="form-text text-muted" style={{ fontSize: '11px' }}>
-                    Saat submit, link ajakan registrasi owner akan otomatis diarahkan ke nomor ini.
+                    {isExistingOwnerStore
+                      ? 'Nomor WhatsApp terdaftar milik Owner toko.'
+                      : 'Saat submit, link ajakan registrasi owner akan otomatis diarahkan ke nomor ini.'}
                   </div>
                 </div>
 
@@ -435,7 +636,7 @@ const RegisterStore = () => {
                   </div>
                 </div>
 
-                {/* Password Otorisasi Bypass */}
+                {/* Password Otorisasi (Selalu Dapat Di-input) */}
                 <div className="form-group mb-3.5">
                   <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
                     Password Otorisasi <span className="text-danger">*</span>
@@ -473,6 +674,9 @@ const RegisterStore = () => {
                       <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
                     </button>
                   </div>
+                  <div className="form-text text-muted" style={{ fontSize: '11px' }}>
+                    Diperlukan password developer/admin untuk otorisasi perubahan ini.
+                  </div>
                 </div>
 
                 {/* Submit Button */}
@@ -482,9 +686,11 @@ const RegisterStore = () => {
                     height: '46px',
                     borderRadius: '12px',
                     fontSize: '15px',
-                    backgroundColor: '#0134d4',
-                    borderColor: '#0134d4',
-                    boxShadow: '0 4px 12px rgba(1, 52, 212, 0.25)',
+                    backgroundColor: isExistingOwnerStore ? '#059669' : '#0134d4',
+                    borderColor: isExistingOwnerStore ? '#059669' : '#0134d4',
+                    boxShadow: isExistingOwnerStore
+                      ? '0 4px 12px rgba(5, 150, 105, 0.25)'
+                      : '0 4px 12px rgba(1, 52, 212, 0.25)',
                   }}
                   type="submit"
                   disabled={loading}
@@ -492,12 +698,12 @@ const RegisterStore = () => {
                   {loading ? (
                     <>
                       <span className="spinner-border spinner-border-sm" role="status"></span>
-                      <span>Menyimpan Store...</span>
+                      <span>{isExistingOwnerStore ? 'Memperbarui Paket...' : 'Menyimpan Store...'}</span>
                     </>
                   ) : (
                     <>
-                      <i className="bi bi-send-check-fill"></i>
-                      <span>Kirim Undangan</span>
+                      <i className={`bi ${isExistingOwnerStore ? 'bi-arrow-left-right' : 'bi-send-check-fill'}`}></i>
+                      <span>{isExistingOwnerStore ? 'Pindahkan / Perbarui Paket Toko' : 'Kirim Undangan'}</span>
                     </>
                   )}
                 </button>
@@ -511,4 +717,3 @@ const RegisterStore = () => {
 };
 
 export default RegisterStore;
-

@@ -13,6 +13,8 @@ import { formatWhatsAppMessage } from '../utils/whatsapp';
 import { getTrackingUrl } from '../utils/tracking';
 import { getStatusLunasByMetode, isStatusLunas } from '../utils/paymentStatus';
 import PrintLayout from '../components/PrintLayout';
+import PlanGateModal from '../components/PlanGateModal';
+import { getSubscriptionReport } from '../services/subscriptionService';
 import { QRCodeSVG } from '../components/common/QRCodeSVG';
 import { Skeleton, OrderDetailSkeleton } from '../components/common/Skeleton';
 import { db } from '../db';
@@ -60,6 +62,7 @@ const OrderDetail = ({ user }) => {
   const [localInventoryUsed, setLocalInventoryUsed] = useState(null);
   const [newHp, setNewHp] = useState('');
   const [printType, setPrintType] = useState(null);
+  const [gateModal, setGateModal] = useState({ open: false, type: 'PDF_LIMIT', data: {} });
 
   const allInventory = useLiveQuery(getInventoryQuery);
 
@@ -396,7 +399,20 @@ const OrderDetail = ({ user }) => {
     }
   };
 
-  const triggerPrint = (type) => {
+  const triggerPrint = async (type) => {
+    if (type === 'a4') {
+      try {
+        const sub = await getSubscriptionReport();
+        if (sub && sub.isEnforced) {
+          if (sub.limits?.maxPdfInvoice === 0) {
+            setGateModal({ open: true, type: 'PDF_LIMIT', data: { plan: sub.plan, limit: 0 } });
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Check PDF limit error:', err);
+      }
+    }
     setPrintType(type);
     setTimeout(() => {
       window.print();
@@ -947,6 +963,14 @@ const OrderDetail = ({ user }) => {
             </div>
           </>
         )}
+        {/* Plan Gate Modal untuk limitasi fitur Nota PDF */}
+        <PlanGateModal
+          isOpen={gateModal.open}
+          onClose={() => setGateModal({ ...gateModal, open: false })}
+          type={gateModal.type}
+          customData={gateModal.data}
+          user={user}
+        />
       </div>
     </>
   );

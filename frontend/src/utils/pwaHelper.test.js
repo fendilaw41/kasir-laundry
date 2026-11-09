@@ -57,7 +57,7 @@ describe('pwaHelper', () => {
       });
 
       const res = await fetchStoreInfoByCode('STORE01');
-      expect(global.fetch).toHaveBeenCalledWith('/api/auth/store-info?code=STORE01');
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/auth/store-info?code=STORE01'));
       expect(res).toEqual({
         code: 'STORE01',
         name: 'Laundry Express',

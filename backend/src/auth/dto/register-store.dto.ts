@@ -24,5 +24,8 @@ export class RegisterStoreDto {
 
   @ApiPropertyOptional({ description: 'Tampilkan banner peringatan upgrade paket', example: true, default: true })
   showUpgradeBanner?: boolean;
+
+  @ApiPropertyOptional({ description: 'Pilihan tier paket langganan (TRIAL, STARTER, BASIC, PRO, ENTERPRISE)', example: 'BASIC' })
+  plan?: string;
 }
 

@@ -8,7 +8,7 @@ import { getStatusLunasByMetode } from '../utils/paymentStatus';
 import toast from 'react-hot-toast';
 import { TOAST_MESSAGES } from '../constants/appConstants';
 
-const Pembayaran = () => {
+const Pembayaran = ({ user }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const orderData = location.state?.orderData;
@@ -201,6 +201,7 @@ const Pembayaran = () => {
         onClose={() => setGateModalOpen(false)}
         type="TRANSACTION_LIMIT"
         customData={{ limit: gateModalLimit }}
+        user={user}
       />
     </div>
   );

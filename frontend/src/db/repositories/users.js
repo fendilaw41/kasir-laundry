@@ -5,6 +5,7 @@ import { syncAllDirtyMasterData, syncUsersToBackend, syncInventoryToBackend, pul
 import { getActiveStoreId } from './storeHelper.js';
 import { clearDraftOrder } from './draftOrder.js';
 import { syncPlansFromBackend } from './plans.js';
+import { pullSubscriptionFromBackend } from '../../services/subscriptionService.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -362,6 +363,7 @@ export const loginUser = async (username, password, storeCode) => {
           if (typeof navigator !== 'undefined' && navigator.onLine) {
             syncAllDirtyMasterData(false).catch(() => {});
             pullOrdersFromBackend(true).catch(() => {});
+            pullSubscriptionFromBackend().catch(() => {});
           }
 
           return localUser;

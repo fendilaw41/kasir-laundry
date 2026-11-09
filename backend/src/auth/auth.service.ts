@@ -13,6 +13,7 @@ import { RegisterDto } from './dto/register.dto';
 import { RegisterStoreDto } from './dto/register-store.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { SubscriptionService } from '../subscription/subscription.service';
+import { SubscriptionPlan } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
@@ -58,6 +59,35 @@ export class AuthService {
     });
 
     if (existing) {
+      const existingOwner = await this.prisma.user.findFirst({
+        where: { storeId: existing.id, role: 'owner', deletedAt: null },
+      });
+
+      // Jika toko sudah terdaftar dan sudah memiliki Owner, izinkan pemindahan paket
+      if (existingOwner) {
+        if (dto.plan) {
+          const rawPlan = dto.plan.trim().toUpperCase();
+          const targetPlan = (rawPlan === 'ENTERPRISE' ? 'BUSINESS' : rawPlan) as SubscriptionPlan;
+          const updatedSub = await this.subscriptionService.updatePlan(existing.id, targetPlan);
+          const updatedStore = await this.prisma.store.update({
+            where: { id: existing.id },
+            data: {
+              featureSubscriptionEnabled: typeof featureSubscriptionEnabled === 'boolean' ? featureSubscriptionEnabled : existing.featureSubscriptionEnabled,
+              showUpgradeBanner: typeof showUpgradeBanner === 'boolean' ? showUpgradeBanner : existing.showUpgradeBanner,
+            },
+          });
+
+          this.logger.log(`Paket store ${existing.code} berhasil diperbarui ke ${targetPlan} oleh otorisasi bypass.`);
+          return {
+            message: `Paket store ${existing.name} (${existing.code}) berhasil dipindahkan ke paket ${targetPlan}.`,
+            store: updatedStore,
+            subscription: updatedSub,
+            isPlanUpdated: true,
+          };
+        }
+        throw new ConflictException(`Kode Toko "${cleanCode}" sudah terdaftar dan telah memiliki Owner.`);
+      }
+
       throw new ConflictException(`Kode Toko "${cleanCode}" sudah terdaftar.`);
     }
 
@@ -525,14 +555,33 @@ export class AuthService {
       throw new NotFoundException('Store tidak ditemukan.');
     }
 
+    const owner = await this.prisma.user.findFirst({
+      where: {
+        storeId: store.id,
+        role: 'owner',
+        deletedAt: null,
+      },
+    });
+
+    const sub = this.prisma.storeSubscription
+      ? await this.prisma.storeSubscription.findUnique({
+          where: { storeId: store.id },
+        })
+      : null;
+
     const storeName = store.settings?.namaLaundry || store.name;
 
     return {
+      id: store.id,
       code: store.code,
       name: storeName,
       address: store.settings?.alamat || store.address || '',
       city: store.settings?.kota || store.city || '',
       phone: store.settings?.telepon || store.phone || '',
+      featureSubscriptionEnabled: store.featureSubscriptionEnabled,
+      showUpgradeBanner: store.showUpgradeBanner,
+      hasOwner: Boolean(owner),
+      currentPlan: sub?.plan || 'TRIAL',
     };
   }
 }

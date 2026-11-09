@@ -13,7 +13,7 @@ describe('SubscriptionService', () => {
 
   beforeEach(async () => {
     process.env.SUBSCRIPTION_ENFORCEMENT_ENABLED = 'true';
-    process.env.PLAN_BUSINESS_MAX_TRANSACTIONS = '3000';
+    process.env.PLAN_BUSINESS_MAX_TRANSACTIONS = '1000';
 
     prisma = {
       storeSubscription: {
@@ -34,6 +34,9 @@ describe('SubscriptionService', () => {
       },
       inventory: {
         count: jest.fn(),
+      },
+      product: {
+        count: jest.fn().mockResolvedValue(10),
       },
       store: {
         findMany: jest.fn(),
@@ -64,14 +67,21 @@ describe('SubscriptionService', () => {
     jest.clearAllMocks();
   });
 
-  it('should return correct plan limits including Business FUP 3000', () => {
+  it('should return correct plan limits including Business FUP 1000 and maxProducts tiers', () => {
     const limits = getPlanLimits();
     expect(limits.TRIAL.maxTransactions).toBe(30);
-    expect(limits.STARTER.maxTransactions).toBe(150);
-    expect(limits.BASIC.maxTransactions).toBe(400);
-    expect(limits.PRO.maxTransactions).toBe(1000);
-    expect(limits.BUSINESS.maxTransactions).toBe(3000);
+    expect(limits.STARTER.maxTransactions).toBe(100);
+    expect(limits.BASIC.maxTransactions).toBe(150);
+    expect(limits.PRO.maxTransactions).toBe(300);
+    expect(limits.BUSINESS.maxTransactions).toBe(1000);
     expect(limits.BASIC.isPopular).toBe(true);
+
+    // Verifikasi batas produk sesuai tier
+    expect(limits.TRIAL.maxProducts).toBe(5);
+    expect(limits.STARTER.maxProducts).toBe(10);
+    expect(limits.BASIC.maxProducts).toBe(50);
+    expect(limits.PRO.maxProducts).toBe(100);
+    expect(limits.BUSINESS.maxProducts).toBe(-1);
   });
 
   it('should calculate usage report and flag 80% warning correctly', async () => {
@@ -87,14 +97,14 @@ describe('SubscriptionService', () => {
       topupPhotos: 0,
     });
 
-    // 340 of 400 is 85%
-    prisma.order.count.mockResolvedValue(340);
+    // 128 of 150 is 85%
+    prisma.order.count.mockResolvedValue(128);
     prisma.message.count.mockResolvedValue(50);
     prisma.user.count.mockResolvedValue(2);
     prisma.inventory.count.mockResolvedValue(10);
 
     const report = await service.getUsageReport(storeId);
-    expect(report.usage.transactions.used).toBe(340);
+    expect(report.usage.transactions.used).toBe(128);
     expect(report.usage.transactions.percentage).toBe(85);
     expect(report.usage.transactions.isWarning).toBe(true);
     expect(report.usage.transactions.isExceeded).toBe(false);
@@ -113,8 +123,8 @@ describe('SubscriptionService', () => {
       topupPhotos: 0,
     });
 
-    // Limit Starter is 150
-    prisma.order.count.mockResolvedValue(150);
+    // Limit Starter is 100
+    prisma.order.count.mockResolvedValue(100);
     prisma.message.count.mockResolvedValue(10);
     prisma.user.count.mockResolvedValue(1);
     prisma.inventory.count.mockResolvedValue(2);
@@ -160,6 +170,30 @@ describe('SubscriptionService', () => {
 
     await expect(
       service.assertCanPerformAction(storeId, 'CREATE_INVENTORY'),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('should block product creation when product limit reached on Trial plan (5 items)', async () => {
+    const storeId = 'store-test-trial-product';
+    prisma.storeSubscription.findUnique.mockResolvedValue({
+      id: 'sub-4',
+      storeId,
+      plan: SubscriptionPlan.TRIAL,
+      status: SubscriptionStatus.ACTIVE,
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: new Date(Date.now() + 86400000 * 30),
+      topupTransactions: 0,
+      topupPhotos: 0,
+    });
+
+    prisma.order.count.mockResolvedValue(5);
+    prisma.message.count.mockResolvedValue(2);
+    prisma.user.count.mockResolvedValue(1);
+    prisma.inventory.count.mockResolvedValue(0);
+    prisma.product.count.mockResolvedValue(5); // Kuota 5/5 tercapai
+
+    await expect(
+      service.assertCanPerformAction(storeId, 'CREATE_PRODUCT'),
     ).rejects.toThrow(ForbiddenException);
   });
 });

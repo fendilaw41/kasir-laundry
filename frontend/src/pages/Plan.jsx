@@ -24,6 +24,16 @@ export default function Plan({ user }) {
   const [confirmModal, setConfirmModal] = useState({ open: false, planKey: null, planName: '' });
 
   const isOwner = user?.role === 'owner';
+  const adminWa = report?.whatsappBillingNumber || '6281234567890';
+  const storeName = settings?.namaLaundry || 'Toko Saya';
+
+  const formatWhatsAppDisplay = (rawNumber) => {
+    const clean = String(rawNumber || '').replace(/\D/g, '');
+    if (clean.startsWith('62') && clean.length >= 10) {
+      return `+62 ${clean.slice(2, 5)}-${clean.slice(5, 9)}-${clean.slice(9)}`;
+    }
+    return rawNumber || '-';
+  };
 
   const fetchStatus = async () => {
     setLoading(true);
@@ -84,6 +94,13 @@ export default function Plan({ user }) {
   const photos = usage.photos || {};
   const users = usage.users || {};
   const inv = usage.inventory || {};
+  const prods = usage.products || {
+    used: 0,
+    limit: currentPlan.maxProducts ?? 50,
+    remaining: currentPlan.maxProducts === -1 ? 999999 : Math.max(0, (currentPlan.maxProducts ?? 50) - 0),
+    percentage: 0,
+    isExceeded: false,
+  };
 
   const getProgressColor = (percentage, isExceeded) => {
     if (isExceeded || percentage >= 100) return '#ef4444';
@@ -103,6 +120,19 @@ export default function Plan({ user }) {
           </div>
         ) : (
           <>
+            {/* NOTIFIKASI KHUSUS JIKA LOGGED IN SEBAGAI KASIR */}
+            {!isOwner && (
+              <div
+                className="alert border-0 rounded-4 shadow-xs py-2.5 px-3 mb-3 d-flex align-items-center gap-2.5"
+                style={{ backgroundColor: '#e0f2fe', color: '#0369a1', fontSize: '0.82rem' }}
+              >
+                <i className="bi bi-info-circle-fill fs-5 text-primary flex-shrink-0"></i>
+                <div>
+                  <strong>Mode Tinjau Kasir:</strong> Anda sedang melihat rincian batas kuota paket toko. Perubahan atau upgrade paket hanya dapat diproses oleh akun <strong>Owner</strong>.
+                </div>
+              </div>
+            )}
+
             {/* 1. KARTU HERO PAKET SAAT INI (WARNA SAMA DENGAN HOME) */}
             <div
               className="card border-0 shadow-sm rounded-4 mb-3.5 overflow-hidden text-white position-relative"
@@ -130,27 +160,10 @@ export default function Plan({ user }) {
                     <h3 className="fw-bold text-white mb-0" style={{ letterSpacing: '-0.3px' }}>
                       {currentPlan.name}
                     </h3>
-                    <p className="text-white-50 small mb-0 mt-1 d-flex align-items-center gap-1.5" style={{ fontSize: '0.78rem' }}>
-                      <i className="bi bi-calendar3"></i>
-                      <span>
-                        Siklus Bulanan s/d{' '}
-                        <strong className="text-white">
-                          {report?.currentPeriodEnd
-                            ? new Date(report.currentPeriodEnd).toLocaleDateString('id-ID', {
-                                day: 'numeric',
-                                month: 'long',
-                                year: 'numeric',
-                              })
-                            : '-'}
-                        </strong>
-                      </span>
-                    </p>
+
                   </div>
 
                   <div className="text-end">
-                    <div className="fs-5 fw-bold text-warning mb-1" style={{ letterSpacing: '-0.2px' }}>
-                      {currentPlan.priceLabel}
-                    </div>
                     <span
                       className="badge rounded-pill fw-medium d-inline-flex align-items-center gap-1"
                       style={{
@@ -297,35 +310,35 @@ export default function Plan({ user }) {
                 </div>
               </div>
 
-              {/* Kuota Foto Chat */}
+              {/* Kuota Master Produk / Layanan */}
               <div className="col-6 col-md-3">
                 <div className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
                   <div className="d-flex justify-content-between align-items-center mb-1.5">
-                    <span className="text-muted small fw-medium" style={{ fontSize: '0.75rem' }}>Foto Chat</span>
+                    <span className="text-muted small fw-medium" style={{ fontSize: '0.75rem' }}>Produk</span>
                     <div
                       className="rounded-3 d-flex align-items-center justify-content-center"
-                      style={{ width: '26px', height: '26px', backgroundColor: '#f5f3ff', color: '#7c3aed' }}
+                      style={{ width: '26px', height: '26px', backgroundColor: '#ecfdf5', color: '#059669' }}
                     >
-                      <i className="bi bi-images" style={{ fontSize: '0.8rem' }}></i>
+                      <i className="bi bi-tag-fill" style={{ fontSize: '0.8rem' }}></i>
                     </div>
                   </div>
                   <div className="fw-bold text-dark mb-1.5" style={{ fontSize: '1.25rem', letterSpacing: '-0.3px' }}>
-                    {photos.used}{' '}
+                    {prods.used}{' '}
                     <span className="text-muted fw-normal" style={{ fontSize: '0.8rem' }}>
-                      / {photos.totalLimit}
+                      / {prods.limit === -1 ? '∞' : prods.limit}
                     </span>
                   </div>
                   <div className="progress rounded-pill mb-1.5" style={{ height: '6px', backgroundColor: '#f1f5f9' }}>
                     <div
                       className="progress-bar rounded-pill"
                       style={{
-                        width: `${photos.percentage}%`,
-                        backgroundColor: getProgressColor(photos.percentage, photos.isExceeded),
+                        width: `${prods.limit === -1 ? 0 : prods.percentage}%`,
+                        backgroundColor: getProgressColor(prods.percentage, prods.isExceeded),
                       }}
                     />
                   </div>
                   <span className="text-muted d-block" style={{ fontSize: '0.7rem' }}>
-                    Retensi {photos.retentionDays} hari
+                    {prods.limit === -1 ? 'Unlimited produk' : `${prods.used} dari ${prods.limit} item aktif`}
                   </span>
                 </div>
               </div>
@@ -438,6 +451,18 @@ export default function Plan({ user }) {
                       {plans.map((p) => (
                         <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
                           {p.maxTransactions === -1 ? 'Unlimited*' : p.maxTransactions.toLocaleString('id-ID')}
+                        </td>
+                      ))}
+                    </tr>
+
+                    {/* Upload Produk */}
+                    <tr>
+                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                        Upload Produk
+                      </td>
+                      {plans.map((p) => (
+                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                          {p.maxProducts === -1 ? 'Unlimited' : `${p.maxProducts ?? 5} produk`}
                         </td>
                       ))}
                     </tr>
@@ -647,7 +672,7 @@ export default function Plan({ user }) {
                                 })
                               }
                             >
-                              {isCurrent ? 'Aktif' : 'Terapkan'}
+                              {isCurrent ? 'Aktif' : 'Ajukan'}
                             </button>
                           </td>
                         );
@@ -661,63 +686,44 @@ export default function Plan({ user }) {
         )}
       </div>
 
-      {/* MODAL KONFIRMASI PENERAPAN PAKET LANGSUNG */}
+      {/* MODAL PENGAJUAN PAKET KE WA ADMIN */}
       {confirmModal.open && (
         <>
           <div className="modal-backdrop fade show" style={{ zIndex: 1060 }} onClick={() => setConfirmModal({ open: false, planKey: null, planName: '' })}></div>
           <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1065 }}>
-            <div className="modal-dialog modal-dialog-centered mx-auto px-3" style={{ maxWidth: '400px' }}>
+            <div className="modal-dialog modal-dialog-centered mx-auto px-3" style={{ maxWidth: '420px' }}>
               <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div className="modal-header border-bottom bg-light px-4 py-3">
+                  <h6 className="modal-title fw-bold text-dark mb-0">Pengajuan Paket</h6>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setConfirmModal({ open: false, planKey: null, planName: '' })}
+                  ></button>
+                </div>
                 <div className="modal-body p-4 text-center">
-                  <div
-                    className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3 text-primary"
-                    style={{ width: '56px', height: '56px', backgroundColor: '#eff6ff' }}
-                  >
-                    <i className="bi bi-patch-check fs-2"></i>
-                  </div>
-                  <h6 className="fw-bold text-dark mb-1">Terapkan {confirmModal.planName}?</h6>
-                  <p className="text-muted small mb-4" style={{ fontSize: '0.8rem' }}>
-                    Sistem akan langsung menerapkan kuota transaksi, foto chat, batas kasir, dan fitur sesuai spesifikasi paket ini pada toko Anda.
+                  <p className="text-muted small mb-3 text-start" style={{ fontSize: '0.82rem' }}>
+                    Silakan hubungi WhatsApp Admin untuk mengajukan paket. Berikut detail pengajuan Anda:
                   </p>
 
                   <div className="d-flex gap-2">
                     <button
                       type="button"
                       className="btn btn-light rounded-pill flex-fill py-2 text-muted fw-semibold"
-                      style={{ fontSize: '0.8rem' }}
-                      disabled={submitting}
+                      style={{ fontSize: '0.82rem' }}
                       onClick={() => setConfirmModal({ open: false, planKey: null, planName: '' })}
                     >
                       Batal
                     </button>
-                    <button
-                      type="button"
-                      className="btn btn-primary rounded-pill flex-fill py-2 fw-semibold shadow-xs"
-                      style={{ fontSize: '0.8rem' }}
-                      disabled={submitting}
-                      onClick={() => handleApplyPlan(confirmModal.planKey)}
-                    >
-                      {submitting ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm me-1" role="status"></span>
-                          <span>Menerapkan...</span>
-                        </>
-                      ) : (
-                        'Ya, Terapkan Sekarang'
-                      )}
-                    </button>
-                  </div>
-
-                  <div className="mt-3 pt-2 border-top">
                     <a
-                      href={getUpgradeWhatsAppUrl(confirmModal.planKey, settings?.namaLaundry)}
+                      href={getUpgradeWhatsAppUrl(confirmModal.planKey, storeName)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-decoration-none small text-muted d-inline-flex align-items-center gap-1"
-                      style={{ fontSize: '0.72rem' }}
+                      className="btn btn-success rounded-pill flex-fill py-2 fw-semibold shadow-xs text-decoration-none text-white text-center"
+                      style={{ fontSize: '0.82rem' }}
+                      onClick={() => setConfirmModal({ open: false, planKey: null, planName: '' })}
                     >
-                      <i className="bi bi-whatsapp text-success"></i>
-                      <span>Ingin konfirmasi pembayaran via WhatsApp? Klik di sini</span>
+                      Kirim WhatsApp
                     </a>
                   </div>
                 </div>
@@ -736,12 +742,6 @@ export default function Plan({ user }) {
               <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
                 <div className="modal-header border-bottom px-4 pt-3.5 pb-3 bg-light">
                   <h6 className="modal-title fw-bold text-dark d-flex align-items-center gap-2 mb-0">
-                    <div
-                      className="rounded-circle d-flex align-items-center justify-content-center bg-warning text-dark"
-                      style={{ width: '28px', height: '28px' }}
-                    >
-                      <i className="bi bi-lightning-charge-fill" style={{ fontSize: '0.85rem' }}></i>
-                    </div>
                     <span>Top-up Kuota Tambahan</span>
                   </h6>
                   <button type="button" className="btn-close" onClick={() => setTopupModalOpen(false)}></button>
@@ -754,50 +754,49 @@ export default function Plan({ user }) {
                   <div className="d-flex flex-column gap-2 mb-3">
                     <div
                       className="p-3 rounded-3 text-start d-flex justify-content-between align-items-center border transition-all"
-                      style={{ backgroundColor: '#f8fafc', cursor: submitting ? 'not-allowed' : 'pointer' }}
-                      onClick={() => !submitting && handleInstantTopup('TRANSACTIONS', 50)}
+                      style={{ backgroundColor: '#f8fafc', cursor: 'pointer' }}
+                      onClick={() => {
+                        window.open(getTopupWhatsAppUrl('TRANSACTIONS', 50, storeName), '_blank');
+                        setTopupModalOpen(false);
+                      }}
                     >
                       <div>
                         <div className="fw-bold text-dark" style={{ fontSize: '0.85rem' }}>+50 Kuota Transaksi</div>
-                        <small className="text-muted" style={{ fontSize: '0.72rem' }}>Klik untuk langsung terapkan ke toko</small>
+                        <small className="text-muted" style={{ fontSize: '0.72rem' }}>Pesan kuota ke WhatsApp admin</small>
                       </div>
-                      <span className="badge bg-primary rounded-pill px-2.5 py-1">Terapkan</span>
+                      <span className="badge bg-success rounded-pill px-2.5 py-1">Pesan via WA</span>
                     </div>
 
                     <div
                       className="p-3 rounded-3 text-start d-flex justify-content-between align-items-center border transition-all"
-                      style={{ backgroundColor: '#f8fafc', cursor: submitting ? 'not-allowed' : 'pointer' }}
-                      onClick={() => !submitting && handleInstantTopup('TRANSACTIONS', 150)}
+                      style={{ backgroundColor: '#f8fafc', cursor: 'pointer' }}
+                      onClick={() => {
+                        window.open(getTopupWhatsAppUrl('TRANSACTIONS', 100, storeName), '_blank');
+                        setTopupModalOpen(false);
+                      }}
                     >
                       <div>
-                        <div className="fw-bold text-dark" style={{ fontSize: '0.85rem' }}>+150 Kuota Transaksi</div>
-                        <small className="text-muted" style={{ fontSize: '0.72rem' }}>Klik untuk langsung terapkan ke toko</small>
+                        <div className="fw-bold text-dark" style={{ fontSize: '0.85rem' }}>+100 Kuota Transaksi</div>
+                        <small className="text-muted" style={{ fontSize: '0.72rem' }}>Pesan kuota ke WhatsApp admin</small>
                       </div>
-                      <span className="badge bg-primary rounded-pill px-2.5 py-1">Terapkan</span>
+                      <span className="badge bg-success rounded-pill px-2.5 py-1">Pesan via WA</span>
                     </div>
 
                     <div
                       className="p-3 rounded-3 text-start d-flex justify-content-between align-items-center border transition-all"
-                      style={{ backgroundColor: '#f8fafc', cursor: submitting ? 'not-allowed' : 'pointer' }}
-                      onClick={() => !submitting && handleInstantTopup('PHOTOS', 200)}
+                      style={{ backgroundColor: '#f8fafc', cursor: 'pointer' }}
+                      onClick={() => {
+                        window.open(getTopupWhatsAppUrl('PHOTOS', 200, storeName), '_blank');
+                        setTopupModalOpen(false);
+                      }}
                     >
                       <div>
                         <div className="fw-bold text-dark" style={{ fontSize: '0.85rem' }}>+200 Foto Chat</div>
-                        <small className="text-muted" style={{ fontSize: '0.72rem' }}>Klik untuk langsung terapkan ke toko</small>
+                        <small className="text-muted" style={{ fontSize: '0.72rem' }}>Pesan kuota ke WhatsApp admin</small>
                       </div>
-                      <span className="badge bg-primary rounded-pill px-2.5 py-1">Terapkan</span>
+                      <span className="badge bg-success rounded-pill px-2.5 py-1">Pesan via WA</span>
                     </div>
                   </div>
-                </div>
-                <div className="modal-footer border-top bg-light px-4 py-2.5">
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-secondary rounded-pill px-3.5"
-                    style={{ fontSize: '0.78rem' }}
-                    onClick={() => setTopupModalOpen(false)}
-                  >
-                    Tutup
-                  </button>
                 </div>
               </div>
             </div>

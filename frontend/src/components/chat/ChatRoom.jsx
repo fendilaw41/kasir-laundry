@@ -10,6 +10,8 @@ import {
 } from '../../services/chatService';
 import { compressImage } from '../../utils/imageCompressor';
 import { isOfflineExceeded3Days } from '../../utils/offlineGuard';
+import { getSubscriptionReport } from '../../services/subscriptionService';
+import PlanGateModal from '../PlanGateModal';
 import { ChatMessagesSkeleton } from '../common/Skeleton';
 
 export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }) => {
@@ -21,6 +23,7 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
   const [typingUser, setTypingUser] = useState(null);
   const [selectedZoomImage, setSelectedZoomImage] = useState(null);
   const [showOffline3DaysModal, setShowOffline3DaysModal] = useState(false);
+  const [gateModal, setGateModal] = useState({ open: false, type: 'PHOTO_LIMIT', data: {} });
   const isSendingRef = useRef(false);
 
   const messagesEndRef = useRef(null);
@@ -161,6 +164,17 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
     if (!file) return;
 
     try {
+      const sub = await getSubscriptionReport().catch(() => null);
+      if (sub && sub.isEnforced && sub.usage?.photos?.isExceeded) {
+        setGateModal({
+          open: true,
+          type: 'PHOTO_LIMIT',
+          data: { plan: sub.plan, limit: sub.limits?.maxChatPhotos },
+        });
+        e.target.value = '';
+        return;
+      }
+
       // Kompres gambar otomatis di sisi klien
       const compressed = await compressImage(file, { maxWidth: 1280, maxHeight: 1280, quality: 0.82 });
       const previewUrl = URL.createObjectURL(compressed.blob);
@@ -702,6 +716,15 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
           </div>
         </>
       )}
+
+      {/* Plan Gate Modal untuk limitasi foto chat */}
+      <PlanGateModal
+        isOpen={gateModal.open}
+        onClose={() => setGateModal({ ...gateModal, open: false })}
+        type={gateModal.type}
+        customData={gateModal.data}
+        user={currentUser}
+      />
     </div>
   );
 };

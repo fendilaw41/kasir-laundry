@@ -13,13 +13,14 @@ export interface PlanLimits {
   lowStockNotification: boolean;
   maxOutlets: number;
   maxUsers: number;
+  maxProducts: number; // 50 for trial, -1 for unlimited
   dataHistoryMonths: number;
   photoRetentionDays: number;
   supportType: string;
 }
 
 export const getPlanLimits = (): Record<string, PlanLimits> => {
-  const businessMaxTrx = parseInt(process.env.PLAN_BUSINESS_MAX_TRANSACTIONS || '3000', 10);
+  const businessMaxTrx = parseInt(process.env.PLAN_BUSINESS_MAX_TRANSACTIONS || '1000', 10);
 
   return {
     TRIAL: {
@@ -34,6 +35,7 @@ export const getPlanLimits = (): Record<string, PlanLimits> => {
       lowStockNotification: false,
       maxOutlets: 1,
       maxUsers: 1,
+      maxProducts: 5,
       dataHistoryMonths: 1,
       photoRetentionDays: 30,
       supportType: 'Panduan',
@@ -41,7 +43,7 @@ export const getPlanLimits = (): Record<string, PlanLimits> => {
     STARTER: {
       name: 'Starter',
       price: 25000,
-      maxTransactions: 150,
+      maxTransactions: 100,
       maxChatPhotos: 300,
       botTransactions: 0,
       maxPdfInvoice: 20,
@@ -50,6 +52,7 @@ export const getPlanLimits = (): Record<string, PlanLimits> => {
       lowStockNotification: false,
       maxOutlets: 1,
       maxUsers: 2,
+      maxProducts: 10,
       dataHistoryMonths: 3,
       photoRetentionDays: 60,
       supportType: 'Komunitas',
@@ -58,7 +61,7 @@ export const getPlanLimits = (): Record<string, PlanLimits> => {
       name: 'Basic',
       price: 50000,
       isPopular: true,
-      maxTransactions: 400,
+      maxTransactions: 150,
       maxChatPhotos: 800,
       botTransactions: 200,
       maxPdfInvoice: 100,
@@ -67,6 +70,7 @@ export const getPlanLimits = (): Record<string, PlanLimits> => {
       lowStockNotification: true,
       maxOutlets: 1,
       maxUsers: 3,
+      maxProducts: 50,
       dataHistoryMonths: 6,
       photoRetentionDays: 90,
       supportType: 'Chat',
@@ -74,7 +78,7 @@ export const getPlanLimits = (): Record<string, PlanLimits> => {
     PRO: {
       name: 'Pro',
       price: 100000,
-      maxTransactions: 1000,
+      maxTransactions: 300,
       maxChatPhotos: 2000,
       botTransactions: 1000,
       maxPdfInvoice: -1,
@@ -83,6 +87,7 @@ export const getPlanLimits = (): Record<string, PlanLimits> => {
       lowStockNotification: true,
       maxOutlets: 2,
       maxUsers: 5,
+      maxProducts: 100,
       dataHistoryMonths: 12,
       photoRetentionDays: 180,
       supportType: 'Prioritas',
@@ -90,7 +95,7 @@ export const getPlanLimits = (): Record<string, PlanLimits> => {
     BUSINESS: {
       name: 'Business',
       price: 200000,
-      maxTransactions: businessMaxTrx, // FUP 3000
+      maxTransactions: businessMaxTrx, // FUP 1000
       maxChatPhotos: 5000,
       botTransactions: -1,
       maxPdfInvoice: -1,
@@ -101,6 +106,7 @@ export const getPlanLimits = (): Record<string, PlanLimits> => {
       lowStockNotification: true,
       maxOutlets: 5,
       maxUsers: 15,
+      maxProducts: -1,
       dataHistoryMonths: 24,
       photoRetentionDays: 365,
       supportType: 'Prioritas + Onboarding',

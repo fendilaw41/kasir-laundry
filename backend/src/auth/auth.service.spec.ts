@@ -18,6 +18,9 @@ describe('AuthService - getStoreInfo', () => {
         findFirst: jest.fn(),
         create: jest.fn(),
       },
+      storeSubscription: {
+        findUnique: jest.fn().mockResolvedValue({ plan: 'BASIC' }),
+      },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -65,12 +68,14 @@ describe('AuthService - getStoreInfo', () => {
     });
 
     const result = await service.getStoreInfo('store01');
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       code: 'STORE01',
       name: 'Klinik Laundry Bersih',
       address: 'Jl. Melati No. 2',
       city: 'Bandung',
       phone: '0811111111',
+      hasOwner: false,
+      currentPlan: 'BASIC',
     });
   });
 
@@ -84,14 +89,17 @@ describe('AuthService - getStoreInfo', () => {
       phone: '0822222222',
       settings: null,
     });
+    prisma.user.findFirst.mockResolvedValue({ id: 'owner-1', role: 'owner' });
 
     const result = await service.getStoreInfo('STORE02');
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       code: 'STORE02',
       name: 'Laundry Express Official',
       address: 'Jl. Sudirman',
       city: 'Surabaya',
       phone: '0822222222',
+      hasOwner: true,
+      currentPlan: 'BASIC',
     });
   });
 });

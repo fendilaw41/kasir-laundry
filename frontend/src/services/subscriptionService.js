@@ -58,6 +58,7 @@ export const PLAN_CONFIGS = {
     lowStockNotification: false,
     maxOutlets: 1,
     maxUsers: 1,
+    maxProducts: 5,
     dataHistoryMonths: 1,
     photoRetentionDays: 30,
     supportType: 'Panduan',
@@ -67,7 +68,7 @@ export const PLAN_CONFIGS = {
     name: 'Starter',
     price: 25000,
     priceLabel: '25rb/bln',
-    maxTransactions: 150,
+    maxTransactions: 100,
     maxChatPhotos: 300,
     botTransactions: 0,
     maxPdfInvoice: 20,
@@ -76,6 +77,7 @@ export const PLAN_CONFIGS = {
     lowStockNotification: false,
     maxOutlets: 1,
     maxUsers: 2,
+    maxProducts: 10,
     dataHistoryMonths: 3,
     photoRetentionDays: 60,
     supportType: 'Komunitas',
@@ -86,7 +88,7 @@ export const PLAN_CONFIGS = {
     price: 50000,
     priceLabel: '50rb/bln',
     isPopular: true,
-    maxTransactions: 400,
+    maxTransactions: 150,
     maxChatPhotos: 800,
     botTransactions: 200,
     maxPdfInvoice: 100,
@@ -95,6 +97,7 @@ export const PLAN_CONFIGS = {
     lowStockNotification: true,
     maxOutlets: 1,
     maxUsers: 3,
+    maxProducts: 50,
     dataHistoryMonths: 6,
     photoRetentionDays: 90,
     supportType: 'Chat',
@@ -104,7 +107,7 @@ export const PLAN_CONFIGS = {
     name: 'Pro',
     price: 100000,
     priceLabel: '100rb/bln',
-    maxTransactions: 1000,
+    maxTransactions: 300,
     maxChatPhotos: 2000,
     botTransactions: 1000,
     maxPdfInvoice: -1,
@@ -113,6 +116,7 @@ export const PLAN_CONFIGS = {
     lowStockNotification: true,
     maxOutlets: 2,
     maxUsers: 5,
+    maxProducts: 100,
     dataHistoryMonths: 12,
     photoRetentionDays: 180,
     supportType: 'Prioritas',
@@ -122,7 +126,7 @@ export const PLAN_CONFIGS = {
     name: 'Business',
     price: 200000,
     priceLabel: '200rb/bln',
-    maxTransactions: 3000, // Fair Use Policy
+    maxTransactions: 1000, // Fair Use Policy
     maxChatPhotos: 5000,
     botTransactions: -1,
     maxPdfInvoice: -1,
@@ -133,6 +137,7 @@ export const PLAN_CONFIGS = {
     lowStockNotification: true,
     maxOutlets: 5,
     maxUsers: 15,
+    maxProducts: -1,
     dataHistoryMonths: 24,
     photoRetentionDays: 365,
     supportType: 'Prioritas + Onboarding',
@@ -160,6 +165,7 @@ export async function getSubscriptionReport() {
         lowStockNotification: true,
         maxOutlets: 999,
         maxUsers: 999,
+        maxProducts: -1,
         dataHistoryMonths: 999,
         photoRetentionDays: 999,
         supportType: 'Full',
@@ -169,15 +175,23 @@ export async function getSubscriptionReport() {
         photos: { used: 0, limit: -1, topup: 0, totalLimit: -1, remaining: 9999, percentage: 0, isWarning: false, isExceeded: false, retentionDays: 999, expiringSoonCount: 0 },
         users: { used: 1, limit: 999, remaining: 999, isExceeded: false },
         inventory: { used: 0, limit: -1, remaining: 999, isExceeded: false },
+        products: { used: 0, limit: -1, remaining: 9999, percentage: 0, isExceeded: false },
       },
       whatsappBillingNumber: BILLING_WA,
     };
   }
 
-  const token = localStorage.getItem('token');
-  const userStr = localStorage.getItem('user');
+  const token =
+    (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('token') : null) ||
+    (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') : null) ||
+    (await db.settings.get(1))?.token ||
+    (await db.settings.get(1))?.authToken;
+  const userStr =
+    (typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null) ||
+    (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('user') : null);
   const user = userStr ? JSON.parse(userStr) : null;
-  const storeId = user?.storeId || null;
+  const setting = await db.settings.get(1);
+  const storeId = user?.storeId || setting?.storeId || null;
 
   if (token) {
     try {
@@ -211,6 +225,40 @@ export async function getSubscriptionReport() {
             }
           } catch {}
 
+          // Sinkronkan ke db.storeSubscriptions di Dexie
+          if (db.storeSubscriptions && (json.data.storeId || storeId)) {
+            try {
+              const targetSubStoreId = json.data.storeId || storeId;
+              const existingSub = await db.storeSubscriptions.where('storeId').equals(targetSubStoreId).first();
+              await db.storeSubscriptions.put({
+                id: existingSub?.id || json.data.id || crypto.randomUUID(),
+                storeId: targetSubStoreId,
+                plan: json.data.plan,
+                status: json.data.status,
+                currentPeriodStart: new Date(json.data.currentPeriodStart || new Date()),
+                currentPeriodEnd: json.data.currentPeriodEnd ? new Date(json.data.currentPeriodEnd) : null,
+                maxTransactions: json.data.limits?.maxTransactions ?? 150,
+                usedTransactions: json.data.usage?.transactions?.used ?? 0,
+                remainingTransactions: json.data.usage?.transactions?.remaining ?? 150,
+                maxChatPhotos: json.data.limits?.maxChatPhotos ?? 800,
+                usedPhotos: json.data.usage?.photos?.used ?? 0,
+                remainingPhotos: json.data.usage?.photos?.remaining ?? 800,
+                maxUsers: json.data.limits?.maxUsers ?? 3,
+                usedUsers: json.data.usage?.users?.used ?? 1,
+                remainingUsers: json.data.usage?.users?.remaining ?? 2,
+                maxProducts: json.data.limits?.maxProducts ?? 50,
+                usedProducts: json.data.usage?.products?.used ?? 0,
+                remainingProducts: json.data.usage?.products?.remaining ?? 50,
+                maxStockItems: json.data.limits?.maxStockItems ?? 20,
+                usedInventory: json.data.usage?.inventory?.used ?? 0,
+                remainingInventory: json.data.usage?.inventory?.remaining ?? 20,
+                updatedAt: new Date(),
+              });
+            } catch (subErr) {
+              console.warn('Gagal update db.storeSubscriptions dari server:', subErr);
+            }
+          }
+
           // Cache ke settings Dexie jika memungkinkan
           try {
             await db.settings.where('id').equals(1).modify({
@@ -241,6 +289,7 @@ async function calculateOfflineUsage(storeId) {
   let trxCount = 0;
   let userCount = 1;
   let invCount = 0;
+  let prodCount = 0;
 
   try {
     trxCount = await db.orders
@@ -257,12 +306,25 @@ async function calculateOfflineUsage(storeId) {
     invCount = await db.inventory.filter((i) => !i.deletedAt).count();
   } catch (e) {}
 
-  // Coba ambil paket dari cache settings
+  try {
+    prodCount = db.products
+      ? await db.products.filter((p) => !p.deletedAt && (!storeId || !p.storeId || p.storeId === storeId)).count()
+      : 0;
+  } catch (e) {}
+
+  // Coba ambil paket dari db.storeSubscriptions atau cache settings
   let cachedPlan = 'TRIAL';
   try {
-    const s = await db.settings.get(1);
-    if (s?.cachedSubscription?.plan) {
-      cachedPlan = s.cachedSubscription.plan;
+    const sub = storeId && db.storeSubscriptions
+      ? await db.storeSubscriptions.where('storeId').equals(storeId).first()
+      : (db.storeSubscriptions ? await db.storeSubscriptions.toCollection().first() : null);
+    if (sub?.plan) {
+      cachedPlan = sub.plan;
+    } else {
+      const s = await db.settings.get(1);
+      if (s?.cachedSubscription?.plan) {
+        cachedPlan = s.cachedSubscription.plan;
+      }
     }
   } catch (e) {}
 
@@ -313,6 +375,13 @@ async function calculateOfflineUsage(storeId) {
         remaining: limits.maxStockItems === -1 ? 999999 : Math.max(0, limits.maxStockItems - invCount),
         isExceeded: limits.maxStockItems !== -1 && invCount >= limits.maxStockItems,
       },
+      products: {
+        used: prodCount,
+        limit: limits.maxProducts ?? 50,
+        remaining: limits.maxProducts === -1 ? 999999 : Math.max(0, (limits.maxProducts ?? 50) - prodCount),
+        percentage: limits.maxProducts === -1 ? 0 : Math.min(100, Math.round((prodCount / (limits.maxProducts ?? 50)) * 100)),
+        isExceeded: limits.maxProducts !== -1 && prodCount >= (limits.maxProducts ?? 50),
+      },
     },
     whatsappBillingNumber: BILLING_WA,
   };
@@ -324,11 +393,10 @@ async function calculateOfflineUsage(storeId) {
 export function getUpgradeWhatsAppUrl(planKey, storeName) {
   const plan = PLAN_CONFIGS[planKey];
   const targetName = plan?.name || planKey;
-  const price = plan?.priceLabel || '';
   const cleanName = storeName || 'Toko Laundry';
 
   const text = encodeURIComponent(
-    `Halo Admin Kasir Laundry,\n\nSaya ingin mengajukan UPGRADE PAKET langganan untuk:\nNama Toko: ${cleanName}\nPaket Tujuan: ${targetName} (${price})\n\nMohon info nomor rekening / tagihan pembayaran. Terima kasih!`
+    `Halo Admin, saya ingin mengajukan paket ${targetName} untuk toko ${cleanName}.`
   );
 
   return `https://wa.me/${BILLING_WA}?text=${text}`;
@@ -406,6 +474,79 @@ export async function topupQuota(type, amount) {
   }
 
   return json;
+}
+
+/**
+ * Menarik status subscription terbaru dari server NestJS dan menyimpannya ke Dexie
+ */
+export async function pullSubscriptionFromBackend() {
+  const token =
+    (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('token') : null) ||
+    (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') : null) ||
+    (await db.settings.get(1))?.token ||
+    (await db.settings.get(1))?.authToken;
+
+  if (!token) return null;
+
+  try {
+    const res = await fetch(`${API_URL}/subscription/usage`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (json.success && json.data) {
+      const setting = await db.settings.get(1);
+      const storeId = json.data.storeId || setting?.storeId;
+
+      if (db.storeSubscriptions && storeId) {
+        try {
+          const existingSub = await db.storeSubscriptions.where('storeId').equals(storeId).first();
+          await db.storeSubscriptions.put({
+            id: existingSub?.id || json.data.id || crypto.randomUUID(),
+            storeId,
+            plan: json.data.plan,
+            status: json.data.status,
+            currentPeriodStart: new Date(json.data.currentPeriodStart || new Date()),
+            currentPeriodEnd: json.data.currentPeriodEnd ? new Date(json.data.currentPeriodEnd) : null,
+            maxTransactions: json.data.limits?.maxTransactions ?? 150,
+            usedTransactions: json.data.usage?.transactions?.used ?? 0,
+            remainingTransactions: json.data.usage?.transactions?.remaining ?? 150,
+            maxChatPhotos: json.data.limits?.maxChatPhotos ?? 800,
+            usedPhotos: json.data.usage?.photos?.used ?? 0,
+            remainingPhotos: json.data.usage?.photos?.remaining ?? 800,
+            maxUsers: json.data.limits?.maxUsers ?? 3,
+            usedUsers: json.data.usage?.users?.used ?? 1,
+            remainingUsers: json.data.usage?.users?.remaining ?? 2,
+            maxProducts: json.data.limits?.maxProducts ?? 50,
+            usedProducts: json.data.usage?.products?.used ?? 0,
+            remainingProducts: json.data.usage?.products?.remaining ?? 50,
+            maxStockItems: json.data.limits?.maxStockItems ?? 20,
+            usedInventory: json.data.usage?.inventory?.used ?? 0,
+            remainingInventory: json.data.usage?.inventory?.remaining ?? 20,
+            updatedAt: new Date(),
+          });
+        } catch (e) {
+          console.warn('Gagal simpan storeSubscription ke Dexie:', e);
+        }
+      }
+
+      try {
+        await db.settings.where('id').equals(1).modify({
+          cachedSubscription: json.data,
+          featureSubscriptionEnabled: json.data.featureSubscriptionEnabled,
+          showUpgradeBanner: json.data.showUpgradeBanner,
+        });
+      } catch (e) {}
+
+      return json.data;
+    }
+  } catch (err) {
+    console.warn('Gagal pull subscription dari backend:', err);
+  }
+  return null;
 }
 
 export { syncPlansFromBackend, getPlanByKey, getAllPlansLocal } from '../db/repositories/plans';

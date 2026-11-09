@@ -198,7 +198,17 @@ const Home = ({ user }) => {
 
             {/* Inventory */}
             <div className="col-3">
-              <div className="text-decoration-none customer-card-clickable d-block" onClick={() => setShowInventoryModal(true)} style={{ cursor: 'pointer' }}>
+              <div
+                className="text-decoration-none customer-card-clickable d-block"
+                onClick={() => {
+                  if (isSubscriptionEnabled() && subReport?.limits?.maxStockItems === 0) {
+                    setGateModal({ open: true, type: 'STOCK_LOCKED', data: { plan: subReport?.plan } });
+                    return;
+                  }
+                  setShowInventoryModal(true);
+                }}
+                style={{ cursor: 'pointer' }}
+              >
                 <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#fff', border: '1px solid #bbdefb' }}>
                   <i className="bi bi-archive fs-5"></i>
                 </div>
@@ -781,7 +791,15 @@ const Home = ({ user }) => {
         )
       }
 
-    </div >
+      {/* Plan Gate Modal untuk limitasi fitur stok */}
+      <PlanGateModal
+        isOpen={gateModal.open}
+        onClose={() => setGateModal({ open: false, type: 'TRANSACTION_LIMIT', data: {} })}
+        type={gateModal.type}
+        customData={gateModal.data}
+        user={user}
+      />
+    </div>
   );
 };
 
