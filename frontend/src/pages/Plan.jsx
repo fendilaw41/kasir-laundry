@@ -278,7 +278,7 @@ export default function Plan({ user }) {
 
             <div className="row g-2.5 mb-4">
               {/* Kuota Transaksi */}
-              <div className="col-6 col-md-3">
+              <div className="col-6 col-md-3 mb-3">
                 <div className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
                   <div className="d-flex justify-content-between align-items-center mb-1.5">
                     <span className="text-muted small fw-medium" style={{ fontSize: '0.75rem' }}>Transaksi</span>
@@ -311,7 +311,7 @@ export default function Plan({ user }) {
               </div>
 
               {/* Kuota Master Produk / Layanan */}
-              <div className="col-6 col-md-3">
+              <div className="col-6 col-md-3 mb-3">
                 <div className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
                   <div className="d-flex justify-content-between align-items-center mb-1.5">
                     <span className="text-muted small fw-medium" style={{ fontSize: '0.75rem' }}>Produk</span>
@@ -420,22 +420,60 @@ export default function Plan({ user }) {
             <div className="card border-0 shadow-sm rounded-4 overflow-hidden bg-white mb-4">
               <div className="table-responsive">
                 <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.8rem' }}>
-                  <thead className="table-light border-bottom">
-                    <tr>
-                      <th className="py-3 px-3 text-dark fw-bold" style={{ position: 'sticky', left: 0, zIndex: 2, minWidth: '150px', width: '150px', backgroundColor: '#f8fafc', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                        Fitur
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #cbd5e1' }}>
+                      <th
+                        className="py-3 px-3 fw-bold"
+                        style={{
+                          position: 'sticky',
+                          left: 0,
+                          zIndex: 2,
+                          minWidth: '150px',
+                          width: '150px',
+                          backgroundColor: '#e2e8f0',
+                          color: '#0f172a',
+                          borderRight: '1.5px solid #cbd5e1',
+                          whiteSpace: 'nowrap',
+                          verticalAlign: 'middle',
+                        }}
+                      >
+                        <div className="d-flex align-items-center gap-1.5">
+                          <i className="bi bi-grid-fill text-secondary" style={{ fontSize: '0.85rem' }}></i>
+                          <span>Fitur</span>
+                        </div>
                       </th>
                       {plans.map((p) => {
                         const isPop = p.isPopular;
+
                         return (
                           <th
                             key={p.key}
-                            className={`py-3 px-3 text-center ${isPop ? 'fw-bold bg-primary-subtle text-primary border-start border-end' : 'text-dark fw-bold'}`}
-                            style={{ minWidth: isPop ? '135px' : '115px', whiteSpace: 'nowrap' }}
+                            className="py-3 px-3 text-center position-relative"
+                            style={{
+                              minWidth: isPop ? '140px' : '115px',
+                              whiteSpace: 'nowrap',
+                              backgroundColor: isPop ? '#e0f2fe' : '#f1f5f9',
+                              color: isPop ? '#0369a1' : '#0f172a',
+                              borderRight: '1px solid #e2e8f0',
+                              verticalAlign: 'middle',
+                            }}
                           >
-                            {p.name} {isPop && '⭐'}
-                            <div className={`small ${isPop ? 'fw-semibold text-primary' : 'fw-normal text-muted'}`} style={{ fontSize: '0.7rem' }}>
-                              {p.priceLabel || (p.price === 0 ? 'Gratis' : `Rp ${p.price.toLocaleString('id-ID')}`)} {isPop && '(Laris)'}
+                            {isPop && (
+                              <span
+                                className="badge bg-primary text-white fw-bold rounded-pill mb-1 d-inline-block shadow-xs"
+                                style={{ fontSize: '0.62rem', padding: '2px 8px' }}
+                              >
+                                Terpopuler ⭐
+                              </span>
+                            )}
+                            <div className="fw-bold" style={{ fontSize: '0.88rem' }}>
+                              {p.name}
+                            </div>
+                            <div
+                              className="small mt-0.5"
+                              style={{ fontSize: '0.72rem', color: isPop ? '#0284c7' : '#64748b', fontWeight: '500' }}
+                            >
+                              {p.priceLabel || (p.price === 0 ? 'Gratis' : `Rp ${p.price.toLocaleString('id-ID')}`)}
                             </div>
                           </th>
                         );
