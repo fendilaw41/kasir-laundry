@@ -7,6 +7,7 @@ import { getOrdersQuery } from '../db/repositories/orders.js';
 import { getProductsQuery } from '../db/repositories/products.js';
 import { getInventoryQuery } from '../db/repositories/inventory.js';
 import { getActiveStoreId } from '../db/repositories/storeHelper.js';
+import { isSubscriptionEnabled, getSubscriptionReport } from '../services/subscriptionService';
 
 // Cari yang paling mirip dari list menggunakan Fuse.js
 function findBestMatch(input, items, keys, threshold = 0.4) {
@@ -56,6 +57,82 @@ export async function parseChatCommand(message, user) {
   let payload = null;
   let responseText = '';
   let status = 'failed';
+
+  // 0. Cek batasan paket untuk asisten bot
+  if (isSubscriptionEnabled()) {
+    try {
+      const report = await getSubscriptionReport();
+      const botLimit = report?.limits?.botTransactions ?? 10;
+      const currentPlan = report?.plan || 'TRIAL';
+
+      if (botLimit === 0) {
+        const lockedText = `⚠️ Fitur Asisten Bot Terkunci\n\nFitur asisten bot otomatis tidak tersedia pada paket ${currentPlan}. Silakan upgrade ke paket Basic atau Pro melalui menu Plan untuk menggunakan bot.`;
+        await db.chatLog.add(withNewSyncMeta({
+          pesan: message,
+          intent: 'blocked',
+          status: 'blocked',
+          userId: user?.id,
+          timestamp: new Date().toISOString(),
+          isBot: false,
+        }));
+        await db.chatLog.add(withNewSyncMeta({
+          pesan: lockedText,
+          intent: 'blocked',
+          status: 'blocked',
+          userId: 'bot',
+          timestamp: new Date().toISOString(),
+          isBot: true,
+        }));
+        return {
+          responseText: lockedText,
+          status: 'blocked',
+          isBlocked: true,
+          blockType: 'BOT_LOCKED',
+          plan: currentPlan,
+        };
+      }
+
+      if (botLimit !== -1) {
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        const botUsageCount = await db.chatLog
+          .where('timestamp')
+          .aboveOrEqual(startOfMonth)
+          .filter((item) => !item.isBot)
+          .count();
+
+        if (botUsageCount >= botLimit) {
+          const limitText = `⚠️ Batas Kuota Bot Tercapai\n\nPenggunaan asisten bot bulan ini telah mencapai kuota maksimal (${botLimit} perintah). Silakan upgrade paket melalui menu Plan untuk kuota lebih banyak.`;
+          await db.chatLog.add(withNewSyncMeta({
+            pesan: message,
+            intent: 'limit_exceeded',
+            status: 'blocked',
+            userId: user?.id,
+            timestamp: new Date().toISOString(),
+            isBot: false,
+          }));
+          await db.chatLog.add(withNewSyncMeta({
+            pesan: limitText,
+            intent: 'limit_exceeded',
+            status: 'blocked',
+            userId: 'bot',
+            timestamp: new Date().toISOString(),
+            isBot: true,
+          }));
+          return {
+            responseText: limitText,
+            status: 'blocked',
+            isBlocked: true,
+            blockType: 'BOT_LIMIT',
+            limit: botLimit,
+            plan: currentPlan,
+          };
+        }
+      }
+    } catch (subErr) {
+      console.warn('[Chatbot] Cek subscription error:', subErr);
+    }
+  }
 
   try {
     // 1. Cek intent: Transaksi -> "trx <layanan> <berat>kg [<nama>] [<statusBayar>]"

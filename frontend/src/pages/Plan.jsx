@@ -794,12 +794,17 @@ export default function Plan({ user }) {
                       className="p-3 rounded-3 text-start d-flex justify-content-between align-items-center border transition-all"
                       style={{ backgroundColor: '#f8fafc', cursor: 'pointer' }}
                       onClick={() => {
-                        window.open(getTopupWhatsAppUrl('TRANSACTIONS', 50, storeName), '_blank');
+                        window.open(getTopupWhatsAppUrl('TRANSACTIONS', 50, storeName, 'Rp 20.000'), '_blank');
                         setTopupModalOpen(false);
                       }}
                     >
                       <div>
-                        <div className="fw-bold text-dark" style={{ fontSize: '0.85rem' }}>+50 Kuota Transaksi</div>
+                        <div className="d-flex align-items-center gap-2">
+                          <span className="fw-bold text-dark" style={{ fontSize: '0.85rem' }}>+50 Kuota Transaksi</span>
+                          <span className="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-0.5 fw-bold" style={{ fontSize: '0.72rem' }}>
+                            Rp 20.000
+                          </span>
+                        </div>
                         <small className="text-muted" style={{ fontSize: '0.72rem' }}>Pesan kuota ke WhatsApp admin</small>
                       </div>
                       <span className="badge bg-success rounded-pill px-2.5 py-1">Pesan via WA</span>
@@ -809,12 +814,17 @@ export default function Plan({ user }) {
                       className="p-3 rounded-3 text-start d-flex justify-content-between align-items-center border transition-all"
                       style={{ backgroundColor: '#f8fafc', cursor: 'pointer' }}
                       onClick={() => {
-                        window.open(getTopupWhatsAppUrl('TRANSACTIONS', 100, storeName), '_blank');
+                        window.open(getTopupWhatsAppUrl('TRANSACTIONS', 100, storeName, 'Rp 25.000'), '_blank');
                         setTopupModalOpen(false);
                       }}
                     >
                       <div>
-                        <div className="fw-bold text-dark" style={{ fontSize: '0.85rem' }}>+100 Kuota Transaksi</div>
+                        <div className="d-flex align-items-center gap-2">
+                          <span className="fw-bold text-dark" style={{ fontSize: '0.85rem' }}>+100 Kuota Transaksi</span>
+                          <span className="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-0.5 fw-bold" style={{ fontSize: '0.72rem' }}>
+                            Rp 25.000
+                          </span>
+                        </div>
                         <small className="text-muted" style={{ fontSize: '0.72rem' }}>Pesan kuota ke WhatsApp admin</small>
                       </div>
                       <span className="badge bg-success rounded-pill px-2.5 py-1">Pesan via WA</span>
@@ -824,12 +834,17 @@ export default function Plan({ user }) {
                       className="p-3 rounded-3 text-start d-flex justify-content-between align-items-center border transition-all"
                       style={{ backgroundColor: '#f8fafc', cursor: 'pointer' }}
                       onClick={() => {
-                        window.open(getTopupWhatsAppUrl('PHOTOS', 200, storeName), '_blank');
+                        window.open(getTopupWhatsAppUrl('PHOTOS', 200, storeName, 'Rp 50.000'), '_blank');
                         setTopupModalOpen(false);
                       }}
                     >
                       <div>
-                        <div className="fw-bold text-dark" style={{ fontSize: '0.85rem' }}>+200 Foto Chat</div>
+                        <div className="d-flex align-items-center gap-2">
+                          <span className="fw-bold text-dark" style={{ fontSize: '0.85rem' }}>+200 Foto Chat</span>
+                          <span className="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-0.5 fw-bold" style={{ fontSize: '0.72rem' }}>
+                            Rp 50.000
+                          </span>
+                        </div>
                         <small className="text-muted" style={{ fontSize: '0.72rem' }}>Pesan kuota ke WhatsApp admin</small>
                       </div>
                       <span className="badge bg-success rounded-pill px-2.5 py-1">Pesan via WA</span>

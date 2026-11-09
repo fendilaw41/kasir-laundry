@@ -54,7 +54,7 @@ export const PLAN_CONFIGS = {
     botTransactions: 10,
     maxPdfInvoice: 0,
     watermarkTracking: true,
-    maxStockItems: 0,
+    maxStockItems: 3,
     lowStockNotification: false,
     maxOutlets: 1,
     maxUsers: 1,
@@ -405,12 +405,17 @@ export function getUpgradeWhatsAppUrl(planKey, storeName) {
 /**
  * Membuat tautan WhatsApp untuk top-up kuota
  */
-export function getTopupWhatsAppUrl(type, amount, storeName) {
+export function getTopupWhatsAppUrl(type, amount, storeName, price) {
   const cleanName = storeName || 'Toko Laundry';
   const label = type === 'TRANSACTIONS' ? `${amount} Transaksi` : `${amount} Foto Chat`;
+  const defaultPrice =
+    type === 'TRANSACTIONS'
+      ? amount === 50 ? 'Rp 20.000' : 'Rp 25.000'
+      : 'Rp 50.000';
+  const finalPrice = price || defaultPrice;
 
   const text = encodeURIComponent(
-    `Halo Admin Kasir Laundry,\n\nSaya ingin membeli TOP-UP KUOTA tambahan untuk:\nNama Toko: ${cleanName}\nJenis Kuota: ${label}\n\nMohon info rincian biaya dan nomor rekening. Terima kasih!`
+    `Halo Admin Kasir Laundry,\n\nSaya ingin membeli TOP-UP KUOTA tambahan:\nNama Toko: ${cleanName}\nJenis Kuota: +${label}\nBiaya: ${finalPrice}\n\nMohon info nomor rekening pembayarannya. Terima kasih!`
   );
 
   return `https://wa.me/${BILLING_WA}?text=${text}`;

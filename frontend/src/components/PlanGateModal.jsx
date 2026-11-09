@@ -111,6 +111,28 @@ export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIM
           recommendation: 'Starter (20 nota) atau Basic (100 nota)',
           ctaText: isOwner ? 'Buka Halaman Plan' : 'Hubungi Owner Toko',
         };
+      case 'BOT_LOCKED':
+        return {
+          icon: 'bi-robot',
+          iconColor: '#6366f1',
+          iconBg: '#eef2ff',
+          title: 'Asisten Bot Terkunci',
+          subtitle: `Paket ${customData.plan || 'Toko'}`,
+          message: `Fitur asisten bot chat otomatis tidak tersedia pada paket ${customData.plan || 'saat ini'}. Upgrade ke paket Basic atau Pro untuk menggunakan asisten bot.`,
+          recommendation: 'Basic (200x) atau Pro (1000x)',
+          ctaText: isOwner ? 'Upgrade di Halaman Plan' : 'Hubungi Owner Toko',
+        };
+      case 'BOT_LIMIT':
+        return {
+          icon: 'bi-robot',
+          iconColor: '#6366f1',
+          iconBg: '#eef2ff',
+          title: 'Batas Perintah Bot Tercapai',
+          subtitle: `Limit ${customData.limit || 10} Perintah/Bulan`,
+          message: `Penggunaan asisten bot chat bulan ini telah mencapai kuota maksimal (${customData.limit || 10} perintah). Upgrade paket untuk kuota lebih banyak.`,
+          recommendation: 'Basic (200x) atau Pro (1000x)',
+          ctaText: isOwner ? 'Buka Halaman Plan' : 'Hubungi Owner Toko',
+        };
       default:
         return {
           icon: 'bi-gem',

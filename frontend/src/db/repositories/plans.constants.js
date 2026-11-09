@@ -12,7 +12,7 @@ export const DEFAULT_PLANS = [
     customPdfLogo: false,
     watermarkTracking: true,
     customTrackingView: false,
-    maxStockItems: 0,
+    maxStockItems: 3,
     lowStockNotification: false,
     maxOutlets: 1,
     maxUsers: 1,

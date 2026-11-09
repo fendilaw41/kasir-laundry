@@ -4,12 +4,14 @@ import { db } from '../../db';
 import { getChatLogQuery } from '../../db/repositories/chatLog';
 import { parseChatCommand } from '../../utils/chatbot';
 import { CONFIRM_MESSAGES } from '../../constants/appConstants';
+import PlanGateModal from '../PlanGateModal';
 
 export const BotChatRoom = ({ user, onBack }) => {
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showQuickCommands, setShowQuickCommands] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
+  const [planGateModal, setPlanGateModal] = useState({ isOpen: false, type: 'BOT_LIMIT', customData: {} });
 
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -71,7 +73,14 @@ export const BotChatRoom = ({ user, onBack }) => {
     setIsProcessing(true);
 
     try {
-      await parseChatCommand(messageText, user);
+      const result = await parseChatCommand(messageText, user);
+      if (result?.isBlocked) {
+        setPlanGateModal({
+          isOpen: true,
+          type: result.blockType || 'BOT_LIMIT',
+          customData: { limit: result.limit, plan: result.plan },
+        });
+      }
     } catch (error) {
       console.error(error);
     } finally {
@@ -315,6 +324,15 @@ export const BotChatRoom = ({ user, onBack }) => {
           </div>
         </>
       )}
+
+      {/* 6. Modal Pembatasan Kuota / Paket Asisten Bot */}
+      <PlanGateModal
+        isOpen={planGateModal.isOpen}
+        onClose={() => setPlanGateModal((prev) => ({ ...prev, isOpen: false }))}
+        type={planGateModal.type}
+        customData={planGateModal.customData}
+        user={user}
+      />
     </div>
   );
 };

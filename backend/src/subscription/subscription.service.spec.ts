@@ -150,7 +150,7 @@ describe('SubscriptionService', () => {
     expect(result).toBe(true);
   });
 
-  it('should block inventory creation on Trial plan', async () => {
+  it('should block inventory creation when limit reached on Trial plan (3 items)', async () => {
     const storeId = 'store-test-trial';
     prisma.storeSubscription.findUnique.mockResolvedValue({
       id: 'sub-3',
@@ -166,7 +166,7 @@ describe('SubscriptionService', () => {
     prisma.order.count.mockResolvedValue(5);
     prisma.message.count.mockResolvedValue(2);
     prisma.user.count.mockResolvedValue(1);
-    prisma.inventory.count.mockResolvedValue(0);
+    prisma.inventory.count.mockResolvedValue(3);
 
     await expect(
       service.assertCanPerformAction(storeId, 'CREATE_INVENTORY'),

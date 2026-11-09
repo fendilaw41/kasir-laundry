@@ -31,7 +31,7 @@ export const getPlanLimits = (): Record<string, PlanLimits> => {
       botTransactions: 10,
       maxPdfInvoice: 0,
       watermarkTracking: true,
-      maxStockItems: 0,
+      maxStockItems: 3,
       lowStockNotification: false,
       maxOutlets: 1,
       maxUsers: 1,
