@@ -59,36 +59,45 @@ export class AuthService {
     });
 
     if (existing) {
-      const existingOwner = await this.prisma.user.findFirst({
-        where: { storeId: existing.id, role: 'owner', deletedAt: null },
+      const rawPlan = (dto.plan || 'TRIAL').trim().toUpperCase();
+      const targetPlan = (rawPlan === 'ENTERPRISE' ? 'BUSINESS' : rawPlan) as SubscriptionPlan;
+
+      // Cek apakah storeSubscription sudah terdaftar untuk toko ini
+      const existingSub = await this.prisma.storeSubscription.findUnique({
+        where: { storeId: existing.id },
       });
 
-      // Jika toko sudah terdaftar dan sudah memiliki Owner, izinkan pemindahan paket
-      if (existingOwner) {
-        if (dto.plan) {
-          const rawPlan = dto.plan.trim().toUpperCase();
-          const targetPlan = (rawPlan === 'ENTERPRISE' ? 'BUSINESS' : rawPlan) as SubscriptionPlan;
-          const updatedSub = await this.subscriptionService.updatePlan(existing.id, targetPlan);
-          const updatedStore = await this.prisma.store.update({
-            where: { id: existing.id },
-            data: {
-              featureSubscriptionEnabled: typeof featureSubscriptionEnabled === 'boolean' ? featureSubscriptionEnabled : existing.featureSubscriptionEnabled,
-              showUpgradeBanner: typeof showUpgradeBanner === 'boolean' ? showUpgradeBanner : existing.showUpgradeBanner,
-            },
-          });
-
-          this.logger.log(`Paket store ${existing.code} berhasil diperbarui ke ${targetPlan} oleh otorisasi bypass.`);
-          return {
-            message: `Paket store ${existing.name} (${existing.code}) berhasil dipindahkan ke paket ${targetPlan}.`,
-            store: updatedStore,
-            subscription: updatedSub,
-            isPlanUpdated: true,
-          };
-        }
-        throw new ConflictException(`Kode Toko "${cleanCode}" sudah terdaftar dan telah memiliki Owner.`);
+      let subResult: any = null;
+      if (!existingSub) {
+        // Data store belum terdaftar storesubscription maka insert baru
+        await this.subscriptionService.getOrCreateSubscription(existing.id);
+        subResult = await this.subscriptionService.updatePlan(existing.id, targetPlan);
+        this.logger.log(`StoreSubscription baru berhasil di-insert untuk store ${existing.code} dengan paket ${targetPlan}`);
+      } else {
+        // Jika sudah ada maka update
+        subResult = await this.subscriptionService.updatePlan(existing.id, targetPlan);
+        this.logger.log(`StoreSubscription store ${existing.code} berhasil diperbarui ke paket ${targetPlan}`);
       }
 
-      throw new ConflictException(`Kode Toko "${cleanCode}" sudah terdaftar.`);
+      const updatedStore = await this.prisma.store.update({
+        where: { id: existing.id },
+        data: {
+          name: cleanName || existing.name,
+          address: cleanAddress ?? existing.address,
+          city: cleanCity ?? existing.city,
+          phone: cleanPhone ?? existing.phone,
+          featureSubscriptionEnabled: typeof featureSubscriptionEnabled === 'boolean' ? featureSubscriptionEnabled : existing.featureSubscriptionEnabled,
+          showUpgradeBanner: typeof showUpgradeBanner === 'boolean' ? showUpgradeBanner : existing.showUpgradeBanner,
+        },
+      });
+
+      return {
+        message: `Paket store ${updatedStore.name} (${updatedStore.code}) berhasil diperbarui ke paket ${targetPlan}.`,
+        store: updatedStore,
+        subscription: subResult,
+        storeSubscription: subResult,
+        isPlanUpdated: true,
+      };
     }
 
     // Buat Store & Settings dalam satu transaksi
@@ -122,10 +131,32 @@ export class AuthService {
       return { store, settings };
     });
 
+    // 1. Seed master data default (5 produk & 3 inventori)
+    try {
+      await this.seedDefaultMasterDataForStore(result.store.id);
+    } catch (seedErr: any) {
+      this.logger.warn(`Gagal seed default master data untuk store ${cleanCode}: ${seedErr.message}`);
+    }
+
+    // 2. Insert baru ke table storeSubscription
+    const rawPlan = (dto.plan || 'TRIAL').trim().toUpperCase();
+    const targetPlan = (rawPlan === 'ENTERPRISE' ? 'BUSINESS' : rawPlan) as SubscriptionPlan;
+    let storeSubscription: any = null;
+
+    try {
+      await this.subscriptionService.getOrCreateSubscription(result.store.id);
+      storeSubscription = await this.subscriptionService.updatePlan(result.store.id, targetPlan);
+      this.logger.log(`StoreSubscription baru berhasil di-insert untuk store baru ${cleanCode} dengan paket ${targetPlan}`);
+    } catch (subErr: any) {
+      this.logger.warn(`Gagal membuat storeSubscription untuk store baru ${cleanCode}: ${subErr.message}`);
+    }
+
     return {
       message: `Store ${cleanName} (${cleanCode}) berhasil didaftarkan.`,
       store: result.store,
       settings: result.settings,
+      subscription: storeSubscription,
+      storeSubscription,
     };
   }
 
@@ -556,8 +587,8 @@ export class AuthService {
 
     const sub = this.prisma.storeSubscription
       ? await this.prisma.storeSubscription.findUnique({
-          where: { storeId: store.id },
-        })
+        where: { storeId: store.id },
+      })
       : null;
 
     const storeName = store.settings?.namaLaundry || store.name;

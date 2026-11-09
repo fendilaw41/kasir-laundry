@@ -147,7 +147,7 @@ const RegisterStore = () => {
           password,
           featureSubscriptionEnabled,
           showUpgradeBanner,
-          plan: isExistingOwnerStore ? selectedPlan : undefined,
+          plan: selectedPlan || 'TRIAL',
         }),
       });
 
@@ -174,7 +174,7 @@ const RegisterStore = () => {
             }
             const setting = await db.settings.get(1);
             if (setting?.storeId === targetStoreId || setting?.storeCode === cleanCode) {
-              await db.settings.update(1, { cachedSubscription: result.subscription }).catch(() => {});
+              await db.settings.update(1, { cachedSubscription: result.subscription }).catch(() => { });
             }
           } catch (dexieErr) {
             console.warn('Gagal update Dexie setelah perubahan paket:', dexieErr);
