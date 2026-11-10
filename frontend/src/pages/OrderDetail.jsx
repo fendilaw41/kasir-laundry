@@ -14,7 +14,7 @@ import { getTrackingUrl } from '../utils/tracking';
 import { getStatusLunasByMetode, isStatusLunas } from '../utils/paymentStatus';
 import PrintLayout from '../components/PrintLayout';
 import PlanGateModal from '../components/PlanGateModal';
-import { getSubscriptionReport, isTrialExpired } from '../services/subscriptionService';
+import { getSubscriptionReport, isTrialExpired, isPaidExpired } from '../services/subscriptionService';
 import { QRCodeSVG } from '../components/common/QRCodeSVG';
 import { Skeleton, OrderDetailSkeleton } from '../components/common/Skeleton';
 import { db } from '../db';
@@ -129,6 +129,15 @@ const OrderDetail = ({ user }) => {
 
   const updateStatus = async (status) => {
     try {
+      const sub = await getSubscriptionReport().catch(() => null);
+      if (isPaidExpired(sub)) {
+        setShowConfirmModal(false);
+        setGateModal({ open: true, type: 'SUBSCRIPTION_EXPIRED', data: { plan: sub?.plan, isTrial: false } });
+        return;
+      }
+    } catch (e) {}
+
+    try {
       await updateOrder(order.id, { status });
       setShowConfirmModal(false);
       toast.success(TOAST_MESSAGES.SUCCESS);
@@ -141,9 +150,13 @@ const OrderDetail = ({ user }) => {
   const updateCatatan = async () => {
     try {
       const sub = await getSubscriptionReport().catch(() => null);
-      if (isTrialExpired(sub)) {
+      if (sub?.isExpired) {
         setShowNoteModal(false);
-        setGateModal({ open: true, type: 'TRIAL_EXPIRED', data: { plan: 'TRIAL', isTrial: true } });
+        setGateModal({
+          open: true,
+          type: isTrialExpired(sub) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
+          data: { plan: sub?.plan, isTrial: isTrialExpired(sub) },
+        });
         return;
       }
     } catch (e) {}
@@ -164,9 +177,13 @@ const OrderDetail = ({ user }) => {
   const updateCatatanKasir = async () => {
     try {
       const sub = await getSubscriptionReport().catch(() => null);
-      if (isTrialExpired(sub)) {
+      if (sub?.isExpired) {
         setShowCashierNoteModal(false);
-        setGateModal({ open: true, type: 'TRIAL_EXPIRED', data: { plan: 'TRIAL', isTrial: true } });
+        setGateModal({
+          open: true,
+          type: isTrialExpired(sub) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
+          data: { plan: sub?.plan, isTrial: isTrialExpired(sub) },
+        });
         return;
       }
     } catch (e) {}
@@ -185,6 +202,17 @@ const OrderDetail = ({ user }) => {
   };
 
   const togglePriority = async () => {
+    try {
+      const sub = await getSubscriptionReport().catch(() => null);
+      if (sub?.isExpired) {
+        setGateModal({
+          open: true,
+          type: isTrialExpired(sub) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
+          data: { plan: sub?.plan, isTrial: isTrialExpired(sub) },
+        });
+        return;
+      }
+    } catch (e) {}
     try {
       await updateOrder(order.id, { isPriority: !order.isPriority });
       toast.success(TOAST_MESSAGES.SUCCESS);
@@ -229,9 +257,13 @@ const OrderDetail = ({ user }) => {
     }
     try {
       const sub = await getSubscriptionReport().catch(() => null);
-      if (isTrialExpired(sub)) {
+      if (sub?.isExpired) {
         setShowHpModal(false);
-        setGateModal({ open: true, type: 'TRIAL_EXPIRED', data: { plan: 'TRIAL', isTrial: true } });
+        setGateModal({
+          open: true,
+          type: isTrialExpired(sub) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
+          data: { plan: sub?.plan, isTrial: isTrialExpired(sub) },
+        });
         return;
       }
     } catch (e) {}

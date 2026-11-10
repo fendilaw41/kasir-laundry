@@ -459,8 +459,12 @@ const Home = ({ user }) => {
                                   style={{ width: '32px', height: '32px' }}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    if (isSubscriptionEnabled() && isTrialExpired(subReport)) {
-                                      setGateModal({ open: true, type: 'TRIAL_EXPIRED', data: { plan: 'TRIAL', isTrial: true } });
+                                    if (isSubscriptionEnabled() && subReport?.isExpired) {
+                                      setGateModal({
+                                        open: true,
+                                        type: isTrialExpired(subReport) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
+                                        data: { plan: subReport?.plan, isTrial: isTrialExpired(subReport) },
+                                      });
                                       return;
                                     }
                                     setEditPelanggan({ show: true, data: { ...p } });
@@ -475,8 +479,12 @@ const Home = ({ user }) => {
                                   style={{ width: '32px', height: '32px' }}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    if (isSubscriptionEnabled() && isTrialExpired(subReport)) {
-                                      setGateModal({ open: true, type: 'TRIAL_EXPIRED', data: { plan: 'TRIAL', isTrial: true } });
+                                    if (isSubscriptionEnabled() && subReport?.isExpired) {
+                                      setGateModal({
+                                        open: true,
+                                        type: isTrialExpired(subReport) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
+                                        data: { plan: subReport?.plan, isTrial: isTrialExpired(subReport) },
+                                      });
                                       return;
                                     }
                                     handleDeletePelanggan(p);
@@ -645,8 +653,12 @@ const Home = ({ user }) => {
                         );
 
                         if (isSubscriptionEnabled()) {
-                          if (isTrialExpired(subReport)) {
-                            setGateModal({ open: true, type: 'TRIAL_EXPIRED', data: { plan: 'TRIAL', isTrial: true } });
+                          if (subReport?.isExpired) {
+                            setGateModal({
+                              open: true,
+                              type: isTrialExpired(subReport) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
+                              data: { plan: subReport?.plan, isTrial: isTrialExpired(subReport) },
+                            });
                             return;
                           }
                           if (subReport?.limits?.maxStockItems === 0) {

@@ -53,8 +53,18 @@ const Setting = ({ user, onLogout }) => {
   const [editingUser, setEditingUser] = useState(null);
   const [userLimitModal, setUserLimitModal] = useState({ open: false, limit: 1, plan: '' });
   const [productLimitModal, setProductLimitModal] = useState({ open: false, limit: 5, plan: '' });
-  const [trialExpiredModal, setTrialExpiredModal] = useState(false);
+  const [expiredModal, setExpiredModal] = useState({ open: false, type: 'SUBSCRIPTION_EXPIRED', plan: '', isTrial: false });
   const [showPassword, setShowPassword] = useState(false);
+
+  const triggerExpiredModal = (sub) => {
+    const isTrial = isTrialExpired(sub);
+    setExpiredModal({
+      open: true,
+      type: isTrial ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
+      plan: sub?.plan,
+      isTrial,
+    });
+  };
 
   // State untuk Modal & Form Produk / Layanan
   const [showProductModal, setShowProductModal] = useState(false);
@@ -111,11 +121,11 @@ const Setting = ({ user, onLogout }) => {
 
     try {
       const sub = await getSubscriptionReport().catch(() => null);
-      if (isTrialExpired(sub)) {
-        setTrialExpiredModal(true);
+      if (sub?.isExpired) {
+        triggerExpiredModal(sub);
         return;
       }
-    } catch (e) {}
+    } catch (e) { }
 
     setIsSaving(true);
     try {
@@ -133,8 +143,8 @@ const Setting = ({ user, onLogout }) => {
     e.preventDefault();
     try {
       const sub = await getSubscriptionReport().catch(() => null);
-      if (isTrialExpired(sub)) {
-        setTrialExpiredModal(true);
+      if (sub?.isExpired) {
+        triggerExpiredModal(sub);
         return;
       }
       if (editingUser) {
@@ -155,11 +165,11 @@ const Setting = ({ user, onLogout }) => {
   const deleteUser = async (id) => {
     try {
       const sub = await getSubscriptionReport().catch(() => null);
-      if (isTrialExpired(sub)) {
-        setTrialExpiredModal(true);
+      if (sub?.isExpired) {
+        triggerExpiredModal(sub);
         return;
       }
-    } catch (e) {}
+    } catch (e) { }
     if (window.confirm(CONFIRM_MESSAGES.DELETE_USER)) {
       try {
         await deleteUserRepo(id);
@@ -173,15 +183,15 @@ const Setting = ({ user, onLogout }) => {
   const openUserModal = async (selectedUser = null) => {
     try {
       const sub = await getSubscriptionReport().catch(() => null);
-      if (isTrialExpired(sub)) {
-        setTrialExpiredModal(true);
+      if (sub?.isExpired) {
+        triggerExpiredModal(sub);
         return;
       }
       if (!selectedUser && sub?.usage?.users?.isExceeded) {
         setUserLimitModal({ open: true, limit: sub.limits.maxUsers, plan: sub.plan });
         return;
       }
-    } catch (e) {}
+    } catch (e) { }
     if (selectedUser) {
       setEditingUser(selectedUser);
       setUserFormData({
@@ -201,15 +211,15 @@ const Setting = ({ user, onLogout }) => {
   const openProductModal = async (selectedProduct = null) => {
     try {
       const sub = await getSubscriptionReport().catch(() => null);
-      if (isTrialExpired(sub)) {
-        setTrialExpiredModal(true);
+      if (sub?.isExpired) {
+        triggerExpiredModal(sub);
         return;
       }
       if (!selectedProduct && sub && sub.isEnforced && sub.usage?.products?.isExceeded) {
         setProductLimitModal({ open: true, limit: sub.limits?.maxProducts ?? 5, plan: sub.plan });
         return;
       }
-    } catch (e) {}
+    } catch (e) { }
     if (selectedProduct) {
       setEditingProduct(selectedProduct);
       setProductFormData({
@@ -238,8 +248,8 @@ const Setting = ({ user, onLogout }) => {
     }
     try {
       const sub = await getSubscriptionReport().catch(() => null);
-      if (isTrialExpired(sub)) {
-        setTrialExpiredModal(true);
+      if (sub?.isExpired) {
+        triggerExpiredModal(sub);
         return;
       }
       if (editingProduct) {
@@ -264,11 +274,11 @@ const Setting = ({ user, onLogout }) => {
     }
     try {
       const sub = await getSubscriptionReport().catch(() => null);
-      if (isTrialExpired(sub)) {
-        setTrialExpiredModal(true);
+      if (sub?.isExpired) {
+        triggerExpiredModal(sub);
         return;
       }
-    } catch (e) {}
+    } catch (e) { }
     if (window.confirm(CONFIRM_MESSAGES.DELETE_PRODUCT)) {
       try {
         await deleteProductRepo(id);
@@ -1069,7 +1079,7 @@ const Setting = ({ user, onLogout }) => {
           <UbahPassword user={user} isEmbedded={true} />
         )}
 
-        </div>
+      </div>
 
       {/* ======================================================== */}
       {/* MODAL TAMBAH / EDIT PRODUK (SHOPEE MOBILE SHEET STYLE)     */}
@@ -1346,12 +1356,12 @@ const Setting = ({ user, onLogout }) => {
         customData={{ limit: productLimitModal.limit, plan: productLimitModal.plan }}
         user={user}
       />
-      {/* POPUP RINGKAS TRIAL EXPIRED */}
+      {/* POPUP RINGKAS EXPIRED (TRIAL / PAID) */}
       <PlanGateModal
-        isOpen={trialExpiredModal}
-        onClose={() => setTrialExpiredModal(false)}
-        type="TRIAL_EXPIRED"
-        customData={{ plan: 'TRIAL', isTrial: true }}
+        isOpen={expiredModal.open}
+        onClose={() => setExpiredModal((prev) => ({ ...prev, open: false }))}
+        type={expiredModal.type}
+        customData={{ plan: expiredModal.plan, isTrial: expiredModal.isTrial }}
         user={user}
       />
 

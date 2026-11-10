@@ -9,7 +9,7 @@ import { TOAST_MESSAGES, CONFIRM_MESSAGES, BUTTON_TITLE } from '../constants/app
 import { OrderListSkeleton } from '../components/common/Skeleton';
 import { db } from '../db';
 import PlanGateModal from '../components/PlanGateModal';
-import { getSubscriptionReport, isTrialExpired } from '../services/subscriptionService';
+import { getSubscriptionReport, isTrialExpired, isPaidExpired } from '../services/subscriptionService';
 
 const DataOrder = ({ user }) => {
   const navigate = useNavigate();
@@ -30,7 +30,7 @@ const DataOrder = ({ user }) => {
   const initialTab = searchParams.get('tab') || 'Proses';
   const [activeTab, setActiveTab] = useState(initialTab);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [gateModalOpen, setGateModalOpen] = useState(false);
+  const [gateModalConfig, setGateModalConfig] = useState({ open: false, type: 'SUBSCRIPTION_EXPIRED', plan: '', isTrial: false });
 
   // Tarik data order terbaru dari backend saat membuka halaman
   useEffect(() => {
@@ -119,16 +119,29 @@ const DataOrder = ({ user }) => {
   const handleExecuteAction = async () => {
     if (!confirmData.id) return;
 
-    if (confirmData.type === 'request' || confirmData.type === 'hard') {
-      try {
-        const sub = await getSubscriptionReport().catch(() => null);
-        if (isTrialExpired(sub)) {
-          setShowConfirmModal(false);
-          setGateModalOpen(true);
-          return;
-        }
-      } catch (e) {}
-    }
+    try {
+      const sub = await getSubscriptionReport().catch(() => null);
+      if (isPaidExpired(sub)) {
+        setShowConfirmModal(false);
+        setGateModalConfig({
+          open: true,
+          type: 'SUBSCRIPTION_EXPIRED',
+          plan: sub?.plan,
+          isTrial: false,
+        });
+        return;
+      }
+      if ((confirmData.type === 'request' || confirmData.type === 'hard') && isTrialExpired(sub)) {
+        setShowConfirmModal(false);
+        setGateModalConfig({
+          open: true,
+          type: 'TRIAL_EXPIRED',
+          plan: 'TRIAL',
+          isTrial: true,
+        });
+        return;
+      }
+    } catch (e) {}
 
     try {
       if (confirmData.type === 'request') {
@@ -383,12 +396,12 @@ const DataOrder = ({ user }) => {
         </>
       )}
 
-      {/* Plan Gate Modal untuk TRIAL EXPIRED */}
+      {/* Plan Gate Modal untuk EXPIRED (TRIAL / PAID) */}
       <PlanGateModal
-        isOpen={gateModalOpen}
-        onClose={() => setGateModalOpen(false)}
-        type="TRIAL_EXPIRED"
-        customData={{ plan: 'TRIAL', isTrial: true }}
+        isOpen={gateModalConfig.open}
+        onClose={() => setGateModalConfig((prev) => ({ ...prev, open: false }))}
+        type={gateModalConfig.type}
+        customData={{ plan: gateModalConfig.plan, isTrial: gateModalConfig.isTrial }}
         user={user}
       />
     </div>
