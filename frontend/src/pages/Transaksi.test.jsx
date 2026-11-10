@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import Transaksi from './Transaksi';
+import { createOrderFromCheckout } from '../db/repositories/orders';
+import { playSuccessChime } from '../utils/soundHelper';
 
 // Mock dependencies
 const mockCartItems = vi.fn();
@@ -10,7 +12,6 @@ const mockDraftOrder = vi.fn();
 
 vi.mock('dexie-react-hooks', () => ({
   useLiveQuery: (queryFn) => {
-    // Return value depending on query
     return queryFn();
   },
 }));
@@ -19,6 +20,7 @@ vi.mock('../db/repositories/cart', () => ({
   getCartQuery: () => mockCartItems(),
   removeProductFromCart: vi.fn(),
   updateCartItemQty: vi.fn(),
+  clearCart: vi.fn(),
 }));
 
 vi.mock('../db/repositories/pelanggan', () => ({
@@ -33,6 +35,25 @@ vi.mock('../db/repositories/inventory', () => ({
 vi.mock('../db/repositories/draftOrder', () => ({
   getDraftOrderQuery: () => mockDraftOrder(),
   updateDraftOrder: vi.fn(),
+  clearDraftOrder: vi.fn(),
+}));
+
+vi.mock('../db/repositories/orders', () => ({
+  createOrderFromCheckout: vi.fn().mockResolvedValue(101),
+  getOrderByIdQuery: vi.fn().mockResolvedValue({ id: 101, invoiceId: 'INV-101' }),
+}));
+
+vi.mock('../utils/soundHelper', () => ({
+  playSuccessChime: vi.fn(),
+}));
+
+vi.mock('../utils/authSession', () => ({
+  validateAuthSession: vi.fn().mockReturnValue(true),
+  getStoredUser: vi.fn().mockReturnValue({ id: 'u1', uuid: 'u1-uuid', username: 'kasir1' }),
+}));
+
+vi.mock('../services/subscriptionService', () => ({
+  getSubscriptionReport: vi.fn().mockResolvedValue({ isEnforced: false }),
 }));
 
 vi.mock('react-router-dom', () => ({
@@ -46,7 +67,7 @@ vi.mock('react-hot-toast', () => ({
   },
 }));
 
-describe('Transaksi Page - Auto Calculation Estimasi', () => {
+describe('Transaksi Page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockDaftarPelanggan.mockReturnValue([{ id: 1, nama: 'Budi', hp: '08123456789' }]);
@@ -98,5 +119,81 @@ describe('Transaksi Page - Auto Calculation Estimasi', () => {
     // Kasir mengubah ke 5 hari
     fireEvent.change(estimasiInput, { target: { value: '5' } });
     expect(estimasiInput.value).toBe('5');
+  });
+
+  it('menampilkan "Pelanggan Umum" secara otomatis jika draft tidak memiliki pelanggan terpilih', () => {
+    mockDraftOrder.mockReturnValue({ pelanggan: null, inventory: [] });
+    mockCartItems.mockReturnValue([
+      { id: 1, name: 'CUCI KILOAN', price: 10000, quantity: 1 },
+    ]);
+
+    render(<Transaksi />);
+
+    expect(screen.getByText('Pelanggan Umum')).toBeDefined();
+    expect(screen.getByText(/Umum \(Default\)/i)).toBeDefined();
+  });
+
+  it('membuka floating drawer pembayaran dan menyediakan tombol nominal cepat (Uang Pas, 20rb, 50rb, 100rb)', async () => {
+    mockDraftOrder.mockReturnValue({ pelanggan: null, inventory: [] });
+    mockCartItems.mockReturnValue([
+      { id: 1, name: 'CUCI SETRIKA', price: 25000, quantity: 1 },
+    ]);
+
+    render(<Transaksi />);
+
+    const bayarBtn = screen.getByRole('button', { name: /BAYAR SEKARANG/i });
+    fireEvent.click(bayarBtn);
+
+    // Drawer terbuka
+    await waitFor(() => {
+      expect(screen.getByText('Pembayaran Kasir')).toBeDefined();
+    });
+    expect(screen.getByRole('button', { name: 'Uang Pas' })).toBeDefined();
+    expect(screen.getByRole('button', { name: '20rb' })).toBeDefined();
+    expect(screen.getByRole('button', { name: '50rb' })).toBeDefined();
+    expect(screen.getByRole('button', { name: '100rb' })).toBeDefined();
+
+    // Klik tombol 50rb
+    const btn50rb = screen.getByRole('button', { name: '50rb' });
+    fireEvent.click(btn50rb);
+
+    const nominalInput = screen.getByLabelText(/Nominal Uang Diterima/i);
+    expect(nominalInput.value).toBe('50000');
+  });
+
+  it('jika nominal tidak diisi, pembayaran otomatis lunas sesuai tagihan dan memutar suara sukses', async () => {
+    mockDraftOrder.mockReturnValue({ pelanggan: null, inventory: [] });
+    mockCartItems.mockReturnValue([
+      { id: 1, name: 'CUCI SETRIKA', price: 20000, quantity: 1 },
+    ]);
+
+    render(<Transaksi />);
+
+    const bayarBtn = screen.getByRole('button', { name: /BAYAR SEKARANG/i });
+    fireEvent.click(bayarBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Pembayaran Kasir')).toBeDefined();
+    });
+
+    // Nominal dibiarkan kosong
+    const submitBtn = screen.getByRole('button', { name: /Selesaikan Transaksi/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(createOrderFromCheckout).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bayarNum: 20000,
+          kembalian: 0,
+          isLunas: true,
+          orderData: expect.objectContaining({
+            pelangganNama: 'Pelanggan Umum',
+            total: 20000,
+          }),
+        })
+      );
+      expect(playSuccessChime).toHaveBeenCalled();
+      expect(screen.getByText('Transaksi Berhasil!')).toBeDefined();
+    });
   });
 });

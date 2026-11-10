@@ -125,16 +125,19 @@ const Layout = ({ user, onLogout }) => {
     }
   }, [user]) || 0;
 
-  // Sinkronisasi data percakapan dari backend saat user aktif
+  // Sinkronisasi data percakapan dari backend saat user aktif (hemat resource jika di luar /chat)
   useEffect(() => {
     if (user) {
       fetchConversationsFromBackend().catch(() => {});
+      const intervalMs = location.pathname === '/chat' ? 20000 : 120000;
       const interval = setInterval(() => {
-        fetchConversationsFromBackend().catch(() => {});
-      }, 30000);
+        if (!document.hidden) {
+          fetchConversationsFromBackend().catch(() => {});
+        }
+      }, intervalMs);
       return () => clearInterval(interval);
     }
-  }, [user]);
+  }, [user, location.pathname]);
 
   // Reset header chat jika pindah halaman selain /chat
   useEffect(() => {

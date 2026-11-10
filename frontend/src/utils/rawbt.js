@@ -19,10 +19,10 @@ export const printViaRawBT = (order, pelanggan, settings = null) => {
 
   let text = "";
   text += centerText((settings?.namaLaundry || "KASIR LAUNDRY").toUpperCase()) + "\n";
-  text += centerText(settings?.motto || "Solusi Laundry Bersih & Cepat") + "\n";
-  text += centerText(settings?.alamat || "Jl. Imam Bonjol 007") + "\n";
-  text += centerText(settings?.kota || "NGANJUK") + "\n";
-  text += centerText(`Telp: ${settings?.telepon || '087853131099'}`) + "\n";
+  text += centerText(settings?.motto?.trim() ? settings.motto.trim() : "-") + "\n";
+  text += centerText(settings?.alamat?.trim() ? settings.alamat.trim() : "-") + "\n";
+  text += centerText(settings?.kota?.trim() ? settings.kota.trim() : "-") + "\n";
+  text += centerText(`Telp: ${settings?.telepon || '-'}`) + "\n";
   text += "--------------------------------\n"; // 32 chars (standard 58mm)
 
   // Info Transaksi

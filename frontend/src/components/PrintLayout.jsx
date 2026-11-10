@@ -55,12 +55,12 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
       {printType === 'thermal' && (
         <div id="thermal-receipt" className="print-section" style={{ width: '58mm', padding: '2mm', color: '#000', backgroundColor: '#fff', fontFamily: 'monospace' }}>
           <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-            <h4 style={{ margin: '0', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase' }}>{settings.namaLaundry}</h4>
-            {settings.motto && <div style={{ fontSize: '10px', fontStyle: 'italic', marginBottom: '2px' }}>{settings.motto}</div>}
-            <div style={{ fontSize: '10px' }}>{settings.alamat}</div>
-            <div style={{ fontSize: '10px' }}>{settings.kota}</div>
-            <div style={{ fontSize: '10px' }}>Operasional: {settings.jamBuka}</div>
-            <div style={{ fontSize: '10px' }}>No. WA: {settings.telepon}</div>
+            <h4 style={{ margin: '0', fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase' }}>{settings.namaLaundry || 'KASIR LAUNDRY'}</h4>
+            <div style={{ fontSize: '10px', fontStyle: 'italic', marginBottom: '2px' }}>{settings.motto?.trim() ? settings.motto : '-'}</div>
+            <div style={{ fontSize: '10px' }}>{settings.alamat?.trim() ? settings.alamat : '-'}</div>
+            <div style={{ fontSize: '10px' }}>{settings.kota?.trim() ? settings.kota : '-'}</div>
+            <div style={{ fontSize: '10px' }}>Operasional: {settings.jamBuka || '-'}</div>
+            <div style={{ fontSize: '10px' }}>No. WA: {settings.telepon || '-'}</div>
           </div>
 
           <div style={{ borderTop: '1px dashed #000', margin: '5px 0' }}></div>
@@ -160,12 +160,13 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
         <div id="a4-receipt" className="print-section" style={{ width: '210mm', padding: '15mm', color: '#000', backgroundColor: '#fff', fontFamily: 'Arial, sans-serif' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '15px' }}>
             <div>
-              <h2 style={{ margin: 0, color: '#0134d4' }}>{settings.namaLaundry}</h2>
-              {settings.motto && <div style={{ fontSize: '13px', fontStyle: 'italic', color: '#555', marginBottom: '4px' }}>{settings.motto}</div>}
+              <h2 style={{ margin: 0, color: '#0134d4' }}>{settings.namaLaundry || 'KASIR LAUNDRY'}</h2>
+              <div style={{ fontSize: '13px', fontStyle: 'italic', color: '#555', marginBottom: '4px' }}>{settings.motto?.trim() ? settings.motto : '-'}</div>
               <div style={{ fontSize: '14px', marginTop: '5px' }}>
-                <div>{settings.alamat}, {settings.kota}</div>
-                <div>Operasional: {settings.jamBuka}</div>
-                <div>No. WA: {settings.telepon}</div>
+                <div>Alamat: {settings.alamat?.trim() ? settings.alamat : '-'}</div>
+                <div>Kota: {settings.kota?.trim() ? settings.kota : '-'}</div>
+                <div>Operasional: {settings.jamBuka || '-'}</div>
+                <div>No. WA: {settings.telepon || '-'}</div>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>

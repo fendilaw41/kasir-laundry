@@ -46,16 +46,6 @@ export const useTransaksi = () => {
     }
   }, [draftOrder?.pelanggan, activeStoreId]);
 
-  // Munculkan modal otomatis jika pelanggan belum dipilih
-  useEffect(() => {
-    if (draftOrder !== undefined && !selectedPelanggan) {
-      const timer = setTimeout(() => {
-        setShowModal(true);
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-  }, [selectedPelanggan, draftOrder]);
-
   // State untuk detail transaksi tambahan
   const [diskonTipe, setDiskonTipe] = useState('Persentase'); // Persentase atau Harga
   const [diskonNilai, setDiskonNilai] = useState(0);
@@ -101,12 +91,8 @@ export const useTransaksi = () => {
     }
   }, [draftOrder?.inventory, inventory]);
 
-  const handleCheckout = async () => {
-    if (!cartItems || cartItems.length === 0) return;
-    if (!selectedPelanggan) {
-      setShowModal(true);
-      return;
-    }
+  const prepareOrderData = async () => {
+    if (!cartItems || cartItems.length === 0) return null;
 
     // Validasi ketersediaan stok inventori yang dipilih
     if (selectedInventory && selectedInventory.length > 0) {
@@ -118,25 +104,25 @@ export const useTransaksi = () => {
         const requestedQty = Number(item.quantity || 1);
         if (availableStock <= 0) {
           toast.error(TOAST_MESSAGES.ERROR);
-          return;
+          return null;
         }
         if (requestedQty > availableStock) {
           toast.error(TOAST_MESSAGES.ERROR);
-          return;
+          return null;
         }
       }
     }
 
     if (!validateAuthSession()) {
       navigate('/login');
-      return;
+      return null;
     }
 
     const user = getStoredUser();
     if (!user) {
       toast.error(TOAST_MESSAGES.ERROR);
       navigate('/login');
-      return;
+      return null;
     }
 
     // Validasi kuota & masa aktif paket sebelum checkout
@@ -149,22 +135,30 @@ export const useTransaksi = () => {
       // JIKA EXPIRED: Utamakan popup expired meskipun masih punya sisa limit di usage!
       if (sub?.isEnforced && isExpired) {
         setGateModal({ open: true, type: 'SUBSCRIPTION_EXPIRED', data: { plan: sub.plan } });
-        return;
+        return null;
       }
 
       if (sub?.isEnforced && sub?.usage?.transactions?.isExceeded) {
         setGateModal({ open: true, type: 'TRANSACTION_LIMIT', data: { limit: sub.usage.transactions.totalLimit, plan: sub.plan } });
-        return;
+        return null;
       }
     } catch (e) { }
 
-    // Siapkan data untuk dikirim ke halaman pembayaran
-    const orderData = {
+    // Jika pelanggan tidak dipilih secara spesifik, otomatis gunakan Pelanggan Umum
+    const effectivePelanggan = selectedPelanggan || {
+      id: null,
+      uuid: null,
+      nama: 'Pelanggan Umum',
+      hp: '-',
+      alamat: '-'
+    };
+
+    return {
       userId: user.uuid || user.id,
-      pelangganId: selectedPelanggan.uuid || selectedPelanggan.id,
-      pelangganNama: selectedPelanggan.nama,
-      pelangganHp: selectedPelanggan.hp || '-',
-      pelangganAlamat: selectedPelanggan.alamat || '-',
+      pelangganId: effectivePelanggan.uuid || effectivePelanggan.id || null,
+      pelangganNama: effectivePelanggan.nama,
+      pelangganHp: effectivePelanggan.hp || '-',
+      pelangganAlamat: effectivePelanggan.alamat || '-',
       items: cartItems,
       subtotal: subtotal,
       diskon: nilaiDiskon,
@@ -173,10 +167,23 @@ export const useTransaksi = () => {
       estimasi,
       tipeLayanan,
       isPriority: isPriority === 'Ya',
-      inventoryUsed: selectedInventory // Kirim array inventory yang digunakan
+      inventoryUsed: selectedInventory
     };
+  };
 
+  const handleCheckout = async () => {
+    const orderData = await prepareOrderData();
+    if (!orderData) return;
     navigate('/pembayaran', { state: { orderData } });
+  };
+
+  const resetTransaksi = async () => {
+    await updateDraftOrder({ pelanggan: null, inventory: [] });
+    setDiskonNilai(0);
+    setDiskonTipe('Persentase');
+    setIsPriority('Tidak');
+    setTipeLayanan('Datang Langsung');
+    setMetodeBayar('Cash');
   };
 
   const removeItem = async (id) => {
@@ -253,7 +260,8 @@ export const useTransaksi = () => {
     isPriority, setIsPriority,
     selectedInventory,
     subtotal, nilaiDiskon, total,
-    handleCheckout, removeItem, updateItemQty, toggleInventory, updateInventoryQty, handleAddPelanggan,
+    prepareOrderData, handleCheckout, resetTransaksi,
+    removeItem, updateItemQty, toggleInventory, updateInventoryQty, handleAddPelanggan,
     gateModal, setGateModal,
   };
 };

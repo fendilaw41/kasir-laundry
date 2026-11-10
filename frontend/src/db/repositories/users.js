@@ -477,23 +477,23 @@ export const loginUser = async (username, password, storeCode) => {
   throw new Error('Username atau password salah');
 };
 
-export const registerUser = async ({ storeCode, fullname, username, password, role = 'owner' }) => {
-  if (!storeCode || !fullname || !username || !password) {
-    throw new Error('Semua field (Kode Toko, Nama Lengkap, Username, Password) wajib diisi');
+export const registerUser = async ({ storeCode, storeName, phone, fullname, username, password, confirmPassword, role = 'owner' }) => {
+  const normalizedRole = (role || 'owner').toLowerCase().trim();
+  const cleanUsername = (username || '').trim();
+  const cleanFullname = (fullname || '').trim();
+  const cleanStoreName = (storeName || '').trim();
+  const cleanPhone = (phone || '').trim();
+  const cleanStoreCode = (storeCode || '').trim().toUpperCase();
+
+  if (!cleanFullname || !cleanUsername || !password) {
+    throw new Error('Nama Lengkap, Username, dan Password wajib diisi');
   }
 
-  const cleanStoreCode = storeCode.trim();
-  const cleanUsername = username.trim();
-  const cleanFullname = fullname.trim();
-  const normalizedRole = role.toLowerCase().trim();
-
-  // Validasi Frontend Lokal: Cegah jika di lokal sudah ada owner untuk toko tersebut
-  const setting = await db.settings.get(1);
-  if (normalizedRole === 'owner') {
-    const localOwner = await db.users.where('role').equals('owner').first();
-    if (localOwner && setting?.storeCode && setting.storeCode.toLowerCase() === cleanStoreCode.toLowerCase()) {
-      throw new Error(`Gagal, Akses ditolak`);
-    }
+  if (normalizedRole === 'owner' && !cleanStoreCode && !cleanStoreName) {
+    throw new Error('Nama Toko / Laundry wajib diisi');
+  }
+  if (normalizedRole === 'owner' && !cleanStoreCode && !cleanPhone) {
+    throw new Error('Nomor WhatsApp Owner wajib diisi');
   }
 
   // Panggil endpoint register di backend untuk validasi resmi
@@ -502,10 +502,13 @@ export const registerUser = async ({ storeCode, fullname, username, password, ro
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        storeCode: cleanStoreCode,
+        storeCode: cleanStoreCode || undefined,
+        storeName: cleanStoreName || undefined,
+        phone: cleanPhone || undefined,
         fullname: cleanFullname,
         username: cleanUsername,
         password,
+        confirmPassword,
         role: normalizedRole,
       }),
     });
@@ -516,12 +519,19 @@ export const registerUser = async ({ storeCode, fullname, username, password, ro
     }
 
     const result = await response.json();
-    const regData = result.data || {};
+    const regData = result.data || result || {};
     const registeredUser = regData.user || regData;
-    const token = regData.token || registeredUser.token;
+    const finalStoreCode = result.storeCode || regData.storeCode || registeredUser.storeCode || cleanStoreCode;
+    const finalStoreName = result.storeName || regData.storeName || registeredUser.storeName || cleanStoreName;
+    const token = regData.token || registeredUser.token || result.token;
     if (token) {
       sessionStorage.setItem('token', token);
       localStorage.setItem('auth_token', token);
+    }
+
+    if (finalStoreCode) {
+      localStorage.setItem('last_store_code', finalStoreCode);
+      localStorage.setItem('saved_store_code', finalStoreCode);
     }
 
     // Bersihkan draft order dan cart saat registrasi store baru
@@ -529,7 +539,8 @@ export const registerUser = async ({ storeCode, fullname, username, password, ro
     if (db.cart?.clear) await db.cart.clear();
 
     // Jika registrasi toko baru, bersihkan data toko lama dari Dexie agar tidak tercampur
-    const previousStoreId = setting?.storeId;
+    const currentSetting = db.settings?.get ? await db.settings.get(1) : null;
+    const previousStoreId = currentSetting?.storeId;
     if (previousStoreId && registeredUser.storeId && previousStoreId !== registeredUser.storeId) {
       if (db.orders?.clear) await db.orders.clear();
       if (db.pelanggan?.clear) await db.pelanggan.clear();
@@ -553,7 +564,7 @@ export const registerUser = async ({ storeCode, fullname, username, password, ro
     }));
 
     // Simpan/update store info di db.settings lokal
-    if (setting) {
+    if (currentSetting) {
       await db.settings.update(1, {
         storeId: registeredUser.storeId,
         storeCode: registeredUser.storeCode,
@@ -641,7 +652,7 @@ export const registerUser = async ({ storeCode, fullname, username, password, ro
       }
     }
 
-    return newId;
+    return { id: newId, storeCode: finalStoreCode, storeName: finalStoreName, user: registeredUser };
   } else {
     throw new Error('Pendaftaran akun membutuhkan koneksi internet untuk memvalidasi Kode Toko.');
   }

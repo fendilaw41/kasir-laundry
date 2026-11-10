@@ -338,9 +338,9 @@ export class OrdersService {
   }
 
   /**
-   * Ambil semua order (opsional filter per storeId dan includeDeleted untuk sinkronisasi tombstone)
+   * Ambil semua order (opsional filter per storeId, includeDeleted untuk sinkronisasi tombstone, dan since untuk incremental sync)
    */
-  async findAll(storeId?: string, includeDeleted: boolean = false) {
+  async findAll(storeId?: string, includeDeleted: boolean = false, since?: Date) {
     const where: any = {};
     if (!includeDeleted) {
       where.deletedAt = null;
@@ -348,7 +348,7 @@ export class OrdersService {
     if (storeId) {
       where.storeId = storeId;
     }
-    return await this.prisma.order.findMany({
+    const queryOptions: any = {
       where,
       include: {
         items: true,
@@ -363,7 +363,13 @@ export class OrdersService {
         },
       },
       orderBy: { createdAt: 'desc' },
-    });
+    };
+    if (since && !isNaN(since.getTime())) {
+      where.updatedAt = { gte: since };
+      queryOptions.orderBy = { updatedAt: 'desc' };
+      queryOptions.take = 200;
+    }
+    return await this.prisma.order.findMany(queryOptions);
   }
 
   /**

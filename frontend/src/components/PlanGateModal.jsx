@@ -94,19 +94,6 @@ export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIM
           message: isOwner
             ? 'Masa trial toko Anda telah selesai.'
             : 'Masa trial toko telah berakhir. Hubungi Owner untuk aktivasi paket langganan.',
-          recommendation: 'Beli upgrade paket langganan  untuk mengaktifkan kembali seluruh fitur',
-          ctaText: isOwner ? 'Beli Paket Langganan' : 'Hubungi Owner Toko',
-        };
-      case 'TRIAL_EXPIRED':
-        return {
-          icon: 'bi-shield-lock-fill',
-          iconColor: '#dc2626',
-          iconBg: '#fef2f2',
-          title: 'Masa Trial Berakhir',
-          subtitle: 'Fitur Terbatas & Terkunci',
-          message: isOwner
-            ? 'Masa trial toko Anda telah selesai.'
-            : 'Masa trial toko telah berakhir. Hubungi Owner untuk aktivasi paket langganan.',
           recommendation: 'Beli paket langganan (mulai Rp 25.000/bln) untuk mengaktifkan kembali seluruh fitur',
           ctaText: isOwner ? 'Beli Paket Langganan' : 'Hubungi Owner Toko',
         };
@@ -313,21 +300,6 @@ export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIM
             <p className="text-muted small mb-2.5 px-1" style={{ fontSize: '0.82rem', lineHeight: '1.45' }}>
               {config.message}
             </p>
-
-            {/* Box Rekomendasi Ringkas */}
-            <div
-              className="rounded-3 mb-3 text-start d-flex align-items-center gap-2"
-              style={{
-                backgroundColor: '#f8fafc',
-                border: '1px dashed #cbd5e1',
-                padding: '10px 14px',
-              }}
-            >
-              <div style={{ fontSize: '0.75rem', lineHeight: '1.35' }}>
-                <span className="text-muted d-block" style={{ fontSize: '0.7rem' }}>Saran paket:</span>
-                <strong className="text-dark">{config.recommendation}</strong>
-              </div>
-            </div>
 
             {/* Tombol Aksi (Khusus Owner; untuk Kasir tombol 'Dimengerti' dihilangkan) */}
             {isOwner && (

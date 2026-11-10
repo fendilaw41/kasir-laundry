@@ -63,15 +63,19 @@ export class OrdersController {
   })
   @ApiQuery({ name: 'storeId', required: false, description: 'ID Toko (opsional)' })
   @ApiQuery({ name: 'includeDeleted', required: false, description: 'Sertakan order yang dihapus/tombstone untuk sinkronisasi', type: Boolean })
+  @ApiQuery({ name: 'since', required: false, description: 'Filter pesanan yang diubah setelah timestamp ini (Incremental Sync)' })
   @ApiResponse({ status: 200, description: 'Daftar order berhasil dimuat.' })
   async findAll(
     @Query('storeId') storeId?: string,
     @Query('includeDeleted') includeDeleted?: string,
+    @Query('since') since?: string,
   ) {
     const isIncludeDeleted = includeDeleted === 'true' || includeDeleted === '1';
-    const data = await this.ordersService.findAll(storeId, isIncludeDeleted);
-    const inventory = storeId ? await this.ordersService.findInventory(storeId) : [];
-    const products = storeId ? await this.ordersService.findProducts(storeId) : [];
+    const sinceDate = since ? new Date(since) : undefined;
+    const data = await this.ordersService.findAll(storeId, isIncludeDeleted, sinceDate);
+    // Hanya ambil inventory & products saat initial sync (tanpa filter since) agar tidak memboroskan bandwidth
+    const inventory = storeId && !since ? await this.ordersService.findInventory(storeId) : [];
+    const products = storeId && !since ? await this.ordersService.findProducts(storeId) : [];
     return {
       success: true,
       data,

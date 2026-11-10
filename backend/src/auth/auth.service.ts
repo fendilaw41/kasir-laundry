@@ -161,42 +161,129 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
-    const { storeCode, fullname, username, password, role = 'owner' } = dto;
+    const { storeCode, storeName, phone, fullname, username, password, confirmPassword, role = 'owner' } = dto;
 
-    if (!storeCode || !fullname || !username || !password) {
-      throw new BadRequestException('Kode Toko, Nama Lengkap, Username, dan Password wajib diisi.');
+    if (!fullname || !username || !password) {
+      throw new BadRequestException('Nama Lengkap, Username, dan Password wajib diisi.');
     }
 
-    const cleanStoreCode = storeCode.trim();
     const cleanUsername = username.trim();
     const cleanFullname = fullname.trim();
     const normalizedRole = role.toLowerCase().trim();
 
-    // 1. Validasi keberadaan Store berdasarkan storeCode
-    const store = await this.prisma.store.findUnique({
-      where: { code: cleanStoreCode },
-    });
-
-    if (!store) {
-      throw new NotFoundException('Store tidak ditemukan.');
+    // Validasi Password: minimal 6 karakter, mengandung huruf besar, huruf kecil, dan spesial karakter
+    if (password.length < 6) {
+      throw new BadRequestException('Password minimal 6 karakter.');
+    }
+    const hasLower = /[a-z]/.test(password);
+    const hasUpper = /[A-Z]/.test(password);
+    const hasSpecial = /[^a-zA-Z0-9]/.test(password);
+    if (!hasLower || !hasUpper || !hasSpecial) {
+      throw new BadRequestException('Password wajib mengandung kombinasi huruf besar, huruf kecil, dan spesial karakter (!@#$%^&* dll).');
+    }
+    if (confirmPassword && password !== confirmPassword) {
+      throw new BadRequestException('Konfirmasi password tidak cocok.');
     }
 
-    // 2. ATURAN: Batasi role owner HANYA boleh 1 owner per store
-    if (normalizedRole === 'owner') {
-      const existingOwner = await this.prisma.user.findFirst({
-        where: {
-          storeId: store.id,
-          role: 'owner',
-          deletedAt: null,
-        },
+    let store: any = null;
+
+    // KASUS 1: Registrasi Toko Baru & Owner Sekaligus (Unified Register)
+    if (normalizedRole === 'owner' && (!storeCode || storeName)) {
+      const cleanStoreName = (storeName || '').trim();
+      const cleanPhone = (phone || '').trim();
+
+      if (!cleanStoreName) {
+        throw new BadRequestException('Nama Toko / Laundry wajib diisi.');
+      }
+      if (!cleanPhone) {
+        throw new BadRequestException('Nomor WhatsApp Owner wajib diisi.');
+      }
+
+      // Generate Kode Toko unik by system: Prefix Username (uppercase) + '-' + 6 karakter acak (Contoh: FENDI-HSY789)
+      const cleanPrefix = cleanUsername.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase() || 'STORE';
+      let generatedCode = '';
+      let isUnique = false;
+      let attempts = 0;
+      while (!isUnique && attempts < 20) {
+        attempts++;
+        const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+        generatedCode = `${cleanPrefix}-${randomPart}`;
+        const existingStore = await this.prisma.store.findUnique({ where: { code: generatedCode } });
+        if (!existingStore) isUnique = true;
+      }
+
+      // Buat Store & Settings default dalam transaksi (lokasi & slogan & alamat kosong dulu)
+      const created = await this.prisma.$transaction(async (tx) => {
+        const newStore = await tx.store.create({
+          data: {
+            code: generatedCode,
+            name: cleanStoreName,
+            phone: cleanPhone,
+            address: null,
+            city: null,
+            featureSubscriptionEnabled: true,
+            showUpgradeBanner: true,
+          },
+        });
+
+        const newSettings = await tx.settings.create({
+          data: {
+            storeId: newStore.id,
+            namaLaundry: cleanStoreName,
+            motto: null,
+            alamat: null,
+            kota: null,
+            telepon: cleanPhone,
+            menerimaCucian: true,
+            headerStruk: 'Terima kasih atas kunjungan anda',
+            footerStruk: 'LINK_ORDER',
+          },
+        });
+
+        return { store: newStore, settings: newSettings };
       });
 
-      if (existingOwner) {
-        throw new BadRequestException('Store tidak ditemukan.');
+      store = created.store;
+
+      // Inisialisasi default master data produk & inventori
+      try {
+        await this.seedDefaultMasterDataForStore(store.id);
+      } catch (seedErr: any) {
+        this.logger.warn(`Gagal seed default master data untuk store baru ${generatedCode}: ${seedErr.message}`);
+      }
+
+      // Inisialisasi storeSubscription paket TRIAL
+      try {
+        await this.subscriptionService.getOrCreateSubscription(store.id);
+      } catch (subErr: any) {
+        this.logger.warn(`Gagal inisialisasi subscription store ${generatedCode}: ${subErr.message}`);
+      }
+    } else {
+      // KASUS 2: Registrasi User ke Store yang sudah ada (misal Kasir)
+      const cleanStoreCode = (storeCode || '').trim().toUpperCase();
+      if (!cleanStoreCode) {
+        throw new BadRequestException('Kode Toko wajib diisi.');
+      }
+
+      store = await this.prisma.store.findUnique({
+        where: { code: cleanStoreCode },
+      });
+
+      if (!store) {
+        throw new NotFoundException('Store tidak ditemukan.');
+      }
+
+      if (normalizedRole === 'owner') {
+        const existingOwner = await this.prisma.user.findFirst({
+          where: { storeId: store.id, role: 'owner', deletedAt: null },
+        });
+        if (existingOwner) {
+          throw new BadRequestException('Store sudah memiliki Owner terdaftar.');
+        }
       }
     }
 
-    // 3. Cek apakah username sudah digunakan di store ini
+    // Cek apakah username sudah digunakan di store ini
     const existingUser = await this.prisma.user.findFirst({
       where: {
         storeId: store.id,
@@ -237,13 +324,11 @@ export class AuthService {
 
     this.logger.log(`User ${user.username} (${user.role}) berhasil didaftarkan ke store ${store.code}`);
 
-    // 6. Inisialisasi Master Data Produk & Inventory Default langsung saat Register
-    // Agar saat user login di device baru tidak lagi lambat melakukan seeding on-the-fly!
+    // Inisialisasi master data produk jika belum ada
     const existingProductsCount = await this.prisma.product.count({
       where: { storeId: store.id, deletedAt: null },
     });
     if (existingProductsCount === 0) {
-      this.logger.log(`[Register] Otomatis menginisialisasi produk & inventory default untuk store ${store.code}...`);
       await this.seedDefaultMasterDataForStore(store.id);
     }
 
@@ -272,6 +357,8 @@ export class AuthService {
     return {
       message: 'Registrasi berhasil',
       token,
+      storeCode: store.code,
+      storeName: store.name,
       user: {
         id: user.id,
         storeId: user.storeId,

@@ -262,7 +262,6 @@ export const syncOrderToBackend = async (orderId) => {
         updateData.updatedAt = new Date(serverOrder.updatedAt);
       }
       await db.orders.update(order.id, updateData);
-      console.log(`[Sync] Order ${order.invoiceId} berhasil disinkronkan ke BE.`);
       return true;
     } else {
       if (response.status === 401) {
@@ -331,7 +330,6 @@ export const syncUsersToBackend = async () => {
           ...(match ? { uuid: match.id } : {}),
         });
       }
-      console.log(`[Sync] ${dirtyUsers.length} user berhasil disinkronkan ke BE.`);
     }
   } catch (err) {
     console.warn(`[Sync] Gagal sync users (offline): ${err.message}`);
@@ -394,7 +392,6 @@ export const syncProductsToBackend = async (forceAll = false) => {
           ...(match ? { uuid: match.id } : {}),
         });
       }
-      console.log(`[Sync] ${productsToSync.length} produk berhasil disinkronkan ke BE.`);
     }
   } catch (err) {
     console.warn(`[Sync] Gagal sync products (offline): ${err.message}`);
@@ -455,7 +452,6 @@ export const syncPelangganToBackend = async (forceAll = false) => {
           ...(match ? { uuid: match.id } : {}),
         });
       }
-      console.log(`[Sync] ${pelangganList.length} pelanggan berhasil disinkronkan ke BE.`);
     }
   } catch (err) {
     console.warn(`[Sync] Gagal sync pelanggan (offline): ${err.message}`);
@@ -500,7 +496,6 @@ export const syncSettingsToBackend = async () => {
       const result = await response.json();
       const serverStoreId = result.data?.storeId;
       await db.settings.update(1, { isDirty: 0, storeId: serverStoreId || storeId });
-      console.log(`[Sync] Settings toko berhasil disinkronkan ke BE.`);
     }
   } catch (err) {
     console.warn(`[Sync] Gagal sync settings (offline): ${err.message}`);
@@ -564,7 +559,6 @@ export const syncInventoryToBackend = async (forceAll = false) => {
           ...(match ? { uuid: match.id } : {}),
         });
       }
-      console.log(`[Sync] ${dirtyInventory.length} item inventory berhasil disinkronkan ke BE.`);
     }
   } catch (err) {
     console.warn(`[Sync] Gagal sync inventory (offline): ${err.message}`);
@@ -655,7 +649,6 @@ export const syncInventoryEventsToBackend = async (forceAll = false) => {
           ...(match ? { uuid: match.id } : {}),
         });
       }
-      console.log(`[Sync] ${dirtyEvents.length} log mutasi inventory berhasil disinkronkan ke BE.`);
     }
   } catch (err) {
     console.warn(`[Sync] Gagal sync inventory events (offline): ${err.message}`);
@@ -710,7 +703,6 @@ export const syncDirtyOrders = async (forceAll = false) => {
       return;
     }
 
-    console.log(`[Sync] Menemukan ${dirtyOrders.length} order untuk disinkronkan...`);
 
     const payloads = [];
     for (const order of dirtyOrders) {
@@ -749,7 +741,6 @@ export const syncDirtyOrders = async (forceAll = false) => {
           }
         }
       }
-      console.log('[Sync] Batch sync selesai.');
     }
   } catch (error) {
     console.warn(`[Sync] Gagal batch sync (offline/server unreachable): ${error.message}`);
@@ -760,7 +751,10 @@ export const syncDirtyOrders = async (forceAll = false) => {
 
 let isPullingOrders = false;
 let lastOrderPullTime = 0;
-const ORDER_PULL_COOLDOWN_MS = 15000; // Cooldown 15 detik untuk mencegah spam request berulang
+const ORDER_PULL_COOLDOWN_MS = 30000; // Cooldown 30 detik untuk mencegah spam request berulang
+let lastProductsPullTime = 0;
+let lastPelangganPullTime = 0;
+let lastInvEventsPullTime = 0;
 
 /**
  * Tarik seluruh daftar order dari backend PostgreSQL untuk toko yang aktif (Pull Sync)
@@ -793,7 +787,13 @@ export const pullOrdersFromBackend = async (force = false) => {
     }
     if (!storeId) return false;
 
-    const response = await fetch(`${API_BASE_URL}/orders?storeId=${encodeURIComponent(storeId)}&includeDeleted=true`, {
+    const lastSyncIso = localStorage.getItem('kasir_last_orders_sync');
+    let fetchUrl = `${API_BASE_URL}/orders?storeId=${encodeURIComponent(storeId)}&includeDeleted=true`;
+    if (!force && lastSyncIso) {
+      fetchUrl += `&since=${encodeURIComponent(lastSyncIso)}`;
+    }
+
+    const response = await fetch(fetchUrl, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
@@ -805,10 +805,17 @@ export const pullOrdersFromBackend = async (force = false) => {
     }
 
     lastOrderPullTime = Date.now();
+    const currentSyncIso = new Date().toISOString();
 
     const result = await response.json();
     const serverOrders = result.data || [];
     if (!Array.isArray(serverOrders)) return false;
+
+    // Fast-path: Jika tidak ada data baru/berubah sama sekali, selesaikan instan (0 ms I/O)
+    if (serverOrders.length === 0 && (!result.inventory || result.inventory.length === 0) && (!result.products || result.products.length === 0)) {
+      localStorage.setItem('kasir_last_orders_sync', currentSyncIso);
+      return true;
+    }
 
     for (const so of serverOrders) {
       // 1. Cari apakah order sudah ada di Dexie berdasarkan uuid atau invoiceId
@@ -900,25 +907,28 @@ export const pullOrdersFromBackend = async (force = false) => {
       }
     }
 
-    // 5b. Rekonsiliasi penghapusan: jika ada order lokal yang sudah tidak ada sama sekali di server (hard delete di BE)
-    try {
-      const activeServerUuids = new Set(serverOrders.map(o => o.id).filter(Boolean));
-      const activeServerInvoices = new Set(serverOrders.map(o => o.invoiceId).filter(Boolean));
-      const localOrdersInStore = await db.orders.filter(o => (!o.storeId || o.storeId === storeId) && !o.deletedAt && o.isDirty !== 1).toArray();
-      
-            for (const lo of localOrdersInStore) {
-        // JANGAN hapus pesanan yang baru dibuat dalam 30 menit terakhir (mencegah race condition saat checkout)
-        const isRecent = lo.createdAt && (Date.now() - new Date(lo.createdAt).getTime() < 30 * 60 * 1000);
-        if (isRecent) continue;
+    // 5b. Rekonsiliasi penghapusan: HANYA dilakukan saat full sync (bukan incremental sync)
+    if (force || !lastSyncIso) {
+      try {
+        const activeServerUuids = new Set(serverOrders.map(o => o.id).filter(Boolean));
+        const activeServerInvoices = new Set(serverOrders.map(o => o.invoiceId).filter(Boolean));
+        const localOrdersInStore = await db.orders.filter(o => (!o.storeId || o.storeId === storeId) && !o.deletedAt && o.isDirty !== 1).toArray();
+        
+        for (const lo of localOrdersInStore) {
+          const isRecent = lo.createdAt && (Date.now() - new Date(lo.createdAt).getTime() < 30 * 60 * 1000);
+          if (isRecent) continue;
 
-        const existsInServer = (lo.uuid && activeServerUuids.has(lo.uuid)) || (lo.invoiceId && activeServerInvoices.has(lo.invoiceId));
-        if (!existsInServer) {
-          await db.orders.update(lo.id, { deletedAt: new Date(), isDirty: 0 });
+          const existsInServer = (lo.uuid && activeServerUuids.has(lo.uuid)) || (lo.invoiceId && activeServerInvoices.has(lo.invoiceId));
+          if (!existsInServer) {
+            await db.orders.update(lo.id, { deletedAt: new Date(), isDirty: 0 });
+          }
         }
+      } catch (reconcileErr) {
+        console.warn('[Sync] Rekonsiliasi order lokal error:', reconcileErr);
       }
-    } catch (reconcileErr) {
-      console.warn('[Sync] Rekonsiliasi order lokal error:', reconcileErr);
     }
+
+    localStorage.setItem('kasir_last_orders_sync', currentSyncIso);
 
     // 6. Tarik dan Sinkronkan Inventory dari Response GET /orders?storeId=...
     const serverInventory = result.inventory || [];
@@ -956,7 +966,6 @@ export const pullOrdersFromBackend = async (force = false) => {
           await db.inventory.add(invPayload);
         }
       }
-      console.log(`[Sync] Berhasil memperbarui ${serverInventory.length} inventory dari server.`);
     }
 
     // 7. Tarik dan Sinkronkan Products dari Response GET /orders?storeId=...
@@ -1003,7 +1012,6 @@ export const pullOrdersFromBackend = async (force = false) => {
           await db.products.add(prodPayload);
         }
       }
-      console.log(`[Sync] Berhasil memperbarui ${serverProducts.length} produk dari server.`);
     }
 
     // 8. Sinkronkan lastInvoiceNumber pada setting agar nomor nota tidak bentrok setelah reset/ganti device
@@ -1024,7 +1032,6 @@ export const pullOrdersFromBackend = async (force = false) => {
       }
     }
 
-    console.log(`[Sync] Berhasil menarik ${serverOrders.length} order dari server.`);
     return true;
   } catch (err) {
     console.warn('[Sync] Gagal menarik order dari server (offline):', err.message);
@@ -1039,6 +1046,9 @@ export const pullOrdersFromBackend = async (force = false) => {
  */
 export const pullProductsFromBackend = async (force = false) => {
   if (isPublicRoute() || !getAuthToken()) return false;
+  const now = Date.now();
+  if (!force && (now - lastProductsPullTime < 60000)) return false;
+  lastProductsPullTime = now;
   try {
     const storedUser = getStoredUser();
     const setting = await db.settings.get(1);
@@ -1089,7 +1099,6 @@ export const pullProductsFromBackend = async (force = false) => {
           await db.products.add(prodPayload);
         }
       }
-      console.log(`[Sync] Berhasil menarik ${serverProducts.length} produk terbaru dari endpoint sync/products.`);
     }
     return true;
   } catch (err) {
@@ -1103,6 +1112,9 @@ export const pullProductsFromBackend = async (force = false) => {
  */
 export const pullPelangganFromBackend = async (force = false) => {
   if (isPublicRoute() || !getAuthToken()) return false;
+  const now = Date.now();
+  if (!force && (now - lastPelangganPullTime < 60000)) return false;
+  lastPelangganPullTime = now;
   try {
     const storedUser = getStoredUser();
     const setting = await db.settings.get(1);
@@ -1156,7 +1168,6 @@ export const pullPelangganFromBackend = async (force = false) => {
           await db.pelanggan.add(pelPayload);
         }
       }
-      console.log(`[Sync] Berhasil menarik ${serverPelanggan.length} pelanggan terbaru dari endpoint sync/pelanggan.`);
     }
     return true;
   } catch (err) {
@@ -1177,9 +1188,9 @@ export const pullInventoryEventsFromBackend = async (force = false) => {
   if (isPublicRoute() || !getAuthToken()) return false;
   const now = Date.now();
 
-  // Cegah multiple pull bersamaan & cooldown 15 detik
+  // Cegah multiple pull bersamaan & cooldown 60 detik
   if (isPullingInventoryEvents) return false;
-  if (!force && (now - lastInventoryEventsPullTime < INVENTORY_EVENTS_PULL_COOLDOWN_MS)) {
+  if (!force && (now - lastInventoryEventsPullTime < 60000)) {
     return false;
   }
 
@@ -1240,7 +1251,6 @@ export const pullInventoryEventsFromBackend = async (force = false) => {
           await db.inventoryEvents.add(evtPayload);
         }
       }
-      console.log(`[Sync] Berhasil menarik ${serverEvents.length} log mutasi stok dari endpoint sync/inventory-events.`);
     }
     return true;
   } catch (err) {
@@ -1354,7 +1364,6 @@ if (typeof window !== 'undefined') {
     // 1. Sync instan saat internet kembali menyala
     window.addEventListener('online', async () => {
       if (!shouldRunAutoSync()) return;
-      console.log('[Sync] Jaringan online terdeteksi, memulai sinkronisasi...');
       await syncAllDirtyMasterData();
       await syncDirtyOrders();
       await pullOrdersFromBackend();

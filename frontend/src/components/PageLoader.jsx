@@ -7,7 +7,7 @@ import { useLocation } from 'react-router-dom';
  * Menampilkan loading setiap kali berpindah halaman dengan jeda waktu minimal
  * agar transisi halaman tidak terasa terlalu cepat atau berkedip instan.
  */
-const PageLoader = ({ minDuration = 400 }) => {
+const PageLoader = ({ minDuration = 100 }) => {
   const location = useLocation();
   const isBypassPage =
     location.pathname === '/login' ||

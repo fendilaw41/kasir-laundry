@@ -109,7 +109,7 @@ describe('users repository - addUser, updateUser, deleteUser', () => {
         role: 'kasir',
       });
 
-      expect(newId).toBe(10);
+      expect(newId?.id ?? newId).toBe(10);
       expect(db.users.add).toHaveBeenCalledTimes(1);
     });
 
@@ -129,7 +129,7 @@ describe('users repository - addUser, updateUser, deleteUser', () => {
         role: 'kasir',
       });
 
-      expect(newId).toBe(10);
+      expect(newId?.id ?? newId).toBe(10);
       expect(db.users.add).toHaveBeenCalledTimes(1);
       const addedData = db.users.add.mock.calls[0][0];
       expect(addedData.fullname).toBe('Budi Santoso');
@@ -268,7 +268,7 @@ describe('users repository - addUser, updateUser, deleteUser', () => {
         role: 'owner',
       });
 
-      expect(newId).toBe(2);
+      expect(newId?.id ?? newId).toBe(2);
       expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
@@ -320,7 +320,7 @@ describe('users repository - addUser, updateUser, deleteUser', () => {
         role: 'owner',
       });
 
-      expect(newId).toBe(10);
+      expect(newId?.id ?? newId).toBe(10);
       expect(db.storeSubscriptions.put).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'sub-1',

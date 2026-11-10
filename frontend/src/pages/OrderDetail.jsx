@@ -63,15 +63,23 @@ const OrderDetail = ({ user }) => {
   const [newHp, setNewHp] = useState('');
   const [printType, setPrintType] = useState(null);
   const [gateModal, setGateModal] = useState({ open: false, type: 'PDF_LIMIT', data: {} });
+  const [isQueryTimeout, setIsQueryTimeout] = useState(false);
 
   const allInventory = useLiveQuery(getInventoryQuery);
 
-  // Tarik order terbaru dari server saat membuka halaman jika online
   useEffect(() => {
-    if (navigator.onLine && id) {
-      pullOrdersFromBackend().catch(err => console.warn('[OrderDetail] Auto pull error:', err));
-    }
+    const timer = setTimeout(() => {
+      setIsQueryTimeout(true);
+    }, 2500);
+    return () => clearTimeout(timer);
   }, [id]);
+
+  // Tarik order dari server HANYA jika data belum ada di Dexie lokal (misal direct URL)
+  useEffect(() => {
+    if (navigator.onLine && id && order === null && isQueryTimeout) {
+      pullOrdersFromBackend(true).catch(err => console.warn('[OrderDetail] Auto pull error:', err));
+    }
+  }, [id, order, isQueryTimeout]);
 
   // Sinkronkan state catatan & inventory yang dipilih setiap kali data order diperbarui
   useEffect(() => {
@@ -82,15 +90,6 @@ const OrderDetail = ({ user }) => {
       setLocalInventoryUsed(order.inventoryUsed || []);
     }
   }, [order?.id, JSON.stringify(order?.inventoryUsed), order?.catatan, order?.catatanKasir]);
-
-  const [isQueryTimeout, setIsQueryTimeout] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsQueryTimeout(true);
-    }, 2500);
-    return () => clearTimeout(timer);
-  }, [id]);
 
   if (order === undefined || (order === null && !isQueryTimeout)) {
     return <OrderDetailSkeleton />;

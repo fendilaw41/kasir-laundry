@@ -1,522 +1,517 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { registerUser } from '../db/repositories/users';
 import { db } from '../db';
 import { updatePwaManifest, promptPwaInstall, fetchStoreInfoByCode } from '../utils/pwaHelper';
-import { Skeleton } from '../components/common/Skeleton';
+
+const formatWhatsAppNumber = (rawPhone) => {
+  let clean = (rawPhone || '').replace(/\D/g, '');
+  if (clean.startsWith('0')) {
+    clean = '62' + clean.slice(1);
+  } else if (clean.startsWith('8')) {
+    clean = '62' + clean;
+  }
+  return clean;
+};
 
 const Register = () => {
-  const [storeCode, setStoreCode] = useState('');
-  const [hasSavedStore, setHasSavedStore] = useState(false);
-  const [fullname, setFullname] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  // PWA & Store State
-  const [storeInfo, setStoreInfo] = useState(null);
-  const [isCheckingStore, setIsCheckingStore] = useState(false);
-  const [showInstallPopup, setShowInstallPopup] = useState(false);
-  const [installManualHelp, setInstallManualHelp] = useState(false);
-  const [installSuccess, setInstallSuccess] = useState(false);
-
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
+  // Mode: 'owner' (Daftar Toko & Owner Baru) atau 'kasir' (Gabung ke Toko yang Sudah Ada)
+  const [registerMode, setRegisterMode] = useState(searchParams.get('mode') === 'kasir' || searchParams.get('code') ? 'kasir' : 'owner');
+
+  // Form State
+  const [fullname, setFullname] = useState('');
+  const [storeName, setStoreName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [storeCodeInput, setStoreCodeInput] = useState(searchParams.get('code') || '');
+
+  // UI State
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  // Success State
+  const [successData, setSuccessData] = useState(null);
+
+  // Validasi Password Helper
+  const hasMinLen = password.length >= 6;
+  const hasLower = /[a-z]/.test(password);
+  const hasUpper = /[A-Z]/.test(password);
+  const hasSpecial = /[^a-zA-Z0-9]/.test(password);
+  const isPassMatching = password && confirmPassword && password === confirmPassword;
+  const isPasswordValid = hasMinLen && hasLower && hasUpper && hasSpecial;
+
+  // Auto detect if code param exists
   useEffect(() => {
-    const initRegister = async () => {
-      try {
-        const s = await db.settings.get(1);
-
-        // 1. Prioritaskan query param ?code=STORE02 dari URL jika ada
-        const urlCode = searchParams.get('code');
-        const savedCode = urlCode
-          ? urlCode.trim().toUpperCase()
-          : (s?.storeCode || localStorage.getItem('last_store_code') || '').trim().toUpperCase();
-
-        if (savedCode) {
-          setStoreCode(savedCode);
-          if (s?.storeCode && s.storeCode.toUpperCase() === savedCode && s.namaLaundry) {
-            setStoreInfo({
-              code: savedCode,
-              name: s.namaLaundry,
-              address: s.alamat || '',
-              city: s.kota || '',
-              phone: s.telepon || '',
-            });
-            setHasSavedStore(true);
-          }
-        }
-      } catch (err) {
-        console.warn('[Register] Belum ada pengaturan tersimpan:', err);
-      }
-    };
-
-    initRegister();
+    const urlCode = searchParams.get('code');
+    if (urlCode) {
+      setStoreCodeInput(urlCode.trim().toUpperCase());
+      setRegisterMode('kasir');
+    }
   }, [searchParams]);
 
-  // Debounce check nama store dari backend / lokal saat storeCode berubah
-  useEffect(() => {
-    const cleanCode = storeCode.trim().toUpperCase();
-    if (!cleanCode || cleanCode.length < 3) {
-      setStoreInfo(null);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setMessage('');
+
+    if (!fullname.trim() || !username.trim() || !password) {
+      setMessage('Nama Lengkap, Username, dan Password wajib diisi.');
       return;
     }
 
-    const timer = setTimeout(async () => {
-      setIsCheckingStore(true);
-      try {
-        let info = await fetchStoreInfoByCode(cleanCode);
+    if (!isPasswordValid) {
+      setMessage('Password minimal 6 karakter dan wajib mengandung kombinasi huruf besar, huruf kecil, dan spesial karakter.');
+      return;
+    }
 
-        // Fallback ke Dexie lokal jika offline / cocok
-        if (!info) {
-          const localSettings = await db.settings.get(1);
-          if (localSettings?.storeCode?.toUpperCase() === cleanCode) {
-            info = {
-              code: cleanCode,
-              name: localSettings.namaLaundry || 'Kasir Laundry',
-              address: localSettings.alamat || '',
-              city: localSettings.kota || '',
-              phone: localSettings.telepon || '',
-            };
-          }
-        }
+    if (password !== confirmPassword) {
+      setMessage('Konfirmasi password tidak cocok.');
+      return;
+    }
 
-        if (info) {
-          setStoreInfo(info);
-          setHasSavedStore(true);
-          updatePwaManifest(info.name);
-          localStorage.setItem('last_store_code', cleanCode);
-          db.settings.update(1, { storeCode: cleanCode, namaLaundry: info.name }).catch(() => {});
-
-          // Munculkan popup HANYA jika belum pernah install PWA dan belum di-dismiss
-          const localSettings = await db.settings.get(1);
-          const isInstalled = localSettings?.isAppInstalled === true || localStorage.getItem('pwa_user_clicked_install') === 'true';
-          const dismissed = sessionStorage.getItem(`pwa_dismissed_${cleanCode}`);
-          if (!dismissed && !isInstalled) {
-            setShowInstallPopup(true);
-          }
-        } else {
-          setStoreInfo(null);
-          setHasSavedStore(false);
-        }
-      } catch (err) {
-        console.warn('[Register] Gagal memeriksa kode toko:', err);
-      } finally {
-        setIsCheckingStore(false);
+    if (registerMode === 'owner') {
+      if (!storeName.trim()) {
+        setMessage('Nama Toko / Laundry wajib diisi.');
+        return;
       }
-    }, 450);
-
-    return () => clearTimeout(timer);
-  }, [storeCode]);
-
-  const handleInstallApp = async () => {
-    try {
-      await db.settings.update(1, { isAppInstalled: true, appInstalledAt: new Date() });
-    } catch (e) {
-      console.warn('[PWA] Gagal simpan status install ke Dexie:', e);
-    }
-    localStorage.setItem('pwa_user_clicked_install', 'true');
-
-    const res = await promptPwaInstall();
-    if (res?.outcome === 'accepted') {
-      setInstallSuccess(true);
-      setTimeout(() => {
-        setShowInstallPopup(false);
-        setInstallSuccess(false);
-      }, 2000);
+      if (!phone.trim()) {
+        setMessage('Nomor WhatsApp Owner wajib diisi.');
+        return;
+      }
     } else {
-      setInstallManualHelp(true);
+      if (!storeCodeInput.trim()) {
+        setMessage('Kode Toko wajib diisi jika mendaftar sebagai kasir.');
+        return;
+      }
     }
-  };
 
-  const handleCloseInstallPopup = () => {
-    if (storeInfo?.code) {
-      sessionStorage.setItem(`pwa_dismissed_${storeInfo.code}`, 'true');
-    }
-    setShowInstallPopup(false);
-    setInstallManualHelp(false);
-  };
-
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    setMessage('');
     setLoading(true);
 
     try {
-      await registerUser({
-        storeCode: storeCode.trim().toUpperCase(),
-        fullname,
-        username,
+      const res = await registerUser({
+        storeName: registerMode === 'owner' ? storeName.trim() : undefined,
+        phone: registerMode === 'owner' ? phone.trim() : undefined,
+        storeCode: registerMode === 'kasir' ? storeCodeInput.trim().toUpperCase() : undefined,
+        fullname: fullname.trim(),
+        username: username.trim(),
         password,
-        role: 'owner', // Role di-hardcode menjadi owner
+        confirmPassword,
+        role: registerMode === 'owner' ? 'owner' : 'kasir',
       });
 
-      setIsSuccess(true);
-      setMessage('Registrasi Owner berhasil! Mengalihkan ke halaman login...');
-      setTimeout(() => navigate('/login'), 1800);
+      const finalCode = res.storeCode || (typeof res === 'object' && res.storeCode) || storeCodeInput.toUpperCase();
+      const finalName = res.storeName || storeName.trim();
+      const cleanWa = formatWhatsAppNumber(phone);
+      const origin = window.location.origin;
+      const activationUrl = `${origin}/login?code=${encodeURIComponent(finalCode)}&activated=true`;
+
+      // Simpan kode toko ke cache lokal
+      localStorage.setItem('last_store_code', finalCode);
+      localStorage.setItem('saved_store_code', finalCode);
+
+      // Template pesan WhatsApp dengan kode toko BOLD
+      const waMessage = `Halo *${finalName}*,\n\nSelamat! Pendaftaran Toko Laundry dan Akun Owner Anda berhasil didaftarkan di sistem Kasir Laundry:\n\n🏪 *Nama Toko*: ${finalName}\n🔑 *Kode Toko*: *${finalCode}*\n👤 *Username*: ${username.trim()}\n\nSilakan klik tautan resmi aktivasi & login berikut untuk langsung membuka toko Anda:\n👉 ${activationUrl}\n\nSimpan Kode Toko Anda untuk login di perangkat lain atau menambahkan kasir. Terima kasih! 🙏`;
+      const waUrl = `https://wa.me/${cleanWa}?text=${encodeURIComponent(waMessage)}`;
+
+      setSuccessData({
+        storeCode: finalCode,
+        storeName: finalName,
+        username: username.trim(),
+        phone: cleanWa,
+        activationUrl,
+        waUrl,
+      });
+
+      toast.success('Pendaftaran berhasil!');
     } catch (err) {
-      setIsSuccess(false);
-      setMessage(err.message || 'Gagal registrasi.');
+      setMessage(err.message || 'Gagal melakukan pendaftaran.');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div
-      className="login-wrapper d-flex align-items-start align-items-sm-center justify-content-center w-100 py-3 py-sm-4"
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        height: '100vh',
-        overflowY: 'auto',
-        backgroundColor: '#f1f5f9',
-        zIndex: 1050,
-      }}
-    >
-      {/* Modal Popup Install PWA Android / Desktop */}
-      {showInstallPopup && storeInfo && (
-        <>
-          <div
-            className="modal-backdrop fade show"
-            style={{
-              backdropFilter: 'blur(6px)',
-              backgroundColor: 'rgba(15, 23, 42, 0.65)',
-              zIndex: 1080,
-            }}
-            onClick={handleCloseInstallPopup}
-          ></div>
-          <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1085 }}>
-            <div className="modal-dialog modal-dialog-centered mx-auto px-3" style={{ maxWidth: '380px' }}>
-              <div className="modal-content border-0 shadow-lg text-center p-4" style={{ borderRadius: '24px' }}>
-                {/* Close Button Top Right */}
-                <button
-                  type="button"
-                  className="btn-close position-absolute top-0 end-0 m-3 shadow-none"
-                  aria-label="Close"
-                  onClick={handleCloseInstallPopup}
-                ></button>
+  const handleCopyCode = () => {
+    if (successData?.storeCode) {
+      navigator.clipboard.writeText(successData.storeCode);
+      toast.success('Kode Toko disalin ke clipboard!');
+    }
+  };
 
-                {/* App Icon Preview */}
+  return (
+    <div className="login-wrapper d-flex align-items-center justify-content-center py-4" style={{ backgroundColor: '#f0f4fd', minHeight: '100vh' }}>
+      <div className="container">
+        <div className="row justify-content-center">
+          <div className="col-12 col-sm-10 col-md-8 col-lg-5">
+            {/* Logo / Header Branding */}
+            <div className="text-center px-4 mb-3">
+              <div
+                className="d-inline-flex align-items-center justify-content-center rounded-circle shadow-sm mb-2"
+                style={{ width: '56px', height: '56px', backgroundColor: '#0134d4', color: '#fff' }}
+              >
+                <i className="bi bi-shop fs-3"></i>
+              </div>
+              <h4 className="fw-bold text-dark mb-0" style={{ letterSpacing: '-0.3px' }}>
+                {successData ? 'Pendaftaran Berhasil!' : 'Daftar Kasir Laundry'}
+              </h4>
+              <p className="text-muted small mb-0" style={{ fontSize: '13px' }}>
+                {successData ? 'Akun dan Toko Anda siap digunakan' : 'Satu akun untuk kelola cucian, kasir & nota otomatis'}
+              </p>
+            </div>
+
+            {/* KARTU SUKSES & AKTIVASI VIA WHATSAPP */}
+            {successData ? (
+              <div className="card shadow-sm border-0 rounded-4 overflow-hidden bg-white p-4 text-center">
                 <div
-                  className="mx-auto d-flex align-items-center justify-content-center shadow-sm mb-3"
-                  style={{
-                    width: '68px',
-                    height: '68px',
-                    background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)',
-                    borderRadius: '20px',
-                  }}
+                  className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
+                  style={{ width: '64px', height: '64px', backgroundColor: '#dcfce7', color: '#16a34a' }}
                 >
-                  <i className="bi bi-phone text-white fs-1"></i>
+                  <i className="bi bi-check-circle-fill fs-1"></i>
                 </div>
 
-                <span className="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-1 mb-2 fw-semibold" style={{ fontSize: '11px' }}>
-                  Aplikasi Siap Diinstall
-                </span>
-
-                <h5 className="fw-bold mb-1 text-dark" style={{ letterSpacing: '-0.3px' }}>
-                  Install Aplikasi {storeInfo.name}
-                </h5>
-                <p className="text-muted small mb-3" style={{ fontSize: '12px', lineHeight: '1.5' }}>
-                  Pasang aplikasi kasir <strong>{storeInfo.name}</strong> langsung di layar utama smartphone Android Anda untuk akses cepat &amp; fitur offline.
+                <h5 className="fw-bold text-dark mb-1">{successData.storeName}</h5>
+                <p className="text-muted small mb-3" style={{ fontSize: '13px' }}>
+                  Toko dan akun Owner berhasil dibuat by system.
                 </p>
 
-                {/* Outlet Details Card */}
-                <div className="bg-light p-3 rounded-3 mb-3 text-start small border">
-                  <div className="d-flex justify-content-between mb-1">
-                    <span className="text-muted">Nama App:</span>
-                    <span className="fw-bold text-dark text-truncate ps-2">{storeInfo.name}</span>
+                {/* Box Kode Toko BOLD */}
+                <div className="p-3 rounded-4 mb-3" style={{ backgroundColor: '#f1f5f9', border: '1.5px dashed #0134d4' }}>
+                  <small className="text-muted d-block mb-1 fw-semibold" style={{ fontSize: '11px' }}>KODE TOKO ANDA:</small>
+                  <div className="d-flex align-items-center justify-content-center gap-2">
+                    <span className="fs-3 fw-bolder font-monospace text-primary" style={{ letterSpacing: '1px' }}>
+                      {successData.storeCode}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-light rounded-circle shadow-xs"
+                      onClick={handleCopyCode}
+                      title="Salin Kode Toko"
+                      style={{ width: '32px', height: '32px' }}
+                    >
+                      <i className="bi bi-clipboard"></i>
+                    </button>
                   </div>
-                  <div className="d-flex justify-content-between mb-1">
-                    <span className="text-muted">Kode Toko:</span>
-                    <span className="badge bg-secondary-subtle text-dark border px-2 py-0.5">{storeInfo.code}</span>
+                  <small className="text-muted d-block mt-1" style={{ fontSize: '11px' }}>
+                    Simpan kode unik ini untuk login di perangkat kasir lain.
+                  </small>
+                </div>
+
+                {/* Tombol Kirim WA & Login */}
+                <div className="d-grid gap-2 mb-2">
+                  <a
+                    href={successData.waUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-success fw-bold py-2.5 rounded-3 d-flex align-items-center justify-content-center gap-2 shadow-sm text-decoration-none"
+                    style={{ fontSize: '14px' }}
+                  >
+                    <i className="bi bi-whatsapp fs-5"></i>
+                    <span>Kirim Kode & Link ke WhatsApp Owner</span>
+                  </a>
+
+                  <button
+                    type="button"
+                    className="btn btn-primary fw-bold py-2.5 rounded-3 shadow-sm"
+                    style={{ fontSize: '14px', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
+                    onClick={() => navigate(`/login?code=${encodeURIComponent(successData.storeCode)}&activated=true`)}
+                  >
+                    Lanjut ke Halaman Login (Aktivasi)
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* FORM REGISTRASI UNIFIED */
+              <div className="card shadow-sm border-0 rounded-4 overflow-hidden bg-white">
+                <div className="card-body p-4">
+                  {/* Mode Switcher: Owner vs Kasir */}
+                  <div className="d-flex p-1 rounded-pill bg-light mb-3" style={{ border: '1px solid #e2e8f0' }}>
+                    <button
+                      type="button"
+                      className={`btn btn-sm rounded-pill flex-fill fw-bold transition-all ${registerMode === 'owner' ? 'btn-primary shadow-xs' : 'text-muted'}`}
+                      style={{ fontSize: '12px', backgroundColor: registerMode === 'owner' ? '#0134d4' : 'transparent', border: 'none' }}
+                      onClick={() => { setRegisterMode('owner'); setMessage(''); }}
+                    >
+                      Daftar Toko Baru (Owner)
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn btn-sm rounded-pill flex-fill fw-bold transition-all ${registerMode === 'kasir' ? 'btn-primary shadow-xs' : 'text-muted'}`}
+                      style={{ fontSize: '12px', backgroundColor: registerMode === 'kasir' ? '#0134d4' : 'transparent', border: 'none' }}
+                      onClick={() => { setRegisterMode('kasir'); setMessage(''); }}
+                    >
+                      Gabung Kasir
+                    </button>
                   </div>
-                  {storeInfo.address && (
-                    <div className="d-flex justify-content-between">
-                      <span className="text-muted">Alamat:</span>
-                      <span className="text-dark text-truncate ps-2" style={{ maxWidth: '180px' }}>{storeInfo.address}</span>
+
+                  {message && (
+                    <div className="alert alert-danger border-0 rounded-3 py-2 px-3 small d-flex align-items-center gap-2 mb-3">
+                      <i className="bi bi-exclamation-circle-fill fs-5 flex-shrink-0"></i>
+                      <span>{message}</span>
                     </div>
                   )}
-                </div>
 
-                {/* Status Sukses Install */}
-                {installSuccess ? (
-                  <div className="alert alert-success py-2 px-3 rounded-3 small mb-2 d-flex align-items-center justify-content-center gap-2">
-                    <i className="bi bi-check-circle-fill"></i>
-                    <span>Aplikasi berhasil dipasang di perangkat!</span>
-                  </div>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-lg rounded-pill fw-bold w-100 shadow-sm mb-2 d-flex align-items-center justify-content-center gap-2"
-                      style={{ fontSize: '14px', height: '46px', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
-                      onClick={handleInstallApp}
-                    >
-                      <i className="bi bi-download"></i>
-                      <span>Install Aplikasi Sekarang</span>
-                    </button>
+                  <form onSubmit={handleSubmit}>
+                    {/* KHUSUS OWNER: Nama Toko & No WA */}
+                    {registerMode === 'owner' && (
+                      <>
+                        <div className="form-group mb-2.5">
+                          <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
+                            Nama Toko / Laundry <span className="text-danger">*</span>
+                          </label>
+                          <input
+                            className="form-control"
+                            style={{
+                              height: '42px',
+                              backgroundColor: '#f8fafc',
+                              border: '1.5px solid #cbd5e1',
+                              borderRadius: '10px',
+                              fontSize: '14px',
+                            }}
+                            type="text"
+                            placeholder="Contoh: Berkah Laundry"
+                            value={storeName}
+                            onChange={(e) => setStoreName(e.target.value)}
+                            required
+                          />
+                        </div>
 
-                    {installManualHelp && (
-                      <div className="alert alert-info py-2 px-3 text-start rounded-3 mb-2 small" style={{ fontSize: '11px', lineHeight: '1.4' }}>
-                        <i className="bi bi-info-circle-fill me-1"></i>
-                        Jika prompt tidak muncul otomatis:
-                        <br />
-                        Buka menu browser titik 3 (<strong>⋮</strong>) di pojok kanan atas, lalu pilih <strong>&quot;Tambahkan ke Layar Utama&quot;</strong> atau <strong>&quot;Install Aplikasi&quot;</strong>.
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      className="btn btn-light rounded-pill py-2 w-100 text-muted fw-semibold"
-                      style={{ fontSize: '13px' }}
-                      onClick={handleCloseInstallPopup}
-                    >
-                      Lanjut Registrasi Dulu
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      <div className="container px-3" style={{ maxWidth: '440px' }}>
-        <div
-          className="card border-0 shadow-sm"
-          style={{
-            borderRadius: '20px',
-            backgroundColor: '#ffffff',
-            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03)',
-            border: '1px solid #e2e8f0',
-          }}
-        >
-          <div className="card-body p-4">
-            {/* Header Logo & Title */}
-            <div className="text-center mb-3">
-              <div
-                className="mx-auto d-flex align-items-center justify-content-center shadow-sm"
-                style={{
-                  width: '64px',
-                  height: '64px',
-                  background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)',
-                  borderRadius: '18px',
-                  marginBottom: '12px',
-                  boxShadow: '0 8px 16px -4px rgba(1, 52, 212, 0.35)',
-                }}
-              >
-                <span style={{ fontSize: '32px', fontWeight: '900', color: '#fff', letterSpacing: '-1px' }}>
-                  {storeInfo?.name ? storeInfo.name.charAt(0).toUpperCase() : 'K'}
-                </span>
-              </div>
-              {isCheckingStore ? (
-                <div className="d-flex justify-content-center my-1">
-                  <Skeleton width="180px" height="26px" borderRadius="8px" />
-                </div>
-              ) : (
-                <h4
-                  className="fw-bold mb-1"
-                  style={{
-                    letterSpacing: '0.3px',
-                    color: '#0134d4',
-                    fontSize: '1.25rem',
-                  }}
-                >
-                  {(storeInfo?.name || 'KASIR LAUNDRY').toUpperCase()}
-                </h4>
-              )}
-              <p className="text-muted small mb-0" style={{ fontSize: '12px' }}>
-                {storeInfo?.name ? `Pendaftaran Akun Owner - ${storeInfo.name}` : 'Pendaftaran Akun Owner Toko'}
-              </p>
-            </div>
-
-            <div className="register-form">
-              <h5 className="mb-3 text-center fw-bold text-dark" style={{ fontSize: '16px' }}>
-                Register Akun Owner
-              </h5>
-
-              {message && (
-                <div className={`alert ${isSuccess ? 'alert-success' : 'alert-danger'} rounded-3 py-2 px-3 small mb-3`} role="alert" style={{ fontSize: '12.5px' }}>
-                  {message}
-                </div>
-              )}
-
-              <form onSubmit={handleRegister}>
-                {/* Kode Toko */}
-                <div className="form-group mb-2.5">
-                  <div className="d-flex justify-content-between align-items-center mb-1">
-                    <label className="form-label small fw-bold text-muted mb-0" style={{ fontSize: '12px' }}>
-                      Kode Toko <span className="text-danger">*</span>
-                    </label>
-                    {isCheckingStore && (
-                      <span className="small text-muted d-flex align-items-center gap-1" style={{ fontSize: '11px' }}>
-                        <span className="spinner-border spinner-border-sm" role="status" style={{ width: '10px', height: '10px' }}></span>
-                        Cek toko...
-                      </span>
-                    )}
-                  </div>
-                  <input
-                    className="form-control fw-bold text-primary"
-                    style={{
-                      height: '42px',
-                      backgroundColor: '#f8fafc',
-                      border: '1.5px solid #cbd5e1',
-                      borderRadius: '10px',
-                      fontSize: '15px',
-                      padding: '8px 14px',
-                    }}
-                    type="text"
-                    placeholder="Masukkan Kode Toko"
-                    value={storeCode}
-                    onChange={(e) => setStoreCode(e.target.value.toUpperCase())}
-                    required
-                  />
-
-                  {/* Outlet Terdeteksi Card */}
-                  {storeInfo && (
-                    <div
-                      className="mt-2 p-2 px-3 rounded-3 d-flex align-items-center justify-content-between"
-                      style={{
-                        backgroundColor: '#eff6ff',
-                        border: '1px solid #bfdbfe',
-                        borderRadius: '10px',
-                      }}
-                    >
-                      <div className="d-flex align-items-center gap-2 overflow-hidden me-2" style={{ minWidth: 0 }}>
-                        <i className="bi bi-patch-check-fill text-primary flex-shrink-0" style={{ fontSize: '16px' }}></i>
-                        <div className="overflow-hidden">
-                          <div className="fw-bold text-primary text-truncate" style={{ fontSize: '13px', lineHeight: 1.2 }}>
-                            {storeInfo.name}
+                        <div className="form-group mb-2.5">
+                          <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
+                            No. WhatsApp Owner <span className="text-danger">*</span>
+                          </label>
+                          <div className="input-group">
+                            <span className="input-group-text bg-light text-muted fw-bold" style={{ border: '1.5px solid #cbd5e1', borderRight: 'none', borderRadius: '10px 0 0 10px', fontSize: '13px' }}>
+                              +62
+                            </span>
+                            <input
+                              className="form-control"
+                              style={{
+                                height: '42px',
+                                backgroundColor: '#f8fafc',
+                                border: '1.5px solid #cbd5e1',
+                                borderLeft: 'none',
+                                borderRadius: '0 10px 10px 0',
+                                fontSize: '14px',
+                              }}
+                              type="tel"
+                              placeholder="81234567890"
+                              value={phone}
+                              onChange={(e) => setPhone(e.target.value)}
+                              required
+                            />
                           </div>
-                          <span className="text-muted d-block" style={{ fontSize: '10px' }}>
-                            Outlet Terdeteksi
-                          </span>
+                          <div className="form-text text-muted" style={{ fontSize: '11px' }}>
+                            Kode toko unik akan otomatis dibuat dan dikirim ke nomor ini.
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* KHUSUS KASIR: Input Kode Toko yang Sudah Ada */}
+                    {registerMode === 'kasir' && (
+                      <div className="form-group mb-2.5">
+                        <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
+                          Kode Toko <span className="text-danger">*</span>
+                        </label>
+                        <input
+                          className="form-control text-uppercase font-monospace fw-bold"
+                          style={{
+                            height: '42px',
+                            backgroundColor: '#f8fafc',
+                            border: '1.5px solid #cbd5e1',
+                            borderRadius: '10px',
+                            fontSize: '14px',
+                            letterSpacing: '1px',
+                          }}
+                          type="text"
+                          placeholder="Contoh: FENDI-HSY789"
+                          value={storeCodeInput}
+                          onChange={(e) => setStoreCodeInput(e.target.value.toUpperCase())}
+                          required
+                        />
+                        <div className="form-text text-muted" style={{ fontSize: '11px' }}>
+                          Minta kode toko dari Owner laundry Anda.
                         </div>
                       </div>
-                      {/* <button
-                        type="button"
-                        className="btn btn-sm rounded-pill px-2.5 py-1 fw-bold flex-shrink-0 d-flex align-items-center gap-1 shadow-xs"
-                        style={{ fontSize: '11px', backgroundColor: '#0134d4', color: '#fff', border: 'none' }}
-                        onClick={() => setShowInstallPopup(true)}
-                      >
-                        <i className="bi bi-phone"></i>
-                        <span>Install</span>
-                      </button> */}
+                    )}
+
+                    {/* Nama Lengkap Pengguna */}
+                    <div className="form-group mb-2.5">
+                      <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
+                        Nama Lengkap {registerMode === 'owner' ? 'Owner' : 'Kasir'} <span className="text-danger">*</span>
+                      </label>
+                      <input
+                        className="form-control"
+                        style={{
+                          height: '42px',
+                          backgroundColor: '#f8fafc',
+                          border: '1.5px solid #cbd5e1',
+                          borderRadius: '10px',
+                          fontSize: '14px',
+                        }}
+                        type="text"
+                        placeholder="Contoh: Fendi Pratama"
+                        value={fullname}
+                        onChange={(e) => setFullname(e.target.value)}
+                        required
+                      />
                     </div>
-                  )}
 
-                  {!storeInfo && (
-                    <div className="form-text text-muted mt-1" style={{ fontSize: '11px' }}>
-                      Diberikan oleh administrator sistem saat outlet didaftarkan.
+                    {/* Username */}
+                    <div className="form-group mb-2.5">
+                      <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
+                        Username <span className="text-danger">*</span>
+                      </label>
+                      <input
+                        className="form-control"
+                        style={{
+                          height: '42px',
+                          backgroundColor: '#f8fafc',
+                          border: '1.5px solid #cbd5e1',
+                          borderRadius: '10px',
+                          fontSize: '14px',
+                        }}
+                        type="text"
+                        placeholder="Contoh: fendi"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+                        required
+                      />
+                      {registerMode === 'owner' && username && (
+                        <div className="form-text text-muted" style={{ fontSize: '11px' }}>
+                          Prefix kode toko Anda akan menjadi: <strong>{username.slice(0, 6).toUpperCase()}-XXXXXX</strong>
+                        </div>
+                      )}
                     </div>
-                  )}
+
+                    {/* Password */}
+                    <div className="form-group mb-2">
+                      <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
+                        Password <span className="text-danger">*</span>
+                      </label>
+                      <div className="position-relative">
+                        <input
+                          className="form-control pe-5"
+                          style={{
+                            height: '42px',
+                            backgroundColor: '#f8fafc',
+                            border: '1.5px solid #cbd5e1',
+                            borderRadius: '10px',
+                            fontSize: '14px',
+                          }}
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="Minimal 6 karakter"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          required
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-link position-absolute end-0 top-50 translate-middle-y text-muted text-decoration-none me-1"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Konfirmasi Password */}
+                    <div className="form-group mb-2.5">
+                      <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
+                        Konfirmasi Password <span className="text-danger">*</span>
+                      </label>
+                      <div className="position-relative">
+                        <input
+                          className="form-control pe-5"
+                          style={{
+                            height: '42px',
+                            backgroundColor: '#f8fafc',
+                            border: '1.5px solid #cbd5e1',
+                            borderRadius: '10px',
+                            fontSize: '14px',
+                          }}
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          placeholder="Ulangi password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          required
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-link position-absolute end-0 top-50 translate-middle-y text-muted text-decoration-none me-1"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        >
+                          <i className={`bi ${showConfirmPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Indikator Validasi Password Ringkas */}
+                    {password && (
+                      <div className="p-2.5 rounded-3 mb-3 bg-light" style={{ fontSize: '11px', border: '1px solid #e2e8f0' }}>
+                        <div className="fw-semibold text-muted mb-1">Ketentuan Keamanan Password:</div>
+                        <div className="d-flex flex-wrap gap-x-3 gap-y-1">
+                          <span className={hasMinLen ? 'text-success fw-bold' : 'text-muted'}>
+                            {hasMinLen ? '✓' : '•'} Min 6 karakter
+                          </span>
+                          <span className={hasUpper && hasLower ? 'text-success fw-bold' : 'text-muted'}>
+                            {hasUpper && hasLower ? '✓' : '•'} Huruf besar & kecil
+                          </span>
+                          <span className={hasSpecial ? 'text-success fw-bold' : 'text-muted'}>
+                            {hasSpecial ? '✓' : '•'} Karakter spesial (!@#$)
+                          </span>
+                          {confirmPassword && (
+                            <span className={isPassMatching ? 'text-success fw-bold' : 'text-danger'}>
+                              {isPassMatching ? '✓ Password cocok' : '✗ Password belum cocok'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Submit Button */}
+                    <button
+                      className="btn btn-primary w-100 fw-bold shadow-sm mt-2"
+                      style={{
+                        height: '46px',
+                        borderRadius: '12px',
+                        fontSize: '15px',
+                        backgroundColor: '#0134d4',
+                        borderColor: '#0134d4',
+                        boxShadow: '0 4px 12px rgba(1, 52, 212, 0.25)',
+                      }}
+                      type="submit"
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <div className="d-flex align-items-center justify-content-center gap-2">
+                          <div className="spinner-border spinner-border-sm" role="status"></div>
+                          <span>Membuat Toko & Akun...</span>
+                        </div>
+                      ) : (
+                        registerMode === 'owner' ? 'Daftar Toko & Buat Kode Toko' : 'Daftar Akun Kasir'
+                      )}
+                    </button>
+                  </form>
                 </div>
 
-                {/* Nama Lengkap */}
-                <div className="form-group mb-2.5">
-                  <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
-                    Nama Lengkap
-                  </label>
-                  <input
-                    className="form-control"
-                    style={{
-                      height: '42px',
-                      backgroundColor: '#f8fafc',
-                      border: '1.5px solid #cbd5e1',
-                      borderRadius: '10px',
-                      fontSize: '14px',
-                      color: '#0f172a',
-                      padding: '8px 14px',
-                    }}
-                    type="text"
-                    placeholder="Masukkan nama lengkap"
-                    value={fullname}
-                    onChange={(e) => setFullname(e.target.value)}
-                    required
-                  />
+                {/* Footer */}
+                <div className="login-meta-data text-center pb-3 pt-1">
+                  <p className="mb-0 text-muted" style={{ fontSize: '13px' }}>
+                    Sudah punya akun?{' '}
+                    <Link to="/login" className="fw-bold text-decoration-none" style={{ color: '#0134d4' }}>
+                      Login di sini
+                    </Link>
+                  </p>
                 </div>
-
-                {/* Username */}
-                <div className="form-group mb-2.5">
-                  <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
-                    Username
-                  </label>
-                  <input
-                    className="form-control"
-                    style={{
-                      height: '42px',
-                      backgroundColor: '#f8fafc',
-                      border: '1.5px solid #cbd5e1',
-                      borderRadius: '10px',
-                      fontSize: '14px',
-                      color: '#0f172a',
-                      padding: '8px 14px',
-                    }}
-                    type="text"
-                    placeholder="Masukkan username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                  />
-                </div>
-
-                {/* Password */}
-                <div className="form-group mb-3">
-                  <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
-                    Password
-                  </label>
-                  <input
-                    className="form-control"
-                    style={{
-                      height: '42px',
-                      backgroundColor: '#f8fafc',
-                      border: '1.5px solid #cbd5e1',
-                      borderRadius: '10px',
-                      fontSize: '14px',
-                      color: '#0f172a',
-                      padding: '8px 14px',
-                    }}
-                    type="password"
-                    placeholder="Masukkan password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-
-                {/* Submit Button */}
-                <button
-                  className="btn btn-primary w-100 fw-bold shadow-sm"
-                  style={{
-                    height: '46px',
-                    borderRadius: '12px',
-                    fontSize: '15px',
-                    backgroundColor: '#0134d4',
-                    borderColor: '#0134d4',
-                    boxShadow: '0 4px 12px rgba(1, 52, 212, 0.25)',
-                  }}
-                  type="submit"
-                  disabled={loading}
-                >
-                  {loading ? 'Memproses...' : 'Daftar'}
-                </button>
-              </form>
-            </div>
-
-            {/* Footer */}
-            <div className="login-meta-data text-center mt-3 pt-1">
-              <p className="mb-0 text-muted" style={{ fontSize: '13px' }}>
-                Sudah punya akun?{' '}
-                <Link to="/login" className="fw-bold text-decoration-none" style={{ color: '#0134d4' }}>
-                  Login di sini
-                </Link>
-              </p>
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

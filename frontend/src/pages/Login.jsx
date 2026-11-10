@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { loginUser } from '../db/repositories/users';
 import { db } from '../db';
 import { fetchStoreInfoByCode, updatePwaManifest, promptPwaInstall } from '../utils/pwaHelper';
@@ -84,6 +85,10 @@ const Login = ({ onLogin }) => {
               phone: s.telepon || '',
             });
             setHasSavedStore(true);
+          }
+
+          if (searchParams.get('activated') === 'true') {
+            toast.success(`Akun toko ${savedCode} berhasil diaktivasi! Silakan login.`);
           }
         }
 
