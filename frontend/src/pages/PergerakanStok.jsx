@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getInventoryEventsQuery, getInventoryQuery } from '../db/repositories/inventory';
 import { getInventoryEventsFromDB } from '../services/syncService';
+import PlanGateModal from '../components/PlanGateModal';
+import { isSubscriptionEnabled, getSubscriptionReport } from '../services/subscriptionService';
 
 // Helper format tanggal lokal YYYY-MM-DD sesuai zona waktu browser pengguna (WIB)
 const getLocalDateStr = (dateVal) => {
@@ -39,6 +41,22 @@ export default function PergerakanStok({ user }) {
 
   const [dbEvents, setDbEvents] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [subReport, setSubReport] = useState(null);
+  const [gateModalOpen, setGateModalOpen] = useState(false);
+
+  // Ambil data subscription untuk verifikasi hak akses riwayat stok
+  useEffect(() => {
+    if (isSubscriptionEnabled()) {
+      getSubscriptionReport()
+        .then((res) => {
+          setSubReport(res);
+          if (res?.limits?.hasStockHistory === false) {
+            setGateModalOpen(true);
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   // Ambil langsung data pergerakan stok dari DB tabel inventoryEvent
   const fetchFromDB = async () => {
@@ -767,6 +785,15 @@ export default function PergerakanStok({ user }) {
           })
         )}
       </div>
+
+      {/* Plan Gate Modal jika paket belum mendukung fitur riwayat stok */}
+      <PlanGateModal
+        isOpen={gateModalOpen}
+        onClose={() => setGateModalOpen(false)}
+        type="STOCK_HISTORY_LOCKED"
+        customData={{ plan: subReport?.plan || 'TRIAL' }}
+        user={user}
+      />
     </div>
   );
 }

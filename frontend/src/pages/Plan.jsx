@@ -123,12 +123,12 @@ export default function Plan({ user }) {
             {/* NOTIFIKASI KHUSUS JIKA LOGGED IN SEBAGAI KASIR */}
             {!isOwner && (
               <div
-                className="alert border-0 rounded-4 shadow-xs py-2.5 px-3 mb-3 d-flex align-items-center gap-2.5"
+                className="alert border-0 rounded-4 shadow-xs py-2 px-3 mb-3 d-flex align-items-center gap-2"
                 style={{ backgroundColor: '#e0f2fe', color: '#0369a1', fontSize: '0.82rem' }}
               >
-                <i className="bi bi-info-circle-fill fs-5 text-primary flex-shrink-0"></i>
+                <i className="bi bi-shield-lock-fill fs-5 text-primary flex-shrink-0"></i>
                 <div>
-                  <strong>Mode Tinjau Kasir:</strong> Anda sedang melihat rincian batas kuota paket toko. Perubahan atau upgrade paket hanya dapat diproses oleh akun <strong>Owner</strong>.
+                  <strong>Mode Kasir:</strong> Hanya akun Owner yang dapat mengubah atau upgrade paket toko.
                 </div>
               </div>
             )}
@@ -358,20 +358,20 @@ export default function Plan({ user }) {
                   <div className="fw-bold text-dark mb-1.5" style={{ fontSize: '1.25rem', letterSpacing: '-0.3px' }}>
                     {users.used}{' '}
                     <span className="text-muted fw-normal" style={{ fontSize: '0.8rem' }}>
-                      / {users.limit}
+                      / {users.limit === -1 ? '∞' : users.limit}
                     </span>
                   </div>
                   <div className="progress rounded-pill mb-1.5" style={{ height: '6px', backgroundColor: '#f1f5f9' }}>
                     <div
                       className="progress-bar rounded-pill"
                       style={{
-                        width: `${Math.min(100, (users.used / users.limit) * 100)}%`,
+                        width: `${users.limit === -1 ? 0 : Math.min(100, (users.used / users.limit) * 100)}%`,
                         backgroundColor: users.isExceeded ? '#ef4444' : '#2563eb',
                       }}
                     />
                   </div>
                   <span className="text-muted d-block" style={{ fontSize: '0.7rem' }}>
-                    {users.isExceeded ? 'Batas tercapai' : `Maks ${users.limit} pengguna`}
+                    {users.limit === -1 ? 'Tak terbatas' : users.isExceeded ? 'Batas tercapai' : `Maks ${users.limit} pengguna`}
                   </span>
                 </div>
               </div>
@@ -404,7 +404,13 @@ export default function Plan({ user }) {
                     />
                   </div>
                   <span className="text-muted d-block" style={{ fontSize: '0.7rem' }}>
-                    {inv.limit === 0 ? 'Terkunci di Trial' : inv.limit === -1 ? 'Unlimited item' : `${inv.remaining} item lagi`}
+                    {inv.limit === 0
+                      ? 'Terkunci di Trial'
+                      : inv.limit === -1
+                      ? 'Unlimited item'
+                      : inv.remaining <= 0 || inv.isExceeded
+                      ? 'jumlah maksimal tercapai'
+                      : `${inv.remaining} item lagi`}
                   </span>
                 </div>
               </div>
@@ -500,7 +506,7 @@ export default function Plan({ user }) {
                       </td>
                       {plans.map((p) => (
                         <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
-                          {p.maxProducts === -1 ? 'Unlimited' : `${p.maxProducts ?? 5} produk`}
+                          {p.maxProducts === -1 ? 'Unlimited' : `${p.maxProducts ?? (p.key === 'TRIAL' ? 12 : 20)} produk`}
                         </td>
                       ))}
                     </tr>
@@ -623,6 +629,22 @@ export default function Plan({ user }) {
                       ))}
                     </tr>
 
+                    {/* Riwayat stok */}
+                    <tr>
+                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                        Riwayat stok
+                      </td>
+                      {plans.map((p) => (
+                        <td key={p.key} className={`text-center ${p.isPopular ? 'bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                          {p.hasStockHistory ? (
+                            <i className="bi bi-check-circle-fill text-success"></i>
+                          ) : (
+                            <span className="text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></span>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+
                     {/* Jumlah outlet */}
                     <tr>
                       <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
@@ -642,7 +664,7 @@ export default function Plan({ user }) {
                       </td>
                       {plans.map((p) => (
                         <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
-                          {p.maxUsers}
+                          {p.maxUsers === -1 ? 'Unlimited' : p.maxUsers}
                         </td>
                       ))}
                     </tr>

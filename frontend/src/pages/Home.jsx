@@ -572,6 +572,14 @@ const Home = ({ user }) => {
                         cursor: 'pointer'
                       }}
                       onClick={() => {
+                        if (isSubscriptionEnabled() && subReport?.limits?.hasStockHistory === false) {
+                          setGateModal({
+                            open: true,
+                            type: 'STOCK_HISTORY_LOCKED',
+                            data: { plan: subReport?.plan || 'TRIAL' },
+                          });
+                          return;
+                        }
                         setShowInventoryModal(false);
                         navigate('/pergerakan-stok');
                       }}
@@ -599,18 +607,30 @@ const Home = ({ user }) => {
                       <form onSubmit={async (e) => {
                         e.preventDefault();
                         const form = e.target;
-                        const nama = form.nama.value;
-                        const stok = parseInt(form.stok.value);
+                        const rawNama = form.nama.value;
+                        const nama = rawNama ? rawNama.trim() : '';
+                        const stok = parseInt(form.stok.value) || 0;
                         const isKasir = user?.role === 'kasir';
+
+                        if (!nama) return;
+
+                        const cleanNama = nama.toLowerCase();
+                        const existingItem = inventory?.find(
+                          (item) => !item.deletedAt && item.status !== 'rejected' && item.nama?.trim().toLowerCase() === cleanNama
+                        );
 
                         if (isSubscriptionEnabled()) {
                           if (subReport?.limits?.maxStockItems === 0) {
                             setGateModal({ open: true, type: 'STOCK_LOCKED', data: { plan: subReport?.plan } });
                             return;
                           }
-                          if (subReport?.limits?.maxStockItems !== -1 && (inventory?.length || 0) >= subReport?.limits?.maxStockItems) {
-                            setGateModal({ open: true, type: 'STOCK_LIMIT', data: { plan: subReport?.plan, limit: subReport?.limits?.maxStockItems } });
-                            return;
+                          // Limit stok bahan hanya membatasi jika menambah jenis item baru yang belum ada di daftar inventaris
+                          if (!existingItem) {
+                            const activeStockCount = inventory?.filter((item) => !item.deletedAt && item.status !== 'rejected').length || 0;
+                            if (subReport?.limits?.maxStockItems !== -1 && activeStockCount >= subReport?.limits?.maxStockItems) {
+                              setGateModal({ open: true, type: 'STOCK_LIMIT', data: { plan: subReport?.plan, limit: subReport?.limits?.maxStockItems } });
+                              return;
+                            }
                           }
                         }
 

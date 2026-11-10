@@ -17,6 +17,11 @@ describe('Login Page Store Branding', () => {
     vi.restoreAllMocks();
     localStorage.clear();
     sessionStorage.clear();
+    window.matchMedia = window.matchMedia || vi.fn().mockImplementation(() => ({
+      matches: false,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    }));
   });
 
   it('menampilkan "KASIR LAUNDRY" secara default saat belum ada kode toko', () => {

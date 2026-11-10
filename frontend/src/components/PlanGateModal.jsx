@@ -39,8 +39,23 @@ export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIM
           iconBg: '#fffbeb',
           title: 'Fitur Stok Terkunci',
           subtitle: 'Paket Trial (Gratis)',
-          message: 'Fitur manajemen stok bahan (deterjen, gas, molto) tersedia mulai dari paket Starter (25rb/bln).',
+          message: isOwner
+            ? 'Fitur manajemen stok bahan (deterjen, gas, molto) tersedia mulai dari paket Starter (25rb/bln).'
+            : 'Fitur stok terkunci. Hubungi Owner untuk buka akses.',
           recommendation: 'Starter (5 item) atau Basic (20 item)',
+          ctaText: isOwner ? 'Buka Halaman Plan' : 'Hubungi Owner Toko',
+        };
+      case 'STOCK_HISTORY_LOCKED':
+        return {
+          icon: 'bi-clock-history',
+          iconColor: '#6366f1',
+          iconBg: '#eef2ff',
+          title: 'Riwayat Stok Terkunci',
+          subtitle: `Paket ${customData.plan || 'Trial/Starter'}`,
+          message: isOwner
+            ? 'Fitur riwayat pergerakan stok tersedia mulai dari paket Basic.'
+            : 'Riwayat stok terkunci. Hubungi Owner untuk buka akses.',
+          recommendation: 'Basic (50rb/bln) atau Pro',
           ctaText: isOwner ? 'Buka Halaman Plan' : 'Hubungi Owner Toko',
         };
       case 'STOCK_LIMIT':
@@ -50,7 +65,9 @@ export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIM
           iconBg: '#fef2f2',
           title: 'Batas Item Stok Tercapai',
           subtitle: `Limit Paket ${customData.plan || ''}`,
-          message: `Toko Anda telah mencapai batas maksimal (${customData.limit || 5} jenis item). Data lama tetap aman.`,
+          message: isOwner
+            ? `Toko Anda telah mencapai batas maksimal (${customData.limit || 5} jenis item). Data lama tetap aman.`
+            : `Batas item stok sudah penuh. Hubungi Owner untuk tambah.`,
           recommendation: 'Upgrade ke Basic atau Pro',
           ctaText: isOwner ? 'Upgrade di Menu Plan' : 'Hubungi Owner Toko',
         };
@@ -60,9 +77,11 @@ export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIM
           iconColor: '#059669',
           iconBg: '#ecfdf5',
           title: 'Batas Master Produk Tercapai',
-          subtitle: `Limit Paket ${customData.plan || ''} (${customData.limit || 50} Produk)`,
-          message: `Toko Anda telah mencapai batas kuota upload produk (${customData.limit || 50} produk). Data produk lama tetap aman dan bisa ditransaksikan.`,
-          recommendation: 'Starter (150 produk) atau Basic (500 produk)',
+          subtitle: `Limit Paket ${customData.plan || ''} (${customData.limit || 12} Produk)`,
+          message: isOwner
+            ? `Toko Anda telah mencapai batas kuota upload produk (${customData.limit || 12} produk). Data produk lama tetap aman dan bisa ditransaksikan.`
+            : `Batas upload produk sudah penuh (${customData.limit || 12} produk). Hubungi Owner untuk tambah.`,
+          recommendation: customData.plan === 'TRIAL' ? 'Starter (20 produk) atau Basic (50 produk)' : 'Basic (50 produk)',
           ctaText: isOwner ? 'Upgrade di Menu Plan' : 'Hubungi Owner Toko',
         };
       case 'TRANSACTION_LIMIT':
@@ -72,7 +91,9 @@ export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIM
           iconBg: '#fef2f2',
           title: 'Batas Transaksi Tercapai',
           subtitle: `Kuota ${customData.limit || 30} Order Habis`,
-          message: 'Transaksi baru dibatasi bulan ini. Seluruh data lama dan nota tetap bisa dibuka dan dicetak.',
+          message: isOwner
+            ? 'Transaksi baru dibatasi bulan ini. Seluruh data lama dan nota tetap bisa dibuka dan dicetak.'
+            : 'Batas transaksi bulan ini sudah habis. Hubungi Owner untuk top-up.',
           recommendation: 'Top-up kuota atau upgrade paket',
           ctaText: isOwner ? 'Lihat Opsi di Halaman Plan' : 'Hubungi Owner Toko',
         };
@@ -82,8 +103,10 @@ export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIM
           iconColor: '#6366f1',
           iconBg: '#eef2ff',
           title: 'Batas Jumlah Akun/Kasir',
-          subtitle: `Maksimal ${customData.limit || 1} Akun`,
-          message: `Paket ${customData.plan || 'saat ini'} hanya mendukung ${customData.limit || 1} akun/kasir. Upgrade untuk menambah kasir baru.`,
+          subtitle: `Maksimal ${customData.limit || 2} Akun`,
+          message: isOwner
+            ? `Paket ${customData.plan || 'saat ini'} hanya mendukung ${customData.limit || 2} akun/kasir. Upgrade untuk menambah kasir baru.`
+            : `Batas kasir sudah maksimal (${customData.limit || 2} akun). Hubungi Owner untuk tambah.`,
           recommendation: 'Basic (3 kasir) atau Pro (5 kasir)',
           ctaText: isOwner ? 'Lihat Paket di Halaman Plan' : 'Hubungi Owner Toko',
         };
@@ -94,7 +117,9 @@ export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIM
           iconBg: '#fdf2f8',
           title: 'Batas Foto Chat Tercapai',
           subtitle: 'Kuota Foto Habis',
-          message: 'Kirim foto chat bulan ini telah mencapai limit. Beli kuota tambahan atau upgrade paket.',
+          message: isOwner
+            ? 'Kirim foto chat bulan ini telah mencapai limit. Beli kuota tambahan atau upgrade paket.'
+            : 'Batas kirim foto chat sudah habis. Hubungi Owner untuk top-up.',
           recommendation: 'Top-up kuota foto atau upgrade',
           ctaText: isOwner ? 'Buka Halaman Plan' : 'Hubungi Owner Toko',
         };
@@ -105,9 +130,11 @@ export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIM
           iconBg: '#fef2f2',
           title: 'Batas Cetak Nota PDF',
           subtitle: customData.plan === 'TRIAL' ? 'Paket Trial (Gratis)' : `Limit ${customData.limit || 20} Nota/Bulan`,
-          message: customData.plan === 'TRIAL'
-            ? 'Cetak dan unduh Nota PDF A4 terkunci pada paket Trial. Tersedia mulai dari paket Starter.'
-            : `Kuota cetak nota PDF A4 (${customData.limit || 20} nota) bulan ini telah habis. Nota cetak thermal tetap dapat digunakan.`,
+          message: isOwner
+            ? (customData.plan === 'TRIAL'
+              ? 'Cetak dan unduh Nota PDF A4 terkunci pada paket Trial. Tersedia mulai dari paket Starter.'
+              : `Kuota cetak nota PDF A4 (${customData.limit || 20} nota) bulan ini telah habis. Nota cetak thermal tetap dapat digunakan.`)
+            : 'Batas cetak nota PDF sudah habis. Hubungi Owner untuk upgrade.',
           recommendation: 'Starter (20 nota) atau Basic (100 nota)',
           ctaText: isOwner ? 'Buka Halaman Plan' : 'Hubungi Owner Toko',
         };
@@ -118,7 +145,9 @@ export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIM
           iconBg: '#eef2ff',
           title: 'Asisten Bot Terkunci',
           subtitle: `Paket ${customData.plan || 'Toko'}`,
-          message: `Fitur asisten bot chat otomatis tidak tersedia pada paket ${customData.plan || 'saat ini'}. Upgrade ke paket Basic atau Pro untuk menggunakan asisten bot.`,
+          message: isOwner
+            ? `Fitur asisten bot chat otomatis tidak tersedia pada paket ${customData.plan || 'saat ini'}. Upgrade ke paket Basic atau Pro untuk menggunakan asisten bot.`
+            : 'Fitur asisten bot terkunci. Hubungi Owner untuk aktifkan.',
           recommendation: 'Basic (200x) atau Pro (1000x)',
           ctaText: isOwner ? 'Upgrade di Halaman Plan' : 'Hubungi Owner Toko',
         };
@@ -129,7 +158,9 @@ export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIM
           iconBg: '#eef2ff',
           title: 'Batas Perintah Bot Tercapai',
           subtitle: `Limit ${customData.limit || 10} Perintah/Bulan`,
-          message: `Penggunaan asisten bot chat bulan ini telah mencapai kuota maksimal (${customData.limit || 10} perintah). Upgrade paket untuk kuota lebih banyak.`,
+          message: isOwner
+            ? `Penggunaan asisten bot chat bulan ini telah mencapai kuota maksimal (${customData.limit || 10} perintah). Upgrade paket untuk kuota lebih banyak.`
+            : 'Batas chat bot sudah habis. Hubungi Owner untuk tambah kuota.',
           recommendation: 'Basic (200x) atau Pro (1000x)',
           ctaText: isOwner ? 'Buka Halaman Plan' : 'Hubungi Owner Toko',
         };
@@ -140,7 +171,9 @@ export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIM
           iconBg: '#eff6ff',
           title: 'Upgrade Paket Toko',
           subtitle: 'Fitur Terbatas',
-          message: 'Tingkatkan paket toko untuk menikmati kuota lebih besar dan fitur bisnis lengkap.',
+          message: isOwner
+            ? 'Tingkatkan paket toko untuk menikmati kuota lebih besar dan fitur bisnis lengkap.'
+            : 'Fitur ini terbatas. Hubungi Owner untuk upgrade paket.',
           recommendation: 'Basic 50rb/bln ⭐ (Paling Laris)',
           ctaText: isOwner ? 'Lihat Halaman Plan' : 'Hubungi Owner Toko',
         };
@@ -164,13 +197,13 @@ export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIM
         style={{
           backdropFilter: 'blur(4px)',
           backgroundColor: 'rgba(15, 23, 42, 0.45)',
-          zIndex: 1080,
+          zIndex: 1100,
         }}
         onClick={onClose}
       />
 
       {/* Modal Dialog Kompak */}
-      <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1085 }}>
+      <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1105 }}>
         <div className="modal-dialog modal-dialog-centered mx-auto px-3" style={{ maxWidth: '360px', width: '100%' }}>
           <div
             className="modal-content border-0 shadow-lg bg-white text-center position-relative"
@@ -206,24 +239,12 @@ export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIM
               <span className="badge bg-light text-secondary rounded-pill border px-2.5 py-1" style={{ fontSize: '0.68rem' }}>
                 {config.subtitle}
               </span>
-              {!isOwner && (
-                <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2.5 py-1" style={{ fontSize: '0.68rem' }}>
-                  Akses Kasir
-                </span>
-              )}
             </div>
 
             {/* Pesan singkat */}
             <p className="text-muted small mb-2.5 px-1" style={{ fontSize: '0.82rem', lineHeight: '1.45' }}>
               {config.message}
             </p>
-
-            {/* Catatan khusus jika role kasir */}
-            {!isOwner && (
-              <p className="text-secondary small mb-2.5 fst-italic px-1" style={{ fontSize: '0.72rem' }}>
-                *Penggantian atau upgrade paket hanya dapat diproses oleh Owner toko.
-              </p>
-            )}
 
             {/* Box Rekomendasi Ringkas */}
             <div
@@ -240,9 +261,9 @@ export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIM
               </div>
             </div>
 
-            {/* Tombol Aksi */}
-            <div className="d-flex flex-column gap-2">
-              {isOwner ? (
+            {/* Tombol Aksi (Khusus Owner; untuk Kasir tombol 'Dimengerti' dihilangkan) */}
+            {isOwner && (
+              <div className="d-flex flex-column gap-2">
                 <button
                   type="button"
                   className="btn btn-primary rounded-pill py-2.5 px-3 fw-semibold shadow-xs d-flex align-items-center justify-content-center gap-2 w-100"
@@ -252,18 +273,8 @@ export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIM
                   <span>{config.ctaText}</span>
                   <i className="bi bi-arrow-right"></i>
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn-primary rounded-pill py-2.5 px-3 fw-semibold shadow-xs d-flex align-items-center justify-content-center gap-2 w-100"
-                  style={{ fontSize: '0.84rem' }}
-                  onClick={onClose}
-                >
-                  <i className="bi bi-check2"></i>
-                  <span>Dimengerti</span>
-                </button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

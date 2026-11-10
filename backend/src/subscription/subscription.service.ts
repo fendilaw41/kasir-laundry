@@ -101,9 +101,10 @@ export class SubscriptionService {
           customTrackingView: dbPlan.customTrackingView,
           maxStockItems: dbPlan.maxStockItems,
           lowStockNotification: dbPlan.lowStockNotification,
+          hasStockHistory: (dbPlan as any).hasStockHistory ?? (getPlanLimits()[planKey]?.hasStockHistory ?? false),
           maxOutlets: dbPlan.maxOutlets,
           maxUsers: dbPlan.maxUsers,
-          maxProducts: (dbPlan as any).maxProducts ?? (getPlanLimits()[planKey]?.maxProducts ?? 5),
+          maxProducts: (dbPlan as any).maxProducts ?? (getPlanLimits()[planKey]?.maxProducts ?? (planKey === 'TRIAL' ? 12 : 20)),
           dataHistoryMonths: dbPlan.dataHistoryMonths,
           photoRetentionDays: dbPlan.photoRetentionDays,
           supportType: dbPlan.supportType,
@@ -184,7 +185,27 @@ export class SubscriptionService {
       await this.prisma.masterPlan.upsert({
         where: { key: item.key },
         create: item,
-        update: {},
+        update: {
+          name: item.name,
+          price: item.price,
+          priceLabel: item.priceLabel,
+          isPopular: item.isPopular,
+          maxTransactions: item.maxTransactions,
+          maxChatPhotos: item.maxChatPhotos,
+          botTransactions: item.botTransactions,
+          maxPdfInvoice: item.maxPdfInvoice,
+          maxStockItems: item.maxStockItems,
+          lowStockNotification: item.lowStockNotification,
+          hasStockHistory: item.hasStockHistory,
+          maxOutlets: item.maxOutlets,
+          maxUsers: item.maxUsers,
+          maxProducts: item.maxProducts,
+          dataHistoryMonths: item.dataHistoryMonths,
+          photoRetentionDays: item.photoRetentionDays,
+          supportType: item.supportType,
+          sortOrder: item.sortOrder,
+          badgeColor: item.badgeColor,
+        },
       });
     }
   }
@@ -271,12 +292,12 @@ export class SubscriptionService {
           maxChatPhotos: planLimits.maxChatPhotos === -1 ? 999999 : planLimits.maxChatPhotos,
           usedPhotos: 0,
           remainingPhotos: planLimits.maxChatPhotos === -1 ? 999999 : planLimits.maxChatPhotos,
-          maxUsers: planLimits.maxUsers,
+          maxUsers: planLimits.maxUsers === -1 ? 999999 : planLimits.maxUsers,
           usedUsers: 1,
-          remainingUsers: Math.max(0, planLimits.maxUsers - 1),
-          maxProducts: planLimits.maxProducts === -1 ? 999999 : (planLimits.maxProducts ?? 5),
+          remainingUsers: planLimits.maxUsers === -1 ? 999999 : Math.max(0, planLimits.maxUsers - 1),
+          maxProducts: planLimits.maxProducts === -1 ? 999999 : (planLimits.maxProducts ?? (defaultPlan === 'TRIAL' ? 12 : 20)),
           usedProducts: 0,
-          remainingProducts: planLimits.maxProducts === -1 ? 999999 : (planLimits.maxProducts ?? 5),
+          remainingProducts: planLimits.maxProducts === -1 ? 999999 : (planLimits.maxProducts ?? (defaultPlan === 'TRIAL' ? 12 : 20)),
           maxStockItems: planLimits.maxStockItems === -1 ? 999999 : planLimits.maxStockItems,
           usedInventory: 0,
           remainingInventory: planLimits.maxStockItems === -1 ? 999999 : planLimits.maxStockItems,
@@ -381,7 +402,7 @@ export class SubscriptionService {
     const photoPercentage = limits.maxChatPhotos === -1 ? 0 : Math.min(100, Math.round((usedPhotos / totalPhotoLimit) * 100));
     const photoRemaining = limits.maxChatPhotos === -1 ? 999999 : Math.max(0, totalPhotoLimit - usedPhotos);
 
-    const userLimit = limits.maxUsers;
+    const userLimit = limits.maxUsers === -1 ? 999999 : limits.maxUsers;
     const inventoryLimit = limits.maxStockItems === -1 ? 999999 : limits.maxStockItems;
 
     const store = await this.prisma.store.findUnique({
@@ -391,7 +412,7 @@ export class SubscriptionService {
     const featureSubscriptionEnabled = store?.featureSubscriptionEnabled ?? true;
     const showUpgradeBanner = store?.showUpgradeBanner ?? true;
 
-    const remainingUsers = Math.max(0, userLimit - usedUsers);
+    const remainingUsers = limits.maxUsers === -1 ? 999999 : Math.max(0, userLimit - usedUsers);
     const remainingInventory = inventoryLimit === -1 ? 999999 : Math.max(0, inventoryLimit - usedInventory);
 
     // Simpan snapshot kuota & limit per store langsung ke database StoreSubscription
@@ -460,9 +481,9 @@ export class SubscriptionService {
         },
         users: {
           used: usedUsers,
-          limit: userLimit,
-          remaining: Math.max(0, userLimit - usedUsers),
-          isExceeded: usedUsers >= userLimit,
+          limit: limits.maxUsers,
+          remaining: remainingUsers,
+          isExceeded: limits.maxUsers !== -1 && usedUsers >= userLimit,
         },
         inventory: {
           used: usedInventory,
@@ -487,7 +508,7 @@ export class SubscriptionService {
    */
   async assertCanPerformAction(
     storeId: string,
-    action: 'CREATE_ORDER' | 'UPLOAD_CHAT_PHOTO' | 'CREATE_USER' | 'CREATE_INVENTORY' | 'CREATE_PRODUCT',
+    action: 'CREATE_ORDER' | 'UPLOAD_CHAT_PHOTO' | 'CREATE_USER' | 'CREATE_INVENTORY' | 'CREATE_PRODUCT' | 'VIEW_STOCK_HISTORY',
   ) {
     const store = await this.prisma.store.findUnique({
       where: { id: storeId },
@@ -539,7 +560,7 @@ export class SubscriptionService {
       });
     }
 
-    if (action === 'CREATE_USER' && report.usage.users.isExceeded) {
+    if (action === 'CREATE_USER' && report.limits.maxUsers !== -1 && report.usage.users.isExceeded) {
       throw new ForbiddenException({
         statusCode: 403,
         error: 'USER_LIMIT_EXCEEDED',
@@ -547,6 +568,16 @@ export class SubscriptionService {
         canTopup: false,
         current: report.usage.users.used,
         limit: report.limits.maxUsers,
+        whatsappBillingNumber: report.whatsappBillingNumber,
+      });
+    }
+
+    if (action === 'VIEW_STOCK_HISTORY' && report.limits.hasStockHistory === false) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        error: 'STOCK_HISTORY_LOCKED',
+        message: `Fitur Riwayat Pergerakan Stok tidak tersedia di paket ${report.plan}. Upgrade ke paket Basic atau lebih tinggi untuk melihat riwayat stok.`,
+        canTopup: false,
         whatsappBillingNumber: report.whatsappBillingNumber,
       });
     }
@@ -679,9 +710,9 @@ export class SubscriptionService {
         remainingTransactions: planLimits.maxTransactions === -1 ? 999999 : planLimits.maxTransactions,
         maxChatPhotos: planLimits.maxChatPhotos === -1 ? 999999 : planLimits.maxChatPhotos,
         remainingPhotos: planLimits.maxChatPhotos === -1 ? 999999 : planLimits.maxChatPhotos,
-        maxUsers: planLimits.maxUsers,
-        maxProducts: planLimits.maxProducts === -1 ? 999999 : (planLimits.maxProducts ?? 5),
-        remainingProducts: planLimits.maxProducts === -1 ? 999999 : (planLimits.maxProducts ?? 5),
+        maxUsers: planLimits.maxUsers === -1 ? 999999 : planLimits.maxUsers,
+        maxProducts: planLimits.maxProducts === -1 ? 999999 : (planLimits.maxProducts ?? (plan === 'TRIAL' ? 12 : 20)),
+        remainingProducts: planLimits.maxProducts === -1 ? 999999 : (planLimits.maxProducts ?? (plan === 'TRIAL' ? 12 : 20)),
         maxStockItems: planLimits.maxStockItems === -1 ? 999999 : planLimits.maxStockItems,
       },
     });

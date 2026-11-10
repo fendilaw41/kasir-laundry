@@ -76,12 +76,33 @@ describe('SubscriptionService', () => {
     expect(limits.BUSINESS.maxTransactions).toBe(1000);
     expect(limits.BASIC.isPopular).toBe(true);
 
-    // Verifikasi batas produk sesuai tier
-    expect(limits.TRIAL.maxProducts).toBe(5);
-    expect(limits.STARTER.maxProducts).toBe(10);
+    // Verifikasi batas produk sesuai tier baru
+    expect(limits.TRIAL.maxProducts).toBe(12);
+    expect(limits.STARTER.maxProducts).toBe(20);
     expect(limits.BASIC.maxProducts).toBe(50);
     expect(limits.PRO.maxProducts).toBe(100);
     expect(limits.BUSINESS.maxProducts).toBe(-1);
+
+    // Verifikasi foto chat sama dengan transaksi
+    expect(limits.TRIAL.maxChatPhotos).toBe(limits.TRIAL.maxTransactions);
+    expect(limits.STARTER.maxChatPhotos).toBe(limits.STARTER.maxTransactions);
+    expect(limits.BASIC.maxChatPhotos).toBe(limits.BASIC.maxTransactions);
+    expect(limits.PRO.maxChatPhotos).toBe(limits.PRO.maxTransactions);
+    expect(limits.BUSINESS.maxChatPhotos).toBe(limits.BUSINESS.maxTransactions);
+
+    // Verifikasi history stok
+    expect(limits.TRIAL.hasStockHistory).toBe(false);
+    expect(limits.STARTER.hasStockHistory).toBe(false);
+    expect(limits.BASIC.hasStockHistory).toBe(true);
+    expect(limits.PRO.hasStockHistory).toBe(true);
+    expect(limits.BUSINESS.hasStockHistory).toBe(true);
+
+    // Verifikasi jumlah kasir
+    expect(limits.TRIAL.maxUsers).toBe(2);
+    expect(limits.STARTER.maxUsers).toBe(2);
+    expect(limits.BASIC.maxUsers).toBe(3);
+    expect(limits.PRO.maxUsers).toBe(5);
+    expect(limits.BUSINESS.maxUsers).toBe(-1);
   });
 
   it('should calculate usage report and flag 80% warning correctly', async () => {
@@ -190,7 +211,7 @@ describe('SubscriptionService', () => {
     prisma.message.count.mockResolvedValue(2);
     prisma.user.count.mockResolvedValue(1);
     prisma.inventory.count.mockResolvedValue(0);
-    prisma.product.count.mockResolvedValue(5); // Kuota 5/5 tercapai
+    prisma.product.count.mockResolvedValue(12); // Kuota 12/12 tercapai
 
     await expect(
       service.assertCanPerformAction(storeId, 'CREATE_PRODUCT'),

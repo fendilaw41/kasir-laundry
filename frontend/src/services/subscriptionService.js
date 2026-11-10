@@ -16,7 +16,7 @@ export const isSubscriptionEnabled = (overrideUser) => {
       if (typeof storedUser?.featureSubscriptionEnabled === 'boolean') {
         return storedUser.featureSubscriptionEnabled;
       }
-    } catch {}
+    } catch { }
   }
   const val = String(import.meta.env.VITE_FEATURE_SUBSCRIPTION_ENABLED ?? '').trim().toLowerCase();
   return val === 'true' || val === '1';
@@ -38,7 +38,7 @@ export const isUpgradeBannerEnabled = (overrideUser) => {
       if (typeof storedUser?.showUpgradeBanner === 'boolean') {
         return storedUser.showUpgradeBanner;
       }
-    } catch {}
+    } catch { }
   }
   const val = String(import.meta.env.VITE_SHOW_UPGRADE_BANNER ?? '').trim().toLowerCase();
   return val === 'true' || val === '1';
@@ -56,9 +56,10 @@ export const PLAN_CONFIGS = {
     watermarkTracking: true,
     maxStockItems: 3,
     lowStockNotification: false,
+    hasStockHistory: false,
     maxOutlets: 1,
-    maxUsers: 1,
-    maxProducts: 5,
+    maxUsers: 2,
+    maxProducts: 12,
     dataHistoryMonths: 1,
     photoRetentionDays: 30,
     supportType: 'Panduan',
@@ -69,15 +70,16 @@ export const PLAN_CONFIGS = {
     price: 25000,
     priceLabel: '25rb/bln',
     maxTransactions: 100,
-    maxChatPhotos: 300,
+    maxChatPhotos: 100,
     botTransactions: 0,
     maxPdfInvoice: 20,
     watermarkTracking: true,
     maxStockItems: 5,
     lowStockNotification: false,
+    hasStockHistory: false,
     maxOutlets: 1,
     maxUsers: 2,
-    maxProducts: 10,
+    maxProducts: 20,
     dataHistoryMonths: 3,
     photoRetentionDays: 60,
     supportType: 'Komunitas',
@@ -89,12 +91,13 @@ export const PLAN_CONFIGS = {
     priceLabel: '50rb/bln',
     isPopular: true,
     maxTransactions: 150,
-    maxChatPhotos: 800,
+    maxChatPhotos: 150,
     botTransactions: 200,
     maxPdfInvoice: 100,
     watermarkTracking: false,
     maxStockItems: 20,
     lowStockNotification: true,
+    hasStockHistory: true,
     maxOutlets: 1,
     maxUsers: 3,
     maxProducts: 50,
@@ -108,12 +111,13 @@ export const PLAN_CONFIGS = {
     price: 100000,
     priceLabel: '100rb/bln',
     maxTransactions: 300,
-    maxChatPhotos: 2000,
+    maxChatPhotos: 300,
     botTransactions: 1000,
     maxPdfInvoice: -1,
     watermarkTracking: false,
     maxStockItems: 50,
     lowStockNotification: true,
+    hasStockHistory: true,
     maxOutlets: 2,
     maxUsers: 5,
     maxProducts: 100,
@@ -127,7 +131,7 @@ export const PLAN_CONFIGS = {
     price: 200000,
     priceLabel: '200rb/bln',
     maxTransactions: 1000, // Fair Use Policy
-    maxChatPhotos: 5000,
+    maxChatPhotos: 1000, // samakan dg transaksi
     botTransactions: -1,
     maxPdfInvoice: -1,
     customPdfLogo: true,
@@ -135,9 +139,10 @@ export const PLAN_CONFIGS = {
     customTrackingView: true,
     maxStockItems: -1,
     lowStockNotification: true,
+    hasStockHistory: true,
     maxOutlets: 5,
-    maxUsers: 15,
-    maxProducts: -1,
+    maxUsers: -1, // tak terhingga
+    maxProducts: -1, // tak terhingga
     dataHistoryMonths: 24,
     photoRetentionDays: 365,
     supportType: 'Prioritas + Onboarding',
@@ -196,7 +201,7 @@ export async function getSubscriptionReport() {
   if (token) {
     try {
       // Sinkronkan update master plan dari DB ke Dexie di background
-      syncPlansFromBackend().catch(() => {});
+      syncPlansFromBackend().catch(() => { });
 
       const res = await fetch(`${API_URL}/subscription/usage`, {
         headers: {
@@ -223,7 +228,7 @@ export async function getSubscriptionReport() {
               if (typeof localStorage !== 'undefined') localStorage.setItem('user', JSON.stringify(curUser));
               if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('user', JSON.stringify(curUser));
             }
-          } catch {}
+          } catch { }
 
           // Sinkronkan ke db.storeSubscriptions di Dexie
           if (db.storeSubscriptions && (json.data.storeId || storeId)) {
@@ -266,7 +271,7 @@ export async function getSubscriptionReport() {
               featureSubscriptionEnabled: json.data.featureSubscriptionEnabled,
               showUpgradeBanner: json.data.showUpgradeBanner,
             });
-          } catch (e) {}
+          } catch (e) { }
           return json.data;
         }
       }
@@ -295,22 +300,22 @@ async function calculateOfflineUsage(storeId) {
     trxCount = await db.orders
       .filter((o) => !o.deletedAt && new Date(o.createdAt) >= startOfMonth)
       .count();
-  } catch (e) {}
+  } catch (e) { }
 
   try {
     userCount = await db.users.filter((u) => !u.deletedAt).count();
     if (userCount === 0) userCount = 1;
-  } catch (e) {}
+  } catch (e) { }
 
   try {
     invCount = await db.inventory.filter((i) => !i.deletedAt).count();
-  } catch (e) {}
+  } catch (e) { }
 
   try {
     prodCount = db.products
       ? await db.products.filter((p) => !p.deletedAt && (!storeId || !p.storeId || p.storeId === storeId)).count()
       : 0;
-  } catch (e) {}
+  } catch (e) { }
 
   // Coba ambil paket dari db.storeSubscriptions atau cache settings
   let cachedPlan = 'TRIAL';
@@ -326,7 +331,7 @@ async function calculateOfflineUsage(storeId) {
         cachedPlan = s.cachedSubscription.plan;
       }
     }
-  } catch (e) {}
+  } catch (e) { }
 
   const dbPlan = await getPlanByKey(cachedPlan);
   const limits = dbPlan || PLAN_CONFIGS[cachedPlan] || PLAN_CONFIGS.TRIAL;
@@ -452,7 +457,7 @@ export async function applyPlan(planKey) {
         setting.cachedSubscription.plan = planKey;
       });
     }
-  } catch (e) {}
+  } catch (e) { }
 
   return json;
 }
@@ -544,7 +549,7 @@ export async function pullSubscriptionFromBackend() {
           featureSubscriptionEnabled: json.data.featureSubscriptionEnabled,
           showUpgradeBanner: json.data.showUpgradeBanner,
         });
-      } catch (e) {}
+      } catch (e) { }
 
       return json.data;
     }
