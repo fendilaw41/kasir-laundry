@@ -492,9 +492,9 @@ export default function PublicTrackOrder() {
               </div>
               {isSubscriptionEnabled() && (!order.store?.subscription?.plan || ['TRIAL', 'STARTER'].includes(order.store?.subscription?.plan)) && (
                 <div style={{ fontSize: '0.74rem' }} className="text-muted opacity-85">
-                  Ditenagai oleh{' '}
+                  Powered By{' '}
                   <a
-                    href="https://kasirlaundry.netlify.app"
+                    href="https://kasir-laundry-frontend.onrender.com"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary fw-semibold text-decoration-none"
