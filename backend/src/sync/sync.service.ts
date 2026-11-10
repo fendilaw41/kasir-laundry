@@ -3,7 +3,15 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubscriptionService } from '../subscription/subscription.service';
 import { createStoreNotification } from '../notifications/notifications.service';
-import { SyncInventoryDto, SyncMasterDataDto, SyncPelangganDto, SyncProductDto, SyncSettingsDto, SyncUserDto, SyncInventoryEventDto } from './dto/sync-master.dto';
+import {
+  SyncInventoryDto,
+  SyncMasterDataDto,
+  SyncPelangganDto,
+  SyncProductDto,
+  SyncSettingsDto,
+  SyncUserDto,
+  SyncInventoryEventDto,
+} from './dto/sync-master.dto';
 
 @Injectable()
 export class SyncService {
@@ -12,17 +20,24 @@ export class SyncService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly subscriptionService: SubscriptionService,
-  ) { }
+  ) {}
 
   /**
    * Mendapatkan atau mendaftarkan Store murni dari data yang dikirim oleh Frontend
    */
   async getOrCreateStoreFromClient(
     storeId: string,
-    storeInfo?: { name?: string; address?: string; city?: string; phone?: string },
+    storeInfo?: {
+      name?: string;
+      address?: string;
+      city?: string;
+      phone?: string;
+    },
   ) {
     if (!storeId) {
-      throw new BadRequestException('storeId wajib dikirim dari client Frontend!');
+      throw new BadRequestException(
+        'storeId wajib dikirim dari client Frontend!',
+      );
     }
 
     try {
@@ -30,7 +45,9 @@ export class SyncService {
         where: { id: storeId },
         update: {
           ...(storeInfo?.name ? { name: storeInfo.name } : {}),
-          ...(storeInfo?.address !== undefined ? { address: storeInfo.address } : {}),
+          ...(storeInfo?.address !== undefined
+            ? { address: storeInfo.address }
+            : {}),
           ...(storeInfo?.city !== undefined ? { city: storeInfo.city } : {}),
           ...(storeInfo?.phone !== undefined ? { phone: storeInfo.phone } : {}),
         },
@@ -45,16 +62,29 @@ export class SyncService {
       });
     } catch (err: any) {
       // Jika terjadi P2002 / UniqueConstraintViolation karena request paralel bersamaan
-      const existing = await this.prisma.store.findUnique({ where: { id: storeId } });
+      const existing = await this.prisma.store.findUnique({
+        where: { id: storeId },
+      });
       if (existing) {
-        if (storeInfo?.name || storeInfo?.address || storeInfo?.city || storeInfo?.phone) {
+        if (
+          storeInfo?.name ||
+          storeInfo?.address ||
+          storeInfo?.city ||
+          storeInfo?.phone
+        ) {
           return await this.prisma.store.update({
             where: { id: storeId },
             data: {
               ...(storeInfo?.name ? { name: storeInfo.name } : {}),
-              ...(storeInfo?.address !== undefined ? { address: storeInfo.address } : {}),
-              ...(storeInfo?.city !== undefined ? { city: storeInfo.city } : {}),
-              ...(storeInfo?.phone !== undefined ? { phone: storeInfo.phone } : {}),
+              ...(storeInfo?.address !== undefined
+                ? { address: storeInfo.address }
+                : {}),
+              ...(storeInfo?.city !== undefined
+                ? { city: storeInfo.city }
+                : {}),
+              ...(storeInfo?.phone !== undefined
+                ? { phone: storeInfo.phone }
+                : {}),
             },
           });
         }
@@ -74,17 +104,16 @@ export class SyncService {
     for (const u of users) {
       const storeId = u.storeId || fallbackStoreId;
       if (!storeId) {
-        throw new BadRequestException(`storeId wajib disertakan untuk user ${u.username}`);
+        throw new BadRequestException(
+          `storeId wajib disertakan untuk user ${u.username}`,
+        );
       }
       const store = await this.getOrCreateStoreFromClient(storeId);
 
       // Cari apakah user sudah ada di database (berdasarkan ID atau kombinasi unik storeId + username)
       const existingUser = await this.prisma.user.findFirst({
         where: {
-          OR: [
-            { id: u.id },
-            { storeId: store.id, username: u.username },
-          ],
+          OR: [{ id: u.id }, { storeId: store.id, username: u.username }],
         },
       });
 
@@ -112,7 +141,9 @@ export class SyncService {
             storeId: store.id,
             role: 'owner',
             deletedAt: null,
-            ...(existingUser ? { id: { not: existingUser.id } } : { id: { not: u.id } }),
+            ...(existingUser
+              ? { id: { not: existingUser.id } }
+              : { id: { not: u.id } }),
             username: { not: u.username },
           },
         });
@@ -147,7 +178,9 @@ export class SyncService {
           action,
           recordId: user.id,
           username: u.username,
-          beforeData: beforeUser ? JSON.parse(JSON.stringify(beforeUser)) : null,
+          beforeData: beforeUser
+            ? JSON.parse(JSON.stringify(beforeUser))
+            : null,
           afterData: JSON.parse(JSON.stringify(user)),
         },
       });
@@ -167,7 +200,9 @@ export class SyncService {
     for (const p of products) {
       const storeId = p.storeId || fallbackStoreId;
       if (!storeId) {
-        throw new BadRequestException(`storeId wajib disertakan untuk produk ${p.name}`);
+        throw new BadRequestException(
+          `storeId wajib disertakan untuk produk ${p.name}`,
+        );
       }
       const store = await this.getOrCreateStoreFromClient(storeId);
 
@@ -177,7 +212,9 @@ export class SyncService {
           OR: [
             { id: p.id },
             ...(p.code ? [{ storeId: store.id, code: p.code }] : []),
-            ...(p.category ? [{ storeId: store.id, category: p.category, name: p.name }] : []),
+            ...(p.category
+              ? [{ storeId: store.id, category: p.category, name: p.name }]
+              : []),
           ],
         },
       });
@@ -215,7 +252,11 @@ export class SyncService {
       }
 
       // Simpan log perubahan
-      const action = !beforeProduct ? 'CREATE' : p.deletedAt ? 'DELETE' : 'UPDATE';
+      const action = !beforeProduct
+        ? 'CREATE'
+        : p.deletedAt
+          ? 'DELETE'
+          : 'UPDATE';
       await this.prisma.syncLog.create({
         data: {
           storeId: store.id,
@@ -223,7 +264,9 @@ export class SyncService {
           action,
           recordId: product.id,
           username: 'owner',
-          beforeData: beforeProduct ? JSON.parse(JSON.stringify(beforeProduct)) : null,
+          beforeData: beforeProduct
+            ? JSON.parse(JSON.stringify(beforeProduct))
+            : null,
           afterData: JSON.parse(JSON.stringify(product)),
         },
       });
@@ -239,7 +282,9 @@ export class SyncService {
   async upsertSettings(dto: SyncSettingsDto) {
     if (!dto) return null;
     if (!dto.storeId) {
-      throw new BadRequestException('storeId wajib dikirim dari Frontend untuk sinkronisasi Settings');
+      throw new BadRequestException(
+        'storeId wajib dikirim dari Frontend untuk sinkronisasi Settings',
+      );
     }
 
     const store = await this.getOrCreateStoreFromClient(dto.storeId, {
@@ -251,7 +296,9 @@ export class SyncService {
     const storeId = store.id;
 
     // Ambil data sebelum berubah
-    const beforeSettings = await this.prisma.settings.findUnique({ where: { storeId } });
+    const beforeSettings = await this.prisma.settings.findUnique({
+      where: { storeId },
+    });
 
     const updatedAt = dto.updatedAt ? new Date(dto.updatedAt) : new Date();
 
@@ -262,7 +309,8 @@ export class SyncService {
       kota: dto.kota || store.city,
       telepon: dto.telepon || store.phone,
       jamBuka: dto.jamBuka || '08.00 - 17.00',
-      menerimaCucian: typeof dto.menerimaCucian === 'boolean' ? dto.menerimaCucian : true,
+      menerimaCucian:
+        typeof dto.menerimaCucian === 'boolean' ? dto.menerimaCucian : true,
       headerStruk: dto.headerStruk || null,
       footerStruk: dto.footerStruk || null,
       updatedAt,
@@ -286,7 +334,9 @@ export class SyncService {
         action,
         recordId: storeId,
         username: 'owner',
-        beforeData: beforeSettings ? JSON.parse(JSON.stringify(beforeSettings)) : null,
+        beforeData: beforeSettings
+          ? JSON.parse(JSON.stringify(beforeSettings))
+          : null,
         afterData: JSON.parse(JSON.stringify(afterSettings)),
       },
     });
@@ -297,14 +347,19 @@ export class SyncService {
   /**
    * Upsert Pelanggan dari Dexie ke PostgreSQL dengan pencatatan audit log
    */
-  async upsertPelanggan(pelangganList: SyncPelangganDto[], fallbackStoreId?: string) {
+  async upsertPelanggan(
+    pelangganList: SyncPelangganDto[],
+    fallbackStoreId?: string,
+  ) {
     if (!pelangganList || pelangganList.length === 0) return [];
 
     const results = [];
     for (const pel of pelangganList) {
       const storeId = pel.storeId || fallbackStoreId;
       if (!storeId) {
-        this.logger.warn(`Pelanggan ID ${pel.id} diabaikan: Tidak memiliki storeId.`);
+        this.logger.warn(
+          `Pelanggan ID ${pel.id} diabaikan: Tidak memiliki storeId.`,
+        );
         continue;
       }
       const store = await this.getOrCreateStoreFromClient(storeId);
@@ -317,7 +372,14 @@ export class SyncService {
           OR: [
             { id: pel.id },
             ...(validHp ? [{ storeId: store.id, hp: pel.hp.trim() }] : []),
-            ...(cleanNama ? [{ storeId: store.id, nama: { equals: cleanNama, mode: 'insensitive' as const } }] : []),
+            ...(cleanNama
+              ? [
+                  {
+                    storeId: store.id,
+                    nama: { equals: cleanNama, mode: 'insensitive' as const },
+                  },
+                ]
+              : []),
           ],
         },
       });
@@ -353,7 +415,11 @@ export class SyncService {
         });
       }
 
-      const action = !beforePelanggan ? 'CREATE' : pel.deletedAt ? 'DELETE' : 'UPDATE';
+      const action = !beforePelanggan
+        ? 'CREATE'
+        : pel.deletedAt
+          ? 'DELETE'
+          : 'UPDATE';
       await this.prisma.syncLog.create({
         data: {
           storeId: store.id,
@@ -361,7 +427,9 @@ export class SyncService {
           action,
           recordId: saved.id,
           username: 'owner',
-          beforeData: beforePelanggan ? JSON.parse(JSON.stringify(beforePelanggan)) : null,
+          beforeData: beforePelanggan
+            ? JSON.parse(JSON.stringify(beforePelanggan))
+            : null,
           afterData: JSON.parse(JSON.stringify(saved)),
         },
       });
@@ -377,7 +445,9 @@ export class SyncService {
   async upsertMasterData(dto: SyncMasterDataDto) {
     const storeId = dto.settings?.storeId;
     if (!storeId) {
-      throw new BadRequestException('storeId wajib disertakan pada master data dari Frontend');
+      throw new BadRequestException(
+        'storeId wajib disertakan pada master data dari Frontend',
+      );
     }
 
     await this.getOrCreateStoreFromClient(storeId, {
@@ -426,14 +496,19 @@ export class SyncService {
   /**
    * Upsert Inventory dari Dexie ke PostgreSQL dengan pencatatan audit log
    */
-  async upsertInventory(inventory: SyncInventoryDto[], fallbackStoreId?: string) {
+  async upsertInventory(
+    inventory: SyncInventoryDto[],
+    fallbackStoreId?: string,
+  ) {
     if (!inventory || inventory.length === 0) return [];
 
     const results = [];
     for (const inv of inventory) {
       const storeId = inv.storeId || fallbackStoreId;
       if (!storeId) {
-        this.logger.warn(`Inventory ID ${inv.id} diabaikan: Tidak memiliki storeId.`);
+        this.logger.warn(
+          `Inventory ID ${inv.id} diabaikan: Tidak memiliki storeId.`,
+        );
         continue;
       }
       const store = await this.getOrCreateStoreFromClient(storeId);
@@ -465,9 +540,14 @@ export class SyncService {
 
       if (!targetInventory && !inv.deletedAt) {
         try {
-          await this.subscriptionService.assertCanPerformAction(store.id, 'CREATE_INVENTORY');
+          await this.subscriptionService.assertCanPerformAction(
+            store.id,
+            'CREATE_INVENTORY',
+          );
         } catch (err) {
-          this.logger.warn(`Batas item stok tercapai untuk store ${store.id}: ${err.message}`);
+          this.logger.warn(
+            `Batas item stok tercapai untuk store ${store.id}: ${err.message}`,
+          );
           continue;
         }
       }
@@ -506,7 +586,11 @@ export class SyncService {
         });
       }
 
-      const action = !beforeInventory ? 'CREATE' : inv.deletedAt ? 'DELETE' : 'UPDATE';
+      const action = !beforeInventory
+        ? 'CREATE'
+        : inv.deletedAt
+          ? 'DELETE'
+          : 'UPDATE';
       await this.prisma.syncLog.create({
         data: {
           storeId: store.id,
@@ -514,7 +598,9 @@ export class SyncService {
           action,
           recordId: saved.id,
           username: inv.createdBy || 'owner',
-          beforeData: beforeInventory ? JSON.parse(JSON.stringify(beforeInventory)) : null,
+          beforeData: beforeInventory
+            ? JSON.parse(JSON.stringify(beforeInventory))
+            : null,
           afterData: JSON.parse(JSON.stringify(saved)),
         },
       });
@@ -522,7 +608,11 @@ export class SyncService {
       results.push(saved);
 
       // Notifikasi persetujuan stok khusus Kasir
-      if (beforeInventory && beforeInventory.status === 'pending' && inv.status === 'approved') {
+      if (
+        beforeInventory &&
+        beforeInventory.status === 'pending' &&
+        inv.status === 'approved'
+      ) {
         createStoreNotification(this.prisma, {
           storeId: store.id,
           title: 'Pengajuan Stok Disetujui ✅',
@@ -530,24 +620,37 @@ export class SyncService {
           type: 'STOCK_APPROVED',
           role: 'kasir',
           link: '/',
-        }).catch((e) => this.logger.warn(`Failed to create stock approval notification: ${e?.message}`));
+        }).catch((e) =>
+          this.logger.warn(
+            `Failed to create stock approval notification: ${e?.message}`,
+          ),
+        );
       }
 
       // Notifikasi stok menipis (jika plan toko mengaktifkan lowStockNotification)
       if (saved.stok < 5 && saved.stok >= 0 && !inv.deletedAt) {
-        this.subscriptionService.getOrCreateSubscription(store.id).then(async (sub) => {
-          const planConfig = await this.subscriptionService.getPlanConfig(sub.plan);
-          if (planConfig.lowStockNotification) {
-            await createStoreNotification(this.prisma, {
-              storeId: store.id,
-              title: 'Stok Menipis ⚠️',
-              message: `Stok "${saved.nama}" tersisa ${saved.stok} pcs! Segera lakukan penambahan stok.`,
-              type: 'LOW_STOCK',
-              role: 'owner',
-              link: '/',
-            });
-          }
-        }).catch((e) => this.logger.warn(`Failed to check low stock notification: ${e?.message}`));
+        this.subscriptionService
+          .getOrCreateSubscription(store.id)
+          .then(async (sub) => {
+            const planConfig = await this.subscriptionService.getPlanConfig(
+              sub.plan,
+            );
+            if (planConfig.lowStockNotification) {
+              await createStoreNotification(this.prisma, {
+                storeId: store.id,
+                title: 'Stok Menipis ⚠️',
+                message: `Stok "${saved.nama}" tersisa ${saved.stok} pcs! Segera lakukan penambahan stok.`,
+                type: 'LOW_STOCK',
+                role: 'owner',
+                link: '/',
+              });
+            }
+          })
+          .catch((e) =>
+            this.logger.warn(
+              `Failed to check low stock notification: ${e?.message}`,
+            ),
+          );
       }
     }
     return results;
@@ -586,19 +689,22 @@ export class SyncService {
     });
   }
 
-
-
   /**
    * Upsert InventoryEvents (mutasi stok) dari Dexie ke PostgreSQL
    */
-  async upsertInventoryEvents(events: SyncInventoryEventDto[], fallbackStoreId?: string) {
+  async upsertInventoryEvents(
+    events: SyncInventoryEventDto[],
+    fallbackStoreId?: string,
+  ) {
     if (!events || events.length === 0) return [];
 
     const results = [];
     for (const evt of events) {
       const storeId = evt.storeId || fallbackStoreId;
       if (!storeId) {
-        this.logger.warn(`InventoryEvent ID ${evt.id} diabaikan: Tidak memiliki storeId.`);
+        this.logger.warn(
+          `InventoryEvent ID ${evt.id} diabaikan: Tidak memiliki storeId.`,
+        );
         continue;
       }
       const store = await this.getOrCreateStoreFromClient(storeId);
@@ -623,7 +729,11 @@ export class SyncService {
           resolvedInventoryName = invItem.nama;
         } else {
           // Fallback map umum jika ID berasal dari auto-increment integer Dexie
-          const fallbackMap: Record<string, string> = { '1': 'Plastik', '2': 'Deterjen', '3': 'Molto' };
+          const fallbackMap: Record<string, string> = {
+            '1': 'Plastik',
+            '2': 'Deterjen',
+            '3': 'Molto',
+          };
           resolvedInventoryName = fallbackMap[String(evt.inventoryId)] || null;
         }
       }
@@ -678,7 +788,11 @@ export class SyncService {
   /**
    * Mengambil riwayat log sinkronisasi & audit trail
    */
-  async getSyncLogs(params: { storeId?: string; tableName?: string; limit?: number }) {
+  async getSyncLogs(params: {
+    storeId?: string;
+    tableName?: string;
+    limit?: number;
+  }) {
     const where: any = {};
     if (params.storeId) where.storeId = params.storeId;
     if (params.tableName) where.tableName = params.tableName;

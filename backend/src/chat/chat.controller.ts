@@ -41,7 +41,8 @@ export class ChatController {
   @Get('config')
   @ApiOperation({
     summary: 'Ambil Konfigurasi Chat',
-    description: 'Mengembalikan status fitur obrolan lintas cabang dan storage driver aktif.',
+    description:
+      'Mengembalikan status fitur obrolan lintas cabang dan storage driver aktif.',
   })
   @ApiResponse({ status: 200, description: 'Konfigurasi berhasil diambil.' })
   async getConfig() {
@@ -55,7 +56,8 @@ export class ChatController {
   @Get('contacts')
   @ApiOperation({
     summary: 'Ambil Daftar Kontak Member Chat',
-    description: 'Kasir hanya mendapatkan member sesama toko. Owner mendapatkan member multi-cabang jika toggle aktif.',
+    description:
+      'Kasir hanya mendapatkan member sesama toko. Owner mendapatkan member multi-cabang jika toggle aktif.',
   })
   @ApiResponse({ status: 200, description: 'Daftar kontak berhasil diambil.' })
   async getContacts(@CurrentUser() user: ChatUserPayload) {
@@ -69,9 +71,13 @@ export class ChatController {
   @Get('conversations')
   @ApiOperation({
     summary: 'Ambil Daftar Percakapan Pengguna',
-    description: 'Mengembalikan daftar percakapan aktif di mana user terdaftar sebagai anggota, beserta cuplikan pesan terakhir dan unread count.',
+    description:
+      'Mengembalikan daftar percakapan aktif di mana user terdaftar sebagai anggota, beserta cuplikan pesan terakhir dan unread count.',
   })
-  @ApiResponse({ status: 200, description: 'Daftar percakapan berhasil diambil.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Daftar percakapan berhasil diambil.',
+  })
   async getConversations(@CurrentUser() user: ChatUserPayload) {
     const conversations = await this.chatService.getConversations(user);
     return {
@@ -83,7 +89,8 @@ export class ChatController {
   @Post('conversations')
   @ApiOperation({
     summary: 'Buat Percakapan Baru (DIRECT, GROUP, atau CROSS_STORE)',
-    description: 'Membuat percakapan langsung atau grup. Grup lintas cabang dibatasi khusus untuk Owner.',
+    description:
+      'Membuat percakapan langsung atau grup. Grup lintas cabang dibatasi khusus untuk Owner.',
   })
   @ApiResponse({ status: 201, description: 'Percakapan berhasil dibuat.' })
   async createConversation(
@@ -102,7 +109,8 @@ export class ChatController {
   @Header('Cache-Control', 'no-cache, no-store, must-revalidate')
   @ApiOperation({
     summary: 'Ambil Riwayat Pesan dalam Percakapan',
-    description: 'Mengembalikan daftar pesan secara berurutan. Memerlukan keanggotaan dalam percakapan.',
+    description:
+      'Mengembalikan daftar pesan secara berurutan. Memerlukan keanggotaan dalam percakapan.',
   })
   @ApiResponse({ status: 200, description: 'Pesan berhasil diambil.' })
   async getMessages(
@@ -127,7 +135,8 @@ export class ChatController {
   @Post('conversations/:id/messages')
   @ApiOperation({
     summary: 'Kirim Pesan Baru ke Percakapan',
-    description: 'Menyimpan pesan baru dengan idempotency key UUID dari client.',
+    description:
+      'Menyimpan pesan baru dengan idempotency key UUID dari client.',
   })
   @ApiResponse({ status: 201, description: 'Pesan berhasil dikirim.' })
   async createMessage(
@@ -144,14 +153,19 @@ export class ChatController {
         let isRecipientInRoom = false;
         let recipientUserId: string | null = null;
         try {
-          const roomSockets = await this.chatGateway.server.in(roomName).fetchSockets();
+          const roomSockets = await this.chatGateway.server
+            .in(roomName)
+            .fetchSockets();
           const otherActive = roomSockets.filter(
             (s: any) => s.user && s.user.userId !== user.userId,
           );
           if (otherActive.length > 0) {
             isRecipientInRoom = true;
             recipientUserId = (otherActive[0] as any).user.userId;
-            await this.chatService.markAsRead(conversationId, (otherActive[0] as any).user);
+            await this.chatService.markAsRead(
+              conversationId,
+              (otherActive[0] as any).user,
+            );
             message.status = 'READ';
           }
         } catch (checkErr) {}
@@ -178,9 +192,13 @@ export class ChatController {
   @Post('conversations/:id/read')
   @ApiOperation({
     summary: 'Tandai Percakapan Telah Dibaca',
-    description: 'Memperbarui timestamp lastReadAt untuk anggota saat membuka percakapan.',
+    description:
+      'Memperbarui timestamp lastReadAt untuk anggota saat membuka percakapan.',
   })
-  @ApiResponse({ status: 200, description: 'Percakapan berhasil ditandai telah dibaca.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Percakapan berhasil ditandai telah dibaca.',
+  })
   async markAsRead(
     @CurrentUser() user: ChatUserPayload,
     @Param('id') conversationId: string,
@@ -207,7 +225,8 @@ export class ChatController {
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({
     summary: 'Unggah Foto Chat (Kamera / File)',
-    description: 'Menyimpan berkas foto dengan isolasi storeId pada storage driver aktif (Local atau S3/MinIO).',
+    description:
+      'Menyimpan berkas foto dengan isolasi storeId pada storage driver aktif (Local atau S3/MinIO).',
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -225,7 +244,11 @@ export class ChatController {
     @UploadedFile() file: Express.Multer.File,
     @Body('conversationId') conversationId: string,
   ) {
-    const result = await this.chatService.uploadFile(user, file, conversationId);
+    const result = await this.chatService.uploadFile(
+      user,
+      file,
+      conversationId,
+    );
     return {
       success: true,
       message: 'Foto berhasil diunggah.',
@@ -236,7 +259,8 @@ export class ChatController {
   @Get('files/:storeId/:filename')
   @ApiOperation({
     summary: 'Akses Unduh Berkas Foto Chat dengan Proteksi Akses',
-    description: 'Menyajikan stream berkas gambar yang diverifikasi berdasarkan hak akses toko pengguna.',
+    description:
+      'Menyajikan stream berkas gambar yang diverifikasi berdasarkan hak akses toko pengguna.',
   })
   @ApiResponse({ status: 200, description: 'Stream gambar.' })
   async getFile(

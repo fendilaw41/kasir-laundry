@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { StorageDriver, StoredFileResult } from './storage-driver.interface';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -29,7 +34,9 @@ export class LocalStorageDriver implements StorageDriver {
   }
 
   private sanitizeFilename(filename: string): string {
-    const cleanFilename = path.basename(filename).replace(/[^a-zA-Z0-9_.-]/g, '');
+    const cleanFilename = path
+      .basename(filename)
+      .replace(/[^a-zA-Z0-9_.-]/g, '');
     if (!cleanFilename) {
       throw new BadRequestException(`Nama berkas tidak valid: ${filename}`);
     }
@@ -60,7 +67,9 @@ export class LocalStorageDriver implements StorageDriver {
     const safeStoreId = this.sanitizeIdentifier(storeId);
     const relativeUrl = `/chat/files/${safeStoreId}/${safeFilename}`;
 
-    this.logger.log(`Berkas lokal berhasil disimpan: ${targetPath} (${buffer.length} bytes)`);
+    this.logger.log(
+      `Berkas lokal berhasil disimpan: ${targetPath} (${buffer.length} bytes)`,
+    );
 
     return {
       fileKey: `${safeStoreId}/${safeFilename}`,
@@ -79,7 +88,9 @@ export class LocalStorageDriver implements StorageDriver {
     const filePath = path.join(this.baseUploadDir, safeStoreId, safeFilename);
 
     if (!fs.existsSync(filePath)) {
-      throw new NotFoundException(`Berkas foto tidak ditemukan: ${safeStoreId}/${safeFilename}`);
+      throw new NotFoundException(
+        `Berkas foto tidak ditemukan: ${safeStoreId}/${safeFilename}`,
+      );
     }
 
     const stat = await fs.promises.stat(filePath);

@@ -164,7 +164,10 @@ describe('SubscriptionService', () => {
 
   it('should bypass limit check when SUBSCRIPTION_ENFORCEMENT_ENABLED is false', async () => {
     process.env.SUBSCRIPTION_ENFORCEMENT_ENABLED = 'false';
-    const result = await service.assertCanPerformAction('store-any', 'CREATE_ORDER');
+    const result = await service.assertCanPerformAction(
+      'store-any',
+      'CREATE_ORDER',
+    );
     expect(result).toBe(true);
   });
 
@@ -174,7 +177,10 @@ describe('SubscriptionService', () => {
       featureSubscriptionEnabled: false,
       showUpgradeBanner: false,
     });
-    const result = await service.assertCanPerformAction('store-unlimited', 'CREATE_ORDER');
+    const result = await service.assertCanPerformAction(
+      'store-unlimited',
+      'CREATE_ORDER',
+    );
     expect(result).toBe(true);
   });
 
@@ -225,4 +231,3 @@ describe('SubscriptionService', () => {
     ).rejects.toThrow(ForbiddenException);
   });
 });
-

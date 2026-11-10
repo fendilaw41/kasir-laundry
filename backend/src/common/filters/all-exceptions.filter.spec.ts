@@ -1,4 +1,10 @@
-import { HttpStatus, HttpException, BadRequestException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  HttpStatus,
+  HttpException,
+  BadRequestException,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 import { Prisma } from '@prisma/client';
 
@@ -38,7 +44,9 @@ describe('AllExceptionsFilter', () => {
 
     filter.catch(dbError, mockHost);
 
-    expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+    expect(mockResponse.status).toHaveBeenCalledWith(
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
     expect(mockResponse.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
@@ -51,11 +59,14 @@ describe('AllExceptionsFilter', () => {
   });
 
   it('should handle Prisma P2002 unique constraint error with 400 status', () => {
-    const duplicateError = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
-      code: 'P2002',
-      clientVersion: '7.9.1',
-      meta: { target: ['username'] },
-    });
+    const duplicateError = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed',
+      {
+        code: 'P2002',
+        clientVersion: '7.9.1',
+        meta: { target: ['username'] },
+      },
+    );
 
     filter.catch(duplicateError, mockHost);
 
@@ -71,10 +82,13 @@ describe('AllExceptionsFilter', () => {
   });
 
   it('should handle Prisma P2025 record not found error with 404 status', () => {
-    const notFoundError = new Prisma.PrismaClientKnownRequestError('Record to update not found.', {
-      code: 'P2025',
-      clientVersion: '7.9.1',
-    });
+    const notFoundError = new Prisma.PrismaClientKnownRequestError(
+      'Record to update not found.',
+      {
+        code: 'P2025',
+        clientVersion: '7.9.1',
+      },
+    );
 
     filter.catch(notFoundError, mockHost);
 
@@ -100,7 +114,9 @@ describe('AllExceptionsFilter', () => {
       }),
     );
 
-    const unauthorized = new UnauthorizedException('Username atau password salah');
+    const unauthorized = new UnauthorizedException(
+      'Username atau password salah',
+    );
     filter.catch(unauthorized, mockHost);
     expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
     expect(mockResponse.json).toHaveBeenCalledWith(
@@ -128,7 +144,9 @@ describe('AllExceptionsFilter', () => {
 
     filter.catch(unknownError, mockHost);
 
-    expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+    expect(mockResponse.status).toHaveBeenCalledWith(
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
     expect(mockResponse.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,

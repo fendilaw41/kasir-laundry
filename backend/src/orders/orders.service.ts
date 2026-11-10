@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SyncOrderDto } from './dto/sync-order.dto';
 import { SubscriptionService } from '../subscription/subscription.service';
@@ -11,17 +16,21 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly subscriptionService: SubscriptionService,
-  ) { }
+  ) {}
 
   /**
    * Mendapatkan Store dari ID yang dikirim oleh Frontend
    */
   async getOrCreateStoreFromClient(storeId?: string) {
     if (!storeId) {
-      throw new BadRequestException('storeId wajib disertakan pada data order dari Frontend');
+      throw new BadRequestException(
+        'storeId wajib disertakan pada data order dari Frontend',
+      );
     }
 
-    const existing = await this.prisma.store.findUnique({ where: { id: storeId } });
+    const existing = await this.prisma.store.findUnique({
+      where: { id: storeId },
+    });
     if (existing) return existing;
 
     return await this.prisma.store.create({
@@ -68,7 +77,10 @@ export class OrdersService {
           finalPelangganId = pel.id;
         } else {
           // Cari by HP (hanya jika HP valid & bukan '-') ATAU by Nama di store ini yang BELUM DIHAPUS
-          const validHp = dto.pelanggan.hp && dto.pelanggan.hp !== '-' && dto.pelanggan.hp.trim().length >= 4;
+          const validHp =
+            dto.pelanggan.hp &&
+            dto.pelanggan.hp !== '-' &&
+            dto.pelanggan.hp.trim().length >= 4;
           const cleanNama = dto.pelanggan.nama.trim();
 
           const existing = await tx.pelanggan.findFirst({
@@ -102,10 +114,7 @@ export class OrdersService {
       if (dto.userId) {
         const userExists = await tx.user.findFirst({
           where: {
-            OR: [
-              { id: dto.userId },
-              { username: dto.userId, storeId },
-            ],
+            OR: [{ id: dto.userId }, { username: dto.userId, storeId }],
           },
         });
         if (userExists) {
@@ -127,10 +136,7 @@ export class OrdersService {
       // 3. Ambil data sebelum berubah (Before Data) untuk audit log (cek by ID atau storeId + invoiceId)
       const beforeOrder = await tx.order.findFirst({
         where: {
-          OR: [
-            { id: dto.id },
-            { storeId, invoiceId: dto.invoiceId },
-          ],
+          OR: [{ id: dto.id }, { storeId, invoiceId: dto.invoiceId }],
         },
         include: { items: true, pelanggan: true },
       });
@@ -150,7 +156,10 @@ export class OrdersService {
         bayar: Math.max(0, parseInt(String(dto.bayar || 0), 10)),
         kembalian: Math.max(0, parseInt(String(dto.kembalian || 0), 10)),
         metodeBayar: dto.metodeBayar || 'Tunai',
-        estimasi: dto.estimasi !== undefined && dto.estimasi !== null ? String(dto.estimasi) : null,
+        estimasi:
+          dto.estimasi !== undefined && dto.estimasi !== null
+            ? String(dto.estimasi)
+            : null,
         tipeLayanan: dto.tipeLayanan ? String(dto.tipeLayanan) : 'AJ',
         isPriority: Boolean(dto.isPriority),
         statusBayar: dto.statusBayar ? String(dto.statusBayar) : 'Belum Bayar',
@@ -171,7 +180,10 @@ export class OrdersService {
         });
       } else {
         isNewOrder = true;
-        await this.subscriptionService.assertCanPerformAction(storeId, 'CREATE_ORDER');
+        await this.subscriptionService.assertCanPerformAction(
+          storeId,
+          'CREATE_ORDER',
+        );
         order = await tx.order.create({
           data: {
             id: dto.id,
@@ -192,20 +204,23 @@ export class OrdersService {
           .map((item) => item.productId)
           .filter((id): id is string => Boolean(id));
 
-        const existingProducts = rawProductIds.length > 0
-          ? await tx.product.findMany({
-            where: { id: { in: rawProductIds } },
-            select: { id: true },
-          })
-          : [];
+        const existingProducts =
+          rawProductIds.length > 0
+            ? await tx.product.findMany({
+                where: { id: { in: rawProductIds } },
+                select: { id: true },
+              })
+            : [];
         const validProductIds = new Set(existingProducts.map((p) => p.id));
 
         // Ambil semua produk toko untuk fallback matching nama HANYA jika ada item yang belum punya valid productId
-        const needsNameLookup = items.some((item) => !item.productId || !validProductIds.has(item.productId));
+        const needsNameLookup = items.some(
+          (item) => !item.productId || !validProductIds.has(item.productId),
+        );
         const storeProducts = needsNameLookup
           ? await tx.product.findMany({
-            where: { storeId: order.storeId, deletedAt: null },
-          })
+              where: { storeId: order.storeId, deletedAt: null },
+            })
           : [];
 
         // Insert item baru
@@ -219,8 +234,12 @@ export class OrdersService {
             } else if (item.name && storeProducts.length > 0) {
               const cleanName = item.name.trim().toLowerCase();
               const matched = storeProducts.find((p) => {
-                const fullName = `${p.category || ''} - ${p.name || ''}`.trim().toLowerCase();
-                const spaceName = `${p.category || ''} ${p.name || ''}`.trim().toLowerCase();
+                const fullName = `${p.category || ''} - ${p.name || ''}`
+                  .trim()
+                  .toLowerCase();
+                const spaceName = `${p.category || ''} ${p.name || ''}`
+                  .trim()
+                  .toLowerCase();
                 const pureName = (p.name || '').trim().toLowerCase();
                 return (
                   fullName === cleanName ||
@@ -244,7 +263,9 @@ export class OrdersService {
               name: itemName,
               quantity: Number(item.quantity) || 1,
               price: Number(item.price) || 0,
-              subtotal: Number(item.subtotal) || (Number(item.quantity) || 1) * (Number(item.price) || 0),
+              subtotal:
+                Number(item.subtotal) ||
+                (Number(item.quantity) || 1) * (Number(item.price) || 0),
             };
           }),
         });
@@ -269,7 +290,11 @@ export class OrdersService {
       }
 
       // 8. Simpan Log Perubahan ke SyncLog
-      const action = !beforeOrder ? 'CREATE' : (dto.deletedAt ? 'DELETE' : 'UPDATE');
+      const action = !beforeOrder
+        ? 'CREATE'
+        : dto.deletedAt
+          ? 'DELETE'
+          : 'UPDATE';
       await tx.syncLog.create({
         data: {
           storeId,
@@ -277,7 +302,9 @@ export class OrdersService {
           action,
           recordId: order.id,
           username: actorUsername,
-          beforeData: beforeOrder ? JSON.parse(JSON.stringify(beforeOrder)) : null,
+          beforeData: beforeOrder
+            ? JSON.parse(JSON.stringify(beforeOrder))
+            : null,
           afterData: afterOrder ? JSON.parse(JSON.stringify(afterOrder)) : null,
         },
       });
@@ -292,7 +319,9 @@ export class OrdersService {
         message: `Pesanan #${dto.invoiceId} senilai Rp${(dto.total || 0).toLocaleString('id-ID')} berhasil dibuat.`,
         type: 'TRANSACTION',
         link: `/order/${syncedOrder.id}`,
-      }).catch((e) => this.logger.warn(`Failed to create order notification: ${e?.message}`));
+      }).catch((e) =>
+        this.logger.warn(`Failed to create order notification: ${e?.message}`),
+      );
     }
 
     return syncedOrder;
@@ -399,7 +428,12 @@ export class OrdersService {
         base64 += '=';
       }
       const decoded = Buffer.from(base64, 'base64').toString('utf-8');
-      if (decoded && /^[\w\s.-]+$/.test(decoded) && decoded.length >= 2 && decoded.length <= 64) {
+      if (
+        decoded &&
+        /^[\w\s.-]+$/.test(decoded) &&
+        decoded.length >= 2 &&
+        decoded.length <= 64
+      ) {
         return decoded;
       }
     } catch {
@@ -421,19 +455,16 @@ export class OrdersService {
    */
   async trackPublicOrder(code: string) {
     if (!code || !code.trim()) {
-      throw new BadRequestException('Kode pelacakan atau nomor nota wajib disertakan');
+      throw new BadRequestException(
+        'Kode pelacakan atau nomor nota wajib disertakan',
+      );
     }
 
     const decoded = this.decodeTrackingCode(code);
     const raw = code.trim();
 
     const candidateCodes = Array.from(
-      new Set([
-        decoded,
-        raw,
-        decoded.toUpperCase(),
-        raw.toUpperCase(),
-      ]),
+      new Set([decoded, raw, decoded.toUpperCase(), raw.toUpperCase()]),
     ).filter(Boolean);
 
     const order = await this.prisma.order.findFirst({
@@ -505,16 +536,16 @@ export class OrdersService {
       })),
       pelanggan: order.pelanggan
         ? {
-          id: order.pelanggan.id,
-          nama: order.pelanggan.nama,
-          hp: maskedHp,
-          alamat: order.pelanggan.alamat || '',
-        }
+            id: order.pelanggan.id,
+            nama: order.pelanggan.nama,
+            hp: maskedHp,
+            alamat: order.pelanggan.alamat || '',
+          }
         : {
-          nama: 'Pelanggan Umum',
-          hp: '-',
-          alamat: '',
-        },
+            nama: 'Pelanggan Umum',
+            hp: '-',
+            alamat: '',
+          },
       store: {
         id: order.store?.id,
         name:
@@ -522,12 +553,12 @@ export class OrdersService {
           order.store?.name ||
           'Kasir Laundry',
         motto:
-          order.store?.settings?.motto || order.store?.settings?.headerStruk || 'Solusi Laundry Bersih & Cepat',
-        address:
-          order.store?.settings?.alamat || order.store?.address || '',
+          order.store?.settings?.motto ||
+          order.store?.settings?.headerStruk ||
+          'Solusi Laundry Bersih & Cepat',
+        address: order.store?.settings?.alamat || order.store?.address || '',
         city: order.store?.settings?.kota || order.store?.city || '',
-        phone:
-          order.store?.settings?.telepon || order.store?.phone || '',
+        phone: order.store?.settings?.telepon || order.store?.phone || '',
         jamBuka: order.store?.settings?.jamBuka || '08.00 - 17.00',
         headerStruk: order.store?.settings?.headerStruk || '',
         footerStruk: order.store?.settings?.footerStruk || '',

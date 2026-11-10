@@ -15,12 +15,16 @@ export class StorageService {
     private readonly s3Driver: S3MinioStorageDriver,
   ) {}
 
-  public getActiveDriverType(customDriverOverride?: string | null): StorageDriverType {
+  public getActiveDriverType(
+    customDriverOverride?: string | null,
+  ): StorageDriverType {
     if (customDriverOverride === 's3' || customDriverOverride === 'local') {
       return customDriverOverride;
     }
     const envDriver = (process.env.STORAGE_DRIVER || 'local').toLowerCase();
-    return envDriver === 's3' || envDriver === 'minio' || envDriver === 'r2' ? 's3' : 'local';
+    return envDriver === 's3' || envDriver === 'minio' || envDriver === 'r2'
+      ? 's3'
+      : 'local';
   }
 
   public getDriver(customDriverOverride?: string | null): StorageDriver {

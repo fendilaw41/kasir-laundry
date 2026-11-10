@@ -29,6 +29,7 @@ model Store {
   conversations   Conversation[]
   subscription    StoreSubscription?
   notifications   Notification[]
+  planPayments    PlanPayment[]
 }
 
 model User {
@@ -378,3 +379,54 @@ model Notification {
   @@index([storeId, createdAt(sort: Desc)])
   @@index([storeId, role, isRead])
 }
+
+enum PlanPaymentStatus {
+  NOT_PAID
+  PAID
+  EXPIRED
+  FAILED
+}
+
+model PlanPayment {
+  id                 String            @id @default(uuid())
+  orderId            String            @unique
+  storeId            String
+  store              Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  userId             String?
+  plan               SubscriptionPlan
+  amount             Int
+  serviceFee         Int               @default(0)
+  totalAmount        Int
+  paymentMethod      String
+  status             PlanPaymentStatus @default(NOT_PAID)
+
+  mayarInvoiceId     String?
+  mayarTransactionId String?           @unique
+  paymentUrl         String?
+  qrString           String?           @db.Text
+  vaNumber           String?
+  vaBank             String?
+  customerName       String?
+
+  expiredAt          DateTime?         @db.Timestamptz(3)
+  paidAt             DateTime?         @db.Timestamptz(3)
+  lastCheckedAt      DateTime?         @db.Timestamptz(3)
+
+  createdAt          DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime          @updatedAt @db.Timestamptz(3)
+
+  @@index([storeId, status])
+  @@index([orderId])
+}
+
+model PaymentDelivery {
+  transactionId String    @id
+  status        String    // 'processing' | 'completed' | 'failed'
+  attemptCount  Int       @default(1)
+  lastError     String?
+  lockedUntil   DateTime? @db.Timestamptz(3)
+  completedAt   DateTime? @db.Timestamptz(3)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
+}
+

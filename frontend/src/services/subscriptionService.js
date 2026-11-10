@@ -492,7 +492,75 @@ export async function topupQuota(type, amount) {
 }
 
 /**
+ * Mengambil daftar metode pembayaran yang didukung (QRIS, VA)
+ */
+export async function getSupportedPaymentMethods() {
+  try {
+    const res = await fetch(`${API_URL}/subscription/payments/methods`);
+    if (!res.ok) return [];
+    const json = await res.json();
+    return json.methods || [];
+  } catch (err) {
+    console.warn('Gagal memuat metode pembayaran:', err);
+    return [];
+  }
+}
+
+/**
+ * Membuat pesanan tagihan pembayaran paket ke Mayar (Native Checkout)
+ */
+export async function createPaymentOrder(planKey, paymentMethod) {
+  const token =
+    (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('token') : null) ||
+    (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') : null);
+
+  if (!token) throw new Error('Sesi login telah berakhir. Silakan login kembali.');
+
+  const res = await fetch(`${API_URL}/subscription/payments/create`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ planKey, paymentMethod }),
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || 'Gagal membuat pesanan pembayaran.');
+  }
+
+  return json.data;
+}
+
+/**
+ * Mengecek status pembayaran pesanan (polling / cek manual)
+ */
+export async function checkPaymentStatus(orderId) {
+  const token =
+    (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('token') : null) ||
+    (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') : null);
+
+  if (!token) throw new Error('Sesi login telah berakhir.');
+
+  const res = await fetch(`${API_URL}/subscription/payments/${orderId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || 'Gagal memeriksa status pembayaran.');
+  }
+
+  return json.data;
+}
+
+/**
  * Menarik status subscription terbaru dari server NestJS dan menyimpannya ke Dexie
+
  */
 export async function pullSubscriptionFromBackend() {
   const token =

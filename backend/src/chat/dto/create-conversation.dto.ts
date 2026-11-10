@@ -9,7 +9,8 @@ export class CreateConversationDto {
   type: 'DIRECT' | 'GROUP' | 'CROSS_STORE';
 
   @ApiPropertyOptional({
-    description: 'Judul percakapan / nama group (wajib untuk tipe GROUP dan CROSS_STORE)',
+    description:
+      'Judul percakapan / nama group (wajib untuk tipe GROUP dan CROSS_STORE)',
     example: 'Tim Kasir Cabang Utama',
   })
   title?: string;
@@ -27,4 +28,3 @@ export class CreateConversationDto {
   })
   memberIds?: string[];
 }
-

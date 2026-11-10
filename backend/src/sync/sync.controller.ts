@@ -1,22 +1,44 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { SyncService } from './sync.service';
-import { SyncInventoryDto, SyncMasterDataDto, SyncPelangganDto, SyncProductDto, SyncSettingsDto, SyncUserDto, SyncInventoryEventDto } from './dto/sync-master.dto';
+import {
+  SyncInventoryDto,
+  SyncMasterDataDto,
+  SyncPelangganDto,
+  SyncProductDto,
+  SyncSettingsDto,
+  SyncUserDto,
+  SyncInventoryEventDto,
+} from './dto/sync-master.dto';
 
 @ApiTags('Master Sync & Audit Logs')
 @ApiBearerAuth('bearer')
-@ApiResponse({ status: 401, description: 'Unauthorized - Bearer token tidak valid atau tidak disertakan.' })
+@ApiResponse({
+  status: 401,
+  description: 'Unauthorized - Bearer token tidak valid atau tidak disertakan.',
+})
 @Controller('sync')
 export class SyncController {
-  constructor(private readonly syncService: SyncService) { }
+  constructor(private readonly syncService: SyncService) {}
 
   @Post('master-data')
   @ApiOperation({
     summary: 'Sinkronisasi Master Data (Users, Products, Settings)',
-    description: 'Menyinkronkan master data yang berubah atau saat inisialisasi awal ke database server (Upsert).',
+    description:
+      'Menyinkronkan master data yang berubah atau saat inisialisasi awal ke database server (Upsert).',
   })
   @ApiBody({ type: SyncMasterDataDto })
-  @ApiResponse({ status: 201, description: 'Master data berhasil disinkronkan.' })
+  @ApiResponse({
+    status: 201,
+    description: 'Master data berhasil disinkronkan.',
+  })
   async syncMasterData(@Body() dto: SyncMasterDataDto) {
     const data = await this.syncService.upsertMasterData(dto);
     return {
@@ -29,7 +51,8 @@ export class SyncController {
   @Post('users')
   @ApiOperation({
     summary: 'Sinkronisasi Data Kasir / User (Upsert)',
-    description: 'Menyimpan atau memperbarui daftar user/kasir dari Dexie lokal.',
+    description:
+      'Menyimpan atau memperbarui daftar user/kasir dari Dexie lokal.',
   })
   @ApiBody({ type: [SyncUserDto] })
   @ApiResponse({ status: 201, description: 'Users berhasil disinkronkan.' })
@@ -45,7 +68,8 @@ export class SyncController {
   @Post('products')
   @ApiOperation({
     summary: 'Sinkronisasi Data Produk / Layanan (Upsert)',
-    description: 'Menyimpan atau memperbarui daftar produk/layanan cucian dari Dexie lokal.',
+    description:
+      'Menyimpan atau memperbarui daftar produk/layanan cucian dari Dexie lokal.',
   })
   @ApiBody({ type: [SyncProductDto] })
   @ApiResponse({ status: 201, description: 'Products berhasil disinkronkan.' })
@@ -61,7 +85,8 @@ export class SyncController {
   @Post('pelanggan')
   @ApiOperation({
     summary: 'Sinkronisasi Data Pelanggan / Customer (Upsert)',
-    description: 'Menyimpan atau memperbarui daftar pelanggan laundry dari Dexie lokal.',
+    description:
+      'Menyimpan atau memperbarui daftar pelanggan laundry dari Dexie lokal.',
   })
   @ApiBody({ type: [SyncPelangganDto] })
   @ApiResponse({ status: 201, description: 'Pelanggan berhasil disinkronkan.' })
@@ -77,7 +102,8 @@ export class SyncController {
   @Post('settings')
   @ApiOperation({
     summary: 'Sinkronisasi Data Pengaturan Outlet (Upsert)',
-    description: 'Menyimpan atau memperbarui konfigurasi toko/outlet laundry dari Dexie lokal.',
+    description:
+      'Menyimpan atau memperbarui konfigurasi toko/outlet laundry dari Dexie lokal.',
   })
   @ApiBody({ type: SyncSettingsDto })
   @ApiResponse({ status: 201, description: 'Settings berhasil disinkronkan.' })
@@ -93,7 +119,8 @@ export class SyncController {
   @Post('inventory')
   @ApiOperation({
     summary: 'Sinkronisasi Data Inventory / Stok (Upsert)',
-    description: 'Menyimpan atau memperbarui daftar inventory / stok bahan dari Dexie lokal.',
+    description:
+      'Menyimpan atau memperbarui daftar inventory / stok bahan dari Dexie lokal.',
   })
   @ApiBody({ type: [SyncInventoryDto] })
   @ApiResponse({ status: 201, description: 'Inventory berhasil disinkronkan.' })
@@ -109,10 +136,18 @@ export class SyncController {
   @Get('inventory')
   @ApiOperation({
     summary: 'Mendapatkan Daftar Inventory Toko',
-    description: 'Mengambil daftar seluruh stok bahan/inventory berdasarkan ID Toko.',
+    description:
+      'Mengambil daftar seluruh stok bahan/inventory berdasarkan ID Toko.',
   })
-  @ApiQuery({ name: 'storeId', required: true, description: 'Filter berdasarkan ID Toko' })
-  @ApiResponse({ status: 200, description: 'Daftar inventory berhasil dimuat.' })
+  @ApiQuery({
+    name: 'storeId',
+    required: true,
+    description: 'Filter berdasarkan ID Toko',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Daftar inventory berhasil dimuat.',
+  })
   async getInventory(@Query('storeId') storeId: string) {
     const data = await this.syncService.getInventory(storeId);
     return {
@@ -124,9 +159,14 @@ export class SyncController {
   @Get('products')
   @ApiOperation({
     summary: 'Mendapatkan Daftar Produk / Layanan Toko',
-    description: 'Mengambil daftar seluruh produk/layanan cucian berdasarkan ID Toko termasuk status deletedAt.',
+    description:
+      'Mengambil daftar seluruh produk/layanan cucian berdasarkan ID Toko termasuk status deletedAt.',
   })
-  @ApiQuery({ name: 'storeId', required: true, description: 'Filter berdasarkan ID Toko' })
+  @ApiQuery({
+    name: 'storeId',
+    required: true,
+    description: 'Filter berdasarkan ID Toko',
+  })
   @ApiResponse({ status: 200, description: 'Daftar produk berhasil dimuat.' })
   async getProducts(@Query('storeId') storeId: string) {
     const data = await this.syncService.getProducts(storeId);
@@ -139,10 +179,18 @@ export class SyncController {
   @Get('pelanggan')
   @ApiOperation({
     summary: 'Mendapatkan Daftar Pelanggan Toko',
-    description: 'Mengambil daftar seluruh pelanggan toko berdasarkan ID Toko termasuk status deletedAt.',
+    description:
+      'Mengambil daftar seluruh pelanggan toko berdasarkan ID Toko termasuk status deletedAt.',
   })
-  @ApiQuery({ name: 'storeId', required: true, description: 'Filter berdasarkan ID Toko' })
-  @ApiResponse({ status: 200, description: 'Daftar pelanggan berhasil dimuat.' })
+  @ApiQuery({
+    name: 'storeId',
+    required: true,
+    description: 'Filter berdasarkan ID Toko',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Daftar pelanggan berhasil dimuat.',
+  })
   async getPelanggan(@Query('storeId') storeId: string) {
     const data = await this.syncService.getPelanggan(storeId);
     return {
@@ -151,14 +199,17 @@ export class SyncController {
     };
   }
 
-
   @Post('inventory-events')
   @ApiOperation({
     summary: 'Sinkronisasi Log Mutasi Stok / Inventory Events (Upsert)',
-    description: 'Menyimpan atau memperbarui riwayat mutasi pergerakan stok dari Dexie lokal ke PostgreSQL.',
+    description:
+      'Menyimpan atau memperbarui riwayat mutasi pergerakan stok dari Dexie lokal ke PostgreSQL.',
   })
   @ApiBody({ type: [SyncInventoryEventDto] })
-  @ApiResponse({ status: 201, description: 'Inventory events berhasil disinkronkan.' })
+  @ApiResponse({
+    status: 201,
+    description: 'Inventory events berhasil disinkronkan.',
+  })
   async syncInventoryEvents(@Body() dtos: SyncInventoryEventDto[]) {
     const data = await this.syncService.upsertInventoryEvents(dtos);
     return {
@@ -171,12 +222,27 @@ export class SyncController {
   @Get('inventory-events')
   @ApiOperation({
     summary: 'Mendapatkan Daftar Log Mutasi Stok / Inventory Events',
-    description: 'Mengambil daftar riwayat pergerakan stok berdasarkan ID Toko.',
+    description:
+      'Mengambil daftar riwayat pergerakan stok berdasarkan ID Toko.',
   })
-  @ApiQuery({ name: 'storeId', required: true, description: 'Filter berdasarkan ID Toko' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Jumlah data (default 500)' })
-  @ApiResponse({ status: 200, description: 'Daftar pergerakan stok berhasil dimuat.' })
-  async getInventoryEvents(@Query('storeId') storeId: string, @Query('limit') limit?: number) {
+  @ApiQuery({
+    name: 'storeId',
+    required: true,
+    description: 'Filter berdasarkan ID Toko',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Jumlah data (default 500)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Daftar pergerakan stok berhasil dimuat.',
+  })
+  async getInventoryEvents(
+    @Query('storeId') storeId: string,
+    @Query('limit') limit?: number,
+  ) {
     const data = await this.syncService.getInventoryEvents(storeId, limit);
     return {
       success: true,
@@ -187,18 +253,36 @@ export class SyncController {
   @Get('logs')
   @ApiOperation({
     summary: 'Melihat Riwayat Log Sinkronisasi & Audit Trail',
-    description: 'Mengambil catatan riwayat perubahan data (Before & After, Table, Action, User, Store).',
+    description:
+      'Mengambil catatan riwayat perubahan data (Before & After, Table, Action, User, Store).',
   })
-  @ApiQuery({ name: 'storeId', required: false, description: 'Filter berdasarkan ID Toko' })
-  @ApiQuery({ name: 'tableName', required: false, description: 'Filter berdasarkan nama tabel (Order, User, Product, Settings)' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Jumlah baris log (default: 100)' })
+  @ApiQuery({
+    name: 'storeId',
+    required: false,
+    description: 'Filter berdasarkan ID Toko',
+  })
+  @ApiQuery({
+    name: 'tableName',
+    required: false,
+    description:
+      'Filter berdasarkan nama tabel (Order, User, Product, Settings)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Jumlah baris log (default: 100)',
+  })
   @ApiResponse({ status: 200, description: 'Daftar audit log sinkronisasi.' })
   async getSyncLogs(
     @Query('storeId') storeId?: string,
     @Query('tableName') tableName?: string,
     @Query('limit') limit?: number,
   ) {
-    const data = await this.syncService.getSyncLogs({ storeId, tableName, limit });
+    const data = await this.syncService.getSyncLogs({
+      storeId,
+      tableName,
+      limit,
+    });
     return {
       success: true,
       total: data.length,

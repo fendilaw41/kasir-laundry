@@ -74,7 +74,7 @@ export class SubscriptionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
-  ) { }
+  ) {}
 
   isEnforced(): boolean {
     return process.env.SUBSCRIPTION_ENFORCEMENT_ENABLED !== 'false';
@@ -102,17 +102,25 @@ export class SubscriptionService {
           customTrackingView: dbPlan.customTrackingView,
           maxStockItems: dbPlan.maxStockItems,
           lowStockNotification: dbPlan.lowStockNotification,
-          hasStockHistory: (dbPlan as any).hasStockHistory ?? (getPlanLimits()[planKey]?.hasStockHistory ?? false),
+          hasStockHistory:
+            (dbPlan as any).hasStockHistory ??
+            getPlanLimits()[planKey]?.hasStockHistory ??
+            false,
           maxOutlets: dbPlan.maxOutlets,
           maxUsers: dbPlan.maxUsers,
-          maxProducts: (dbPlan as any).maxProducts ?? (getPlanLimits()[planKey]?.maxProducts ?? (planKey === 'TRIAL' ? 12 : 20)),
+          maxProducts:
+            (dbPlan as any).maxProducts ??
+            getPlanLimits()[planKey]?.maxProducts ??
+            (planKey === 'TRIAL' ? 12 : 20),
           dataHistoryMonths: dbPlan.dataHistoryMonths,
           photoRetentionDays: dbPlan.photoRetentionDays,
           supportType: dbPlan.supportType,
         };
       }
     } catch (err) {
-      this.logger.warn(`Gagal membaca MasterPlan '${planKey}' dari DB: ${err.message}`);
+      this.logger.warn(
+        `Gagal membaca MasterPlan '${planKey}' dari DB: ${err.message}`,
+      );
     }
 
     const defaultLimits = getPlanLimits();
@@ -229,7 +237,9 @@ export class SubscriptionService {
       }
       return plans;
     } catch (err) {
-      this.logger.warn(`Gagal mengambil list master plan dari DB: ${err.message}`);
+      this.logger.warn(
+        `Gagal mengambil list master plan dari DB: ${err.message}`,
+      );
       const defaultLimits = getPlanLimits();
       return Object.entries(defaultLimits).map(([key, p], idx) => ({
         ...p,
@@ -241,7 +251,8 @@ export class SubscriptionService {
         isPopular: !!p.isPopular,
         sortOrder: idx + 1,
         isActive: true,
-        badgeColor: key === 'BASIC' ? 'primary' : key === 'PRO' ? 'warning' : 'secondary',
+        badgeColor:
+          key === 'BASIC' ? 'primary' : key === 'PRO' ? 'warning' : 'secondary',
       }));
     }
   }
@@ -273,7 +284,8 @@ export class SubscriptionService {
     });
 
     if (!sub) {
-      const defaultPlan = (process.env.DEFAULT_STORE_PLAN || 'TRIAL') as SubscriptionPlan;
+      const defaultPlan = (process.env.DEFAULT_STORE_PLAN ||
+        'TRIAL') as SubscriptionPlan;
       const trialDays = parseInt(process.env.TRIAL_DURATION_DAYS || '30', 10);
       const now = new Date();
       const periodEnd = new Date(now);
@@ -287,29 +299,53 @@ export class SubscriptionService {
           status: SubscriptionStatus.ACTIVE,
           currentPeriodStart: now,
           currentPeriodEnd: periodEnd,
-          maxTransactions: planLimits.maxTransactions === -1 ? 999999 : planLimits.maxTransactions,
+          maxTransactions:
+            planLimits.maxTransactions === -1
+              ? 999999
+              : planLimits.maxTransactions,
           usedTransactions: 0,
-          remainingTransactions: planLimits.maxTransactions === -1 ? 999999 : planLimits.maxTransactions,
-          maxChatPhotos: planLimits.maxChatPhotos === -1 ? 999999 : planLimits.maxChatPhotos,
+          remainingTransactions:
+            planLimits.maxTransactions === -1
+              ? 999999
+              : planLimits.maxTransactions,
+          maxChatPhotos:
+            planLimits.maxChatPhotos === -1 ? 999999 : planLimits.maxChatPhotos,
           usedPhotos: 0,
-          remainingPhotos: planLimits.maxChatPhotos === -1 ? 999999 : planLimits.maxChatPhotos,
+          remainingPhotos:
+            planLimits.maxChatPhotos === -1 ? 999999 : planLimits.maxChatPhotos,
           maxUsers: planLimits.maxUsers === -1 ? 999999 : planLimits.maxUsers,
           usedUsers: 1,
-          remainingUsers: planLimits.maxUsers === -1 ? 999999 : Math.max(0, planLimits.maxUsers - 1),
-          maxProducts: planLimits.maxProducts === -1 ? 999999 : (planLimits.maxProducts ?? (defaultPlan === 'TRIAL' ? 12 : 20)),
+          remainingUsers:
+            planLimits.maxUsers === -1
+              ? 999999
+              : Math.max(0, planLimits.maxUsers - 1),
+          maxProducts:
+            planLimits.maxProducts === -1
+              ? 999999
+              : (planLimits.maxProducts ?? (defaultPlan === 'TRIAL' ? 12 : 20)),
           usedProducts: 0,
-          remainingProducts: planLimits.maxProducts === -1 ? 999999 : (planLimits.maxProducts ?? (defaultPlan === 'TRIAL' ? 12 : 20)),
-          maxStockItems: planLimits.maxStockItems === -1 ? 999999 : planLimits.maxStockItems,
+          remainingProducts:
+            planLimits.maxProducts === -1
+              ? 999999
+              : (planLimits.maxProducts ?? (defaultPlan === 'TRIAL' ? 12 : 20)),
+          maxStockItems:
+            planLimits.maxStockItems === -1 ? 999999 : planLimits.maxStockItems,
           usedInventory: 0,
-          remainingInventory: planLimits.maxStockItems === -1 ? 999999 : planLimits.maxStockItems,
+          remainingInventory:
+            planLimits.maxStockItems === -1 ? 999999 : planLimits.maxStockItems,
         },
       });
-      this.logger.log(`Created default subscription for store ${storeId} with plan ${defaultPlan}`);
+      this.logger.log(
+        `Created default subscription for store ${storeId} with plan ${defaultPlan}`,
+      );
     }
 
     // Auto-check expired status
     const now = new Date();
-    if (sub.status === SubscriptionStatus.ACTIVE && sub.currentPeriodEnd < now) {
+    if (
+      sub.status === SubscriptionStatus.ACTIVE &&
+      sub.currentPeriodEnd < now
+    ) {
       sub = await this.prisma.storeSubscription.update({
         where: { storeId },
         data: { status: SubscriptionStatus.EXPIRED },
@@ -327,7 +363,10 @@ export class SubscriptionService {
     const limits = await this.getPlanConfig(sub.plan);
 
     const periodStart = sub.currentPeriodStart;
-    const warningPercentage = parseInt(process.env.SUBSCRIPTION_WARNING_PERCENTAGE || '80', 10);
+    const warningPercentage = parseInt(
+      process.env.SUBSCRIPTION_WARNING_PERCENTAGE || '80',
+      10,
+    );
 
     // 1. Hitung transaksi order bulan ini
     const usedTransactions = await this.prisma.order.count({
@@ -383,38 +422,69 @@ export class SubscriptionService {
     // 6. Hitung item produk / layanan aktif
     const usedProducts = this.prisma.product
       ? await this.prisma.product.count({
-        where: {
-          storeId,
-          deletedAt: null,
-        },
-      })
+          where: {
+            storeId,
+            deletedAt: null,
+          },
+        })
       : 0;
 
-    const productLimit = limits.maxProducts === -1 ? 999999 : (limits.maxProducts ?? 50);
-    const productRemaining = limits.maxProducts === -1 ? 999999 : Math.max(0, productLimit - usedProducts);
-    const productPercentage = limits.maxProducts === -1 ? 0 : Math.min(100, Math.round((usedProducts / productLimit) * 100));
+    const productLimit =
+      limits.maxProducts === -1 ? 999999 : (limits.maxProducts ?? 50);
+    const productRemaining =
+      limits.maxProducts === -1
+        ? 999999
+        : Math.max(0, productLimit - usedProducts);
+    const productPercentage =
+      limits.maxProducts === -1
+        ? 0
+        : Math.min(100, Math.round((usedProducts / productLimit) * 100));
 
     // Perhitungan kalkulasi limit + topup
-    const totalTrxLimit = limits.maxTransactions === -1 ? 999999 : limits.maxTransactions + sub.topupTransactions;
-    const trxPercentage = limits.maxTransactions === -1 ? 0 : Math.min(100, Math.round((usedTransactions / totalTrxLimit) * 100));
-    const trxRemaining = limits.maxTransactions === -1 ? 999999 : Math.max(0, totalTrxLimit - usedTransactions);
+    const totalTrxLimit =
+      limits.maxTransactions === -1
+        ? 999999
+        : limits.maxTransactions + sub.topupTransactions;
+    const trxPercentage =
+      limits.maxTransactions === -1
+        ? 0
+        : Math.min(100, Math.round((usedTransactions / totalTrxLimit) * 100));
+    const trxRemaining =
+      limits.maxTransactions === -1
+        ? 999999
+        : Math.max(0, totalTrxLimit - usedTransactions);
 
-    const totalPhotoLimit = limits.maxChatPhotos === -1 ? 999999 : limits.maxChatPhotos + sub.topupPhotos;
-    const photoPercentage = limits.maxChatPhotos === -1 ? 0 : Math.min(100, Math.round((usedPhotos / totalPhotoLimit) * 100));
-    const photoRemaining = limits.maxChatPhotos === -1 ? 999999 : Math.max(0, totalPhotoLimit - usedPhotos);
+    const totalPhotoLimit =
+      limits.maxChatPhotos === -1
+        ? 999999
+        : limits.maxChatPhotos + sub.topupPhotos;
+    const photoPercentage =
+      limits.maxChatPhotos === -1
+        ? 0
+        : Math.min(100, Math.round((usedPhotos / totalPhotoLimit) * 100));
+    const photoRemaining =
+      limits.maxChatPhotos === -1
+        ? 999999
+        : Math.max(0, totalPhotoLimit - usedPhotos);
 
     const userLimit = limits.maxUsers === -1 ? 999999 : limits.maxUsers;
-    const inventoryLimit = limits.maxStockItems === -1 ? 999999 : limits.maxStockItems;
+    const inventoryLimit =
+      limits.maxStockItems === -1 ? 999999 : limits.maxStockItems;
 
     const store = await this.prisma.store.findUnique({
       where: { id: storeId },
       select: { featureSubscriptionEnabled: true, showUpgradeBanner: true },
     });
-    const featureSubscriptionEnabled = store?.featureSubscriptionEnabled ?? true;
+    const featureSubscriptionEnabled =
+      store?.featureSubscriptionEnabled ?? true;
     const showUpgradeBanner = store?.showUpgradeBanner ?? true;
 
-    const remainingUsers = limits.maxUsers === -1 ? 999999 : Math.max(0, userLimit - usedUsers);
-    const remainingInventory = inventoryLimit === -1 ? 999999 : Math.max(0, inventoryLimit - usedInventory);
+    const remainingUsers =
+      limits.maxUsers === -1 ? 999999 : Math.max(0, userLimit - usedUsers);
+    const remainingInventory =
+      inventoryLimit === -1
+        ? 999999
+        : Math.max(0, inventoryLimit - usedInventory);
 
     // Simpan snapshot kuota & limit per store langsung ke database StoreSubscription
     if (this.prisma.storeSubscription?.update) {
@@ -438,11 +508,15 @@ export class SubscriptionService {
         });
         if (updatePromise && typeof updatePromise.catch === 'function') {
           updatePromise.catch((err: any) => {
-            this.logger.warn(`Gagal update snapshot kuota store ${storeId} di DB: ${err.message}`);
+            this.logger.warn(
+              `Gagal update snapshot kuota store ${storeId} di DB: ${err.message}`,
+            );
           });
         }
       } catch (err: any) {
-        this.logger.warn(`Gagal update snapshot kuota store ${storeId} di DB: ${err.message}`);
+        this.logger.warn(
+          `Gagal update snapshot kuota store ${storeId} di DB: ${err.message}`,
+        );
       }
     }
 
@@ -475,7 +549,8 @@ export class SubscriptionService {
           totalLimit: totalPhotoLimit,
           remaining: photoRemaining,
           percentage: photoPercentage,
-          isWarning: photoPercentage >= warningPercentage && photoPercentage < 100,
+          isWarning:
+            photoPercentage >= warningPercentage && photoPercentage < 100,
           isExceeded: usedPhotos >= totalPhotoLimit,
           retentionDays,
           expiringSoonCount,
@@ -490,7 +565,8 @@ export class SubscriptionService {
           used: usedInventory,
           limit: inventoryLimit,
           remaining: Math.max(0, inventoryLimit - usedInventory),
-          isExceeded: limits.maxStockItems !== -1 && usedInventory >= inventoryLimit,
+          isExceeded:
+            limits.maxStockItems !== -1 && usedInventory >= inventoryLimit,
         },
         products: {
           used: usedProducts,
@@ -500,7 +576,8 @@ export class SubscriptionService {
           isExceeded: limits.maxProducts !== -1 && usedProducts >= productLimit,
         },
       },
-      whatsappBillingNumber: process.env.BILLING_WHATSAPP_NUMBER || '6281234567890',
+      whatsappBillingNumber:
+        process.env.BILLING_WHATSAPP_NUMBER || '6281234567890',
     };
   }
 
@@ -509,7 +586,13 @@ export class SubscriptionService {
    */
   async assertCanPerformAction(
     storeId: string,
-    action: 'CREATE_ORDER' | 'UPLOAD_CHAT_PHOTO' | 'CREATE_USER' | 'CREATE_INVENTORY' | 'CREATE_PRODUCT' | 'VIEW_STOCK_HISTORY',
+    action:
+      | 'CREATE_ORDER'
+      | 'UPLOAD_CHAT_PHOTO'
+      | 'CREATE_USER'
+      | 'CREATE_INVENTORY'
+      | 'CREATE_PRODUCT'
+      | 'VIEW_STOCK_HISTORY',
   ) {
     const store = await this.prisma.store.findUnique({
       where: { id: storeId },
@@ -531,7 +614,8 @@ export class SubscriptionService {
       throw new ForbiddenException({
         statusCode: 403,
         error: 'SUBSCRIPTION_EXPIRED',
-        message: 'Masa aktif paket langganan Anda telah berakhir. Silakan lakukan perpanjangan paket.',
+        message:
+          'Masa aktif paket langganan Anda telah berakhir. Silakan lakukan perpanjangan paket.',
         canTopup: false,
         whatsappBillingNumber: report.whatsappBillingNumber,
       });
@@ -561,7 +645,11 @@ export class SubscriptionService {
       });
     }
 
-    if (action === 'CREATE_USER' && report.limits.maxUsers !== -1 && report.usage.users.isExceeded) {
+    if (
+      action === 'CREATE_USER' &&
+      report.limits.maxUsers !== -1 &&
+      report.usage.users.isExceeded
+    ) {
       throw new ForbiddenException({
         statusCode: 403,
         error: 'USER_LIMIT_EXCEEDED',
@@ -573,7 +661,10 @@ export class SubscriptionService {
       });
     }
 
-    if (action === 'VIEW_STOCK_HISTORY' && report.limits.hasStockHistory === false) {
+    if (
+      action === 'VIEW_STOCK_HISTORY' &&
+      report.limits.hasStockHistory === false
+    ) {
       throw new ForbiddenException({
         statusCode: 403,
         error: 'STOCK_HISTORY_LOCKED',
@@ -665,24 +756,33 @@ export class SubscriptionService {
           });
           totalCleaned++;
         } catch (err) {
-          this.logger.error(`Gagal menghapus file foto pesan ${msg.id}: ${err.message}`);
+          this.logger.error(
+            `Gagal menghapus file foto pesan ${msg.id}: ${err.message}`,
+          );
         }
       }
     }
 
-    this.logger.log(`Pembersihan retensi foto selesai. Total ${totalCleaned} foto kadaluarsa dibersihkan.`);
+    this.logger.log(
+      `Pembersihan retensi foto selesai. Total ${totalCleaned} foto kadaluarsa dibersihkan.`,
+    );
     return { cleaned: totalCleaned };
   }
 
   /**
    * Top-up kuota tambahan untuk bulan berjalan
    */
-  async topupQuota(storeId: string, type: 'TRANSACTIONS' | 'PHOTOS', amount: number) {
+  async topupQuota(
+    storeId: string,
+    type: 'TRANSACTIONS' | 'PHOTOS',
+    amount: number,
+  ) {
     const sub = await this.getOrCreateSubscription(storeId);
     return this.prisma.storeSubscription.update({
       where: { storeId },
       data: {
-        topupTransactions: type === 'TRANSACTIONS' ? sub.topupTransactions + amount : undefined,
+        topupTransactions:
+          type === 'TRANSACTIONS' ? sub.topupTransactions + amount : undefined,
         topupPhotos: type === 'PHOTOS' ? sub.topupPhotos + amount : undefined,
       },
     });
@@ -691,7 +791,11 @@ export class SubscriptionService {
   /**
    * Perbarui / Upgrade paket langganan
    */
-  async updatePlan(storeId: string, plan: SubscriptionPlan, durationMonths = 1) {
+  async updatePlan(
+    storeId: string,
+    plan: SubscriptionPlan,
+    durationMonths = 1,
+  ) {
     await this.getOrCreateSubscription(storeId);
     const planLimits = await this.getPlanConfig(plan);
     const now = new Date();
@@ -707,14 +811,29 @@ export class SubscriptionService {
         currentPeriodEnd: periodEnd,
         topupTransactions: 0,
         topupPhotos: 0,
-        maxTransactions: planLimits.maxTransactions === -1 ? 999999 : planLimits.maxTransactions,
-        remainingTransactions: planLimits.maxTransactions === -1 ? 999999 : planLimits.maxTransactions,
-        maxChatPhotos: planLimits.maxChatPhotos === -1 ? 999999 : planLimits.maxChatPhotos,
-        remainingPhotos: planLimits.maxChatPhotos === -1 ? 999999 : planLimits.maxChatPhotos,
+        maxTransactions:
+          planLimits.maxTransactions === -1
+            ? 999999
+            : planLimits.maxTransactions,
+        remainingTransactions:
+          planLimits.maxTransactions === -1
+            ? 999999
+            : planLimits.maxTransactions,
+        maxChatPhotos:
+          planLimits.maxChatPhotos === -1 ? 999999 : planLimits.maxChatPhotos,
+        remainingPhotos:
+          planLimits.maxChatPhotos === -1 ? 999999 : planLimits.maxChatPhotos,
         maxUsers: planLimits.maxUsers === -1 ? 999999 : planLimits.maxUsers,
-        maxProducts: planLimits.maxProducts === -1 ? 999999 : (planLimits.maxProducts ?? (plan === 'TRIAL' ? 12 : 20)),
-        remainingProducts: planLimits.maxProducts === -1 ? 999999 : (planLimits.maxProducts ?? (plan === 'TRIAL' ? 12 : 20)),
-        maxStockItems: planLimits.maxStockItems === -1 ? 999999 : planLimits.maxStockItems,
+        maxProducts:
+          planLimits.maxProducts === -1
+            ? 999999
+            : (planLimits.maxProducts ?? (plan === 'TRIAL' ? 12 : 20)),
+        remainingProducts:
+          planLimits.maxProducts === -1
+            ? 999999
+            : (planLimits.maxProducts ?? (plan === 'TRIAL' ? 12 : 20)),
+        maxStockItems:
+          planLimits.maxStockItems === -1 ? 999999 : planLimits.maxStockItems,
       },
     });
 

@@ -24,7 +24,9 @@ export async function createStoreNotification(
       },
     });
   } catch (error: any) {
-    Logger.warn(`[NotificationHelper] Gagal membuat notifikasi: ${error?.message}`);
+    Logger.warn(
+      `[NotificationHelper] Gagal membuat notifikasi: ${error?.message}`,
+    );
     return null;
   }
 }
@@ -114,4 +116,3 @@ export class NotificationsService {
     });
   }
 }
-

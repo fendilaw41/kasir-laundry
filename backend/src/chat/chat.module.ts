@@ -13,4 +13,3 @@ import { SubscriptionModule } from '../subscription/subscription.module';
   exports: [ChatService, ChatGateway],
 })
 export class ChatModule {}
-

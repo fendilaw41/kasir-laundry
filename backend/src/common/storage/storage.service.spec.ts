@@ -65,20 +65,41 @@ describe('StorageService', () => {
   describe('saveFile', () => {
     it('should delegate to local driver when driver is local', async () => {
       const buffer = Buffer.from('test image content');
-      const result = await service.saveFile('store1', 'test.jpg', buffer, 'image/jpeg', 'local');
+      const result = await service.saveFile(
+        'store1',
+        'test.jpg',
+        buffer,
+        'image/jpeg',
+        'local',
+      );
 
-      expect(mockLocalDriver.saveFile).toHaveBeenCalledWith('store1', 'test.jpg', buffer, 'image/jpeg');
+      expect(mockLocalDriver.saveFile).toHaveBeenCalledWith(
+        'store1',
+        'test.jpg',
+        buffer,
+        'image/jpeg',
+      );
       expect(mockS3Driver.saveFile).not.toHaveBeenCalled();
       expect(result.fileKey).toBe('store1/test.jpg');
     });
 
     it('should delegate to S3 driver when driver is s3', async () => {
       const buffer = Buffer.from('test image content');
-      const result = await service.saveFile('store1', 'test.jpg', buffer, 'image/jpeg', 's3');
+      const result = await service.saveFile(
+        'store1',
+        'test.jpg',
+        buffer,
+        'image/jpeg',
+        's3',
+      );
 
-      expect(mockS3Driver.saveFile).toHaveBeenCalledWith('store1', 'test.jpg', buffer, 'image/jpeg');
+      expect(mockS3Driver.saveFile).toHaveBeenCalledWith(
+        'store1',
+        'test.jpg',
+        buffer,
+        'image/jpeg',
+      );
       expect(result.fileKey).toBe('chat/store1/test.jpg');
     });
   });
 });
-

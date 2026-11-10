@@ -9,4 +9,3 @@ import { S3MinioStorageDriver } from './s3-minio-storage.driver';
   exports: [StorageService, LocalStorageDriver, S3MinioStorageDriver],
 })
 export class StorageModule {}
-

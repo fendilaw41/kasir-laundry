@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getSettingsQuery } from '../db/repositories/settings';
 import { getPlansQuery, syncPlansFromBackend, DEFAULT_PLANS } from '../db/repositories/plans';
+import PlanPaymentModal from '../components/PlanPaymentModal';
 import {
   PLAN_CONFIGS,
   getSubscriptionReport,
@@ -21,8 +22,8 @@ export default function Plan({ user }) {
   const [submitting, setSubmitting] = useState(false);
   const [report, setReport] = useState(null);
   const [topupModalOpen, setTopupModalOpen] = useState(false);
-  const [confirmModal, setConfirmModal] = useState({ open: false, planKey: null, planName: '' });
-  const [showPlansTable, setShowPlansTable] = useState(false);
+  const [paymentModal, setPaymentModal] = useState({ open: false, plan: null });
+  const [showPlansTable, setShowPlansTable] = useState(true);
 
   const isOwner = user?.role === 'owner';
   const adminWa = report?.whatsappBillingNumber || '6281234567890';
@@ -735,14 +736,13 @@ export default function Plan({ user }) {
                                 style={{ fontSize: '0.74rem' }}
                                 disabled={isCurrent}
                                 onClick={() =>
-                                  setConfirmModal({
+                                  setPaymentModal({
                                     open: true,
-                                    planKey: p.key,
-                                    planName: `${p.name} ${p.priceLabel || ''}`,
+                                    plan: p,
                                   })
                                 }
                               >
-                                {isCurrent ? 'Aktif' : 'Ajukan'}
+                                {isCurrent ? 'Aktif' : 'BELI'}
                               </button>
                             </td>
                           );
@@ -757,51 +757,16 @@ export default function Plan({ user }) {
         )}
       </div>
 
-      {/* MODAL PENGAJUAN PAKET KE WA ADMIN */}
-      {confirmModal.open && (
-        <>
-          <div className="modal-backdrop fade show" style={{ zIndex: 1060 }} onClick={() => setConfirmModal({ open: false, planKey: null, planName: '' })}></div>
-          <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1065 }}>
-            <div className="modal-dialog modal-dialog-centered mx-auto px-3" style={{ maxWidth: '420px' }}>
-              <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-                <div className="modal-header border-bottom bg-light px-4 py-3">
-                  <h6 className="modal-title fw-bold text-dark mb-0">Pengajuan Paket</h6>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => setConfirmModal({ open: false, planKey: null, planName: '' })}
-                  ></button>
-                </div>
-                <div className="modal-body p-4 text-center">
-                  <p className="text-muted small mb-3 text-start" style={{ fontSize: '0.82rem' }}>
-                    Silakan hubungi WhatsApp Admin untuk mengajukan paket. Berikut detail pengajuan Anda:
-                  </p>
-
-                  <div className="d-flex gap-2">
-                    <button
-                      type="button"
-                      className="btn btn-light rounded-pill flex-fill py-2 text-muted fw-semibold"
-                      style={{ fontSize: '0.82rem' }}
-                      onClick={() => setConfirmModal({ open: false, planKey: null, planName: '' })}
-                    >
-                      Batal
-                    </button>
-                    <a
-                      href={getUpgradeWhatsAppUrl(confirmModal.planKey, storeName)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-success rounded-pill flex-fill py-2 fw-semibold shadow-xs text-decoration-none text-white text-center"
-                      style={{ fontSize: '0.82rem' }}
-                      onClick={() => setConfirmModal({ open: false, planKey: null, planName: '' })}
-                    >
-                      Kirim WhatsApp
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
+      {/* MODAL PEMBAYARAN NATIVE CHECKOUT MAYAR (QRIS / VA) */}
+      {paymentModal.open && (
+        <PlanPaymentModal
+          plan={paymentModal.plan}
+          storeName={storeName}
+          onClose={() => setPaymentModal({ open: false, plan: null })}
+          onSuccess={async () => {
+            await fetchStatus();
+          }}
+        />
       )}
 
       {/* MODAL TOP-UP KUOTA */}

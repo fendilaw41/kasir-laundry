@@ -21,7 +21,10 @@ export interface PlanLimits {
 }
 
 export const getPlanLimits = (): Record<string, PlanLimits> => {
-  const businessMaxTrx = parseInt(process.env.PLAN_BUSINESS_MAX_TRANSACTIONS || '1000', 10);
+  const businessMaxTrx = parseInt(
+    process.env.PLAN_BUSINESS_MAX_TRANSACTIONS || '1000',
+    10,
+  );
 
   return {
     TRIAL: {
@@ -119,4 +122,3 @@ export const getPlanLimits = (): Record<string, PlanLimits> => {
     },
   };
 };
-

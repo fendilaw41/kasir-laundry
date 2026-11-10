@@ -1,15 +1,26 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { SyncOrderDto } from './dto/sync-order.dto';
 import { Public } from '../auth/public.decorator';
 
 @ApiTags('Orders')
 @ApiBearerAuth('bearer')
-@ApiResponse({ status: 401, description: 'Unauthorized - Bearer token tidak valid atau tidak disertakan.' })
+@ApiResponse({
+  status: 401,
+  description: 'Unauthorized - Bearer token tidak valid atau tidak disertakan.',
+})
 @Controller('orders')
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) { }
+  constructor(private readonly ordersService: OrdersService) {}
 
   /**
    * Endpoint sinkronisasi satu pesanan dari frontend
@@ -18,7 +29,8 @@ export class OrdersController {
   @Post('sync')
   @ApiOperation({
     summary: 'Sinkronisasi Single Order (Upsert Idempotent)',
-    description: 'Menyimpan atau memperbarui data satu pesanan dari client offline-first ke backend database.',
+    description:
+      'Menyimpan atau memperbarui data satu pesanan dari client offline-first ke backend database.',
   })
   @ApiBody({ type: SyncOrderDto })
   @ApiResponse({ status: 201, description: 'Order berhasil disinkronkan.' })
@@ -39,7 +51,8 @@ export class OrdersController {
   @Post('sync-batch')
   @ApiOperation({
     summary: 'Sinkronisasi Batch Orders',
-    description: 'Menyinkronkan daftar antrean pesanan yang belum ter-sync saat aplikasi offline.',
+    description:
+      'Menyinkronkan daftar antrean pesanan yang belum ter-sync saat aplikasi offline.',
   })
   @ApiBody({ type: [SyncOrderDto] })
   @ApiResponse({ status: 201, description: 'Batch order berhasil diproses.' })
@@ -59,19 +72,34 @@ export class OrdersController {
   @Get()
   @ApiOperation({
     summary: 'Mendapatkan Semua Daftar Order',
-    description: 'Mengambil daftar seluruh pesanan laundry beserta relasi item dan pelanggan.',
+    description:
+      'Mengambil daftar seluruh pesanan laundry beserta relasi item dan pelanggan.',
   })
-  @ApiQuery({ name: 'storeId', required: false, description: 'ID Toko (opsional)' })
-  @ApiQuery({ name: 'includeDeleted', required: false, description: 'Sertakan order yang dihapus/tombstone untuk sinkronisasi', type: Boolean })
+  @ApiQuery({
+    name: 'storeId',
+    required: false,
+    description: 'ID Toko (opsional)',
+  })
+  @ApiQuery({
+    name: 'includeDeleted',
+    required: false,
+    description: 'Sertakan order yang dihapus/tombstone untuk sinkronisasi',
+    type: Boolean,
+  })
   @ApiResponse({ status: 200, description: 'Daftar order berhasil dimuat.' })
   async findAll(
     @Query('storeId') storeId?: string,
     @Query('includeDeleted') includeDeleted?: string,
   ) {
-    const isIncludeDeleted = includeDeleted === 'true' || includeDeleted === '1';
+    const isIncludeDeleted =
+      includeDeleted === 'true' || includeDeleted === '1';
     const data = await this.ordersService.findAll(storeId, isIncludeDeleted);
-    const inventory = storeId ? await this.ordersService.findInventory(storeId) : [];
-    const products = storeId ? await this.ordersService.findProducts(storeId) : [];
+    const inventory = storeId
+      ? await this.ordersService.findInventory(storeId)
+      : [];
+    const products = storeId
+      ? await this.ordersService.findProducts(storeId)
+      : [];
     return {
       success: true,
       data,
@@ -88,9 +116,15 @@ export class OrdersController {
   @Get('check/:code')
   @ApiOperation({
     summary: 'Cek Status Pesanan Publik (Tanpa Login)',
-    description: 'Mengambil data order untuk customer tracking menggunakan kolom invoiceId (misal: 8126-00001) atau shortcode terenkripsi.',
+    description:
+      'Mengambil data order untuk customer tracking menggunakan kolom invoiceId (misal: 8126-00001) atau shortcode terenkripsi.',
   })
-  @ApiParam({ name: 'code', description: 'Nomor nota (invoiceId) seperti 8126-00001 atau shortcode terenkripsi', example: '8126-00001' })
+  @ApiParam({
+    name: 'code',
+    description:
+      'Nomor nota (invoiceId) seperti 8126-00001 atau shortcode terenkripsi',
+    example: '8126-00001',
+  })
   @ApiResponse({ status: 200, description: 'Data order berhasil ditemukan.' })
   @ApiResponse({ status: 404, description: 'Pesanan tidak ditemukan.' })
   async checkOrder(@Param('code') code: string) {
@@ -108,9 +142,14 @@ export class OrdersController {
   @Get(':id')
   @ApiOperation({
     summary: 'Mendapatkan Detail Order Berdasarkan ID',
-    description: 'Mengambil satu rincian transaksi order laundry berdasarkan ID UUID.',
+    description:
+      'Mengambil satu rincian transaksi order laundry berdasarkan ID UUID.',
   })
-  @ApiParam({ name: 'id', description: 'ID UUID dari Order', example: 'c3f81e69-0268-4a94-bfbe-d45e12f672fa' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID UUID dari Order',
+    example: 'c3f81e69-0268-4a94-bfbe-d45e12f672fa',
+  })
   @ApiResponse({ status: 200, description: 'Detail order ditemukan.' })
   @ApiResponse({ status: 404, description: 'Order tidak ditemukan.' })
   async findOne(@Param('id') id: string) {
@@ -121,4 +160,3 @@ export class OrdersController {
     };
   }
 }
-

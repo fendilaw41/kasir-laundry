@@ -43,12 +43,16 @@ describe('AuthService - getStoreInfo', () => {
 
   it('harus melempar BadRequestException jika kode kosong', async () => {
     await expect(service.getStoreInfo('')).rejects.toThrow(BadRequestException);
-    await expect(service.getStoreInfo('   ')).rejects.toThrow(BadRequestException);
+    await expect(service.getStoreInfo('   ')).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('harus melempar NotFoundException jika toko tidak ditemukan', async () => {
     prisma.store.findFirst.mockResolvedValue(null);
-    await expect(service.getStoreInfo('STORE999')).rejects.toThrow(NotFoundException);
+    await expect(service.getStoreInfo('STORE999')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('harus mengembalikan info toko dengan nama dari settings jika ada', async () => {
@@ -103,4 +107,3 @@ describe('AuthService - getStoreInfo', () => {
     });
   });
 });
-

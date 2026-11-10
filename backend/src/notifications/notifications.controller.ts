@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  Patch,
-  Param,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Patch, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -15,10 +9,12 @@ import { CurrentUser } from '../auth/current-user.decorator';
 @UseGuards(JwtAuthGuard)
 @Controller('notifications')
 export class NotificationsController {
-  constructor(private readonly notificationsService: NotificationsService) { }
+  constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Ambil 5 notifikasi terbaru toko sesuai hak akses role' })
+  @ApiOperation({
+    summary: 'Ambil 5 notifikasi terbaru toko sesuai hak akses role',
+  })
   async getLatest(@CurrentUser() user: any) {
     const storeId = user.storeId;
     const role = user.role;
@@ -26,7 +22,9 @@ export class NotificationsController {
   }
 
   @Patch('read-all')
-  @ApiOperation({ summary: 'Tandai seluruh notifikasi toko sebagai telah dibaca' })
+  @ApiOperation({
+    summary: 'Tandai seluruh notifikasi toko sebagai telah dibaca',
+  })
   async markAllRead(@CurrentUser() user: any) {
     const storeId = user.storeId;
     const role = user.role;
@@ -42,4 +40,3 @@ export class NotificationsController {
     return { success: true };
   }
 }
-

@@ -10,10 +10,16 @@ async function bootstrap() {
 
   // Enable CORS
   const rawCors = process.env.CORS_ORIGIN || '*';
-  const allowedOrigins = rawCors.split(',').map((o) => o.trim()).filter(Boolean);
+  const allowedOrigins = rawCors
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
 
   app.enableCors({
-    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
       if (!origin) return callback(null, true);
       if (
         allowedOrigins.includes('*') ||
@@ -46,10 +52,15 @@ async function bootstrap() {
     res.on('finish', () => {
       const { statusCode } = res;
       const duration = Date.now() - startTime;
-      const queryStr = Object.keys(query || {}).length > 0 ? ` ?${JSON.stringify(query)}` : '';
+      const queryStr =
+        Object.keys(query || {}).length > 0 ? ` ?${JSON.stringify(query)}` : '';
 
       let bodySummary = '';
-      if (['POST', 'PUT', 'PATCH'].includes(method) && req.body && Object.keys(req.body).length > 0) {
+      if (
+        ['POST', 'PUT', 'PATCH'].includes(method) &&
+        req.body &&
+        Object.keys(req.body).length > 0
+      ) {
         try {
           const maskSensitive = (data: any): any => {
             if (Array.isArray(data)) {
@@ -94,7 +105,9 @@ async function bootstrap() {
   // Swagger Documentation Setup
   const config = new DocumentBuilder()
     .setTitle('Kasir Laundry API')
-    .setDescription('Dokumentasi REST API & Sinkronisasi Data Kasir Laundry (Offline-First)')
+    .setDescription(
+      'Dokumentasi REST API & Sinkronisasi Data Kasir Laundry (Offline-First)',
+    )
     .setVersion('1.0.0')
     .addBearerAuth(
       {
@@ -102,14 +115,21 @@ async function bootstrap() {
         scheme: 'bearer',
         bearerFormat: 'JWT',
         name: 'Authorization',
-        description: 'Masukkan JWT Bearer token Anda untuk mengakses endpoint yang dilindungi.',
+        description:
+          'Masukkan JWT Bearer token Anda untuk mengakses endpoint yang dilindungi.',
         in: 'header',
       },
       'bearer',
     )
     .addTag('Authentication', 'Autentikasi & Registrasi (Public)')
-    .addTag('Orders', 'Manajemen & Sinkronisasi Pesanan (Memerlukan Bearer Token)')
-    .addTag('Master Sync & Audit Logs', 'Sinkronisasi Master Data & Audit Logs (Memerlukan Bearer Token)')
+    .addTag(
+      'Orders',
+      'Manajemen & Sinkronisasi Pesanan (Memerlukan Bearer Token)',
+    )
+    .addTag(
+      'Master Sync & Audit Logs',
+      'Sinkronisasi Master Data & Audit Logs (Memerlukan Bearer Token)',
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
@@ -118,8 +138,8 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
   console.log(`Backend server running on http://localhost:${port}/api`);
-  console.log(`Swagger documentation available at http://localhost:${port}/api/docs`);
+  console.log(
+    `Swagger documentation available at http://localhost:${port}/api/docs`,
+  );
 }
 bootstrap();
-
-

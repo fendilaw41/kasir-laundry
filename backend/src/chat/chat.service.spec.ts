@@ -171,7 +171,13 @@ describe('ChatService', () => {
         targetUserId: 'user-a2',
       });
 
-      expect(result).toEqual(expect.objectContaining({ id: "conv-exist-123", type: "DIRECT", title: "Kasir Toko A 2" }));
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: 'conv-exist-123',
+          type: 'DIRECT',
+          title: 'Kasir Toko A 2',
+        }),
+      );
       expect(prisma.conversation.create).not.toHaveBeenCalled();
     });
   });
@@ -191,7 +197,11 @@ describe('ChatService', () => {
 
     it('harus idempotent: jika UUID pesan sudah ada, kembalikan pesan yang ada tanpa insert baru', async () => {
       prisma.conversationMember.findUnique.mockResolvedValue({ id: 'mem-1' });
-      const existingMsg = { id: 'msg-db-1', uuid: 'msg-uuid-1', content: 'Halo' };
+      const existingMsg = {
+        id: 'msg-db-1',
+        uuid: 'msg-uuid-1',
+        content: 'Halo',
+      };
       prisma.message.findUnique.mockResolvedValue(existingMsg);
 
       const result = await service.createMessage(mockKasirUser, {
@@ -249,7 +259,11 @@ describe('ChatService', () => {
         buffer: Buffer.from('test'),
       };
 
-      const result = await service.uploadFile(mockKasirUser, mockFile, 'conv-1');
+      const result = await service.uploadFile(
+        mockKasirUser,
+        mockFile,
+        'conv-1',
+      );
 
       expect(result.storeId).toBe('store-a');
       expect(result.filename).toMatch(/^store-a_\d+_[a-z0-9-]+\.jpg$/);
@@ -262,4 +276,3 @@ describe('ChatService', () => {
     });
   });
 });
-

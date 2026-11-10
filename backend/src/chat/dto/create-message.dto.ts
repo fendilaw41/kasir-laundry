@@ -2,7 +2,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateMessageDto {
   @ApiProperty({
-    description: 'Client-generated UUID untuk idempotency dan pencegahan pesan ganda',
+    description:
+      'Client-generated UUID untuk idempotency dan pencegahan pesan ganda',
     example: 'd8c7b8e2-1a2b-4c3d-8e4f-5a6b7c8d9e0f',
   })
   uuid: string;
@@ -52,9 +53,9 @@ export class CreateMessageDto {
   fileSize?: number;
 
   @ApiPropertyOptional({
-    description: 'Metadata tambahan (misal cuplikan order/nota untuk share invoice)',
+    description:
+      'Metadata tambahan (misal cuplikan order/nota untuk share invoice)',
     example: { orderId: 'ord-123', orderNo: 'ORD-2026-001', amount: 50000 },
   })
   metadata?: Record<string, any>;
 }
-

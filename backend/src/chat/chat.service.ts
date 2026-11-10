@@ -29,7 +29,7 @@ export class ChatService {
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
     private readonly subscriptionService: SubscriptionService,
-  ) { }
+  ) {}
 
   /**
    * Mengembalikan konfigurasi chat (status lintas cabang dan storage driver)
@@ -78,10 +78,7 @@ export class ChatService {
           },
         },
       },
-      orderBy: [
-        { store: { name: 'asc' } },
-        { fullname: 'asc' },
-      ],
+      orderBy: [{ store: { name: 'asc' } }, { fullname: 'asc' }],
     });
 
     return users;
@@ -152,7 +149,9 @@ export class ChatService {
         const currentMember = conv.members.find(
           (m) => m.userId === currentUser.userId,
         );
-        const lastReadAt = currentMember ? currentMember.lastReadAt : new Date(0);
+        const lastReadAt = currentMember
+          ? currentMember.lastReadAt
+          : new Date(0);
 
         const unreadCount = await this.prisma.message.count({
           where: {
@@ -165,14 +164,16 @@ export class ChatService {
 
         // Tentukan judul dan avatar percakapan
         let displayName = conv.title;
-        let displayAvatar = conv.avatarUrl;
+        const displayAvatar = conv.avatarUrl;
 
         if (conv.type === 'DIRECT') {
           const otherMember = conv.members.find(
             (m) => m.userId !== currentUser.userId,
           );
           if (otherMember?.user) {
-            displayName = otherMember.user.fullname?.trim() || otherMember.user.username?.trim();
+            displayName =
+              otherMember.user.fullname?.trim() ||
+              otherMember.user.username?.trim();
           }
         }
 
@@ -199,7 +200,10 @@ export class ChatService {
   /**
    * Membuat atau mengembalikan percakapan (DIRECT, GROUP, atau CROSS_STORE)
    */
-  async createConversation(currentUser: ChatUserPayload, dto: CreateConversationDto) {
+  async createConversation(
+    currentUser: ChatUserPayload,
+    dto: CreateConversationDto,
+  ) {
     const isOwner = currentUser.role.toLowerCase() === 'owner';
     const enableCrossStore = process.env.ENABLE_CROSS_STORE_CHAT === 'true';
 
@@ -239,16 +243,27 @@ export class ChatService {
       dto.targetUserId || (dto.memberIds && dto.memberIds[0]);
 
     if (!targetUserId) {
-      throw new BadRequestException('ID user target wajib ditentukan untuk obrolan langsung.');
+      throw new BadRequestException(
+        'ID user target wajib ditentukan untuk obrolan langsung.',
+      );
     }
 
     if (targetUserId === currentUser.userId) {
-      throw new BadRequestException('Tidak dapat memulai percakapan dengan diri sendiri.');
+      throw new BadRequestException(
+        'Tidak dapat memulai percakapan dengan diri sendiri.',
+      );
     }
 
     const targetUser = await this.prisma.user.findUnique({
       where: { id: targetUserId },
-      select: { id: true, fullname: true, username: true, storeId: true, role: true, store: { select: { id: true, name: true, code: true } } },
+      select: {
+        id: true,
+        fullname: true,
+        username: true,
+        storeId: true,
+        role: true,
+        store: { select: { id: true, name: true, code: true } },
+      },
     });
 
     if (!targetUser) {
@@ -260,12 +275,20 @@ export class ChatService {
 
     // Kasir hanya boleh direct chat dengan pengguna sesama toko
     if (!isOwner && targetUser.storeId !== currentUser.storeId) {
-      throw new ForbiddenException('Kasir hanya dapat menghubungi anggota di toko yang sama.');
+      throw new ForbiddenException(
+        'Kasir hanya dapat menghubungi anggota di toko yang sama.',
+      );
     }
 
     // Owner hanya boleh direct chat dengan beda toko jika ENABLE_CROSS_STORE_CHAT aktif
-    if (isOwner && targetUser.storeId !== currentUser.storeId && !enableCrossStore) {
-      throw new ForbiddenException('Obrolan lintas cabang sedang dinonaktifkan.');
+    if (
+      isOwner &&
+      targetUser.storeId !== currentUser.storeId &&
+      !enableCrossStore
+    ) {
+      throw new ForbiddenException(
+        'Obrolan lintas cabang sedang dinonaktifkan.',
+      );
     }
 
     // Periksa apakah percakapan DIRECT antara kedua user ini sudah ada
@@ -282,7 +305,14 @@ export class ChatService {
         members: {
           include: {
             user: {
-              select: { id: true, fullname: true, username: true, role: true, storeId: true, store: { select: { id: true, name: true, code: true } } },
+              select: {
+                id: true,
+                fullname: true,
+                username: true,
+                role: true,
+                storeId: true,
+                store: { select: { id: true, name: true, code: true } },
+              },
             },
           },
         },
@@ -295,7 +325,11 @@ export class ChatService {
       );
       return {
         ...existingConv,
-        title: otherMember?.user?.fullname?.trim() || otherMember?.user?.username?.trim() || targetUser.fullname?.trim() || targetUser.username?.trim(),
+        title:
+          otherMember?.user?.fullname?.trim() ||
+          otherMember?.user?.username?.trim() ||
+          targetUser.fullname?.trim() ||
+          targetUser.username?.trim(),
       };
     }
 
@@ -319,7 +353,14 @@ export class ChatService {
         members: {
           include: {
             user: {
-              select: { id: true, fullname: true, username: true, role: true, storeId: true, store: { select: { id: true, name: true, code: true } } },
+              select: {
+                id: true,
+                fullname: true,
+                username: true,
+                role: true,
+                storeId: true,
+                store: { select: { id: true, name: true, code: true } },
+              },
             },
           },
         },
@@ -362,7 +403,9 @@ export class ChatService {
     });
 
     const isOwner = currentUser.role.toLowerCase() === 'owner';
-    const foreignMember = membersInDb.find((m) => m.storeId !== currentUser.storeId);
+    const foreignMember = membersInDb.find(
+      (m) => m.storeId !== currentUser.storeId,
+    );
     if (foreignMember && !isOwner) {
       throw new ForbiddenException(
         'Grup toko hanya boleh berisi anggota dari toko yang sama.',
@@ -386,7 +429,13 @@ export class ChatService {
         members: {
           include: {
             user: {
-              select: { id: true, fullname: true, username: true, role: true, storeId: true },
+              select: {
+                id: true,
+                fullname: true,
+                username: true,
+                role: true,
+                storeId: true,
+              },
             },
           },
         },
@@ -413,7 +462,9 @@ export class ChatService {
     }
 
     if (memberIds.length < 2) {
-      throw new BadRequestException('Grup lintas cabang memerlukan minimal 2 anggota.');
+      throw new BadRequestException(
+        'Grup lintas cabang memerlukan minimal 2 anggota.',
+      );
     }
 
     const conversation = await this.prisma.conversation.create({
@@ -500,7 +551,10 @@ export class ChatService {
       throw new BadRequestException('uuid wajib disediakan untuk idempotency.');
     }
 
-    await this.assertConversationMembership(dto.conversationId, currentUser.userId);
+    await this.assertConversationMembership(
+      dto.conversationId,
+      currentUser.userId,
+    );
 
     // Cek idempotency: jika pesan dengan UUID ini sudah ada, kembalikan pesan yang ada
     const existingMessage = await this.prisma.message.findUnique({
@@ -612,11 +666,16 @@ export class ChatService {
     conversationId: string,
   ) {
     if (!file) {
-      throw new BadRequestException('Berkas foto tidak ditemukan dalam form upload.');
+      throw new BadRequestException(
+        'Berkas foto tidak ditemukan dalam form upload.',
+      );
     }
 
     if (currentUser.storeId) {
-      await this.subscriptionService.assertCanPerformAction(currentUser.storeId, 'UPLOAD_CHAT_PHOTO');
+      await this.subscriptionService.assertCanPerformAction(
+        currentUser.storeId,
+        'UPLOAD_CHAT_PHOTO',
+      );
     }
 
     // Validasi batas ukuran file (maksimal 5MB)
@@ -672,7 +731,11 @@ export class ChatService {
     filename: string,
   ) {
     // Sanitasi pencegahan Directory Traversal
-    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    if (
+      filename.includes('..') ||
+      filename.includes('/') ||
+      filename.includes('\\')
+    ) {
       throw new BadRequestException('Nama berkas tidak valid.');
     }
 

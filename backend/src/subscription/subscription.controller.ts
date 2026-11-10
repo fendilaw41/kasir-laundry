@@ -10,6 +10,10 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SubscriptionService } from './subscription.service';
+import {
+  PlanPaymentService,
+  CreatePlanPaymentDto,
+} from './plan-payment.service';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/public.decorator';
 import { SubscriptionPlan } from '@prisma/client';
@@ -17,11 +21,16 @@ import { SubscriptionPlan } from '@prisma/client';
 @ApiTags('Subscription')
 @Controller('subscription')
 export class SubscriptionController {
-  constructor(private readonly subscriptionService: SubscriptionService) {}
+  constructor(
+    private readonly subscriptionService: SubscriptionService,
+    private readonly planPaymentService: PlanPaymentService,
+  ) {}
 
   @Public()
   @Get('plans')
-  @ApiOperation({ summary: 'Mendapatkan daftar paket dan batas limit dari database' })
+  @ApiOperation({
+    summary: 'Mendapatkan daftar paket dan batas limit dari database',
+  })
   async getPlans() {
     const plans = await this.subscriptionService.getAllPlans();
     const plansMap: Record<string, any> = {};
@@ -44,7 +53,9 @@ export class SubscriptionController {
     @Body() body: any,
   ) {
     if (user.role !== 'owner') {
-      throw new ForbiddenException('Hanya akun Owner yang dapat mengubah konfigurasi master plan.');
+      throw new ForbiddenException(
+        'Hanya akun Owner yang dapat mengubah konfigurasi master plan.',
+      );
     }
     const updated = await this.subscriptionService.updateMasterPlan(key, body);
     return {
@@ -73,7 +84,9 @@ export class SubscriptionController {
     @Body() body: { plan: SubscriptionPlan; durationMonths?: number },
   ) {
     if (user.role !== 'owner') {
-      throw new ForbiddenException('Hanya Owner yang dapat mengubah paket langganan toko.');
+      throw new ForbiddenException(
+        'Hanya Owner yang dapat mengubah paket langganan toko.',
+      );
     }
     const updated = await this.subscriptionService.updatePlan(
       user.storeId,
@@ -89,13 +102,17 @@ export class SubscriptionController {
 
   @ApiBearerAuth('bearer')
   @Post('topup')
-  @ApiOperation({ summary: 'Top-up kuota tambahan transaksi atau foto (Khusus Owner)' })
+  @ApiOperation({
+    summary: 'Top-up kuota tambahan transaksi atau foto (Khusus Owner)',
+  })
   async topup(
     @CurrentUser() user: any,
     @Body() body: { type: 'TRANSACTIONS' | 'PHOTOS'; amount: number },
   ) {
     if (user.role !== 'owner') {
-      throw new ForbiddenException('Hanya Owner yang dapat melakukan top-up kuota.');
+      throw new ForbiddenException(
+        'Hanya Owner yang dapat melakukan top-up kuota.',
+      );
     }
     const updated = await this.subscriptionService.topupQuota(
       user.storeId,
@@ -108,5 +125,68 @@ export class SubscriptionController {
       data: updated,
     };
   }
-}
 
+  // ==========================================
+  // PAYMENT / NATIVE CHECKOUT (MAYAR.ID)
+  // ==========================================
+
+  @Public()
+  @Get('payments/methods')
+  @ApiOperation({
+    summary: 'Mendapatkan daftar opsi metode pembayaran yang tersedia',
+  })
+  getSupportedPaymentMethods() {
+    return {
+      success: true,
+      methods: this.planPaymentService.getSupportedMethods(),
+    };
+  }
+
+  @ApiBearerAuth('bearer')
+  @Post('payments/create')
+  @ApiOperation({
+    summary: 'Membuat pesanan pembayaran langganan ke Mayar (Khusus Owner)',
+  })
+  async createPayment(
+    @CurrentUser() user: any,
+    @Body() body: CreatePlanPaymentDto,
+  ) {
+    if (user.role !== 'owner') {
+      throw new ForbiddenException(
+        'Hanya Owner yang dapat membeli paket langganan.',
+      );
+    }
+    return this.planPaymentService.createPaymentOrder(
+      user.storeId,
+      user.id,
+      body,
+    );
+  }
+
+  @ApiBearerAuth('bearer')
+  @Get('payments/:orderId')
+  @ApiOperation({ summary: 'Mengecek status pembayaran pesanan' })
+  async getPaymentStatus(
+    @CurrentUser('storeId') storeId: string,
+    @Param('orderId') orderId: string,
+  ) {
+    const data = await this.planPaymentService.checkOrderStatus(
+      orderId,
+      storeId,
+    );
+    return {
+      success: true,
+      data,
+    };
+  }
+
+  @Public()
+  @Post('payments/webhook/mayar/:secret')
+  @ApiOperation({ summary: 'Webhook penerima event notifikasi dari Mayar.id' })
+  async handleMayarWebhook(
+    @Param('secret') secret: string,
+    @Body() payload: any,
+  ) {
+    return this.planPaymentService.handleWebhook(secret, payload);
+  }
+}

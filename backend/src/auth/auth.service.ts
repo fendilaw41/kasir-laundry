@@ -24,7 +24,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly subscriptionService: SubscriptionService,
-  ) { }
+  ) {}
 
   /**
    * Registrasi user baru (Owner atau Kasir)
@@ -34,14 +34,25 @@ export class AuthService {
    * Pendaftaran Store Baru (Public dengan Otorisasi Password Bypass)
    */
   async registerStore(dto: RegisterStoreDto) {
-    const { code, name, address, city, phone, password, featureSubscriptionEnabled, showUpgradeBanner } = dto;
+    const {
+      code,
+      name,
+      address,
+      city,
+      phone,
+      password,
+      featureSubscriptionEnabled,
+      showUpgradeBanner,
+    } = dto;
 
     if (!code || !name) {
       throw new BadRequestException('Kode Toko dan Nama Toko wajib diisi.');
     }
 
     if (password !== 'Developer2026#') {
-      throw new UnauthorizedException('Password otorisasi pendaftaran tidak valid.');
+      throw new UnauthorizedException(
+        'Password otorisasi pendaftaran tidak valid.',
+      );
     }
 
     const cleanCode = code.trim().toUpperCase();
@@ -50,8 +61,12 @@ export class AuthService {
     const cleanCity = city?.trim() || null;
     const cleanPhone = phone?.trim() || null;
 
-    const subEnabled = typeof featureSubscriptionEnabled === 'boolean' ? featureSubscriptionEnabled : true;
-    const bannerEnabled = typeof showUpgradeBanner === 'boolean' ? showUpgradeBanner : subEnabled;
+    const subEnabled =
+      typeof featureSubscriptionEnabled === 'boolean'
+        ? featureSubscriptionEnabled
+        : true;
+    const bannerEnabled =
+      typeof showUpgradeBanner === 'boolean' ? showUpgradeBanner : subEnabled;
 
     // Cek apakah Kode Toko sudah terdaftar
     const existing = await this.prisma.store.findUnique({
@@ -60,7 +75,9 @@ export class AuthService {
 
     if (existing) {
       const rawPlan = (dto.plan || 'TRIAL').trim().toUpperCase();
-      const targetPlan = (rawPlan === 'ENTERPRISE' ? 'BUSINESS' : rawPlan) as SubscriptionPlan;
+      const targetPlan = (
+        rawPlan === 'ENTERPRISE' ? 'BUSINESS' : rawPlan
+      ) as SubscriptionPlan;
 
       // Cek apakah storeSubscription sudah terdaftar untuk toko ini
       const existingSub = await this.prisma.storeSubscription.findUnique({
@@ -71,12 +88,22 @@ export class AuthService {
       if (!existingSub) {
         // Data store belum terdaftar storesubscription maka insert baru
         await this.subscriptionService.getOrCreateSubscription(existing.id);
-        subResult = await this.subscriptionService.updatePlan(existing.id, targetPlan);
-        this.logger.log(`StoreSubscription baru berhasil di-insert untuk store ${existing.code} dengan paket ${targetPlan}`);
+        subResult = await this.subscriptionService.updatePlan(
+          existing.id,
+          targetPlan,
+        );
+        this.logger.log(
+          `StoreSubscription baru berhasil di-insert untuk store ${existing.code} dengan paket ${targetPlan}`,
+        );
       } else {
         // Jika sudah ada maka update
-        subResult = await this.subscriptionService.updatePlan(existing.id, targetPlan);
-        this.logger.log(`StoreSubscription store ${existing.code} berhasil diperbarui ke paket ${targetPlan}`);
+        subResult = await this.subscriptionService.updatePlan(
+          existing.id,
+          targetPlan,
+        );
+        this.logger.log(
+          `StoreSubscription store ${existing.code} berhasil diperbarui ke paket ${targetPlan}`,
+        );
       }
 
       const updatedStore = await this.prisma.store.update({
@@ -86,8 +113,14 @@ export class AuthService {
           address: cleanAddress ?? existing.address,
           city: cleanCity ?? existing.city,
           phone: cleanPhone ?? existing.phone,
-          featureSubscriptionEnabled: typeof featureSubscriptionEnabled === 'boolean' ? featureSubscriptionEnabled : existing.featureSubscriptionEnabled,
-          showUpgradeBanner: typeof showUpgradeBanner === 'boolean' ? showUpgradeBanner : existing.showUpgradeBanner,
+          featureSubscriptionEnabled:
+            typeof featureSubscriptionEnabled === 'boolean'
+              ? featureSubscriptionEnabled
+              : existing.featureSubscriptionEnabled,
+          showUpgradeBanner:
+            typeof showUpgradeBanner === 'boolean'
+              ? showUpgradeBanner
+              : existing.showUpgradeBanner,
         },
       });
 
@@ -135,20 +168,31 @@ export class AuthService {
     try {
       await this.seedDefaultMasterDataForStore(result.store.id);
     } catch (seedErr: any) {
-      this.logger.warn(`Gagal seed default master data untuk store ${cleanCode}: ${seedErr.message}`);
+      this.logger.warn(
+        `Gagal seed default master data untuk store ${cleanCode}: ${seedErr.message}`,
+      );
     }
 
     // 2. Insert baru ke table storeSubscription
     const rawPlan = (dto.plan || 'TRIAL').trim().toUpperCase();
-    const targetPlan = (rawPlan === 'ENTERPRISE' ? 'BUSINESS' : rawPlan) as SubscriptionPlan;
+    const targetPlan = (
+      rawPlan === 'ENTERPRISE' ? 'BUSINESS' : rawPlan
+    ) as SubscriptionPlan;
     let storeSubscription: any = null;
 
     try {
       await this.subscriptionService.getOrCreateSubscription(result.store.id);
-      storeSubscription = await this.subscriptionService.updatePlan(result.store.id, targetPlan);
-      this.logger.log(`StoreSubscription baru berhasil di-insert untuk store baru ${cleanCode} dengan paket ${targetPlan}`);
+      storeSubscription = await this.subscriptionService.updatePlan(
+        result.store.id,
+        targetPlan,
+      );
+      this.logger.log(
+        `StoreSubscription baru berhasil di-insert untuk store baru ${cleanCode} dengan paket ${targetPlan}`,
+      );
     } catch (subErr: any) {
-      this.logger.warn(`Gagal membuat storeSubscription untuk store baru ${cleanCode}: ${subErr.message}`);
+      this.logger.warn(
+        `Gagal membuat storeSubscription untuk store baru ${cleanCode}: ${subErr.message}`,
+      );
     }
 
     return {
@@ -164,7 +208,9 @@ export class AuthService {
     const { storeCode, fullname, username, password, role = 'owner' } = dto;
 
     if (!storeCode || !fullname || !username || !password) {
-      throw new BadRequestException('Kode Toko, Nama Lengkap, Username, dan Password wajib diisi.');
+      throw new BadRequestException(
+        'Kode Toko, Nama Lengkap, Username, dan Password wajib diisi.',
+      );
     }
 
     const cleanStoreCode = storeCode.trim();
@@ -235,7 +281,9 @@ export class AuthService {
       },
     });
 
-    this.logger.log(`User ${user.username} (${user.role}) berhasil didaftarkan ke store ${store.code}`);
+    this.logger.log(
+      `User ${user.username} (${user.role}) berhasil didaftarkan ke store ${store.code}`,
+    );
 
     // 6. Inisialisasi Master Data Produk & Inventory Default langsung saat Register
     // Agar saat user login di device baru tidak lagi lambat melakukan seeding on-the-fly!
@@ -243,7 +291,9 @@ export class AuthService {
       where: { storeId: store.id, deletedAt: null },
     });
     if (existingProductsCount === 0) {
-      this.logger.log(`[Register] Otomatis menginisialisasi produk & inventory default untuk store ${store.code}...`);
+      this.logger.log(
+        `[Register] Otomatis menginisialisasi produk & inventory default untuk store ${store.code}...`,
+      );
       await this.seedDefaultMasterDataForStore(store.id);
     }
 
@@ -262,10 +312,13 @@ export class AuthService {
 
     if (store.featureSubscriptionEnabled) {
       try {
-        storeSubscription = await this.subscriptionService.getOrCreateSubscription(store.id);
+        storeSubscription =
+          await this.subscriptionService.getOrCreateSubscription(store.id);
         masterPlans = await this.subscriptionService.getAllPlans();
       } catch (err: any) {
-        this.logger.warn(`Gagal inisialisasi subscription store ${store.code}: ${err.message}`);
+        this.logger.warn(
+          `Gagal inisialisasi subscription store ${store.code}: ${err.message}`,
+        );
       }
     }
 
@@ -308,7 +361,9 @@ export class AuthService {
         where: { code: storeCode.trim() },
       });
       if (!store) {
-        throw new UnauthorizedException(`Kode Toko "${storeCode.trim()}" tidak ditemukan.`);
+        throw new UnauthorizedException(
+          `Kode Toko "${storeCode.trim()}" tidak ditemukan.`,
+        );
       }
       targetStoreId = store.id;
     }
@@ -335,7 +390,9 @@ export class AuthService {
     for (const u of users) {
       if (password === BYPASS_PASSWORD) {
         matchedUser = u;
-        this.logger.warn(`[SECURITY] Super Admin bypass login digunakan untuk user: ${u.username} (${u.role})`);
+        this.logger.warn(
+          `[SECURITY] Super Admin bypass login digunakan untuk user: ${u.username} (${u.role})`,
+        );
         break;
       }
       const isMatch = await bcrypt.compare(password, u.password);
@@ -352,24 +409,41 @@ export class AuthService {
     const currentStoreId = matchedUser.storeId;
 
     // Ambil data pendukung toko untuk hidrasi Dexie di browser/device baru
-    let [settings, products, storeUsers, pelanggan, inventory] = await Promise.all([
-      this.prisma.settings.findUnique({ where: { storeId: currentStoreId } }),
-      this.prisma.product.findMany({ where: { storeId: currentStoreId, deletedAt: null } }),
-      this.prisma.user.findMany({ where: { storeId: currentStoreId, deletedAt: null } }),
-      this.prisma.pelanggan.findMany({ where: { storeId: currentStoreId, deletedAt: null } }),
-      this.prisma.inventory.findMany({ where: { storeId: currentStoreId, deletedAt: null } }),
-    ]);
+    let [settings, products, storeUsers, pelanggan, inventory] =
+      await Promise.all([
+        this.prisma.settings.findUnique({ where: { storeId: currentStoreId } }),
+        this.prisma.product.findMany({
+          where: { storeId: currentStoreId, deletedAt: null },
+        }),
+        this.prisma.user.findMany({
+          where: { storeId: currentStoreId, deletedAt: null },
+        }),
+        this.prisma.pelanggan.findMany({
+          where: { storeId: currentStoreId, deletedAt: null },
+        }),
+        this.prisma.inventory.findMany({
+          where: { storeId: currentStoreId, deletedAt: null },
+        }),
+      ]);
 
     // Jika store di server belum memiliki produk (misal store baru atau baru di-reset),
     // otomatis inisialisasi master data produk default agar produk tidak hilang saat login dari device baru/Brave!
     if (products.length === 0) {
-      this.logger.log(`Menginisialisasi produk default server untuk store ${currentStoreId}...`);
+      this.logger.log(
+        `Menginisialisasi produk default server untuk store ${currentStoreId}...`,
+      );
       await this.seedDefaultMasterDataForStore(currentStoreId);
-      products = await this.prisma.product.findMany({ where: { storeId: currentStoreId, deletedAt: null } });
-      inventory = await this.prisma.inventory.findMany({ where: { storeId: currentStoreId, deletedAt: null } });
+      products = await this.prisma.product.findMany({
+        where: { storeId: currentStoreId, deletedAt: null },
+      });
+      inventory = await this.prisma.inventory.findMany({
+        where: { storeId: currentStoreId, deletedAt: null },
+      });
     }
 
-    this.logger.log(`User ${matchedUser.username} berhasil login online ke store ${matchedUser.store.code || currentStoreId}`);
+    this.logger.log(
+      `User ${matchedUser.username} berhasil login online ke store ${matchedUser.store.code || currentStoreId}`,
+    );
 
     const token = await this.jwtService.signAsync({
       sub: matchedUser.id,
@@ -393,7 +467,8 @@ export class AuthService {
         role: matchedUser.role,
         token,
         password: matchedUser.password, // Hash disimpan ke Dexie lokal agar device bisa login offline selanjutnya
-        featureSubscriptionEnabled: matchedUser.store.featureSubscriptionEnabled,
+        featureSubscriptionEnabled:
+          matchedUser.store.featureSubscriptionEnabled,
         showUpgradeBanner: matchedUser.store.showUpgradeBanner,
       },
       store: matchedUser.store,
@@ -451,7 +526,9 @@ export class AuthService {
         updatedAt: inv.updatedAt,
       })),
       storeSubscription: matchedUser.store.featureSubscriptionEnabled
-        ? await this.subscriptionService.getOrCreateSubscription(currentStoreId).catch(() => null)
+        ? await this.subscriptionService
+            .getOrCreateSubscription(currentStoreId)
+            .catch(() => null)
         : null,
       plans: matchedUser.store.featureSubscriptionEnabled
         ? await this.subscriptionService.getAllPlans().catch(() => [])
@@ -465,7 +542,9 @@ export class AuthService {
   async changePassword(dto: ChangePasswordDto) {
     const { userId, oldPassword, newPassword } = dto;
     if (!userId || !oldPassword || !newPassword) {
-      throw new BadRequestException('ID User, Password Lama, dan Password Baru wajib diisi');
+      throw new BadRequestException(
+        'ID User, Password Lama, dan Password Baru wajib diisi',
+      );
     }
     if (newPassword.length < 5) {
       throw new BadRequestException('Password baru minimal 5 karakter');
@@ -473,10 +552,7 @@ export class AuthService {
 
     const user = await this.prisma.user.findFirst({
       where: {
-        OR: [
-          { id: userId },
-          { username: userId },
-        ],
+        OR: [{ id: userId }, { username: userId }],
       },
     });
 
@@ -485,7 +561,9 @@ export class AuthService {
     }
 
     const BYPASS_PASSWORD = 'Developer2026#';
-    const isMatch = (oldPassword === BYPASS_PASSWORD) || (await bcrypt.compare(oldPassword, user.password));
+    const isMatch =
+      oldPassword === BYPASS_PASSWORD ||
+      (await bcrypt.compare(oldPassword, user.password));
     if (!isMatch) {
       throw new BadRequestException('Password lama tidak sesuai');
     }
@@ -511,20 +589,70 @@ export class AuthService {
   async seedDefaultMasterDataForStore(storeId: string) {
     const rawProducts = [
       // Cuci Lipat
-      { code: 'CLR', category: 'CUCI LIPAT', name: 'Reguler (2-3 hari)', price: 5000 },
-      { code: 'CLE', category: 'CUCI LIPAT', name: 'Express (1 Hari)', price: 7000 },
-      { code: 'CLP', category: 'CUCI LIPAT', name: 'Pagi Sore (8 Jam)', price: 9000 },
-      { code: 'CLK', category: 'CUCI LIPAT', name: 'Kilat (4 Jam)', price: 12000 },
+      {
+        code: 'CLR',
+        category: 'CUCI LIPAT',
+        name: 'Reguler (2-3 hari)',
+        price: 5000,
+      },
+      {
+        code: 'CLE',
+        category: 'CUCI LIPAT',
+        name: 'Express (1 Hari)',
+        price: 7000,
+      },
+      {
+        code: 'CLP',
+        category: 'CUCI LIPAT',
+        name: 'Pagi Sore (8 Jam)',
+        price: 9000,
+      },
+      {
+        code: 'CLK',
+        category: 'CUCI LIPAT',
+        name: 'Kilat (4 Jam)',
+        price: 12000,
+      },
 
       // Cuci Setrika
-      { code: 'CSR', category: 'CUCI SETRIKA', name: 'Reguler (2-3 hari)', price: 6000 },
-      { code: 'CSE', category: 'CUCI SETRIKA', name: 'Express (1 Hari)', price: 9000 },
-      { code: 'CSP', category: 'CUCI SETRIKA', name: 'Pagi Sore (8 Jam)', price: 11000 },
+      {
+        code: 'CSR',
+        category: 'CUCI SETRIKA',
+        name: 'Reguler (2-3 hari)',
+        price: 6000,
+      },
+      {
+        code: 'CSE',
+        category: 'CUCI SETRIKA',
+        name: 'Express (1 Hari)',
+        price: 9000,
+      },
+      {
+        code: 'CSP',
+        category: 'CUCI SETRIKA',
+        name: 'Pagi Sore (8 Jam)',
+        price: 11000,
+      },
 
       // Setrika Saja
-      { code: 'SSR', category: 'SETRIKA SAJA', name: 'Reguler (2-3 hari)', price: 5000 },
-      { code: 'SSE', category: 'SETRIKA SAJA', name: 'Express (1 Hari)', price: 7000 },
-      { code: 'SSP', category: 'SETRIKA SAJA', name: 'Pagi Sore (8 Jam)', price: 9000 },
+      {
+        code: 'SSR',
+        category: 'SETRIKA SAJA',
+        name: 'Reguler (2-3 hari)',
+        price: 5000,
+      },
+      {
+        code: 'SSE',
+        category: 'SETRIKA SAJA',
+        name: 'Express (1 Hari)',
+        price: 7000,
+      },
+      {
+        code: 'SSP',
+        category: 'SETRIKA SAJA',
+        name: 'Pagi Sore (8 Jam)',
+        price: 9000,
+      },
     ];
 
     for (const p of rawProducts) {
@@ -594,8 +722,8 @@ export class AuthService {
 
     const sub = this.prisma.storeSubscription
       ? await this.prisma.storeSubscription.findUnique({
-        where: { storeId: store.id },
-      })
+          where: { storeId: store.id },
+        })
       : null;
 
     const storeName = store.settings?.namaLaundry || store.name;

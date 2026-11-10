@@ -47,7 +47,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
     ) {
       status = HttpStatus.BAD_REQUEST;
       errorName = 'DatabaseValidationError';
-      message = 'Format atau tipe data input tidak sesuai dengan skema database.';
+      message =
+        'Format atau tipe data input tidak sesuai dengan skema database.';
     }
     // 4. Cek Prisma Initialization Error
     else if (
@@ -185,7 +186,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
   /**
    * Menangani Prisma Known Request Errors
    */
-  private handlePrismaKnownRequestError(error: Prisma.PrismaClientKnownRequestError): {
+  private handlePrismaKnownRequestError(
+    error: Prisma.PrismaClientKnownRequestError,
+  ): {
     status: number;
     errorName: string;
     message: string;
@@ -212,21 +215,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
         return {
           status: HttpStatus.BAD_REQUEST,
           errorName: 'ForeignKeyViolationError',
-          message: 'Operasi gagal: data referensi relasi tidak valid atau berelasi dengan data lain.',
+          message:
+            'Operasi gagal: data referensi relasi tidak valid atau berelasi dengan data lain.',
         };
       }
       case 'P2014': {
         return {
           status: HttpStatus.BAD_REQUEST,
           errorName: 'RelationViolationError',
-          message: 'Perubahan data melanggar integritas relasi yang dibutuhkan.',
+          message:
+            'Perubahan data melanggar integritas relasi yang dibutuhkan.',
         };
       }
       case 'P2000': {
         return {
           status: HttpStatus.BAD_REQUEST,
           errorName: 'ValueTooLongError',
-          message: 'Panjang nilai yang dimasukkan melebihi batas kapasitas kolom database.',
+          message:
+            'Panjang nilai yang dimasukkan melebihi batas kapasitas kolom database.',
         };
       }
       case 'P2011': {

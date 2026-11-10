@@ -40,11 +40,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleConnection(client: AuthenticatedSocket) {
     try {
       const authHeader =
-        client.handshake.auth?.token ||
-        client.handshake.headers?.authorization;
+        client.handshake.auth?.token || client.handshake.headers?.authorization;
 
       if (!authHeader) {
-        this.logger.warn(`Koneksi ditolak untuk socket ${client.id}: Token tidak ada.`);
+        this.logger.warn(
+          `Koneksi ditolak untuk socket ${client.id}: Token tidak ada.`,
+        );
         client.disconnect();
         return;
       }
@@ -100,7 +101,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         readAt: new Date(),
       });
     } catch (err: any) {
-      this.logger.warn(`Gagal auto-markAsRead saat join_conversation: ${err.message}`);
+      this.logger.warn(
+        `Gagal auto-markAsRead saat join_conversation: ${err.message}`,
+      );
     }
   }
 
@@ -148,7 +151,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         if (otherActive.length > 0) {
           isRecipientInRoom = true;
           recipientUserId = (otherActive[0] as any).user.userId;
-          await this.chatService.markAsRead(dto.conversationId, (otherActive[0] as any).user);
+          await this.chatService.markAsRead(
+            dto.conversationId,
+            (otherActive[0] as any).user,
+          );
           message.status = 'READ';
         }
       } catch (checkErr) {}
@@ -226,4 +232,3 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 }
-
