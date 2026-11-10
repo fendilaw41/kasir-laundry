@@ -116,8 +116,8 @@ export class MayarClientService {
     const statusCode = Number(body?.statusCode ?? response.status);
     const errorMessage = String(
       body?.messages ??
-        body?.message ??
-        (response.ok ? 'Unexpected response' : `HTTP ${response.status}`),
+      body?.message ??
+      (response.ok ? 'Unexpected response' : `HTTP ${response.status}`),
     );
 
     if (!response.ok || statusCode >= 400) {

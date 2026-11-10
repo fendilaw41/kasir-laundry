@@ -66,7 +66,7 @@ export class PlanPaymentService {
     private readonly prisma: PrismaService,
     private readonly subscriptionService: SubscriptionService,
     private readonly mayarClient: MayarClientService,
-  ) {}
+  ) { }
 
   /**
    * Mengembalikan daftar metode pembayaran yang didukung beserta biaya layanannya
@@ -413,8 +413,8 @@ export class PlanPaymentService {
       // 3. Cari entri pesanan PlanPayment yang bersangkutan
       const extraOrderId =
         typeof trx.extraData === 'object' &&
-        trx.extraData !== null &&
-        'orderId' in trx.extraData
+          trx.extraData !== null &&
+          'orderId' in trx.extraData
           ? String(trx.extraData.orderId)
           : '';
 

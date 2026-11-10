@@ -3,7 +3,12 @@
  * Memastikan parser tidak pernah crash (never throw) dan mengamankan skema URL.
  */
 
-const ALLOWED_URL_SCHEMES = new Set(['https:', 'dana:', 'gojek:', 'shopeeid:']);
+const ALLOWED_URL_SCHEMES = new Set([
+  'https:',
+  'dana:',
+  'gojek:',
+  'shopeeid:',
+]);
 
 export interface NormalizedPaymentInstrument {
   type: 'QR_CODE' | 'VIRTUAL_ACCOUNT' | 'EWALLET' | 'UNKNOWN';
@@ -25,11 +30,22 @@ function safeUrl(value: unknown): string | null {
   }
 }
 
-function asRecord(value: unknown): Record<string, any> | null {
+function asRecord(value: unknown): Record<string, unknown> | null {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
-    return value as Record<string, any>;
+    return value as Record<string, unknown>;
   }
   return null;
+}
+
+function extractString(
+  record: Record<string, unknown> | null,
+  key: string,
+): string | undefined {
+  if (!record) return undefined;
+  const val = record[key];
+  return typeof val === 'string' && val.trim().length > 0
+    ? val.trim()
+    : undefined;
 }
 
 /**
@@ -49,16 +65,16 @@ export function parsePaymentDetail(
       const qrData = asRecord(detail.qr_code);
       const channelProps = asRecord(qrData?.channel_properties);
       const qrString =
-        channelProps?.qr_string ||
-        qrData?.qr_string ||
-        detail.qrString ||
-        detail.qr_string ||
-        detail.qrCode;
+        extractString(channelProps, 'qr_string') ||
+        extractString(qrData, 'qr_string') ||
+        extractString(detail, 'qrString') ||
+        extractString(detail, 'qr_string') ||
+        extractString(detail, 'qrCode');
 
-      if (typeof qrString === 'string' && qrString.trim().length > 0) {
+      if (qrString) {
         return {
           type: 'QR_CODE',
-          qrString: qrString.trim(),
+          qrString,
         };
       }
     }
@@ -72,27 +88,26 @@ export function parsePaymentDetail(
       const vaData = asRecord(detail.virtual_account);
       const channelProps = asRecord(vaData?.channel_properties);
       const vaNumber =
-        channelProps?.virtual_account_number ||
-        vaData?.virtual_account_number ||
-        detail.vaNumber ||
-        detail.accountNumber;
+        extractString(channelProps, 'virtual_account_number') ||
+        extractString(vaData, 'virtual_account_number') ||
+        extractString(detail, 'vaNumber') ||
+        extractString(detail, 'accountNumber');
       const vaBank =
-        vaData?.channel_code ||
-        channelProps?.channel_code ||
-        detail.vaBank ||
-        detail.bank;
+        extractString(vaData, 'channel_code') ||
+        extractString(channelProps, 'channel_code') ||
+        extractString(detail, 'vaBank') ||
+        extractString(detail, 'bank');
       const customerName =
-        channelProps?.customer_name ||
-        vaData?.customer_name ||
-        detail.customerName;
+        extractString(channelProps, 'customer_name') ||
+        extractString(vaData, 'customer_name') ||
+        extractString(detail, 'customerName');
 
-      if (typeof vaNumber === 'string' && vaNumber.trim().length > 0) {
+      if (vaNumber) {
         return {
           type: 'VIRTUAL_ACCOUNT',
-          vaNumber: vaNumber.trim(),
-          vaBank: typeof vaBank === 'string' ? vaBank.toUpperCase() : undefined,
-          customerName:
-            typeof customerName === 'string' ? customerName : undefined,
+          vaNumber,
+          vaBank: vaBank ? vaBank.toUpperCase() : undefined,
+          customerName,
         };
       }
     }
@@ -109,14 +124,12 @@ export function parsePaymentDetail(
       const sanitizedActions: Array<{ url: string; urlType: string }> = [];
       for (const act of rawActions) {
         const item = asRecord(act);
-        if (item && item.url) {
+        if (item && typeof item.url === 'string') {
           const validUrl = safeUrl(item.url);
           if (validUrl) {
             sanitizedActions.push({
               url: validUrl,
-              urlType: String(
-                item.url_type || item.type || 'WEB',
-              ).toUpperCase(),
+              urlType: String(item.url_type || item.type || 'WEB').toUpperCase(),
             });
           }
         }
