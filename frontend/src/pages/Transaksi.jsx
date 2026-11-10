@@ -2,6 +2,7 @@ import { useTransaksi } from './hooks/useTransaksi';
 import toast from 'react-hot-toast';
 import { TOAST_MESSAGES, BUTTON_TEXT, BUTTON_TITLE } from '../constants/appConstants';
 import { CustomerListSkeleton } from '../components/common/Skeleton';
+import PlanGateModal from '../components/PlanGateModal';
 
 const Transaksi = () => {
   const {
@@ -18,7 +19,8 @@ const Transaksi = () => {
     isPriority, setIsPriority,
     selectedInventory,
     subtotal, nilaiDiskon, total,
-    handleCheckout, removeItem, updateItemQty, toggleInventory, updateInventoryQty, handleAddPelanggan
+    handleCheckout, removeItem, updateItemQty, toggleInventory, updateInventoryQty, handleAddPelanggan,
+    gateModal, setGateModal,
   } = useTransaksi();
 
   return (
@@ -302,6 +304,14 @@ const Transaksi = () => {
           </div>
         )
       }
+
+      {/* Plan Gate Modal untuk batas transaksi / expired */}
+      <PlanGateModal
+        isOpen={gateModal?.open}
+        onClose={() => setGateModal({ open: false, type: 'TRANSACTION_LIMIT', data: {} })}
+        type={gateModal?.type || 'TRANSACTION_LIMIT'}
+        customData={gateModal?.data || {}}
+      />
     </div >
   );
 };

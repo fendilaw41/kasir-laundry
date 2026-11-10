@@ -224,5 +224,144 @@ describe('SubscriptionService', () => {
       service.assertCanPerformAction(storeId, 'CREATE_PRODUCT'),
     ).rejects.toThrow(ForbiddenException);
   });
+
+  it('should prioritize SUBSCRIPTION_EXPIRED when expired even if transaction quota is still remaining', async () => {
+    process.env.SUBSCRIPTION_ENFORCEMENT_ENABLED = 'true';
+    const storeId = 'store-expired-with-quota';
+    const pastDate = new Date(Date.now() - 86400000 * 2); // 2 days ago
+
+    prisma.storeSubscription.findUnique.mockResolvedValue({
+      id: 'sub-exp',
+      storeId,
+      plan: SubscriptionPlan.STARTER,
+      status: SubscriptionStatus.EXPIRED,
+      currentPeriodStart: new Date(Date.now() - 86400000 * 32),
+      currentPeriodEnd: pastDate,
+      topupTransactions: 0,
+      topupPhotos: 0,
+    });
+
+    // Only 10 orders used out of 100 limit (still has 90 remaining quota)
+    prisma.order.count.mockResolvedValue(10);
+    prisma.message.count.mockResolvedValue(2);
+    prisma.user.count.mockResolvedValue(1);
+    prisma.inventory.count.mockResolvedValue(0);
+
+    let thrownError: any;
+    try {
+      await service.assertCanPerformAction(storeId, 'CREATE_ORDER');
+    } catch (err) {
+      thrownError = err;
+    }
+
+    expect(thrownError).toBeInstanceOf(ForbiddenException);
+    expect(thrownError.getResponse().error).toBe('SUBSCRIPTION_EXPIRED');
+  });
+
+  it('should allow chat message and photo upload but block other actions when paid subscription is expired', async () => {
+    process.env.SUBSCRIPTION_ENFORCEMENT_ENABLED = 'true';
+    const storeId = 'store-expired-paid';
+    const pastDate = new Date(Date.now() - 86400000 * 2);
+
+    prisma.storeSubscription.findUnique.mockResolvedValue({
+      id: 'sub-exp-paid',
+      storeId,
+      plan: SubscriptionPlan.STARTER,
+      status: SubscriptionStatus.EXPIRED,
+      currentPeriodStart: new Date(Date.now() - 86400000 * 32),
+      currentPeriodEnd: pastDate,
+      topupTransactions: 0,
+      topupPhotos: 0,
+    });
+
+    prisma.order.count.mockResolvedValue(10);
+    prisma.message.count.mockResolvedValue(2);
+    prisma.user.count.mockResolvedValue(1);
+    prisma.inventory.count.mockResolvedValue(0);
+
+    // Chat dan foto chat DIPERBOLEHKAN
+    expect(await service.assertCanPerformAction(storeId, 'SEND_CHAT_MESSAGE')).toBe(true);
+    expect(await service.assertCanPerformAction(storeId, 'UPLOAD_CHAT_PHOTO')).toBe(true);
+
+    // Selain itu BLOKIR SEMUA:
+    const blockedActions = [
+      'CREATE_ORDER',
+      'CREATE_INVENTORY',
+      'CREATE_USER',
+      'CREATE_PRODUCT',
+      'USE_CHATBOT',
+      'EDIT_DATA',
+      'VIEW_STOCK_HISTORY',
+    ] as const;
+
+    for (const action of blockedActions) {
+      await expect(service.assertCanPerformAction(storeId, action)).rejects.toThrow(
+        ForbiddenException,
+      );
+    }
+
+    await expect(
+      service.assertCanPerformAction(storeId, 'UPDATE_ORDER', { isStatusOnly: true }),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  describe('Trial Expired Strict Rules', () => {
+    const trialStoreId = 'store-trial-expired';
+    const pastDate = new Date(Date.now() - 86400000 * 3);
+
+    beforeEach(() => {
+      process.env.SUBSCRIPTION_ENFORCEMENT_ENABLED = 'true';
+      prisma.storeSubscription.findUnique.mockResolvedValue({
+        id: 'sub-trial-exp',
+        storeId: trialStoreId,
+        plan: SubscriptionPlan.TRIAL,
+        status: SubscriptionStatus.EXPIRED,
+        currentPeriodStart: new Date(Date.now() - 86400000 * 33),
+        currentPeriodEnd: pastDate,
+        topupTransactions: 0,
+        topupPhotos: 0,
+      });
+
+      prisma.order.count.mockResolvedValue(5);
+      prisma.message.count.mockResolvedValue(1);
+      prisma.user.count.mockResolvedValue(1);
+      prisma.inventory.count.mockResolvedValue(0);
+      prisma.product.count.mockResolvedValue(3);
+    });
+
+    it('should block chat message, photo, inventory, user, product, bot, order when trial is expired', async () => {
+      const blockedActions = [
+        'CREATE_ORDER',
+        'SEND_CHAT_MESSAGE',
+        'UPLOAD_CHAT_PHOTO',
+        'USE_CHATBOT',
+        'CREATE_INVENTORY',
+        'CREATE_USER',
+        'CREATE_PRODUCT',
+        'EDIT_DATA',
+      ] as const;
+
+      for (const action of blockedActions) {
+        await expect(service.assertCanPerformAction(trialStoreId, action)).rejects.toThrow(
+          ForbiddenException,
+        );
+      }
+    });
+
+    it('should allow status-only order update when trial is expired', async () => {
+      const result = await service.assertCanPerformAction(trialStoreId, 'UPDATE_ORDER', {
+        isStatusOnly: true,
+      });
+      expect(result).toBe(true);
+    });
+
+    it('should block non-status order update when trial is expired', async () => {
+      await expect(
+        service.assertCanPerformAction(trialStoreId, 'UPDATE_ORDER', {
+          isStatusOnly: false,
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
 });
 

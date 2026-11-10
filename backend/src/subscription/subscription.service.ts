@@ -15,6 +15,8 @@ export interface UsageReport {
   storeId?: string;
   plan: string;
   status: string;
+  isExpired?: boolean;
+  isTrialExpired?: boolean;
   currentPeriodStart: Date;
   currentPeriodEnd: Date;
   featureSubscriptionEnabled: boolean;
@@ -446,11 +448,18 @@ export class SubscriptionService {
       }
     }
 
+    const isExpired =
+      sub.status === SubscriptionStatus.EXPIRED ||
+      Boolean(sub.currentPeriodEnd && new Date() > new Date(sub.currentPeriodEnd));
+    const isTrialExpired = isExpired && sub.plan === SubscriptionPlan.TRIAL;
+
     return {
       id: sub.id,
       storeId: sub.storeId,
       plan: sub.plan,
-      status: sub.status,
+      status: isExpired ? SubscriptionStatus.EXPIRED : sub.status,
+      isExpired,
+      isTrialExpired,
       currentPeriodStart: sub.currentPeriodStart,
       currentPeriodEnd: sub.currentPeriodEnd,
       featureSubscriptionEnabled,
@@ -509,7 +518,18 @@ export class SubscriptionService {
    */
   async assertCanPerformAction(
     storeId: string,
-    action: 'CREATE_ORDER' | 'UPLOAD_CHAT_PHOTO' | 'CREATE_USER' | 'CREATE_INVENTORY' | 'CREATE_PRODUCT' | 'VIEW_STOCK_HISTORY',
+    action:
+      | 'CREATE_ORDER'
+      | 'UPLOAD_CHAT_PHOTO'
+      | 'SEND_CHAT_MESSAGE'
+      | 'USE_CHATBOT'
+      | 'CREATE_USER'
+      | 'CREATE_INVENTORY'
+      | 'CREATE_PRODUCT'
+      | 'VIEW_STOCK_HISTORY'
+      | 'EDIT_DATA'
+      | 'UPDATE_ORDER',
+    options?: { isStatusOnly?: boolean },
   ) {
     const store = await this.prisma.store.findUnique({
       where: { id: storeId },
@@ -526,13 +546,96 @@ export class SubscriptionService {
 
     const report = await this.getUsageReport(storeId);
 
-    // Cek jika status subscription expired
-    if (report.status === SubscriptionStatus.EXPIRED) {
+    const isExpired =
+      report.status === SubscriptionStatus.EXPIRED ||
+      Boolean(report.isExpired) ||
+      Boolean(report.currentPeriodEnd && new Date() > new Date(report.currentPeriodEnd));
+
+    const isTrial = report.plan === SubscriptionPlan.TRIAL;
+    const isTrialExpired = isExpired && isTrial;
+
+    // =========================================================================
+    // ATURAN KHUSUS TRIAL EXPIRED:
+    // Chat tidak boleh, foto tidak boleh, nambah stok tidak boleh, nambah kasir
+    // tidak boleh, nambah produk tidak boleh, bot tidak boleh, transaksi tidak
+    // boleh, edit data tidak boleh KECUALI perubahan status pengerjaan pesanan.
+    // =========================================================================
+    if (isTrialExpired) {
+      if (action === 'UPDATE_ORDER') {
+        if (options?.isStatusOnly === true) {
+          return true; // Perubahan status pengerjaan (Antrean/Proses -> Selesai/Ambil) DIPERBOLEHKAN
+        }
+        throw new ForbiddenException({
+          statusCode: 403,
+          error: 'TRIAL_EXPIRED',
+          message:
+            'Masa trial toko Anda telah berakhir. Anda tidak dapat mengubah data pesanan kecuali perubahan status pengerjaan. Silakan beli paket langganan.',
+          isTrial: true,
+          isExpired: true,
+          plan: report.plan,
+          whatsappBillingNumber: report.whatsappBillingNumber,
+        });
+      }
+
+      const trialBlockedMessages: Record<string, string> = {
+        CREATE_ORDER: 'Masa trial toko Anda telah berakhir. Transaksi baru tidak dapat dibuat. Silakan beli paket langganan untuk melanjutkan.',
+        SEND_CHAT_MESSAGE: 'Masa trial toko Anda telah berakhir. Fitur kirim pesan chat tidak dapat digunakan. Silakan beli paket langganan.',
+        UPLOAD_CHAT_PHOTO: 'Masa trial toko Anda telah berakhir. Fitur kirim foto tidak dapat digunakan. Silakan beli paket langganan.',
+        USE_CHATBOT: 'Masa trial toko Anda telah berakhir. Fitur asisten bot tidak dapat digunakan. Silakan beli paket langganan.',
+        CREATE_INVENTORY: 'Masa trial toko Anda telah berakhir. Penambahan stok tidak dapat dilakukan. Silakan beli paket langganan.',
+        CREATE_USER: 'Masa trial toko Anda telah berakhir. Penambahan kasir baru tidak dapat dilakukan. Silakan beli paket langganan.',
+        CREATE_PRODUCT: 'Masa trial toko Anda telah berakhir. Penambahan produk tidak dapat dilakukan. Silakan beli paket langganan.',
+        EDIT_DATA: 'Masa trial toko Anda telah berakhir. Pengubahan data tidak dapat dilakukan kecuali perubahan status pengerjaan. Silakan beli paket langganan.',
+        VIEW_STOCK_HISTORY: 'Masa trial toko Anda telah berakhir. Fitur riwayat stok terkunci. Silakan beli paket langganan.',
+      };
+
+      throw new ForbiddenException({
+        statusCode: 403,
+        error: 'TRIAL_EXPIRED',
+        message:
+          trialBlockedMessages[action] ||
+          'Masa trial toko Anda telah berakhir. Fitur ini terkunci. Silakan beli paket langganan.',
+        isTrial: true,
+        isExpired: true,
+        plan: report.plan,
+        whatsappBillingNumber: report.whatsappBillingNumber,
+      });
+    }
+
+    // =========================================================================
+    // ATURAN PAKET BERBAYAR EXPIRED (STARTER, BASIC, PRO, BUSINESS):
+    // Hanya boleh kirim chat dan kirim foto chat, selain itu BLOKIR SEMUA!
+    // =========================================================================
+    const isPaidExpired = isExpired && !isTrial;
+    if (isPaidExpired) {
+      if (action === 'SEND_CHAT_MESSAGE') {
+        return true; // Kirim chat DIPERBOLEHKAN
+      }
+
+      if (action === 'UPLOAD_CHAT_PHOTO') {
+        if (report.usage.photos.isExceeded) {
+          throw new ForbiddenException({
+            statusCode: 403,
+            error: 'PHOTO_LIMIT_EXCEEDED',
+            message: `Kuota kirim foto chat bulanan Anda telah mencapai batas (${report.usage.photos.totalLimit}). Silakan perpanjang paket atau top-up kuota foto.`,
+            canTopup: true,
+            current: report.usage.photos.used,
+            limit: report.usage.photos.totalLimit,
+            whatsappBillingNumber: report.whatsappBillingNumber,
+          });
+        }
+        return true; // Kirim foto chat DIPERBOLEHKAN
+      }
+
+      // Selain kirim chat dan foto chat, SELURUH AKSI DIBLOKIR:
       throw new ForbiddenException({
         statusCode: 403,
         error: 'SUBSCRIPTION_EXPIRED',
-        message: 'Masa aktif paket langganan Anda telah berakhir. Silakan lakukan perpanjangan paket.',
+        message:
+          'Masa aktif paket langganan Anda telah berakhir. Anda hanya dapat menggunakan fitur chat dan foto chat. Silakan lakukan perpanjangan paket.',
         canTopup: false,
+        isExpired: true,
+        plan: report.plan,
         whatsappBillingNumber: report.whatsappBillingNumber,
       });
     }

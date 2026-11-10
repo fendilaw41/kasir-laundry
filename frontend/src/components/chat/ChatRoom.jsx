@@ -10,7 +10,7 @@ import {
 } from '../../services/chatService';
 import { compressImage } from '../../utils/imageCompressor';
 import { isOfflineExceeded3Days } from '../../utils/offlineGuard';
-import { getSubscriptionReport } from '../../services/subscriptionService';
+import { getSubscriptionReport, isTrialExpired } from '../../services/subscriptionService';
 import PlanGateModal from '../PlanGateModal';
 import { ChatMessagesSkeleton } from '../common/Skeleton';
 
@@ -165,6 +165,15 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
 
     try {
       const sub = await getSubscriptionReport().catch(() => null);
+      if (isTrialExpired(sub)) {
+        setGateModal({
+          open: true,
+          type: 'TRIAL_EXPIRED',
+          data: { plan: 'TRIAL', isTrial: true },
+        });
+        e.target.value = '';
+        return;
+      }
       if (sub && sub.isEnforced && sub.usage?.photos?.isExceeded) {
         setGateModal({
           open: true,
@@ -194,12 +203,34 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
   };
 
   // Cek penjagaan offline 3 hari sebelum membuka kamera
-  const handleCameraClick = () => {
+  const handleCameraClick = async () => {
+    const sub = await getSubscriptionReport().catch(() => null);
+    if (isTrialExpired(sub)) {
+      setGateModal({
+        open: true,
+        type: 'TRIAL_EXPIRED',
+        data: { plan: 'TRIAL', isTrial: true },
+      });
+      return;
+    }
     if (isOfflineExceeded3Days()) {
       setShowOffline3DaysModal(true);
       return;
     }
     cameraInputRef.current?.click();
+  };
+
+  const handleGalleryClick = async () => {
+    const sub = await getSubscriptionReport().catch(() => null);
+    if (isTrialExpired(sub)) {
+      setGateModal({
+        open: true,
+        type: 'TRIAL_EXPIRED',
+        data: { plan: 'TRIAL', isTrial: true },
+      });
+      return;
+    }
+    galleryInputRef.current?.click();
   };
 
   const handleConfirmCameraOffline = () => {
@@ -225,6 +256,16 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
       e.stopPropagation();
     }
     if ((!inputValue.trim() && !selectedImage) || isSending || isSendingRef.current) return;
+
+    const sub = await getSubscriptionReport().catch(() => null);
+    if (isTrialExpired(sub)) {
+      setGateModal({
+        open: true,
+        type: 'TRIAL_EXPIRED',
+        data: { plan: 'TRIAL', isTrial: true },
+      });
+      return;
+    }
 
     isSendingRef.current = true;
     setIsSending(true);
@@ -578,7 +619,7 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
             type="button"
             className="btn btn-light rounded-circle text-secondary p-0 d-flex align-items-center justify-content-center shadow-sm"
             style={{ width: '40px', height: '40px', flexShrink: 0 }}
-            onClick={() => galleryInputRef.current?.click()}
+            onClick={handleGalleryClick}
             title="Pilih Foto dari Galeri"
           >
             <i className="bi bi-image-fill fs-5"></i>

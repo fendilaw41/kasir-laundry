@@ -21,7 +21,8 @@ const Pembayaran = ({ user }) => {
   );
   const [amountError, setAmountError] = useState(false);
   const [gateModalOpen, setGateModalOpen] = useState(false);
-  const [gateModalLimit, setGateModalLimit] = useState(30);
+  const [gateModalType, setGateModalType] = useState('TRANSACTION_LIMIT');
+  const [gateModalData, setGateModalData] = useState({ limit: 30, plan: 'TRIAL' });
 
   if (!orderData) {
     return (
@@ -75,8 +76,21 @@ const Pembayaran = ({ user }) => {
       } else {
         try {
           const sub = await getSubscriptionReport();
+          const isExpired =
+            sub?.status === 'EXPIRED' ||
+            (sub?.currentPeriodEnd && new Date() > new Date(sub.currentPeriodEnd));
+
+          // UTAMAKAN CEK EXPIRED TERLEBIH DAHULU MESKIPUN MASIH MEMILIKI KUOTA TRANSAKSI
+          if (sub?.isEnforced && isExpired) {
+            setGateModalType('SUBSCRIPTION_EXPIRED');
+            setGateModalData({ plan: sub.plan });
+            setGateModalOpen(true);
+            return;
+          }
+
           if (sub?.isEnforced && sub?.usage?.transactions?.isExceeded) {
-            setGateModalLimit(sub.usage.transactions.totalLimit);
+            setGateModalType('TRANSACTION_LIMIT');
+            setGateModalData({ limit: sub.usage.transactions.totalLimit, plan: sub.plan });
             setGateModalOpen(true);
             return;
           }
@@ -201,12 +215,12 @@ const Pembayaran = ({ user }) => {
           Kembali
         </button>
       </div>
-      {/* POPUP RINGKAS BATAS TRANSAKSI */}
+      {/* POPUP RINGKAS BATAS TRANSAKSI / EXPIRED */}
       <PlanGateModal
         isOpen={gateModalOpen}
         onClose={() => setGateModalOpen(false)}
-        type="TRANSACTION_LIMIT"
-        customData={{ limit: gateModalLimit }}
+        type={gateModalType}
+        customData={gateModalData}
         user={user}
       />
     </div>

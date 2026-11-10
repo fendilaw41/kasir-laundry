@@ -10,6 +10,7 @@ import { TOAST_MESSAGES } from '../../constants/appConstants';
 import { calculateOrderEstimatedDays } from '../../utils/estimateCalculator';
 import { getActiveStoreIdSync } from '../../db/repositories/storeHelper';
 import { validateAuthSession, getStoredUser } from '../../utils/authSession';
+import { getSubscriptionReport } from '../../services/subscriptionService';
 
 export const useTransaksi = () => {
   const cartItems = useLiveQuery(getCartQuery);
@@ -36,6 +37,7 @@ export const useTransaksi = () => {
   const [showModal, setShowModal] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [newPelanggan, setNewPelanggan] = useState({ nama: '', hp: '', alamat: '' });
+  const [gateModal, setGateModal] = useState({ open: false, type: 'TRANSACTION_LIMIT', data: {} });
 
   // Bersihkan draft order otomatis jika pelanggan berasal dari store lain
   useEffect(() => {
@@ -137,6 +139,25 @@ export const useTransaksi = () => {
       return;
     }
 
+    // Validasi kuota & masa aktif paket sebelum checkout
+    try {
+      const sub = await getSubscriptionReport();
+      const isExpired =
+        sub?.status === 'EXPIRED' ||
+        (sub?.currentPeriodEnd && new Date() > new Date(sub.currentPeriodEnd));
+
+      // JIKA EXPIRED: Utamakan popup expired meskipun masih punya sisa limit di usage!
+      if (sub?.isEnforced && isExpired) {
+        setGateModal({ open: true, type: 'SUBSCRIPTION_EXPIRED', data: { plan: sub.plan } });
+        return;
+      }
+
+      if (sub?.isEnforced && sub?.usage?.transactions?.isExceeded) {
+        setGateModal({ open: true, type: 'TRANSACTION_LIMIT', data: { limit: sub.usage.transactions.totalLimit, plan: sub.plan } });
+        return;
+      }
+    } catch (e) { }
+
     // Siapkan data untuk dikirim ke halaman pembayaran
     const orderData = {
       userId: user.uuid || user.id,
@@ -232,6 +253,7 @@ export const useTransaksi = () => {
     isPriority, setIsPriority,
     selectedInventory,
     subtotal, nilaiDiskon, total,
-    handleCheckout, removeItem, updateItemQty, toggleInventory, updateInventoryQty, handleAddPelanggan
+    handleCheckout, removeItem, updateItemQty, toggleInventory, updateInventoryQty, handleAddPelanggan,
+    gateModal, setGateModal,
   };
 };

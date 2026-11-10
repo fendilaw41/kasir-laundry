@@ -7,7 +7,7 @@ import { getOrdersQuery } from '../db/repositories/orders.js';
 import { getProductsQuery } from '../db/repositories/products.js';
 import { getInventoryQuery } from '../db/repositories/inventory.js';
 import { getActiveStoreId } from '../db/repositories/storeHelper.js';
-import { isSubscriptionEnabled, getSubscriptionReport } from '../services/subscriptionService';
+import { isSubscriptionEnabled, getSubscriptionReport, isTrialExpired, isPaidExpired } from '../services/subscriptionService';
 
 // Cari yang paling mirip dari list menggunakan Fuse.js
 function findBestMatch(input, items, keys, threshold = 0.4) {
@@ -62,8 +62,65 @@ export async function parseChatCommand(message, user) {
   if (isSubscriptionEnabled()) {
     try {
       const report = await getSubscriptionReport();
-      const botLimit = report?.limits?.botTransactions ?? 10;
       const currentPlan = report?.plan || 'TRIAL';
+
+      if (isTrialExpired(report)) {
+        const lockedText = `⚠️ Fitur Asisten Bot Terkunci\n\nMasa trial toko Anda telah berakhir. Asisten bot otomatis dinonaktifkan. Silakan beli paket langganan melalui menu Plan untuk melanjutkan.`;
+        await db.chatLog.add(withNewSyncMeta({
+          pesan: message,
+          intent: 'trial_expired',
+          status: 'blocked',
+          userId: user?.id,
+          timestamp: new Date().toISOString(),
+          isBot: false,
+        }));
+        await db.chatLog.add(withNewSyncMeta({
+          pesan: lockedText,
+          intent: 'trial_expired',
+          status: 'blocked',
+          userId: 'bot',
+          timestamp: new Date().toISOString(),
+          isBot: true,
+        }));
+        return {
+          responseText: lockedText,
+          status: 'blocked',
+          isBlocked: true,
+          blockType: 'TRIAL_EXPIRED',
+          isTrial: true,
+          plan: 'TRIAL',
+        };
+      }
+
+      if (isPaidExpired(report)) {
+        const lockedText = `⚠️ Fitur Asisten Bot Terkunci\n\nMasa aktif paket langganan ${currentPlan} Anda telah berakhir. Asisten bot otomatis dinonaktifkan. Silakan perpanjang paket melalui menu Plan untuk melanjutkan.`;
+        await db.chatLog.add(withNewSyncMeta({
+          pesan: message,
+          intent: 'subscription_expired',
+          status: 'blocked',
+          userId: user?.id,
+          timestamp: new Date().toISOString(),
+          isBot: false,
+        }));
+        await db.chatLog.add(withNewSyncMeta({
+          pesan: lockedText,
+          intent: 'subscription_expired',
+          status: 'blocked',
+          userId: 'bot',
+          timestamp: new Date().toISOString(),
+          isBot: true,
+        }));
+        return {
+          responseText: lockedText,
+          status: 'blocked',
+          isBlocked: true,
+          blockType: 'SUBSCRIPTION_EXPIRED',
+          isTrial: false,
+          plan: currentPlan,
+        };
+      }
+
+      const botLimit = report?.limits?.botTransactions ?? 10;
 
       if (botLimit === 0) {
         const lockedText = `⚠️ Fitur Asisten Bot Terkunci\n\nFitur asisten bot otomatis tidak tersedia pada paket ${currentPlan}. Silakan upgrade ke paket Basic atau Pro melalui menu Plan untuk menggunakan bot.`;

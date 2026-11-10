@@ -8,6 +8,8 @@ import toast from 'react-hot-toast';
 import { TOAST_MESSAGES, CONFIRM_MESSAGES, BUTTON_TITLE } from '../constants/appConstants';
 import { OrderListSkeleton } from '../components/common/Skeleton';
 import { db } from '../db';
+import PlanGateModal from '../components/PlanGateModal';
+import { getSubscriptionReport, isTrialExpired } from '../services/subscriptionService';
 
 const DataOrder = ({ user }) => {
   const navigate = useNavigate();
@@ -28,6 +30,7 @@ const DataOrder = ({ user }) => {
   const initialTab = searchParams.get('tab') || 'Proses';
   const [activeTab, setActiveTab] = useState(initialTab);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [gateModalOpen, setGateModalOpen] = useState(false);
 
   // Tarik data order terbaru dari backend saat membuka halaman
   useEffect(() => {
@@ -115,6 +118,17 @@ const DataOrder = ({ user }) => {
 
   const handleExecuteAction = async () => {
     if (!confirmData.id) return;
+
+    if (confirmData.type === 'request' || confirmData.type === 'hard') {
+      try {
+        const sub = await getSubscriptionReport().catch(() => null);
+        if (isTrialExpired(sub)) {
+          setShowConfirmModal(false);
+          setGateModalOpen(true);
+          return;
+        }
+      } catch (e) {}
+    }
 
     try {
       if (confirmData.type === 'request') {
@@ -368,6 +382,15 @@ const DataOrder = ({ user }) => {
           </div>
         </>
       )}
+
+      {/* Plan Gate Modal untuk TRIAL EXPIRED */}
+      <PlanGateModal
+        isOpen={gateModalOpen}
+        onClose={() => setGateModalOpen(false)}
+        type="TRIAL_EXPIRED"
+        customData={{ plan: 'TRIAL', isTrial: true }}
+        user={user}
+      />
     </div>
   );
 };

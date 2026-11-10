@@ -14,7 +14,7 @@ import { getTrackingUrl } from '../utils/tracking';
 import { getStatusLunasByMetode, isStatusLunas } from '../utils/paymentStatus';
 import PrintLayout from '../components/PrintLayout';
 import PlanGateModal from '../components/PlanGateModal';
-import { getSubscriptionReport } from '../services/subscriptionService';
+import { getSubscriptionReport, isTrialExpired } from '../services/subscriptionService';
 import { QRCodeSVG } from '../components/common/QRCodeSVG';
 import { Skeleton, OrderDetailSkeleton } from '../components/common/Skeleton';
 import { db } from '../db';
@@ -139,6 +139,14 @@ const OrderDetail = ({ user }) => {
   };
 
   const updateCatatan = async () => {
+    try {
+      const sub = await getSubscriptionReport().catch(() => null);
+      if (isTrialExpired(sub)) {
+        setShowNoteModal(false);
+        setGateModal({ open: true, type: 'TRIAL_EXPIRED', data: { plan: 'TRIAL', isTrial: true } });
+        return;
+      }
+    } catch (e) {}
     if (isCustomerNoteLocked) {
       toast.error('Catatan pelanggan tidak dapat diedit karena cucian sudah selesai/diambil');
       setShowNoteModal(false);
@@ -154,6 +162,14 @@ const OrderDetail = ({ user }) => {
   };
 
   const updateCatatanKasir = async () => {
+    try {
+      const sub = await getSubscriptionReport().catch(() => null);
+      if (isTrialExpired(sub)) {
+        setShowCashierNoteModal(false);
+        setGateModal({ open: true, type: 'TRIAL_EXPIRED', data: { plan: 'TRIAL', isTrial: true } });
+        return;
+      }
+    } catch (e) {}
     if (isCashierNoteLocked) {
       toast.error('Catatan kasir tidak dapat diedit karena pesanan sudah diambil pelanggan');
       setShowCashierNoteModal(false);
@@ -211,6 +227,14 @@ const OrderDetail = ({ user }) => {
       toast.error(TOAST_MESSAGES.ERROR);
       return;
     }
+    try {
+      const sub = await getSubscriptionReport().catch(() => null);
+      if (isTrialExpired(sub)) {
+        setShowHpModal(false);
+        setGateModal({ open: true, type: 'TRIAL_EXPIRED', data: { plan: 'TRIAL', isTrial: true } });
+        return;
+      }
+    } catch (e) {}
     try {
       let updatedPelanggan = { ...pelanggan, hp: newHp };
       if (pelanggan && pelanggan.id) {

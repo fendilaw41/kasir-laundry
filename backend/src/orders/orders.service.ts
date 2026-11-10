@@ -165,6 +165,28 @@ export class OrdersService {
 
       let order;
       if (beforeOrder) {
+        // Evaluasi apakah perubahan hanya sebatas status pengerjaan (Antrean/Proses -> Selesai/Ambil)
+        // atau terdapat perubahan data nota/item/harga/pelanggan
+        const hasFinancialOrItemChange =
+          Number(beforeOrder.total) !== Number(orderData.total) ||
+          Number(beforeOrder.diskon) !== Number(orderData.diskon) ||
+          (beforeOrder.pelangganId || null) !== (orderData.pelangganId || null) ||
+          (items && items.length > 0 && (
+            beforeOrder.items?.length !== items.length ||
+            !items.every((it) => {
+              const itQty = (it as any).quantity ?? (it as any).qty ?? 0;
+              return beforeOrder.items.some(
+                (bi) => bi.productId === it.productId && Number(bi.quantity) === Number(itQty),
+              );
+            })
+          ));
+
+        const isStatusOnly = !hasFinancialOrItemChange;
+
+        await this.subscriptionService.assertCanPerformAction(storeId, 'UPDATE_ORDER', {
+          isStatusOnly,
+        });
+
         order = await tx.order.update({
           where: { id: beforeOrder.id },
           data: orderData,

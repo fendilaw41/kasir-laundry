@@ -84,6 +84,74 @@ export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIM
           recommendation: customData.plan === 'TRIAL' ? 'Starter (20 produk) atau Basic (50 produk)' : 'Basic (50 produk)',
           ctaText: isOwner ? 'Upgrade di Menu Plan' : 'Hubungi Owner Toko',
         };
+      case 'TRIAL_EXPIRED':
+        return {
+          icon: 'bi-shield-lock-fill',
+          iconColor: '#dc2626',
+          iconBg: '#fef2f2',
+          title: 'Masa Trial Berakhir',
+          subtitle: 'Fitur Terbatas & Terkunci',
+          message: isOwner
+            ? 'Masa trial toko Anda telah selesai.'
+            : 'Masa trial toko telah berakhir. Hubungi Owner untuk aktivasi paket langganan.',
+          recommendation: 'Beli upgrade paket langganan  untuk mengaktifkan kembali seluruh fitur',
+          ctaText: isOwner ? 'Beli Paket Langganan' : 'Hubungi Owner Toko',
+        };
+      case 'TRIAL_EXPIRED':
+        return {
+          icon: 'bi-shield-lock-fill',
+          iconColor: '#dc2626',
+          iconBg: '#fef2f2',
+          title: 'Masa Trial Berakhir',
+          subtitle: 'Fitur Terbatas & Terkunci',
+          message: isOwner
+            ? 'Masa trial toko Anda telah selesai.'
+            : 'Masa trial toko telah berakhir. Hubungi Owner untuk aktivasi paket langganan.',
+          recommendation: 'Beli paket langganan (mulai Rp 25.000/bln) untuk mengaktifkan kembali seluruh fitur',
+          ctaText: isOwner ? 'Beli Paket Langganan' : 'Hubungi Owner Toko',
+        };
+      case 'SUBSCRIPTION_EXPIRED':
+      case 'EXPIRED':
+        if (customData.isTrial || String(customData.plan || '').toUpperCase() === 'TRIAL') {
+          return {
+            icon: 'bi-shield-lock-fill',
+            iconColor: '#dc2626',
+            iconBg: '#fef2f2',
+            title: 'Masa Trial Berakhir',
+            subtitle: 'Fitur Terbatas & Terkunci',
+            message: isOwner
+              ? 'Masa trial toko Anda telah selesai.'
+              : 'Masa trial toko telah berakhir. Hubungi Owner untuk aktivasi paket langganan.',
+            recommendation: 'Beli paket langganan (mulai Rp 25.000/bln) untuk mengaktifkan kembali seluruh fitur',
+            ctaText: isOwner ? 'Beli Paket Langganan' : 'Hubungi Owner Toko',
+          };
+        }
+        if (customData.isTrial || String(customData.plan || '').toUpperCase() === 'TRIAL') {
+          return {
+            icon: 'bi-shield-lock-fill',
+            iconColor: '#dc2626',
+            iconBg: '#fef2f2',
+            title: 'Masa Trial Berakhir',
+            subtitle: 'Fitur Terbatas & Terkunci',
+            message: isOwner
+              ? 'Masa trial toko Anda telah selesai.'
+              : 'Masa trial toko telah berakhir. Hubungi Owner untuk aktivasi paket langganan.',
+            recommendation: 'Beli paket langganan (mulai Rp 25.000/bln) untuk mengaktifkan kembali seluruh fitur',
+            ctaText: isOwner ? 'Beli Paket Langganan' : 'Hubungi Owner Toko',
+          };
+        }
+        return {
+          icon: 'bi-hourglass-bottom',
+          iconColor: '#ef4444',
+          iconBg: '#fef2f2',
+          title: 'Paket Langganan Kedaluwarsa',
+          subtitle: `Masa Aktif Paket ${customData.plan || ''} Berakhir`,
+          message: isOwner
+            ? 'Masa aktif langganan toko Anda telah berakhir.'
+            : 'Masa aktif paket toko telah berakhir. Silakan hubungi Owner untuk memperpanjang paket.',
+          recommendation: 'Perpanjang paket sekarang untuk membuka kembali transaksi baru',
+          ctaText: isOwner ? 'Beli / Perpanjang Paket' : 'Hubungi Owner Toko',
+        };
       case 'TRANSACTION_LIMIT':
         return {
           icon: 'bi-receipt-cutoff',

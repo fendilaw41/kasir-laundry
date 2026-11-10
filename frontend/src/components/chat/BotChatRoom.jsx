@@ -78,7 +78,7 @@ export const BotChatRoom = ({ user, onBack }) => {
         setPlanGateModal({
           isOpen: true,
           type: result.blockType || 'BOT_LIMIT',
-          customData: { limit: result.limit, plan: result.plan },
+          customData: { limit: result.limit, plan: result.plan, isTrial: result.isTrial },
         });
       }
     } catch (error) {

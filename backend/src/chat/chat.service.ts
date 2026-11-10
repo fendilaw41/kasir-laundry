@@ -500,6 +500,10 @@ export class ChatService {
       throw new BadRequestException('uuid wajib disediakan untuk idempotency.');
     }
 
+    if (currentUser?.storeId) {
+      await this.subscriptionService.assertCanPerformAction(currentUser.storeId, 'SEND_CHAT_MESSAGE');
+    }
+
     await this.assertConversationMembership(dto.conversationId, currentUser.userId);
 
     // Cek idempotency: jika pesan dengan UUID ini sudah ada, kembalikan pesan yang ada

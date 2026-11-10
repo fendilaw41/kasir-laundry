@@ -6,7 +6,7 @@ import { TOAST_MESSAGES, CONFIRM_MESSAGES, BUTTON_TEXT, BUTTON_TITLE } from '../
 import { Skeleton, CustomerListSkeleton, InventoryListSkeleton } from '../components/common/Skeleton';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getSettingsQuery } from '../db/repositories/settings';
-import { getSubscriptionReport, isSubscriptionEnabled, isUpgradeBannerEnabled } from '../services/subscriptionService';
+import { getSubscriptionReport, isSubscriptionEnabled, isUpgradeBannerEnabled, isTrialExpired } from '../services/subscriptionService';
 import PlanGateModal from '../components/PlanGateModal';
 
 const Home = ({ user }) => {
@@ -378,7 +378,18 @@ const Home = ({ user }) => {
                       </button>
                       <div className="collapse" id="collapseAddPelanggan">
                         <div className="card card-body border-0 bg-light rounded-4 p-3 mb-3 shadow-inner">
-                          <form onSubmit={handleAddPelanggan}>
+                          <form onSubmit={(e) => {
+                            if (isSubscriptionEnabled() && subReport?.isExpired) {
+                              e.preventDefault();
+                              setGateModal({
+                                open: true,
+                                type: isTrialExpired(subReport) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
+                                data: { plan: subReport?.plan, isTrial: isTrialExpired(subReport) },
+                              });
+                              return;
+                            }
+                            handleAddPelanggan(e);
+                          }}>
                             <div className="mb-2">
                               <input type="text" className="form-control border-0 py-2 rounded-3" placeholder="Nama Lengkap" value={newPelanggan.nama} onChange={(e) => setNewPelanggan({ ...newPelanggan, nama: e.target.value })} required />
                             </div>
@@ -446,7 +457,14 @@ const Home = ({ user }) => {
                                   type="button"
                                   className="btn btn-sm btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center"
                                   style={{ width: '32px', height: '32px' }}
-                                  onClick={(e) => { e.stopPropagation(); setEditPelanggan({ show: true, data: { ...p } }); }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (isSubscriptionEnabled() && isTrialExpired(subReport)) {
+                                      setGateModal({ open: true, type: 'TRIAL_EXPIRED', data: { plan: 'TRIAL', isTrial: true } });
+                                      return;
+                                    }
+                                    setEditPelanggan({ show: true, data: { ...p } });
+                                  }}
                                   title={BUTTON_TITLE.EDIT}
                                 >
                                   <i className="bi bi-pencil-fill text-primary"></i>
@@ -455,7 +473,14 @@ const Home = ({ user }) => {
                                   type="button"
                                   className="btn btn-sm btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center"
                                   style={{ width: '32px', height: '32px' }}
-                                  onClick={(e) => { e.stopPropagation(); handleDeletePelanggan(p); }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (isSubscriptionEnabled() && isTrialExpired(subReport)) {
+                                      setGateModal({ open: true, type: 'TRIAL_EXPIRED', data: { plan: 'TRIAL', isTrial: true } });
+                                      return;
+                                    }
+                                    handleDeletePelanggan(p);
+                                  }}
                                   title={BUTTON_TITLE.DELETE}
                                 >
                                   <i className="bi bi-trash-fill text-danger"></i>
@@ -620,6 +645,10 @@ const Home = ({ user }) => {
                         );
 
                         if (isSubscriptionEnabled()) {
+                          if (isTrialExpired(subReport)) {
+                            setGateModal({ open: true, type: 'TRIAL_EXPIRED', data: { plan: 'TRIAL', isTrial: true } });
+                            return;
+                          }
                           if (subReport?.limits?.maxStockItems === 0) {
                             setGateModal({ open: true, type: 'STOCK_LOCKED', data: { plan: subReport?.plan } });
                             return;

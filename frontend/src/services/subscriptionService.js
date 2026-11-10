@@ -277,6 +277,13 @@ export async function getSubscriptionReport() {
               showUpgradeBanner: json.data.showUpgradeBanner,
             });
           } catch (e) { }
+          // Pastikan properti isTrialExpired selalu terhitung
+          if (typeof json.data.isTrialExpired === 'undefined') {
+            const isExp = Boolean(json.data.isExpired || json.data.status === 'EXPIRED');
+            const plan = String(json.data.plan || 'TRIAL').toUpperCase();
+            json.data.isTrialExpired = isExp && plan === 'TRIAL';
+          }
+
           return json.data;
         }
       }
@@ -343,11 +350,33 @@ async function calculateOfflineUsage(storeId) {
   const totalTrx = limits.maxTransactions;
   const trxPercent = totalTrx === -1 ? 0 : Math.min(100, Math.round((trxCount / totalTrx) * 100));
 
+  let subStatus = 'ACTIVE';
+  let currentPeriodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  if (db.storeSubscriptions && storeId) {
+    try {
+      const existingSub = await db.storeSubscriptions.where('storeId').equals(storeId).first();
+      if (existingSub) {
+        if (existingSub.currentPeriodEnd) {
+          currentPeriodEnd = new Date(existingSub.currentPeriodEnd);
+        }
+        if (existingSub.status === 'EXPIRED' || (existingSub.currentPeriodEnd && new Date() > new Date(existingSub.currentPeriodEnd))) {
+          subStatus = 'EXPIRED';
+        } else {
+          subStatus = existingSub.status || 'ACTIVE';
+        }
+      }
+    } catch (e) { }
+  }
+  const isExpired = subStatus === 'EXPIRED' || (currentPeriodEnd && new Date() > new Date(currentPeriodEnd));
+  const isTrialExp = isExpired && String(cachedPlan).toUpperCase() === 'TRIAL';
+
   return {
     plan: cachedPlan,
-    status: 'ACTIVE',
+    status: isExpired ? 'EXPIRED' : subStatus,
+    isExpired,
+    isTrialExpired: isTrialExp,
     currentPeriodStart: startOfMonth,
-    currentPeriodEnd: new Date(now.getFullYear(), now.getMonth() + 1, 0),
+    currentPeriodEnd,
     isEnforced: isSubscriptionEnabled(),
     limits,
     usage: {
@@ -565,4 +594,29 @@ export async function pullSubscriptionFromBackend() {
 }
 
 export { syncPlansFromBackend, getPlanByKey, getAllPlansLocal } from '../db/repositories/plans';
+
+/**
+ * Mengecek apakah akun toko berada pada paket TRIAL dan sudah kedaluwarsa (expired)
+ */
+export function isTrialExpired(report) {
+  if (!report) return false;
+  if (typeof report.isTrialExpired === 'boolean') {
+    return report.isTrialExpired;
+  }
+  const isExp = Boolean(report.isExpired || report.status === 'EXPIRED');
+  const plan = String(report.plan || 'TRIAL').toUpperCase();
+  return isExp && plan === 'TRIAL';
+}
+
+/**
+ * Mengecek apakah akun toko berada pada paket Berbayar (STARTER, BASIC, PRO, BUSINESS) dan sudah kedaluwarsa (expired)
+ */
+export function isPaidExpired(report) {
+  if (!report) return false;
+  const isExp = Boolean(report.isExpired || report.status === 'EXPIRED');
+  const plan = String(report.plan || 'TRIAL').toUpperCase();
+  return isExp && plan !== 'TRIAL';
+}
+
+
 

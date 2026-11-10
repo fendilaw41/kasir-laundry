@@ -6,7 +6,7 @@ import { getProductsQuery, addProduct, updateProduct, deleteProduct as deletePro
 import { useLiveQuery } from 'dexie-react-hooks';
 import toast from 'react-hot-toast';
 import UbahPassword from './UbahPassword';
-import { getSubscriptionReport } from '../services/subscriptionService';
+import { getSubscriptionReport, isTrialExpired } from '../services/subscriptionService';
 import PlanGateModal from '../components/PlanGateModal';
 import {
   TOAST_MESSAGES,
@@ -53,6 +53,7 @@ const Setting = ({ user, onLogout }) => {
   const [editingUser, setEditingUser] = useState(null);
   const [userLimitModal, setUserLimitModal] = useState({ open: false, limit: 1, plan: '' });
   const [productLimitModal, setProductLimitModal] = useState({ open: false, limit: 5, plan: '' });
+  const [trialExpiredModal, setTrialExpiredModal] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   // State untuk Modal & Form Produk / Layanan
@@ -108,6 +109,14 @@ const Setting = ({ user, onLogout }) => {
       return;
     }
 
+    try {
+      const sub = await getSubscriptionReport().catch(() => null);
+      if (isTrialExpired(sub)) {
+        setTrialExpiredModal(true);
+        return;
+      }
+    } catch (e) {}
+
     setIsSaving(true);
     try {
       await updateSettings(formData);
@@ -123,6 +132,11 @@ const Setting = ({ user, onLogout }) => {
   const handleUserSave = async (e) => {
     e.preventDefault();
     try {
+      const sub = await getSubscriptionReport().catch(() => null);
+      if (isTrialExpired(sub)) {
+        setTrialExpiredModal(true);
+        return;
+      }
       if (editingUser) {
         await updateUser(editingUser.id, userFormData);
         toast.success(TOAST_MESSAGES.SUCCESS);
@@ -139,6 +153,13 @@ const Setting = ({ user, onLogout }) => {
   };
 
   const deleteUser = async (id) => {
+    try {
+      const sub = await getSubscriptionReport().catch(() => null);
+      if (isTrialExpired(sub)) {
+        setTrialExpiredModal(true);
+        return;
+      }
+    } catch (e) {}
     if (window.confirm(CONFIRM_MESSAGES.DELETE_USER)) {
       try {
         await deleteUserRepo(id);
@@ -150,15 +171,17 @@ const Setting = ({ user, onLogout }) => {
   };
 
   const openUserModal = async (selectedUser = null) => {
-    if (!selectedUser) {
-      try {
-        const sub = await getSubscriptionReport();
-        if (sub?.usage?.users?.isExceeded) {
-          setUserLimitModal({ open: true, limit: sub.limits.maxUsers, plan: sub.plan });
-          return;
-        }
-      } catch (e) {}
-    }
+    try {
+      const sub = await getSubscriptionReport().catch(() => null);
+      if (isTrialExpired(sub)) {
+        setTrialExpiredModal(true);
+        return;
+      }
+      if (!selectedUser && sub?.usage?.users?.isExceeded) {
+        setUserLimitModal({ open: true, limit: sub.limits.maxUsers, plan: sub.plan });
+        return;
+      }
+    } catch (e) {}
     if (selectedUser) {
       setEditingUser(selectedUser);
       setUserFormData({
@@ -176,15 +199,17 @@ const Setting = ({ user, onLogout }) => {
   };
 
   const openProductModal = async (selectedProduct = null) => {
-    if (!selectedProduct) {
-      try {
-        const sub = await getSubscriptionReport();
-        if (sub && sub.isEnforced && sub.usage?.products?.isExceeded) {
-          setProductLimitModal({ open: true, limit: sub.limits?.maxProducts ?? 5, plan: sub.plan });
-          return;
-        }
-      } catch (e) {}
-    }
+    try {
+      const sub = await getSubscriptionReport().catch(() => null);
+      if (isTrialExpired(sub)) {
+        setTrialExpiredModal(true);
+        return;
+      }
+      if (!selectedProduct && sub && sub.isEnforced && sub.usage?.products?.isExceeded) {
+        setProductLimitModal({ open: true, limit: sub.limits?.maxProducts ?? 5, plan: sub.plan });
+        return;
+      }
+    } catch (e) {}
     if (selectedProduct) {
       setEditingProduct(selectedProduct);
       setProductFormData({
@@ -212,6 +237,11 @@ const Setting = ({ user, onLogout }) => {
       return;
     }
     try {
+      const sub = await getSubscriptionReport().catch(() => null);
+      if (isTrialExpired(sub)) {
+        setTrialExpiredModal(true);
+        return;
+      }
       if (editingProduct) {
         await updateProduct(editingProduct.id, productFormData);
         toast.success(TOAST_MESSAGES.SUCCESS);
@@ -232,6 +262,13 @@ const Setting = ({ user, onLogout }) => {
       toast.error(TOAST_MESSAGES.ERROR);
       return;
     }
+    try {
+      const sub = await getSubscriptionReport().catch(() => null);
+      if (isTrialExpired(sub)) {
+        setTrialExpiredModal(true);
+        return;
+      }
+    } catch (e) {}
     if (window.confirm(CONFIRM_MESSAGES.DELETE_PRODUCT)) {
       try {
         await deleteProductRepo(id);
@@ -1307,6 +1344,14 @@ const Setting = ({ user, onLogout }) => {
         onClose={() => setProductLimitModal({ ...productLimitModal, open: false })}
         type="PRODUCT_LIMIT"
         customData={{ limit: productLimitModal.limit, plan: productLimitModal.plan }}
+        user={user}
+      />
+      {/* POPUP RINGKAS TRIAL EXPIRED */}
+      <PlanGateModal
+        isOpen={trialExpiredModal}
+        onClose={() => setTrialExpiredModal(false)}
+        type="TRIAL_EXPIRED"
+        customData={{ plan: 'TRIAL', isTrial: true }}
         user={user}
       />
 

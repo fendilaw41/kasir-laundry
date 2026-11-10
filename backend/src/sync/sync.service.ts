@@ -125,11 +125,27 @@ export class SyncService {
 
       let user;
       if (existingUser) {
+        if (!u.deletedAt) {
+          try {
+            await this.subscriptionService.assertCanPerformAction(store.id, 'EDIT_DATA');
+          } catch (err: any) {
+            this.logger.warn(`Larangan edit user untuk store ${store.id}: ${err.message}`);
+            continue;
+          }
+        }
         user = await this.prisma.user.update({
           where: { id: existingUser.id },
           data: userData,
         });
       } else {
+        if (!u.deletedAt) {
+          try {
+            await this.subscriptionService.assertCanPerformAction(store.id, 'CREATE_USER');
+          } catch (err: any) {
+            this.logger.warn(`Batas/larangan tambah user untuk store ${store.id}: ${err.message}`);
+            continue;
+          }
+        }
         user = await this.prisma.user.create({
           data: {
             id: u.id,
@@ -201,11 +217,27 @@ export class SyncService {
 
       let product;
       if (existingProduct) {
+        if (!p.deletedAt) {
+          try {
+            await this.subscriptionService.assertCanPerformAction(store.id, 'EDIT_DATA');
+          } catch (err: any) {
+            this.logger.warn(`Larangan edit produk untuk store ${store.id}: ${err.message}`);
+            continue;
+          }
+        }
         product = await this.prisma.product.update({
           where: { id: existingProduct.id },
           data: productData,
         });
       } else {
+        if (!p.deletedAt) {
+          try {
+            await this.subscriptionService.assertCanPerformAction(store.id, 'CREATE_PRODUCT');
+          } catch (err: any) {
+            this.logger.warn(`Batas/larangan tambah produk untuk store ${store.id}: ${err.message}`);
+            continue;
+          }
+        }
         product = await this.prisma.product.create({
           data: {
             id: p.id,
@@ -466,8 +498,15 @@ export class SyncService {
       if (!targetInventory && !inv.deletedAt) {
         try {
           await this.subscriptionService.assertCanPerformAction(store.id, 'CREATE_INVENTORY');
-        } catch (err) {
-          this.logger.warn(`Batas item stok tercapai untuk store ${store.id}: ${err.message}`);
+        } catch (err: any) {
+          this.logger.warn(`Batas/larangan tambah stok untuk store ${store.id}: ${err.message}`);
+          continue;
+        }
+      } else if (targetInventory && !inv.deletedAt) {
+        try {
+          await this.subscriptionService.assertCanPerformAction(store.id, 'EDIT_DATA');
+        } catch (err: any) {
+          this.logger.warn(`Larangan edit stok untuk store ${store.id}: ${err.message}`);
           continue;
         }
       }
@@ -607,6 +646,15 @@ export class SyncService {
       const createdAt = evt.createdAt ? new Date(evt.createdAt) : new Date();
       const updatedAt = evt.updatedAt ? new Date(evt.updatedAt) : new Date();
       const deletedAt = evt.deletedAt ? new Date(evt.deletedAt) : null;
+
+      if (evt.type === 'ADD' && !deletedAt) {
+        try {
+          await this.subscriptionService.assertCanPerformAction(store.id, 'CREATE_INVENTORY');
+        } catch (err: any) {
+          this.logger.warn(`Larangan tambah stok event untuk store ${store.id}: ${err.message}`);
+          continue;
+        }
+      }
 
       let resolvedInventoryName = evt.inventoryName || null;
       if (!resolvedInventoryName && evt.inventoryId) {
