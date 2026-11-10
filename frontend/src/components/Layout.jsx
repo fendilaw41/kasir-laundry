@@ -7,6 +7,7 @@ import { getSettingsQuery } from '../db/repositories/settings';
 import { getActiveStoreId } from '../db/repositories/storeHelper';
 import { Skeleton } from './common/Skeleton';
 import OfflineAlertBanner from './OfflineAlertBanner';
+import NotificationBell from './NotificationBell';
 
 const Layout = ({ user, onLogout }) => {
   const location = useLocation();
@@ -272,22 +273,7 @@ const Layout = ({ user, onLogout }) => {
                   </h5>
                 </div>
               )}
-              <div
-                className="navbar--toggler flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle border shadow-xs"
-                id="affanNavbarToggler"
-                onClick={onLogout}
-                style={{
-                  cursor: 'pointer',
-                  width: '38px',
-                  height: '38px',
-                  backgroundColor: '#f8fafc',
-                  borderColor: '#e2e8f0',
-                  color: '#0d6efd',
-                }}
-                title="Logout"
-              >
-                <i className="bi bi-box-arrow-right fs-5"></i>
-              </div>
+              <NotificationBell user={user} />
             </>
           ) : (
             <>

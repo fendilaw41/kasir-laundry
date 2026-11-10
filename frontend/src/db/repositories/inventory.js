@@ -181,6 +181,19 @@ export const approveInventory = async (item) => {
         createdAt: new Date()
       }));
     }
+
+    if (db.notifications) {
+      await db.notifications.add(withNewSyncMeta({
+        storeId,
+        title: 'Pengajuan Stok Disetujui ✅',
+        message: `Pengajuan stok "${item.nama}" (+${pendingQty}) telah disetujui owner.`,
+        type: 'STOCK_APPROVED',
+        role: 'kasir',
+        link: '/',
+        isRead: false,
+        createdAt: new Date().toISOString(),
+      })).catch(() => {});
+    }
   });
 
   syncInventoryToBackend().catch(err => console.warn('[Sync] Sync inventory error:', err));

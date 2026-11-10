@@ -83,12 +83,19 @@ describe('SubscriptionService', () => {
     expect(limits.PRO.maxProducts).toBe(100);
     expect(limits.BUSINESS.maxProducts).toBe(-1);
 
-    // Verifikasi foto chat sama dengan transaksi
-    expect(limits.TRIAL.maxChatPhotos).toBe(limits.TRIAL.maxTransactions);
-    expect(limits.STARTER.maxChatPhotos).toBe(limits.STARTER.maxTransactions);
-    expect(limits.BASIC.maxChatPhotos).toBe(limits.BASIC.maxTransactions);
-    expect(limits.PRO.maxChatPhotos).toBe(limits.PRO.maxTransactions);
-    expect(limits.BUSINESS.maxChatPhotos).toBe(limits.BUSINESS.maxTransactions);
+    // Verifikasi foto chat
+    expect(limits.TRIAL.maxChatPhotos).toBe(5);
+    expect(limits.STARTER.maxChatPhotos).toBe(5);
+    expect(limits.BASIC.maxChatPhotos).toBe(20);
+    expect(limits.PRO.maxChatPhotos).toBe(100);
+    expect(limits.BUSINESS.maxChatPhotos).toBe(500);
+
+    // Verifikasi bot transaksi
+    expect(limits.TRIAL.botTransactions).toBe(10);
+    expect(limits.STARTER.botTransactions).toBe(0);
+    expect(limits.BASIC.botTransactions).toBe(20);
+    expect(limits.PRO.botTransactions).toBe(200);
+    expect(limits.BUSINESS.botTransactions).toBe(1000);
 
     // Verifikasi history stok
     expect(limits.TRIAL.hasStockHistory).toBe(false);

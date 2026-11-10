@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { TOAST_MESSAGES } from '../../constants/appConstants';
 import { calculateOrderEstimatedDays } from '../../utils/estimateCalculator';
 import { getActiveStoreIdSync } from '../../db/repositories/storeHelper';
+import { validateAuthSession, getStoredUser } from '../../utils/authSession';
 
 export const useTransaksi = () => {
   const cartItems = useLiveQuery(getCartQuery);
@@ -124,7 +125,12 @@ export const useTransaksi = () => {
       }
     }
 
-    const user = JSON.parse(sessionStorage.getItem('user'));
+    if (!validateAuthSession()) {
+      navigate('/login');
+      return;
+    }
+
+    const user = getStoredUser();
     if (!user) {
       toast.error(TOAST_MESSAGES.ERROR);
       navigate('/login');

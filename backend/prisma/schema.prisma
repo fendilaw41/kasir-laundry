@@ -28,6 +28,7 @@ model Store {
   syncLogs        SyncLog[]
   conversations   Conversation[]
   subscription    StoreSubscription?
+  notifications   Notification[]
 }
 
 model User {
@@ -358,4 +359,22 @@ model MasterPlan {
   updatedAt            DateTime @updatedAt @db.Timestamptz(3)
 
   @@index([sortOrder, isActive])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  userId    String?
+  role      String?  // 'owner' | 'kasir' | null (null = broadcast all roles in store)
+  title     String
+  message   String
+  type      String   // 'TRANSACTION' | 'STOCK_APPROVED' | 'PLAN_UPGRADE' | 'LOW_STOCK'
+  link      String?  // navigation target URL (e.g. '/order/:id')
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([storeId, createdAt(sort: Desc)])
+  @@index([storeId, role, isRead])
 }

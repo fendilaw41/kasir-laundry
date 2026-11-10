@@ -132,7 +132,7 @@ const DataOrder = ({ user }) => {
       }
       setShowConfirmModal(false);
     } catch (error) {
-      toast.error(TOAST_MESSAGES.ERROR);
+      toast.error(error?.message || TOAST_MESSAGES.ERROR);
       setShowConfirmModal(false);
     }
   };

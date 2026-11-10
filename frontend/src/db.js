@@ -53,6 +53,11 @@ db.version(6).stores({
   storeSubscriptions: 'id, &storeId, plan, status, updatedAt',
 });
 
+// Schema versi 7: Tabel notifikasi
+db.version(7).stores({
+  notifications: '++id, &uuid, storeId, role, title, message, type, link, isRead, createdAt, isDirty',
+});
+
 // Seed initial data if empty
 db.on('ready', async () => {
   try {

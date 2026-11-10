@@ -270,13 +270,13 @@ export const BotChatRoom = ({ user, onBack }) => {
                         <div
                           className="card shadow-sm border-0 h-100 text-start p-3 customer-card-clickable"
                           style={{ cursor: 'pointer', borderRadius: '16px', background: '#e1f5fe' }}
-                          onClick={() => handleSelectTemplate('acc semua inventory')}
+                          onClick={() => handleSelectTemplate('acc semua stok')}
                         >
                           <h6 className="mb-1 text-info" style={{ fontSize: '0.95rem' }}>
                             <i className="bi bi-check-circle me-2"></i>Approval (Khusus Owner)
                           </h6>
                           <code className="bg-white p-2 rounded-3 d-block shadow-sm" style={{ fontSize: '0.8rem', color: '#555' }}>
-                            acc semua inventory
+                            acc semua stok
                           </code>
                         </div>
                       </div>

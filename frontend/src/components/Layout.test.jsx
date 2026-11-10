@@ -4,6 +4,10 @@ import { MemoryRouter, Routes, Route, useOutletContext } from 'react-router-dom'
 import Layout from './Layout';
 import React, { useEffect } from 'react';
 
+vi.mock('../services/chatService', () => ({
+  fetchConversationsFromBackend: vi.fn().mockResolvedValue([]),
+}));
+
 // Komponen simulasi halaman chat yang memanfaatkan outlet context
 const MockChatPage = ({ activeType, customTitle }) => {
   const { setChatHeaderState } = useOutletContext() || {};

@@ -133,7 +133,7 @@ const OrderDetail = ({ user }) => {
       setShowConfirmModal(false);
       toast.success(TOAST_MESSAGES.SUCCESS);
     } catch (error) {
-      toast.error(TOAST_MESSAGES.ERROR);
+      toast.error(error?.message || TOAST_MESSAGES.ERROR);
       setShowConfirmModal(false);
     }
   };

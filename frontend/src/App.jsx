@@ -27,13 +27,15 @@ import { isSubscriptionEnabled } from './services/subscriptionService';
 import { clearDraftOrder } from './db/repositories/draftOrder';
 import { clearCart } from './db/repositories/cart';
 import { updatePwaManifest } from './utils/pwaHelper';
+import { validateAuthSession, getStoredUser } from './utils/authSession';
 import { db } from './db';
 
 function App() {
   const [user, setUser] = useState(() => {
     try {
-      const loggedInUser = sessionStorage.getItem('user') || (typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null);
-      return loggedInUser ? JSON.parse(loggedInUser) : null;
+      const isValid = validateAuthSession();
+      if (!isValid) return null;
+      return getStoredUser();
     } catch {
       return null;
     }
@@ -107,8 +109,20 @@ function App() {
   };
 
   useEffect(() => {
-    const handleUnauthorized = async () => {
-      console.warn('[Auth] Sesi berakhir atau token tidak valid (401 Unauthorized)');
+    // Validasi token saat startup dan saat tab kembali aktif
+    validateAuthSession();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        validateAuthSession();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    const handleUnauthorized = async (event) => {
+      const reason = event?.detail?.reason || 'Sesi login telah berakhir. Silakan masuk kembali.';
+      console.warn('[Auth] Sesi berakhir:', reason);
+      toast.error(reason);
       try {
         await clearDraftOrder();
         await clearCart();
@@ -119,15 +133,18 @@ function App() {
       sessionStorage.removeItem('user');
       sessionStorage.removeItem('token');
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('token');
       localStorage.removeItem('user');
       try {
-        
         await db.settings.update(1, { token: null, authToken: null });
       } catch (e) {}
     };
 
     window.addEventListener('auth:unauthorized', handleUnauthorized);
-    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
+    };
   }, []);
 
   return (
@@ -155,7 +172,7 @@ function App() {
           <Route path="/order/:id" element={<OrderDetail user={user} />} />
           <Route path="/orders" element={<DataOrder user={user} />} />
           <Route path="/reports" element={<Reports user={user} />} />
-          <Route path="/setting" element={<Setting user={user} />} />
+          <Route path="/setting" element={<Setting user={user} onLogout={handleLogout} />} />
           <Route path="/plan" element={isSubscriptionEnabled() ? <Plan user={user} /> : <Navigate to="/" replace />} />
           <Route path="/paket" element={isSubscriptionEnabled() ? <Plan user={user} /> : <Navigate to="/" replace />} />
           <Route path="/ubah-password" element={<UbahPassword user={user} />} />

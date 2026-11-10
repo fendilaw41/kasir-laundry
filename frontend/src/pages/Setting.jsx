@@ -29,7 +29,7 @@ import {
   getReceiptTrackingUrl,
 } from '../utils/receiptFooter';
 
-const Setting = ({ user }) => {
+const Setting = ({ user, onLogout }) => {
   const settings = useLiveQuery(getSettingsQuery);
   const users = useLiveQuery(getKasirUsersQuery);
   const products = useLiveQuery(getProductsQuery);
@@ -48,6 +48,7 @@ const Setting = ({ user }) => {
   }, [searchParams]);
 
   const [isSaving, setIsSaving] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [userLimitModal, setUserLimitModal] = useState({ open: false, limit: 1, plan: '' });
@@ -575,6 +576,17 @@ const Setting = ({ user }) => {
                 )}
               </button>
             )}
+
+            {/* Tombol Logout Merah di Profil Laundry */}
+            <button
+              type="button"
+              className="btn btn-danger w-100 rounded-pill py-3 fw-bold mt-3 shadow-xs d-flex align-items-center justify-content-center gap-2"
+              onClick={() => setShowLogoutModal(true)}
+              style={{ fontSize: '0.92rem' }}
+            >
+              <i className="bi bi-box-arrow-right fs-5"></i>
+              <span>Keluar</span>
+            </button>
           </form>
         )}
 
@@ -1297,6 +1309,52 @@ const Setting = ({ user }) => {
         customData={{ limit: productLimitModal.limit, plan: productLimitModal.plan }}
         user={user}
       />
+
+      {/* Modal Konfirmasi Logout */}
+      {showLogoutModal && (
+        <>
+          <div
+            className="modal-backdrop fade show"
+            style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}
+            onClick={() => setShowLogoutModal(false)}
+          />
+          <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1065 }}>
+            <div className="modal-dialog modal-dialog-centered mx-auto" style={{ maxWidth: '340px' }}>
+              <div className="modal-content border-0 shadow-lg rounded-4 p-4 text-center bg-white">
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
+                  style={{ width: '56px', height: '56px', backgroundColor: '#fef2f2', color: '#dc2626' }}
+                >
+                  <i className="bi bi-box-arrow-right fs-3"></i>
+                </div>
+                <h6 className="fw-bold mb-1 text-dark">Konfirmasi Keluar</h6>
+                <p className="text-muted small mb-4">
+                  Apakah Anda yakin ingin keluar dari akun kasir/toko ini?
+                </p>
+                <div className="d-flex gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-light rounded-pill flex-fill py-2.5 fw-semibold border text-secondary"
+                    onClick={() => setShowLogoutModal(false)}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger rounded-pill flex-fill py-2.5 fw-semibold shadow-xs"
+                    onClick={() => {
+                      setShowLogoutModal(false);
+                      if (onLogout) onLogout();
+                    }}
+                  >
+                    Ya, Keluar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

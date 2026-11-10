@@ -387,6 +387,19 @@ export async function parseChatCommand(message, user) {
           const newOrderId = await db.orders.add(withNewSyncMeta(orderData));
           syncOrderToBackend(newOrderId).catch(err => console.warn('Sync chatbot order failed:', err));
 
+          if (db.notifications) {
+            await db.notifications.add(withNewSyncMeta({
+              storeId: orderData.storeId,
+              title: 'Transaksi Baru (Bot) 🤖',
+              message: `Pesanan #${invoiceId} senilai Rp${totalAll.toLocaleString('id-ID')} berhasil dibuat via Bot.`,
+              type: 'TRANSACTION',
+              link: `/order/${newOrderId}`,
+              role: null,
+              isRead: false,
+              createdAt: new Date().toISOString(),
+            })).catch(() => {});
+          }
+
           const itemsResponseStr = validOrderItems.map(i => `${i.name} ${i.quantity}kg`).join(', ');
           responseText = `Transaksi "${itemsResponseStr}" = Rp${totalAll.toLocaleString('id-ID')} berhasil dibuat dengan invoice ${invoiceId}.`;
           status = 'success';
@@ -460,13 +473,13 @@ export async function parseChatCommand(message, user) {
 
       payload = { addedItems, failedItems };
     }
-    // 3. Cek intent: Approve Semua Inventory -> "acc semua inventory"
-    else if (msg === 'acc semua stok') {
+    // 3. Cek intent: Approve Semua Stok -> "acc semua stok"
+    else if (msg === 'acc semua stok' || msg === 'acc semua inventory') {
       intent = 'approve_all';
       if (user.role === 'owner') {
         const pendingItems = await db.inventory.filter(i => i.status === 'pending').toArray();
         if (pendingItems.length === 0) {
-          responseText = 'Tidak ada inventory yang menunggu approval.';
+          responseText = 'Tidak ada pengajuan stok yang menunggu approval.';
           status = 'success';
         } else {
           await db.transaction('rw', [db.inventory, db.inventoryEvents], async () => {
@@ -491,12 +504,12 @@ export async function parseChatCommand(message, user) {
             }
           });
           syncInventoryToBackend().catch(err => console.warn('[Chatbot] Sync inventory approve all failed:', err));
-          responseText = `${pendingItems.length} item inventory di-approve dan stok berhasil ditambahkan.`;
+          responseText = `${pendingItems.length} item stok di-approve dan berhasil ditambahkan.`;
           status = 'success';
           payload = { approvedCount: pendingItems.length };
         }
       } else {
-        responseText = 'Akses ditolak. Hanya owner yang dapat menyetujui penambahan inventory.';
+        responseText = 'Akses ditolak. Hanya owner yang dapat menyetujui penambahan stok.';
       }
     }
     // 4. Cek intent: Partial Approve Inventory -> "acc <barang>"

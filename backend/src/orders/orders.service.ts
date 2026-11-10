@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { PrismaService } from '../prisma/prisma.service';
 import { SyncOrderDto } from './dto/sync-order.dto';
 import { SubscriptionService } from '../subscription/subscription.service';
+import { createStoreNotification } from '../notifications/notifications.service';
 
 @Injectable()
 export class OrdersService {
@@ -41,7 +42,8 @@ export class OrdersService {
 
     const items = dto.items || dto.cartItems || [];
 
-    return await this.prisma.$transaction(async (tx) => {
+    let isNewOrder = false;
+    const syncedOrder = await this.prisma.$transaction(async (tx) => {
       // 1. Handle Pelanggan jika ada
       let finalPelangganId = dto.pelangganId;
 
@@ -168,6 +170,7 @@ export class OrdersService {
           data: orderData,
         });
       } else {
+        isNewOrder = true;
         await this.subscriptionService.assertCanPerformAction(storeId, 'CREATE_ORDER');
         order = await tx.order.create({
           data: {
@@ -281,6 +284,18 @@ export class OrdersService {
 
       return afterOrder;
     });
+
+    if (isNewOrder && syncedOrder) {
+      createStoreNotification(this.prisma, {
+        storeId,
+        title: 'Transaksi Baru',
+        message: `Pesanan #${dto.invoiceId} senilai Rp${(dto.total || 0).toLocaleString('id-ID')} berhasil dibuat.`,
+        type: 'TRANSACTION',
+        link: `/order/${syncedOrder.id}`,
+      }).catch((e) => this.logger.warn(`Failed to create order notification: ${e?.message}`));
+    }
+
+    return syncedOrder;
   }
 
   /**
@@ -490,16 +505,16 @@ export class OrdersService {
       })),
       pelanggan: order.pelanggan
         ? {
-            id: order.pelanggan.id,
-            nama: order.pelanggan.nama,
-            hp: maskedHp,
-            alamat: order.pelanggan.alamat || '',
-          }
+          id: order.pelanggan.id,
+          nama: order.pelanggan.nama,
+          hp: maskedHp,
+          alamat: order.pelanggan.alamat || '',
+        }
         : {
-            nama: 'Pelanggan Umum',
-            hp: '-',
-            alamat: '',
-          },
+          nama: 'Pelanggan Umum',
+          hp: '-',
+          alamat: '',
+        },
       store: {
         id: order.store?.id,
         name:

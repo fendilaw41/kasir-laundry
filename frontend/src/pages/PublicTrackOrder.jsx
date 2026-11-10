@@ -105,9 +105,37 @@ export default function PublicTrackOrder() {
     });
   };
 
+  const currentPlan = (order?.store?.subscription?.plan || 'TRIAL').toUpperCase();
+  const showWatermark = isSubscriptionEnabled() && ['TRIAL', 'STARTER'].includes(currentPlan);
+
   return (
-    <div style={{ backgroundColor: '#f3f6fc', minHeight: '100vh', paddingBottom: '70px' }}>
-      <div className="container px-3 pt-3" style={{ maxWidth: '640px' }}>
+    <div style={{ backgroundColor: '#f3f6fc', minHeight: '100vh', paddingBottom: '70px', position: 'relative', overflow: 'hidden' }}>
+      {/* WATERMARK BACKGROUND KHUSUS PAKET TRIAL & STARTER */}
+      {showWatermark && !loading && order && (
+        <div
+          className="d-flex align-items-center justify-content-center"
+          style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%) rotate(-25deg)',
+            fontSize: 'clamp(5rem, 18vw, 10rem)',
+            fontWeight: 900,
+            letterSpacing: '0.15em',
+            color: 'rgba(148, 163, 184, 0.14)',
+            pointerEvents: 'none',
+            userSelect: 'none',
+            zIndex: 0,
+            whiteSpace: 'nowrap',
+            textTransform: 'uppercase',
+          }}
+          aria-hidden="true"
+        >
+          {currentPlan}
+        </div>
+      )}
+
+      <div className="container px-3 pt-3" style={{ maxWidth: '640px', position: 'relative', zIndex: 1 }}>
         {/* 1. OFFLINE STATUS BANNER */}
         {isOfflineData && (
           <div

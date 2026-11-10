@@ -100,6 +100,12 @@ describe('orders repository', () => {
         .rejects.toThrow('Inventory terpakai minimal harus ada Deterjen 1x untuk dipindah ke status Selesai.');
     });
 
+    it('should throw an error if updating to Proses but no Deterjen used', async () => {
+      db.orders.get.mockResolvedValue({ id: 1, statusBayar: 'Belum Bayar', inventoryUsed: [] });
+      await expect(updateOrder(1, { status: 'Proses' }))
+        .rejects.toThrow('Inventory terpakai minimal harus ada Deterjen 1x untuk dipindah ke status Proses.');
+    });
+
     it('should successfully update to Ambil if Lunas and has Deterjen', async () => {
       db.orders.get.mockResolvedValue({ id: 1, statusBayar: 'Lunas', inventoryUsed: [{ nama: 'Deterjen Bubuk', quantity: 2 }] });
       db.orders.update.mockResolvedValue(1);

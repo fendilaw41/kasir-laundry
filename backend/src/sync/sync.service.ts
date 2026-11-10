@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubscriptionService } from '../subscription/subscription.service';
+import { createStoreNotification } from '../notifications/notifications.service';
 import { SyncInventoryDto, SyncMasterDataDto, SyncPelangganDto, SyncProductDto, SyncSettingsDto, SyncUserDto, SyncInventoryEventDto } from './dto/sync-master.dto';
 
 @Injectable()
@@ -519,6 +520,35 @@ export class SyncService {
       });
 
       results.push(saved);
+
+      // Notifikasi persetujuan stok khusus Kasir
+      if (beforeInventory && beforeInventory.status === 'pending' && inv.status === 'approved') {
+        createStoreNotification(this.prisma, {
+          storeId: store.id,
+          title: 'Pengajuan Stok Disetujui ✅',
+          message: `Pengajuan stok "${saved.nama}" telah disetujui owner.`,
+          type: 'STOCK_APPROVED',
+          role: 'kasir',
+          link: '/',
+        }).catch((e) => this.logger.warn(`Failed to create stock approval notification: ${e?.message}`));
+      }
+
+      // Notifikasi stok menipis (jika plan toko mengaktifkan lowStockNotification)
+      if (saved.stok < 5 && saved.stok >= 0 && !inv.deletedAt) {
+        this.subscriptionService.getOrCreateSubscription(store.id).then(async (sub) => {
+          const planConfig = await this.subscriptionService.getPlanConfig(sub.plan);
+          if (planConfig.lowStockNotification) {
+            await createStoreNotification(this.prisma, {
+              storeId: store.id,
+              title: 'Stok Menipis ⚠️',
+              message: `Stok "${saved.nama}" tersisa ${saved.stok} pcs! Segera lakukan penambahan stok.`,
+              type: 'LOW_STOCK',
+              role: 'owner',
+              link: '/',
+            });
+          }
+        }).catch((e) => this.logger.warn(`Failed to check low stock notification: ${e?.message}`));
+      }
     }
     return results;
   }

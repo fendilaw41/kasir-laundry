@@ -5,6 +5,7 @@ import { clearDraftOrder } from '../db/repositories/draftOrder';
 import { getSubscriptionReport } from '../services/subscriptionService';
 import PlanGateModal from '../components/PlanGateModal';
 import { getStatusLunasByMetode } from '../utils/paymentStatus';
+import { validateAuthSession } from '../utils/authSession';
 import toast from 'react-hot-toast';
 import { TOAST_MESSAGES } from '../constants/appConstants';
 
@@ -37,6 +38,11 @@ const Pembayaran = ({ user }) => {
   const kembalian = bayarNum - currentSisa;
 
   const handleBayar = async (isLunas) => {
+    if (!validateAuthSession()) {
+      navigate('/login');
+      return;
+    }
+
     // Validasi: Ketika klik pembayaran lunas, kolom amount wajib diisi (> 0)
     if (isLunas && (!jumlahBayar || jumlahBayar.toString().trim() === '' || bayarNum <= 0)) {
       setAmountError(true);

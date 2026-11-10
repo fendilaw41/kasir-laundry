@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { StorageModule } from './common/storage/storage.module';
 import { ChatModule } from './chat/chat.module';
 import { SubscriptionModule } from './subscription/subscription.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
@@ -21,6 +22,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     StorageModule,
     ChatModule,
     SubscriptionModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [

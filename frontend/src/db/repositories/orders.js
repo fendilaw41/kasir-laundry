@@ -160,6 +160,20 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
     if (setting) {
       await db.settings.update(1, withUpdatedSyncMeta({ lastInvoiceNumber: nextNumber }));
     }
+
+    // Tambah notifikasi transaksi baru
+    if (db.notifications) {
+      await db.notifications.add(withNewSyncMeta({
+        storeId,
+        title: 'Transaksi Baru 🧺',
+        message: `Pesanan #${invoiceId} senilai Rp${total.toLocaleString('id-ID')} berhasil dibuat.`,
+        type: 'TRANSACTION',
+        link: `/order/${newId}`,
+        role: null,
+        isRead: false,
+        createdAt: orderDate.toISOString(),
+      })).catch(() => {});
+    }
   });
 
   // Trigger sync ke backend secara teratur (sekuensial) agar tidak membanjiri koneksi dan menghindari lock contention
@@ -196,7 +210,7 @@ export const updateOrder = async (id, data) => {
 
   const targetId = order.id;
 
-  if (data.status === 'Ambil' || data.status === 'Selesai') {
+  if (data.status === 'Ambil' || data.status === 'Selesai' || data.status === 'Proses') {
     if (data.status === 'Ambil') {
       const currentStatusBayar = data.statusBayar || order.statusBayar;
       if (!isStatusLunas(currentStatusBayar)) {

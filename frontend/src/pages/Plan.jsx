@@ -22,6 +22,7 @@ export default function Plan({ user }) {
   const [report, setReport] = useState(null);
   const [topupModalOpen, setTopupModalOpen] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ open: false, planKey: null, planName: '' });
+  const [showPlansTable, setShowPlansTable] = useState(false);
 
   const isOwner = user?.role === 'owner';
   const adminWa = report?.whatsappBillingNumber || '6281234567890';
@@ -260,11 +261,11 @@ export default function Plan({ user }) {
             </div>
 
             {/* 2. PENGGUNAAN KUOTA BULAN INI (2x2 GRID LEGA) */}
-            <div className="d-flex justify-content-between align-items-center mb-3 mt-1 flex-wrap gap-2">
+            <div className="d-flex justify-content-between align-items-center mb-3 mt-3 flex-wrap gap-2">
               <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2" style={{ fontSize: '0.92rem' }}>
                 <span>Penggunaan Kuota Bulan Ini</span>
               </h6>
-              {isOwner && (
+              {/* {isOwner && (
                 <button
                   type="button"
                   className="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 shadow-xs fw-semibold"
@@ -273,7 +274,7 @@ export default function Plan({ user }) {
                 >
                   Top-up Kuota
                 </button>
-              )}
+              )} */}
             </div>
 
             <div className="row g-2.5 mb-4">
@@ -407,10 +408,10 @@ export default function Plan({ user }) {
                     {inv.limit === 0
                       ? 'Terkunci di Trial'
                       : inv.limit === -1
-                      ? 'Unlimited item'
-                      : inv.remaining <= 0 || inv.isExceeded
-                      ? 'jumlah maksimal tercapai'
-                      : `${inv.remaining} item lagi`}
+                        ? 'Unlimited item'
+                        : inv.remaining <= 0 || inv.isExceeded
+                          ? 'jumlah maksimal tercapai'
+                          : `${inv.remaining} item lagi`}
                   </span>
                 </div>
               </div>
@@ -421,327 +422,337 @@ export default function Plan({ user }) {
               <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2" style={{ fontSize: '0.92rem' }}>
                 <span>Paket</span>
               </h6>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1.5 shadow-xs"
+                style={{ fontSize: '0.75rem', fontWeight: 500 }}
+                onClick={() => setShowPlansTable((prev) => !prev)}
+              >
+                <i className={`bi bi-${showPlansTable ? 'eye-slash' : 'eye'}`}></i>
+              </button>
             </div>
 
-            <div className="card border-0 shadow-sm rounded-4 overflow-hidden bg-white mb-4">
-              <div className="table-responsive">
-                <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.8rem' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '2px solid #cbd5e1' }}>
-                      <th
-                        className="py-3 px-3 fw-bold"
-                        style={{
-                          position: 'sticky',
-                          left: 0,
-                          zIndex: 2,
-                          minWidth: '150px',
-                          width: '150px',
-                          backgroundColor: '#e2e8f0',
-                          color: '#0f172a',
-                          borderRight: '1.5px solid #cbd5e1',
-                          whiteSpace: 'nowrap',
-                          verticalAlign: 'middle',
-                        }}
-                      >
-                        <div className="d-flex align-items-center gap-1.5">
-                          <i className="bi bi-grid-fill text-secondary" style={{ fontSize: '0.85rem' }}></i>
-                          <span>Fitur</span>
-                        </div>
-                      </th>
-                      {plans.map((p) => {
-                        const isPop = p.isPopular;
+            {showPlansTable && (
+              <div className="card border-0 shadow-sm rounded-4 overflow-hidden bg-white mb-4">
+                <div className="table-responsive">
+                  <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.8rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #cbd5e1' }}>
+                        <th
+                          className="py-3 px-3 fw-bold"
+                          style={{
+                            position: 'sticky',
+                            left: 0,
+                            zIndex: 2,
+                            minWidth: '150px',
+                            width: '150px',
+                            backgroundColor: '#e2e8f0',
+                            color: '#0f172a',
+                            borderRight: '1.5px solid #cbd5e1',
+                            whiteSpace: 'nowrap',
+                            verticalAlign: 'middle',
+                          }}
+                        >
+                          <div className="d-flex align-items-center gap-1.5">
+                            <i className="bi bi-grid-fill text-secondary" style={{ fontSize: '0.85rem' }}></i>
+                            <span>Fitur</span>
+                          </div>
+                        </th>
+                        {plans.map((p) => {
+                          const isPop = p.isPopular;
 
-                        return (
-                          <th
-                            key={p.key}
-                            className="py-3 px-3 text-center position-relative"
-                            style={{
-                              minWidth: isPop ? '140px' : '115px',
-                              whiteSpace: 'nowrap',
-                              backgroundColor: isPop ? '#e0f2fe' : '#f1f5f9',
-                              color: isPop ? '#0369a1' : '#0f172a',
-                              borderRight: '1px solid #e2e8f0',
-                              verticalAlign: 'middle',
-                            }}
-                          >
-                            {isPop && (
-                              <span
-                                className="badge bg-primary text-white fw-bold rounded-pill mb-1 d-inline-block shadow-xs"
-                                style={{ fontSize: '0.62rem', padding: '2px 8px' }}
+                          return (
+                            <th
+                              key={p.key}
+                              className="py-3 px-3 text-center position-relative"
+                              style={{
+                                minWidth: isPop ? '140px' : '115px',
+                                whiteSpace: 'nowrap',
+                                backgroundColor: isPop ? '#e0f2fe' : '#f1f5f9',
+                                color: isPop ? '#0369a1' : '#0f172a',
+                                borderRight: '1px solid #e2e8f0',
+                                verticalAlign: 'middle',
+                              }}
+                            >
+                              {isPop && (
+                                <span
+                                  className="badge bg-primary text-white fw-bold rounded-pill mb-1 d-inline-block shadow-xs"
+                                  style={{ fontSize: '0.62rem', padding: '2px 8px' }}
+                                >
+                                  Terpopuler ⭐
+                                </span>
+                              )}
+                              <div className="fw-bold" style={{ fontSize: '0.88rem' }}>
+                                {p.name}
+                              </div>
+                              <div
+                                className="small mt-0.5"
+                                style={{ fontSize: '0.72rem', color: isPop ? '#0284c7' : '#64748b', fontWeight: '500' }}
                               >
-                                Terpopuler ⭐
-                              </span>
-                            )}
-                            <div className="fw-bold" style={{ fontSize: '0.88rem' }}>
-                              {p.name}
-                            </div>
-                            <div
-                              className="small mt-0.5"
-                              style={{ fontSize: '0.72rem', color: isPop ? '#0284c7' : '#64748b', fontWeight: '500' }}
-                            >
-                              {p.priceLabel || (p.price === 0 ? 'Gratis' : `Rp ${p.price.toLocaleString('id-ID')}`)}
-                            </div>
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {/* Transaksi/bulan */}
-                    <tr>
-                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                        Transaksi/bulan
-                      </td>
-                      {plans.map((p) => (
-                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
-                          {p.maxTransactions === -1 ? 'Unlimited*' : p.maxTransactions.toLocaleString('id-ID')}
+                                {p.priceLabel || (p.price === 0 ? 'Gratis' : `Rp ${p.price.toLocaleString('id-ID')}`)}
+                              </div>
+                            </th>
+                          );
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Transaksi/bulan */}
+                      <tr>
+                        <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          Transaksi/bulan
                         </td>
-                      ))}
-                    </tr>
-
-                    {/* Upload Produk */}
-                    <tr>
-                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                        Upload Produk
-                      </td>
-                      {plans.map((p) => (
-                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
-                          {p.maxProducts === -1 ? 'Unlimited' : `${p.maxProducts ?? (p.key === 'TRIAL' ? 12 : 20)} produk`}
-                        </td>
-                      ))}
-                    </tr>
-
-                    {/* Foto chat/bulan */}
-                    <tr>
-                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                        Foto chat/bulan
-                      </td>
-                      {plans.map((p) => (
-                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
-                          {p.maxChatPhotos === -1 ? 'Unlimited' : p.maxChatPhotos.toLocaleString('id-ID')}
-                        </td>
-                      ))}
-                    </tr>
-
-                    {/* Bot transaksi (chat) */}
-                    <tr>
-                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                        Bot transaksi (chat)
-                      </td>
-                      {plans.map((p) => (
-                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
-                          {p.botTransactions === 0 ? (
-                            <span className="text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></span>
-                          ) : p.botTransactions === -1 ? (
-                            'Unlimited'
-                          ) : (
-                            `${p.botTransactions}x`
-                          )}
-                        </td>
-                      ))}
-                    </tr>
-
-                    {/* Nota ke WhatsApp */}
-                    <tr>
-                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                        Nota ke WhatsApp
-                      </td>
-                      {plans.map((p) => (
-                        <td key={p.key} className={`text-center text-success ${p.isPopular ? 'bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
-                          <i className="bi bi-check-circle-fill"></i>
-                        </td>
-                      ))}
-                    </tr>
-
-                    {/* Cetak nota */}
-                    <tr>
-                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                        Cetak nota
-                      </td>
-                      {plans.map((p) => (
-                        <td key={p.key} className={`text-center text-success ${p.isPopular ? 'bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
-                          <i className="bi bi-check-circle-fill"></i>
-                        </td>
-                      ))}
-                    </tr>
-
-                    {/* Invoice PDF */}
-                    <tr>
-                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                        Invoice PDF
-                      </td>
-                      {plans.map((p) => (
-                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
-                          {p.maxPdfInvoice === 0 ? (
-                            <span className="text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></span>
-                          ) : p.maxPdfInvoice === -1 ? (
-                            p.customPdfLogo ? 'Unlimited + logo' : 'Unlimited'
-                          ) : (
-                            `${p.maxPdfInvoice}/bln`
-                          )}
-                        </td>
-                      ))}
-                    </tr>
-
-                    {/* Lacak order link */}
-                    <tr>
-                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                        Lacak order link
-                      </td>
-                      {plans.map((p) => (
-                        <td key={p.key} className={`text-center ${p.isPopular ? 'bg-primary-subtle border-start border-end text-success fw-medium' : p.watermarkTracking ? 'text-muted' : 'text-success'}`} style={{ whiteSpace: 'nowrap' }}>
-                          {p.customTrackingView ? '+ Tampilan custom' : p.watermarkTracking ? 'Ada watermark' : 'Tanpa watermark'}
-                        </td>
-                      ))}
-                    </tr>
-
-                    {/* Stok bahan */}
-                    <tr>
-                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                        Stok bahan
-                      </td>
-                      {plans.map((p) => (
-                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
-                          {p.maxStockItems === 0 ? (
-                            <span className="text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></span>
-                          ) : p.maxStockItems === -1 ? (
-                            'Unlimited'
-                          ) : (
-                            `${p.maxStockItems} item`
-                          )}
-                        </td>
-                      ))}
-                    </tr>
-
-                    {/* Notifikasi stok menipis */}
-                    <tr>
-                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                        Notifikasi stok menipis
-                      </td>
-                      {plans.map((p) => (
-                        <td key={p.key} className={`text-center ${p.isPopular ? 'bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
-                          {p.lowStockNotification ? (
-                            <i className="bi bi-check-circle-fill text-success"></i>
-                          ) : (
-                            <span className="text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></span>
-                          )}
-                        </td>
-                      ))}
-                    </tr>
-
-                    {/* Riwayat stok */}
-                    <tr>
-                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                        Riwayat stok
-                      </td>
-                      {plans.map((p) => (
-                        <td key={p.key} className={`text-center ${p.isPopular ? 'bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
-                          {p.hasStockHistory ? (
-                            <i className="bi bi-check-circle-fill text-success"></i>
-                          ) : (
-                            <span className="text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></span>
-                          )}
-                        </td>
-                      ))}
-                    </tr>
-
-                    {/* Jumlah outlet */}
-                    <tr>
-                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                        Jumlah outlet
-                      </td>
-                      {plans.map((p) => (
-                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
-                          {p.maxOutlets}
-                        </td>
-                      ))}
-                    </tr>
-
-                    {/* Jumlah kasir/user */}
-                    <tr>
-                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                        Jumlah kasir/user
-                      </td>
-                      {plans.map((p) => (
-                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
-                          {p.maxUsers === -1 ? 'Unlimited' : p.maxUsers}
-                        </td>
-                      ))}
-                    </tr>
-
-                    {/* Riwayat data */}
-                    <tr>
-                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                        Riwayat data
-                      </td>
-                      {plans.map((p) => (
-                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
-                          {p.dataHistoryMonths} bulan
-                        </td>
-                      ))}
-                    </tr>
-
-                    {/* Foto disimpan */}
-                    <tr>
-                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                        Foto disimpan
-                      </td>
-                      {plans.map((p) => (
-                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
-                          {p.photoRetentionDays} hari
-                        </td>
-                      ))}
-                    </tr>
-
-                    {/* Tipe Support */}
-                    <tr>
-                      <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                        Tipe Support
-                      </td>
-                      {plans.map((p) => (
-                        <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
-                          {p.supportType}
-                        </td>
-                      ))}
-                    </tr>
-                  </tbody>
-
-                  <tfoot className="table-light border-top">
-                    <tr>
-                      <td className="px-3 py-3 fw-bold" style={{ position: 'sticky', left: 0, zIndex: 2, minWidth: '150px', width: '150px', backgroundColor: '#f8fafc', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                        Aksi Langganan
-                      </td>
-                      {plans.map((p) => {
-                        const isCurrent = currentPlanKey === p.key;
-                        return (
-                          <td
-                            key={p.key}
-                            className={`text-center py-3 px-2 ${p.isPopular ? 'bg-primary-subtle border-start border-end' : ''}`}
-                            style={{ minWidth: p.isPopular ? '135px' : '115px', whiteSpace: 'nowrap' }}
-                          >
-                            <button
-                              type="button"
-                              className={`btn btn-sm ${isCurrent ? 'btn-success' : 'btn-primary text-white'} rounded-pill px-3 py-1 fw-semibold text-nowrap shadow-xs`}
-                              style={{ fontSize: '0.74rem' }}
-                              disabled={isCurrent}
-                              onClick={() =>
-                                setConfirmModal({
-                                  open: true,
-                                  planKey: p.key,
-                                  planName: `${p.name} ${p.priceLabel || ''}`,
-                                })
-                              }
-                            >
-                              {isCurrent ? 'Aktif' : 'Ajukan'}
-                            </button>
+                        {plans.map((p) => (
+                          <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                            {p.maxTransactions === -1 ? 'Unlimited*' : p.maxTransactions.toLocaleString('id-ID')}
                           </td>
-                        );
-                      })}
-                    </tr>
-                  </tfoot>
-                </table>
+                        ))}
+                      </tr>
+
+                      {/* Upload Produk */}
+                      <tr>
+                        <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          Upload Produk
+                        </td>
+                        {plans.map((p) => (
+                          <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                            {p.maxProducts === -1 ? 'Unlimited' : `${p.maxProducts ?? (p.key === 'TRIAL' ? 12 : 20)} produk`}
+                          </td>
+                        ))}
+                      </tr>
+
+                      {/* Foto chat/bulan */}
+                      <tr>
+                        <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          Foto chat/bulan
+                        </td>
+                        {plans.map((p) => (
+                          <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                            {p.maxChatPhotos === -1 ? 'Unlimited' : p.maxChatPhotos.toLocaleString('id-ID')}
+                          </td>
+                        ))}
+                      </tr>
+
+                      {/* Bot transaksi (chat) */}
+                      <tr>
+                        <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          Bot transaksi (chat)
+                        </td>
+                        {plans.map((p) => (
+                          <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                            {p.botTransactions === 0 ? (
+                              <span className="text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></span>
+                            ) : p.botTransactions === -1 ? (
+                              'Unlimited'
+                            ) : (
+                              `${p.botTransactions}x`
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+
+                      {/* Nota ke WhatsApp */}
+                      <tr>
+                        <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          Nota ke WhatsApp
+                        </td>
+                        {plans.map((p) => (
+                          <td key={p.key} className={`text-center text-success ${p.isPopular ? 'bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                            <i className="bi bi-check-circle-fill"></i>
+                          </td>
+                        ))}
+                      </tr>
+
+                      {/* Cetak nota */}
+                      <tr>
+                        <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          Cetak nota
+                        </td>
+                        {plans.map((p) => (
+                          <td key={p.key} className={`text-center text-success ${p.isPopular ? 'bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                            <i className="bi bi-check-circle-fill"></i>
+                          </td>
+                        ))}
+                      </tr>
+
+                      {/* Invoice PDF */}
+                      <tr>
+                        <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          Invoice PDF
+                        </td>
+                        {plans.map((p) => (
+                          <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                            {p.maxPdfInvoice === 0 ? (
+                              <span className="text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></span>
+                            ) : p.maxPdfInvoice === -1 ? (
+                              p.customPdfLogo ? 'Unlimited + logo' : 'Unlimited'
+                            ) : (
+                              `${p.maxPdfInvoice}/bln`
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+
+                      {/* Lacak order link */}
+                      <tr>
+                        <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          Lacak order link
+                        </td>
+                        {plans.map((p) => (
+                          <td key={p.key} className={`text-center ${p.isPopular ? 'bg-primary-subtle border-start border-end text-success fw-medium' : p.watermarkTracking ? 'text-muted' : 'text-success'}`} style={{ whiteSpace: 'nowrap' }}>
+                            {p.customTrackingView ? '+ Tampilan custom' : p.watermarkTracking ? 'Ada watermark' : 'Tanpa watermark'}
+                          </td>
+                        ))}
+                      </tr>
+
+                      {/* Stok bahan */}
+                      <tr>
+                        <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          Stok bahan
+                        </td>
+                        {plans.map((p) => (
+                          <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                            {p.maxStockItems === 0 ? (
+                              <span className="text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></span>
+                            ) : p.maxStockItems === -1 ? (
+                              'Unlimited'
+                            ) : (
+                              `${p.maxStockItems} item`
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+
+                      {/* Notifikasi stok menipis */}
+                      <tr>
+                        <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          Notifikasi stok menipis
+                        </td>
+                        {plans.map((p) => (
+                          <td key={p.key} className={`text-center ${p.isPopular ? 'bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                            {p.lowStockNotification ? (
+                              <i className="bi bi-check-circle-fill text-success"></i>
+                            ) : (
+                              <span className="text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></span>
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+
+                      {/* Riwayat stok */}
+                      <tr>
+                        <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          Riwayat stok
+                        </td>
+                        {plans.map((p) => (
+                          <td key={p.key} className={`text-center ${p.isPopular ? 'bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                            {p.hasStockHistory ? (
+                              <i className="bi bi-check-circle-fill text-success"></i>
+                            ) : (
+                              <span className="text-muted opacity-40"><i className="bi bi-x-circle-fill"></i></span>
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+
+                      {/* Jumlah outlet */}
+                      <tr>
+                        <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          Jumlah outlet
+                        </td>
+                        {plans.map((p) => (
+                          <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                            {p.maxOutlets}
+                          </td>
+                        ))}
+                      </tr>
+
+                      {/* Jumlah kasir/user */}
+                      <tr>
+                        <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          Jumlah kasir/user
+                        </td>
+                        {plans.map((p) => (
+                          <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                            {p.maxUsers === -1 ? 'Unlimited' : p.maxUsers}
+                          </td>
+                        ))}
+                      </tr>
+
+                      {/* Riwayat data */}
+                      <tr>
+                        <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          Riwayat data
+                        </td>
+                        {plans.map((p) => (
+                          <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                            {p.dataHistoryMonths} bulan
+                          </td>
+                        ))}
+                      </tr>
+
+                      {/* Foto disimpan */}
+                      <tr>
+                        <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          Foto disimpan
+                        </td>
+                        {plans.map((p) => (
+                          <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                            {p.photoRetentionDays} hari
+                          </td>
+                        ))}
+                      </tr>
+
+                      {/* Tipe Support */}
+                      <tr>
+                        <td className="px-3 py-2.5 fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '150px', width: '150px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          Tipe Support
+                        </td>
+                        {plans.map((p) => (
+                          <td key={p.key} className={`text-center ${p.isPopular ? 'fw-bold bg-primary-subtle border-start border-end' : ''}`} style={{ whiteSpace: 'nowrap' }}>
+                            {p.supportType}
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+
+                    <tfoot className="table-light border-top">
+                      <tr>
+                        <td className="px-3 py-3 fw-bold" style={{ position: 'sticky', left: 0, zIndex: 2, minWidth: '150px', width: '150px', backgroundColor: '#f8fafc', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          Aksi Langganan
+                        </td>
+                        {plans.map((p) => {
+                          const isCurrent = currentPlanKey === p.key;
+                          return (
+                            <td
+                              key={p.key}
+                              className={`text-center py-3 px-2 ${p.isPopular ? 'bg-primary-subtle border-start border-end' : ''}`}
+                              style={{ minWidth: p.isPopular ? '135px' : '115px', whiteSpace: 'nowrap' }}
+                            >
+                              <button
+                                type="button"
+                                className={`btn btn-sm ${isCurrent ? 'btn-success' : 'btn-primary text-white'} rounded-pill px-3 py-1 fw-semibold text-nowrap shadow-xs`}
+                                style={{ fontSize: '0.74rem' }}
+                                disabled={isCurrent}
+                                onClick={() =>
+                                  setConfirmModal({
+                                    open: true,
+                                    planKey: p.key,
+                                    planName: `${p.name} ${p.priceLabel || ''}`,
+                                  })
+                                }
+                              >
+                                {isCurrent ? 'Aktif' : 'Ajukan'}
+                              </button>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
           </>
         )}
       </div>

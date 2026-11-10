@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../common/storage/storage.service';
 import { getPlanLimits, PlanLimits } from './subscription.constants';
 import { SubscriptionPlan, SubscriptionStatus } from '@prisma/client';
+import { createStoreNotification } from '../notifications/notifications.service';
 
 export interface UsageReport {
   id?: string;
@@ -73,7 +74,7 @@ export class SubscriptionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
-  ) {}
+  ) { }
 
   isEnforced(): boolean {
     return process.env.SUBSCRIPTION_ENFORCEMENT_ENABLED !== 'false';
@@ -382,11 +383,11 @@ export class SubscriptionService {
     // 6. Hitung item produk / layanan aktif
     const usedProducts = this.prisma.product
       ? await this.prisma.product.count({
-          where: {
-            storeId,
-            deletedAt: null,
-          },
-        })
+        where: {
+          storeId,
+          deletedAt: null,
+        },
+      })
       : 0;
 
     const productLimit = limits.maxProducts === -1 ? 999999 : (limits.maxProducts ?? 50);
@@ -697,7 +698,7 @@ export class SubscriptionService {
     const periodEnd = new Date(now);
     periodEnd.setMonth(periodEnd.getMonth() + durationMonths);
 
-    return this.prisma.storeSubscription.update({
+    const updated = await this.prisma.storeSubscription.update({
       where: { storeId },
       data: {
         plan,
@@ -716,5 +717,16 @@ export class SubscriptionService {
         maxStockItems: planLimits.maxStockItems === -1 ? 999999 : planLimits.maxStockItems,
       },
     });
+
+    await createStoreNotification(this.prisma, {
+      storeId,
+      title: 'Paket Berhasil Di-upgrade',
+      message: `Selamat! Toko Anda kini aktif pada paket ${plan}. Nikmati batas kuota dan fitur yang lebih luas.`,
+      type: 'PLAN_UPGRADE',
+      role: 'owner',
+      link: '/plan',
+    });
+
+    return updated;
   }
 }

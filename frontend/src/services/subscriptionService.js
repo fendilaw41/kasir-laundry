@@ -1,5 +1,6 @@
 import { db } from '../db';
 import { getPlanByKey, getAllPlansLocal, syncPlansFromBackend } from '../db/repositories/plans';
+import { triggerUnauthorized } from '../utils/authSession';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 const BILLING_WA = import.meta.env.VITE_BILLING_WHATSAPP_NUMBER || '6281234567890';
@@ -50,7 +51,7 @@ export const PLAN_CONFIGS = {
     price: 0,
     priceLabel: 'Gratis',
     maxTransactions: 30,
-    maxChatPhotos: 30,
+    maxChatPhotos: 5,
     botTransactions: 10,
     maxPdfInvoice: 0,
     watermarkTracking: true,
@@ -70,7 +71,7 @@ export const PLAN_CONFIGS = {
     price: 25000,
     priceLabel: '25rb/bln',
     maxTransactions: 100,
-    maxChatPhotos: 100,
+    maxChatPhotos: 5,
     botTransactions: 0,
     maxPdfInvoice: 20,
     watermarkTracking: true,
@@ -91,8 +92,8 @@ export const PLAN_CONFIGS = {
     priceLabel: '50rb/bln',
     isPopular: true,
     maxTransactions: 150,
-    maxChatPhotos: 150,
-    botTransactions: 200,
+    maxChatPhotos: 20,
+    botTransactions: 20,
     maxPdfInvoice: 100,
     watermarkTracking: false,
     maxStockItems: 20,
@@ -111,8 +112,8 @@ export const PLAN_CONFIGS = {
     price: 100000,
     priceLabel: '100rb/bln',
     maxTransactions: 300,
-    maxChatPhotos: 300,
-    botTransactions: 1000,
+    maxChatPhotos: 100,
+    botTransactions: 200,
     maxPdfInvoice: -1,
     watermarkTracking: false,
     maxStockItems: 50,
@@ -131,8 +132,8 @@ export const PLAN_CONFIGS = {
     price: 200000,
     priceLabel: '200rb/bln',
     maxTransactions: 1000, // Fair Use Policy
-    maxChatPhotos: 1000, // samakan dg transaksi
-    botTransactions: -1,
+    maxChatPhotos: 500,
+    botTransactions: 1000,
     maxPdfInvoice: -1,
     customPdfLogo: true,
     watermarkTracking: false,
@@ -209,6 +210,10 @@ export async function getSubscriptionReport() {
           'Content-Type': 'application/json',
         },
       });
+      if (res.status === 401) {
+        triggerUnauthorized('Sesi login telah berakhir.');
+        return calculateOfflineUsage(storeId);
+      }
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {

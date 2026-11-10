@@ -170,17 +170,25 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           "maxStockItems", "lowStockNotification", "hasStockHistory", "maxOutlets", "maxUsers", "maxProducts",
           "dataHistoryMonths", "photoRetentionDays", "supportType", "badgeColor", "sortOrder", "isActive", "updatedAt"
         ) VALUES
-        ('plan-trial', 'TRIAL', 'Trial (Gratis)', 0, 'Gratis', false, 30, 30, 10, 0, false, true, false, 3, false, false, 1, 2, 12, 1, 30, 'Panduan', 'secondary', 1, true, CURRENT_TIMESTAMP),
-        ('plan-starter', 'STARTER', 'Starter', 25000, '25rb/bln', false, 100, 100, 0, 20, false, true, false, 5, false, false, 1, 2, 20, 3, 60, 'Komunitas', 'info', 2, true, CURRENT_TIMESTAMP),
-        ('plan-basic', 'BASIC', 'Basic', 50000, '50rb/bln', true, 150, 150, 200, 100, false, false, false, 20, true, true, 1, 3, 50, 6, 90, 'Chat', 'primary', 3, true, CURRENT_TIMESTAMP),
-        ('plan-pro', 'PRO', 'Pro', 100000, '100rb/bln', false, 300, 300, 1000, -1, false, false, false, 50, true, true, 2, 5, 100, 12, 180, 'Prioritas', 'warning', 4, true, CURRENT_TIMESTAMP),
-        ('plan-business', 'BUSINESS', 'Business', 200000, '200rb/bln', false, 1000, 1000, -1, -1, true, false, true, -1, true, true, 5, -1, -1, 24, 365, 'Prioritas + Onboard', 'dark', 5, true, CURRENT_TIMESTAMP)
+        ('plan-trial', 'TRIAL', 'Trial (Gratis)', 0, 'Gratis', false, 30, 5, 10, 0, false, true, false, 3, false, false, 1, 2, 12, 1, 30, 'Panduan', 'secondary', 1, true, CURRENT_TIMESTAMP),
+        ('plan-starter', 'STARTER', 'Starter', 25000, '25rb/bln', false, 100, 5, 0, 20, false, true, false, 5, false, false, 1, 2, 20, 3, 60, 'Komunitas', 'info', 2, true, CURRENT_TIMESTAMP),
+        ('plan-basic', 'BASIC', 'Basic', 50000, '50rb/bln', true, 150, 20, 20, 100, false, false, false, 20, true, true, 1, 3, 50, 6, 90, 'Chat', 'primary', 3, true, CURRENT_TIMESTAMP),
+        ('plan-pro', 'PRO', 'Pro', 100000, '100rb/bln', false, 300, 100, 200, -1, false, false, false, 50, true, true, 2, 5, 100, 12, 180, 'Prioritas', 'warning', 4, true, CURRENT_TIMESTAMP),
+        ('plan-business', 'BUSINESS', 'Business', 200000, '200rb/bln', false, 1000, 500, 1000, -1, -1, true, false, true, -1, true, true, 5, -1, -1, 24, 365, 'Prioritas + Onboard', 'dark', 5, true, CURRENT_TIMESTAMP)
         ON CONFLICT ("key") DO UPDATE SET
           "maxProducts" = EXCLUDED."maxProducts",
           "maxTransactions" = EXCLUDED."maxTransactions",
           "maxChatPhotos" = EXCLUDED."maxChatPhotos",
+          "botTransactions" = EXCLUDED."botTransactions",
           "maxUsers" = EXCLUDED."maxUsers",
           "hasStockHistory" = EXCLUDED."hasStockHistory";
+
+        -- Update master plans untuk foto chat dan bot transaksi
+        UPDATE "MasterPlan" SET "maxChatPhotos" = 5, "botTransactions" = 10 WHERE "key" = 'TRIAL';
+        UPDATE "MasterPlan" SET "maxChatPhotos" = 5, "botTransactions" = 0 WHERE "key" = 'STARTER';
+        UPDATE "MasterPlan" SET "maxChatPhotos" = 20, "botTransactions" = 20 WHERE "key" = 'BASIC';
+        UPDATE "MasterPlan" SET "maxChatPhotos" = 100, "botTransactions" = 200 WHERE "key" = 'PRO';
+        UPDATE "MasterPlan" SET "maxChatPhotos" = 500, "botTransactions" = 1000 WHERE "key" = 'BUSINESS';
 
         -- Pastikan master plan TRIAL diset ke 12 produk dan STARTER ke 20 produk
         UPDATE "MasterPlan"
@@ -191,17 +199,41 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         SET "maxProducts" = 20
         WHERE "key" = 'STARTER';
 
-        -- Pastikan toko yang terdaftar dengan plan TRIAL kuota produknya 12
+        -- Pastikan toko yang terdaftar dengan plan TRIAL kuota produknya 12 dan foto 5
         UPDATE "StoreSubscription"
         SET "maxProducts" = 12,
-            "remainingProducts" = GREATEST(0, 12 - "usedProducts")
+            "remainingProducts" = GREATEST(0, 12 - "usedProducts"),
+            "maxChatPhotos" = 5,
+            "remainingPhotos" = GREATEST(0, 5 - "usedPhotos")
         WHERE "plan" = 'TRIAL';
 
-        -- Pastikan toko yang terdaftar dengan plan STARTER kuota produk terupdate ke 20
+        -- Pastikan toko yang terdaftar dengan plan STARTER kuota produk terupdate ke 20 dan foto 5
         UPDATE "StoreSubscription"
         SET "maxProducts" = 20,
-            "remainingProducts" = GREATEST(0, 20 - "usedProducts")
-        WHERE "plan" = 'STARTER' AND "maxProducts" < 20;
+            "remainingProducts" = GREATEST(0, 20 - "usedProducts"),
+            "maxChatPhotos" = 5,
+            "remainingPhotos" = GREATEST(0, 5 - "usedPhotos")
+        WHERE "plan" = 'STARTER';
+
+        -- Tabel Notification & Index
+        CREATE TABLE IF NOT EXISTS "Notification" (
+          "id" TEXT NOT NULL,
+          "storeId" TEXT NOT NULL,
+          "userId" TEXT,
+          "role" TEXT,
+          "title" TEXT NOT NULL,
+          "message" TEXT NOT NULL,
+          "type" TEXT NOT NULL,
+          "link" TEXT,
+          "isRead" BOOLEAN NOT NULL DEFAULT false,
+          "createdAt" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "Notification_pkey" PRIMARY KEY ("id"),
+          CONSTRAINT "Notification_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE CASCADE ON UPDATE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS "Notification_storeId_createdAt_idx" ON "Notification"("storeId", "createdAt" DESC);
+        CREATE INDEX IF NOT EXISTS "Notification_storeId_role_isRead_idx" ON "Notification"("storeId", "role", "isRead");
       `);
 
       this.logger.log('Database schema integrity verified successfully.');
