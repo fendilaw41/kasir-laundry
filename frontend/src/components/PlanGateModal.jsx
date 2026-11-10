@@ -76,11 +76,11 @@ export default function PlanGateModal({ isOpen, onClose, type = 'TRANSACTION_LIM
           icon: 'bi-tag-fill',
           iconColor: '#059669',
           iconBg: '#ecfdf5',
-          title: 'Batas Master Produk Tercapai',
+          title: 'Batas Produk Tercapai',
           subtitle: `Limit Paket ${customData.plan || ''} (${customData.limit || 12} Produk)`,
           message: isOwner
-            ? `Toko Anda telah mencapai batas kuota upload produk (${customData.limit || 12} produk). Data produk lama tetap aman dan bisa ditransaksikan.`
-            : `Batas upload produk sudah penuh (${customData.limit || 12} produk). Hubungi Owner untuk tambah.`,
+            ? `Toko Anda telah mencapai batas kuota upload produk. Data produk lama tetap aman dan bisa digunakan.`
+            : `Batas upload produk sudah penuh. Hubungi Owner untuk tambah.`,
           recommendation: customData.plan === 'TRIAL' ? 'Starter (20 produk) atau Basic (50 produk)' : 'Basic (50 produk)',
           ctaText: isOwner ? 'Upgrade di Menu Plan' : 'Hubungi Owner Toko',
         };
