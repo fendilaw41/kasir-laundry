@@ -720,8 +720,8 @@ export class SubscriptionService {
 
     await createStoreNotification(this.prisma, {
       storeId,
-      title: 'Paket Berhasil Di-upgrade',
-      message: `Selamat! Toko Anda kini aktif pada paket ${plan}. Nikmati batas kuota dan fitur yang lebih luas.`,
+      title: 'Paket Upgrade',
+      message: `Selamat! Toko Anda kini aktif pada paket ${plan}.`,
       type: 'PLAN_UPGRADE',
       role: 'owner',
       link: '/plan',
