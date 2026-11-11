@@ -26,8 +26,8 @@ const useHorizontalScroll = () => {
         return; // biarkan browser native scroll horizontal
       }
 
-      // Jika mouse wheel memutar vertikal (deltaY), alihkan ke geser horizontal jika elemen overflow
-      if (e.deltaY !== 0 && el.scrollWidth > el.clientWidth) {
+      // Roda mouse vertikal tetap menggulir halaman; baru dialihkan ke geser horizontal jika Shift ditekan
+      if (e.shiftKey && e.deltaY !== 0 && el.scrollWidth > el.clientWidth) {
         e.preventDefault();
         el.scrollLeft += e.deltaY * 1.2;
       }
@@ -135,6 +135,7 @@ const Transaksi = () => {
   // Query Daftar Produk untuk ditampilkan langsung di halaman Transaksi
   const products = useLiveQuery(getProductsQuery);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [productSearchTerm, setProductSearchTerm] = useState('');
 
   // Horizontal Scroll Ref untuk Layanan
   const productScrollRef = useHorizontalScroll();
@@ -148,6 +149,10 @@ const Transaksi = () => {
   const [drawerMetodeBayar, setDrawerMetodeBayar] = useState(metodeBayar || 'Cash');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Ukur tinggi drawer pembayaran agar konten di belakangnya selalu punya ruang scroll yang pas
+  const drawerRef = useRef(null);
+  const [drawerHeight, setDrawerHeight] = useState(0);
+
   // State untuk Search Pelanggan
   const [pelangganSearchTerm, setPelangganSearchTerm] = useState('');
 
@@ -156,15 +161,24 @@ const Transaksi = () => {
   const [successOrder, setSuccessOrder] = useState(null);
   const [animatedAmount, setAnimatedAmount] = useState(0);
 
-  // State untuk Popup Diskon
-  const [showDiscountModal, setShowDiscountModal] = useState(false);
-  const [tempDiscountType, setTempDiscountType] = useState(diskonTipe || 'Persentase');
-  const [tempDiscountValue, setTempDiscountValue] = useState(diskonNilai || 0);
-
   // Sinkronkan drawerMetodeBayar dengan metodeBayar default
   useEffect(() => {
     if (metodeBayar) setDrawerMetodeBayar(metodeBayar);
   }, [metodeBayar]);
+
+  useEffect(() => {
+    const el = drawerRef.current;
+    if (!showPaymentDrawer || !el) {
+      setDrawerHeight(0);
+      return undefined;
+    }
+    const update = () => setDrawerHeight(el.offsetHeight);
+    update();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [showPaymentDrawer, isCompactPayment]);
 
   // Ekstrak kategori unik dari daftar produk
   const categories = useMemo(() => {
@@ -172,12 +186,17 @@ const Transaksi = () => {
     return Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
   }, [products]);
 
-  // Filter produk berdasarkan tab kategori yang dipilih
+  // Filter produk berdasarkan kategori yang dipilih + kata kunci pencarian (nama / kategori / kode)
   const filteredProducts = useMemo(() => {
     if (!Array.isArray(products)) return [];
-    if (selectedCategory === 'ALL') return products;
-    return products.filter((p) => p.category?.toUpperCase() === selectedCategory.toUpperCase());
-  }, [products, selectedCategory]);
+    const q = productSearchTerm.trim().toLowerCase();
+    return products.filter((p) => {
+      const matchCategory = selectedCategory === 'ALL' || p.category?.toUpperCase() === selectedCategory.toUpperCase();
+      if (!matchCategory) return false;
+      if (!q) return true;
+      return [p.name, p.category, getProductCode(p)].some((v) => (v || '').toLowerCase().includes(q));
+    });
+  }, [products, selectedCategory, productSearchTerm]);
 
   // Mencocokkan item keranjang dengan produk
   const getCartItemForProduct = (p) => {
@@ -217,14 +236,14 @@ const Transaksi = () => {
   };
 
   // Helper kode singkat produk
-  const getProductCode = (p) => {
+  function getProductCode(p) {
     if (p.code && p.code.trim()) return p.code.trim().toUpperCase();
     const words = (p.name || '').split(' ').filter(Boolean);
     if (words.length >= 2) {
       return (words[0][0] + words[1][0] + (words[2] ? words[2][0] : '')).toUpperCase().slice(0, 3);
     }
     return (p.name || 'SRV').slice(0, 3).toUpperCase();
-  };
+  }
 
   // Helper memformat nama layanan & estimasi durasi terlama untuk pita miring di card
   const formatServiceDisplay = (rawName = '') => {
@@ -288,25 +307,6 @@ const Transaksi = () => {
     } else {
       setNominalBayar(val.toString());
     }
-  };
-
-  // Buka modal diskon dengan sinkronisasi nilai sementara
-  const handleOpenDiscountModal = () => {
-    setTempDiscountType(diskonTipe);
-    setTempDiscountValue(diskonNilai);
-    setShowDiscountModal(true);
-  };
-
-  const handleApplyDiscount = () => {
-    setDiskonTipe(tempDiscountType);
-    setDiskonNilai(tempDiscountValue);
-    setShowDiscountModal(false);
-  };
-
-  const handleResetDiscount = () => {
-    setTempDiscountValue(0);
-    setDiskonNilai(0);
-    setShowDiscountModal(false);
   };
 
   // Proses Selesaikan Pembayaran
@@ -401,7 +401,7 @@ const Transaksi = () => {
       style={{
         borderRadius: '20px',
         maxWidth: '580px',
-        marginBottom: showPaymentDrawer ? (isCompactPayment ? '180px' : '380px') : '85px',
+        marginBottom: showPaymentDrawer ? '16px' : '85px',
       }}
     >
       <div className="card-body p-3">
@@ -412,41 +412,47 @@ const Transaksi = () => {
           <small className="text-muted" style={{ fontSize: '0.72rem' }}>Ketuk kartu untuk memilih jenis cuci/setrika</small>
         </div>
 
-        {/* Tab Kategori Pills (Scroll Horizontal sama seperti Inventory) */}
-        <div className="d-flex overflow-auto pb-1 gap-2 mx-n1 px-1 no-scrollbar mb-2">
-          {/* Tab Semua */}
-          <button
-            type="button"
-            className={`btn btn-sm rounded-pill px-3 py-1 fw-bold border-0 text-nowrap flex-shrink-0 transition-all ${selectedCategory === 'ALL' ? 'btn-primary text-white shadow-xs' : 'bg-light text-dark'}`}
-            style={{
-              fontSize: '0.78rem',
-              minWidth: '85px',
-              backgroundColor: selectedCategory === 'ALL' ? '#0134d4' : '#f1f5f9',
-            }}
-            onClick={() => setSelectedCategory('ALL')}
+        {/* Search Produk + Filter Kategori (sejajar dalam satu baris) */}
+        <div className="d-flex gap-2 mb-2">
+          <div className="input-group input-group-sm border rounded-3 overflow-hidden flex-grow-1 bg-white" style={{ minWidth: 0 }}>
+            <span className="input-group-text bg-white border-0 text-muted ps-2 pe-1">
+              <i className="bi bi-search" style={{ fontSize: '0.8rem' }}></i>
+            </span>
+            <input
+              type="text"
+              aria-label="Cari layanan"
+              className="form-control border-0 shadow-none ps-1"
+              style={{ fontSize: '0.82rem', minWidth: 0 }}
+              placeholder="Cari nama atau kode..."
+              value={productSearchTerm}
+              onChange={(e) => setProductSearchTerm(e.target.value)}
+            />
+            {productSearchTerm && (
+              <button
+                type="button"
+                className="btn btn-sm btn-link text-decoration-none text-muted pe-2"
+                onClick={() => setProductSearchTerm('')}
+                aria-label="Hapus pencarian"
+              >
+                <i className="bi bi-x-circle-fill"></i>
+              </button>
+            )}
+          </div>
+          <select
+            aria-label="Filter kategori"
+            className="form-select form-select-sm rounded-3 flex-shrink-0 fw-bold"
+            style={{ width: '128px', fontSize: '0.78rem' }}
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
           >
-            Semua
-          </button>
-
-          {/* Kategori-Kategori Produk */}
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              className={`btn btn-sm rounded-pill px-3 py-1 fw-bold border-0 text-nowrap flex-shrink-0 text-uppercase transition-all ${selectedCategory.toUpperCase() === cat.toUpperCase() ? 'btn-primary text-white shadow-xs' : 'bg-light text-dark'}`}
-              style={{
-                fontSize: '0.78rem',
-                minWidth: '120px',
-                backgroundColor: selectedCategory.toUpperCase() === cat.toUpperCase() ? '#0134d4' : '#f1f5f9',
-              }}
-              onClick={() => setSelectedCategory(cat)}
-            >
-              {cat}
-            </button>
-          ))}
+            <option value="ALL">Semua</option>
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
         </div>
 
-        {/* Card Layanan / Produk (2 Baris x 2 Kolom = Maksimal 4 Card terlihat, jika lebih geser kanan) */}
+        {/* Card Layanan / Produk (2 Baris x 2 Kolom, geser kanan jika lebih dari 4; geser atas/bawah tetap scroll halaman) */}
         <div className="mb-3">
           {(!products || products.length === 0) ? (
             <div className="p-3 text-center bg-light rounded-3 border text-muted small">
@@ -454,7 +460,7 @@ const Transaksi = () => {
             </div>
           ) : filteredProducts.length === 0 ? (
             <div className="p-3 text-center bg-light rounded-3 border text-muted small">
-              Tidak ada layanan untuk kategori ini.
+              Tidak ada layanan yang cocok dengan pencarian/kategori ini.
             </div>
           ) : (
             <div
@@ -467,7 +473,9 @@ const Transaksi = () => {
                 gridAutoColumns: 'calc(50% - 6px)',
                 gap: '10px',
                 overflowX: 'auto',
+                overflowY: 'hidden',
                 WebkitOverflowScrolling: 'touch',
+                // pan-x + pan-y: geser kanan untuk produk, geser atas/bawah tetap menggulir halaman
                 touchAction: 'pan-x pan-y',
                 cursor: 'grab',
                 paddingBottom: '4px',
@@ -640,18 +648,16 @@ const Transaksi = () => {
           </div>
         </div>
 
-        {/* Card Badges (Delivery, Estimasi, Prioritas, Diskon) - Bersih Tanpa Icon Menggunakan Select Native */}
-        <div className="d-flex overflow-auto pb-1 gap-2 mx-n1 px-1 no-scrollbar mb-2">
-          {/* Card Badge 1: Delivery */}
-          <div className="flex-shrink-0 p-2 rounded-3 border bg-white shadow-xs" style={{ minWidth: '135px' }}>
-            <label htmlFor="delivery-select" className="text-muted fw-bold text-uppercase d-block mb-0" style={{ fontSize: '0.62rem', letterSpacing: '0.3px' }}>
+        {/* Form Order: Delivery, Estimasi, Prioritas, Diskon (2 baris x 2 kolom, input biasa) */}
+        <div className="row g-2 mb-2">
+          <div className="col-6">
+            <label htmlFor="delivery-select" className="form-label fw-bold text-muted mb-1" style={{ fontSize: '0.72rem' }}>
               Delivery
             </label>
             <select
               id="delivery-select"
-              aria-label="Delivery"
-              className="form-select form-select-sm border-0 p-0 fw-bold text-dark bg-transparent shadow-none"
-              style={{ fontSize: '0.6rem', cursor: 'pointer', height: '24px' }}
+              className="form-select form-select-sm"
+              style={{ fontSize: '0.82rem' }}
               value={tipeLayanan}
               onChange={(e) => setTipeLayanan(e.target.value)}
             >
@@ -660,47 +666,31 @@ const Transaksi = () => {
             </select>
           </div>
 
-          {/* Card Badge 2: Estimasi */}
-          <div className="flex-shrink-0 p-2 rounded-3 border bg-white shadow-xs" style={{ minWidth: '115px' }}>
-            <label htmlFor="estimasi-input" className="text-muted fw-bold text-uppercase d-block mb-0" style={{ fontSize: '0.62rem', letterSpacing: '0.3px' }}>
-              Estimasi
+          <div className="col-6">
+            <label htmlFor="estimasi-input" className="form-label fw-bold text-muted mb-1" style={{ fontSize: '0.72rem' }}>
+              Estimasi (Hari)
             </label>
-            <div className="d-flex align-items-center gap-1" style={{ height: '24px' }}>
-              <input
-                id="estimasi-input"
-                aria-label="Estimasi (Hari)"
-                type="number"
-                className="form-control form-control-sm border-0 p-0 fw-bold text-dark"
-                style={{
-                  width: '32px',
-                  fontSize: '0.82rem',
-                  background: 'transparent',
-                  boxShadow: 'none',
-                  height: '24px',
-                }}
-                value={estimasi}
-                onChange={(e) => setEstimasi(e.target.value)}
-                onFocus={(e) => e.target.select()}
-                min="0"
-                required
-              />
-              <span className="fw-bold text-dark" style={{ fontSize: '0.78rem' }}>Hari</span>
-            </div>
+            <input
+              id="estimasi-input"
+              type="number"
+              className="form-control form-control-sm"
+              style={{ fontSize: '0.82rem' }}
+              value={estimasi}
+              onChange={(e) => setEstimasi(e.target.value)}
+              onFocus={(e) => e.target.select()}
+              min="0"
+              required
+            />
           </div>
 
-          {/* Card Badge 3: Prioritas */}
-          <div
-            className={`flex-shrink-0 p-2 rounded-3 border shadow-xs transition-all ${isPriority === 'Ya' ? 'border-warning bg-warning-subtle' : 'bg-white'}`}
-            style={{ minWidth: '115px' }}
-          >
-            <label htmlFor="prioritas-select" className="text-muted fw-bold text-uppercase d-block mb-0" style={{ fontSize: '0.62rem', letterSpacing: '0.3px' }}>
+          <div className="col-6">
+            <label htmlFor="prioritas-select" className="form-label fw-bold text-muted mb-1" style={{ fontSize: '0.72rem' }}>
               Prioritas
             </label>
             <select
               id="prioritas-select"
-              aria-label="Prioritas"
-              className={`form-select form-select-sm border-0 p-0 fw-bold bg-transparent shadow-none ${isPriority === 'Ya' ? 'text-warning' : 'text-dark'}`}
-              style={{ fontSize: '0.8rem', cursor: 'pointer', height: '24px' }}
+              className="form-select form-select-sm"
+              style={{ fontSize: '0.82rem' }}
               value={isPriority}
               onChange={(e) => setIsPriority(e.target.value)}
             >
@@ -709,33 +699,49 @@ const Transaksi = () => {
             </select>
           </div>
 
-          {/* Card Badge 4: Diskon (Klik Buka Popup Modal) */}
-          <div
-            className={`flex-shrink-0 p-2 rounded-3 border shadow-xs transition-all ${nilaiDiskon > 0 ? 'border-danger bg-danger-subtle' : 'bg-white'}`}
-            style={{ minWidth: '135px', cursor: 'pointer' }}
-            onClick={handleOpenDiscountModal}
-          >
-            <div className="d-flex justify-content-between align-items-center">
-              <label className="text-muted fw-bold text-uppercase d-block mb-0" style={{ fontSize: '0.62rem', letterSpacing: '0.3px', cursor: 'pointer' }}>
-                Diskon
-              </label>
-              <i className="bi bi-sliders text-muted" style={{ fontSize: '0.68rem' }}></i>
-            </div>
-            <div
-              className={`fw-bold text-truncate ${nilaiDiskon > 0 ? 'text-danger' : 'text-dark'}`}
-              style={{ fontSize: '0.8rem', height: '24px', display: 'flex', alignItems: 'center' }}
-            >
-              {nilaiDiskon > 0
-                ? (diskonTipe === 'Persentase' ? `${diskonNilai}% (Rp ${nilaiDiskon.toLocaleString('id-ID')})` : `Rp ${parseInt(diskonNilai || 0).toLocaleString('id-ID')}`)
-                : '0%'}
+          <div className="col-6">
+            <label htmlFor="diskon-input" className="form-label fw-bold text-muted mb-1" style={{ fontSize: '0.72rem' }}>
+              Diskon
+            </label>
+            <div className="input-group input-group-sm flex-nowrap">
+              <select
+                aria-label="Jenis diskon"
+                className="form-select form-select-sm flex-grow-0"
+                style={{ width: '68px', fontSize: '0.82rem' }}
+                value={diskonTipe}
+                onChange={(e) => setDiskonTipe(e.target.value)}
+              >
+                <option value="Persentase">%</option>
+                <option value="Harga">Rp</option>
+              </select>
+              <input
+                id="diskon-input"
+                type="number"
+                className="form-control"
+                style={{ fontSize: '0.82rem', minWidth: 0 }}
+                value={diskonNilai}
+                onChange={(e) => setDiskonNilai(e.target.value)}
+                onFocus={(e) => e.target.select()}
+                min="0"
+                max={diskonTipe === 'Persentase' ? 100 : subtotal}
+              />
             </div>
           </div>
         </div>
+        {nilaiDiskon > 0 && (
+          <small className="text-danger fw-bold d-block px-1" style={{ fontSize: '0.72rem' }}>
+            Potongan: - Rp {nilaiDiskon.toLocaleString('id-ID')}
+          </small>
+        )}
+
+        {/* Spacer setinggi drawer pembayaran agar form paling bawah tetap bisa di-scroll dan tidak tertutup */}
+        {showPaymentDrawer && <div aria-hidden="true" style={{ height: `${drawerHeight}px` }}></div>}
       </div>
 
       {/* Floating Bottom Drawer Pembayaran (Docked Bottom) */}
       {showPaymentDrawer ? (
         <div
+          ref={drawerRef}
           className="position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0"
           style={{
             maxWidth: isCompactPayment ? '540px' : '580px',
@@ -1094,156 +1100,6 @@ const Transaksi = () => {
         </div>
       )}
 
-      {/* Modal Popup Diskon (Pilihan Persentase atau Rupiah) */}
-      {showDiscountModal && (
-        <div
-          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3"
-          style={{
-            backgroundColor: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(4px)',
-            zIndex: 1075,
-            animation: 'fadeIn 0.15s ease-out'
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowDiscountModal(false);
-          }}
-        >
-          <div
-            className="bg-white rounded-4 shadow-xl w-100 overflow-hidden"
-            style={{
-              maxWidth: '360px',
-              animation: 'scaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
-            }}
-          >
-            {/* Modal Header */}
-            <div className="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light">
-              <div className="d-flex align-items-center gap-2">
-                <div
-                  className="rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center"
-                  style={{ width: '30px', height: '30px' }}
-                >
-                  <i className="bi bi-percent" style={{ fontSize: '0.9rem' }}></i>
-                </div>
-                <h6 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.9rem' }}>
-                  Pengaturan Diskon
-                </h6>
-              </div>
-              <button
-                type="button"
-                className="btn-close shadow-none"
-                style={{ transform: 'scale(0.8)' }}
-                onClick={() => setShowDiscountModal(false)}
-                aria-label="Tutup"
-              ></button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-3">
-              {/* Segmented Control: % vs Rp */}
-              <div className="d-flex bg-light p-1 rounded-3 border mb-3">
-                <button
-                  type="button"
-                  className={`btn flex-fill rounded-2 py-1 fw-bold transition-all border-0 ${tempDiscountType === 'Persentase' ? 'btn-primary shadow-xs text-white' : 'btn-light text-muted bg-transparent'}`}
-                  style={{ fontSize: '0.78rem', backgroundColor: tempDiscountType === 'Persentase' ? '#0134d4' : 'transparent' }}
-                  onClick={() => setTempDiscountType('Persentase')}
-                >
-                  Persentase (%)
-                </button>
-                <button
-                  type="button"
-                  className={`btn flex-fill rounded-2 py-1 fw-bold transition-all border-0 ${tempDiscountType === 'Harga' ? 'btn-primary shadow-xs text-white' : 'btn-light text-muted bg-transparent'}`}
-                  style={{ fontSize: '0.78rem', backgroundColor: tempDiscountType === 'Harga' ? '#0134d4' : 'transparent' }}
-                  onClick={() => setTempDiscountType('Harga')}
-                >
-                  Nominal (Rp)
-                </button>
-              </div>
-
-              {/* Input Nilai Diskon */}
-              <label className="form-label text-muted fw-bold mb-1" style={{ fontSize: '0.72rem' }}>
-                {tempDiscountType === 'Persentase' ? 'Persentase Potongan (%)' : 'Jumlah Potongan (Rp)'}
-              </label>
-              <div className="input-group input-group-sm mb-2 border rounded-3 overflow-hidden shadow-xs">
-                <span className="input-group-text bg-white border-0 fw-bold text-muted">
-                  {tempDiscountType === 'Persentase' ? '%' : 'Rp'}
-                </span>
-                <input
-                  type="number"
-                  className="form-control border-0 fw-bold py-2"
-                  style={{ fontSize: '1rem' }}
-                  placeholder="0"
-                  value={tempDiscountValue}
-                  onChange={(e) => setTempDiscountValue(e.target.value)}
-                  onFocus={(e) => e.target.select()}
-                  min="0"
-                  max={tempDiscountType === 'Persentase' ? 100 : subtotal}
-                  autoFocus
-                />
-              </div>
-
-              {/* Quick Presets */}
-              <div className="d-flex gap-1 flex-wrap mb-3">
-                {tempDiscountType === 'Persentase' ? (
-                  [5, 10, 15, 20, 50].map((val) => (
-                    <button
-                      key={val}
-                      type="button"
-                      className={`btn btn-sm rounded-pill px-2 py-0 fw-bold ${Number(tempDiscountValue) === val ? 'btn-danger' : 'btn-light border'}`}
-                      style={{ fontSize: '0.7rem' }}
-                      onClick={() => setTempDiscountValue(val)}
-                    >
-                      {val}%
-                    </button>
-                  ))
-                ) : (
-                  [5000, 10000, 20000, 50000].map((val) => (
-                    <button
-                      key={val}
-                      type="button"
-                      className={`btn btn-sm rounded-pill px-2 py-0 fw-bold ${Number(tempDiscountValue) === val ? 'btn-danger' : 'btn-light border'}`}
-                      style={{ fontSize: '0.7rem' }}
-                      onClick={() => setTempDiscountValue(val)}
-                    >
-                      {val / 1000}rb
-                    </button>
-                  ))
-                )}
-              </div>
-
-              {/* Preview Potongan */}
-              <div className="bg-light p-2 rounded-3 border mb-3 d-flex justify-content-between align-items-center">
-                <span className="small text-muted" style={{ fontSize: '0.75rem' }}>Total Potongan:</span>
-                <span className="fw-bold text-danger" style={{ fontSize: '0.88rem' }}>
-                  - Rp {(tempDiscountType === 'Persentase'
-                    ? (subtotal * ((Number(tempDiscountValue) || 0) / 100))
-                    : (Number(tempDiscountValue) || 0)).toLocaleString('id-ID')}
-                </span>
-              </div>
-
-              {/* Aksi Modal Diskon */}
-              <div className="d-flex gap-2">
-                <button
-                  type="button"
-                  className="btn btn-sm btn-light border flex-fill rounded-3 fw-bold py-2"
-                  style={{ fontSize: '0.8rem' }}
-                  onClick={handleResetDiscount}
-                >
-                  Hapus Diskon
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary flex-fill rounded-3 fw-bold py-2 shadow-xs text-white"
-                  style={{ fontSize: '0.8rem', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
-                  onClick={handleApplyDiscount}
-                >
-                  Terapkan
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Modal Sukses Transaksi dengan Animasi Counter dan Suara */}
       {showSuccessModal && successOrder && (
         <div
@@ -1364,13 +1220,14 @@ const Transaksi = () => {
           }}
         >
           <div
-            className="bg-white rounded-4 shadow-xl w-100 overflow-hidden"
+            className="bg-white rounded-4 shadow-xl w-100 overflow-hidden d-flex flex-column"
             style={{
               maxWidth: '380px',
+              maxHeight: '85vh',
               animation: 'scaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
             }}
           >
-            <div className="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light">
+            <div className="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light flex-shrink-0">
               <div className="d-flex align-items-center gap-2">
                 <div
                   className="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
@@ -1395,7 +1252,16 @@ const Transaksi = () => {
               ></button>
             </div>
 
-            <div className="p-3">
+            <div
+              className="p-3 d-flex flex-column"
+              style={{
+                flex: '1 1 auto',
+                minHeight: 0,
+                overflowY: isAdding ? 'auto' : 'hidden',
+                overscrollBehavior: 'contain',
+                WebkitOverflowScrolling: 'touch',
+              }}
+            >
               {isAdding ? (
                 <form onSubmit={handleAddPelanggan}>
                   <div className="mb-2">
@@ -1452,6 +1318,8 @@ const Transaksi = () => {
                 </form>
               ) : (
                 <>
+                  {/* Bagian atas (tetap): tombol tambah, search, Pelanggan Umum */}
+                  <div className="flex-shrink-0">
                   <div className="d-flex gap-2 mb-2">
                     <button
                       type="button"
@@ -1514,7 +1382,19 @@ const Transaksi = () => {
                     </span>
                   </div>
 
-                  <div className="overflow-y-auto" style={{ maxHeight: '220px' }}>
+                  </div>
+
+                  {/* Daftar pelanggan: area ini yang scroll ke bawah */}
+                  <div
+                    className="flex-grow-1"
+                    style={{
+                      minHeight: 0,
+                      overflowY: 'auto',
+                      overscrollBehavior: 'contain',
+                      WebkitOverflowScrolling: 'touch',
+                      touchAction: 'pan-y',
+                    }}
+                  >
                     {daftarPelanggan === undefined ? (
                       <CustomerListSkeleton count={3} />
                     ) : (daftarPelanggan || []).length === 0 ? (
