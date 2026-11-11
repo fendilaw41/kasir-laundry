@@ -110,9 +110,9 @@ const ProductPickerModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Search Bar & Category Chips */}
-        <div className="px-3 pt-2 pb-1 bg-white border-bottom flex-shrink-0">
+        <div className="px-3 pt-1 pb-1 bg-white border-bottom flex-shrink-0">
           {/* Search Input */}
-          <div className="input-group input-group-sm mb-1 shadow-xs rounded-3 overflow-hidden border">
+          <div className="input-group input-group-sm mb-2 mt-2 shadow-xs rounded-3 overflow-hidden border">
             <span className="input-group-text bg-white border-0 text-muted ps-2">
               <i className="bi bi-search" style={{ fontSize: '0.75rem' }}></i>
             </span>
@@ -403,7 +403,7 @@ const ProductPickerModal = ({ isOpen, onClose }) => {
             style={{ fontSize: '0.78rem' }}
             onClick={onClose}
           >
-            <i className="bi bi-check-lg me-1"></i> Selesai
+            <i className="bi bi-check-lg me-1"></i>
           </button>
         </div>
       </div>

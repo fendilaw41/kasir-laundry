@@ -177,7 +177,7 @@ const Transaksi = () => {
         {!cartItems || cartItems.length === 0 ? (
           <div
             onClick={() => setShowProductModal(true)}
-            className="p-3 mb-3 rounded-3 text-center border-dashed d-flex flex-column align-items-center justify-content-center transition-all bg-white border-primary border-2 shadow-xs"
+            className="p-1 mb-1 rounded-3 text-center border-dashed d-flex flex-column align-items-center justify-content-center transition-all bg-white border-primary border-2 shadow-xs"
             style={{ border: '2px dashed #0134d4', cursor: 'pointer', minHeight: '100px' }}
           >
             <div className="rounded-circle mb-2 d-flex align-items-center justify-content-center bg-primary-light text-primary" style={{ width: '42px', height: '42px', backgroundColor: '#e3f2fd' }}>
@@ -223,7 +223,7 @@ const Transaksi = () => {
         )}
 
         {/* Inventory Horizontal Scroller - Ringkas & Kecil */}
-        <div className="mb-3">
+        <div className="mb-1">
           <label className="form-label small fw-bold text-muted text-uppercase mb-1 px-1" style={{ fontSize: '0.72rem' }}>Gunakan Inventori</label>
           <div className="d-flex overflow-auto pb-2 gap-2 mx-n1 px-1 inventory-scroller">
             <style>{`
