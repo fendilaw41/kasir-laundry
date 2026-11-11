@@ -468,7 +468,7 @@ const Transaksi = () => {
                 gap: '10px',
                 overflowX: 'auto',
                 WebkitOverflowScrolling: 'touch',
-                touchAction: 'pan-x',
+                touchAction: 'pan-x pan-y',
                 cursor: 'grab',
                 paddingBottom: '4px',
               }}
