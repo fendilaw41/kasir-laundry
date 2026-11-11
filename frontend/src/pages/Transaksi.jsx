@@ -12,9 +12,17 @@ import { addProductToCart } from '../db/repositories/cart';
 import { playSuccessChime } from '../utils/soundHelper';
 
 // Tinggi menu bawah aplikasi (px). Tombol Bayar yang ditutup menempel tepat di atasnya.
-const BOTTOM_MENU_HEIGHT = 64;
+const BOTTOM_MENU_HEIGHT = 58;
 // Jarak form ke drawer pembayaran dirapatkan sebesar ini (px). Naikkan angkanya = makin rapat.
-const DRAWER_GAP_TRIM = 36;
+const DRAWER_GAP_TRIM = 156;
+// Tinggi seragam semua field form (Delivery, Estimasi, Prioritas, Diskon)
+const FORM_FIELD_HEIGHT = '40px';
+const formFieldStyle = {
+  fontSize: '0.82rem',
+  height: FORM_FIELD_HEIGHT,
+  minHeight: FORM_FIELD_HEIGHT,
+  boxSizing: 'border-box',
+};
 
 // Custom Hook untuk Horizontal Scrolling yang Mulus (Touch, Mouse Drag, & Mouse Wheel)
 const useHorizontalScroll = () => {
@@ -596,12 +604,22 @@ const Transaksi = () => {
           )}
         </div>
 
-        {/* Gunakan Inventori - Scroller Horizontal Lebih Ringkas & Kecil */}
-        <div className="mb-2">
+        {/* Gunakan Inventori - hanya geser kanan (tanpa scroll atas/bawah), kartu cukup tinggi agar stepper tidak tenggelam */}
+        <div className="mb-3">
           <label className="form-label small fw-bold text-muted text-uppercase mb-1 px-1" style={{ fontSize: '0.68rem', letterSpacing: '0.3px' }}>
             Gunakan Inventori
           </label>
-          <div className="d-flex overflow-auto pb-1 gap-2 mx-n1 px-1 inventory-scroller no-scrollbar">
+          <div
+            className="d-flex gap-2 mx-n1 px-1 no-scrollbar inventory-scroller"
+            style={{
+              overflowX: 'auto',
+              overflowY: 'hidden',
+              touchAction: 'pan-x pan-y',
+              WebkitOverflowScrolling: 'touch',
+              paddingTop: '2px',
+              paddingBottom: '4px',
+            }}
+          >
             {inventory?.filter(inv => !(inv.status === 'pending' && inv.stok === 0)).map(inv => {
               const activeItem = selectedInventory.find(s => s.id === inv.id);
               const isActive = !!activeItem;
@@ -609,14 +627,28 @@ const Transaksi = () => {
               return (
                 <div
                   key={inv.id}
-                  className={`flex-shrink-0 p-1 rounded-3 border d-flex flex-column align-items-center justify-content-center transition-all ${isActive
-                    ? 'bg-outline-primary text-dark border-primary shadow-xs'
-                    : isOutOfStock
-                      ? 'bg-light text-muted border-dashed opacity-50'
-                      : 'bg-white text-dark shadow-xs'
-                    }`}
-                  style={{ minWidth: '70px', height: '68px', borderRadius: '12px' }}
+                  className={`position-relative flex-shrink-0 border d-flex flex-column align-items-center justify-content-center transition-all ${isOutOfStock && !isActive ? 'border-dashed opacity-50' : ''}`}
+                  style={{
+                    width: '88px',
+                    height: '102px',
+                    borderRadius: '14px',
+                    padding: '8px 6px',
+                    backgroundColor: isActive ? '#eef3ff' : '#ffffff',
+                    borderColor: isActive ? '#0134d4' : '#e2e8f0',
+                    borderWidth: isActive ? '2px' : '1px',
+                    boxShadow: isActive ? '0 4px 12px rgba(1, 52, 212, 0.10)' : '0 1px 3px rgba(0,0,0,0.03)',
+                  }}
                 >
+                  {/* Badge ceklis: di pojok kanan atas dengan jarak dari tepi */}
+                  {isActive && (
+                    <span
+                      className="position-absolute d-flex align-items-center justify-content-center rounded-circle"
+                      style={{ top: '6px', right: '6px', width: '18px', height: '18px', backgroundColor: '#0134d4', color: '#ffffff' }}
+                    >
+                      <i className="bi bi-check-lg" style={{ fontSize: '0.7rem', lineHeight: 1 }}></i>
+                    </span>
+                  )}
+
                   <div
                     className="text-center w-100"
                     onClick={() => {
@@ -628,20 +660,39 @@ const Transaksi = () => {
                     }}
                     style={{ cursor: isOutOfStock && !isActive ? 'not-allowed' : 'pointer' }}
                   >
-                    <i className={`bi ${isActive ? 'bi-check-circle-fill text-primary' : 'bi-box-seam'} d-block mb-0`} style={{ fontSize: '0.9rem' }}></i>
-                    <div className="fw-bold text-truncate" style={{ fontSize: '0.65rem', maxWidth: '62px' }}>{inv.nama}</div>
-                    <small className={isOutOfStock ? 'text-danger fw-bold' : 'text-muted'} style={{ fontSize: '0.58rem' }}>
-                      {isOutOfStock ? '0' : `Stok: ${inv.stok}`}
+                    <i className="bi bi-box-seam d-block text-muted" style={{ fontSize: '1rem', lineHeight: 1, marginBottom: '4px' }}></i>
+                    <div className="fw-bold text-dark text-truncate mx-auto" style={{ fontSize: '0.74rem', maxWidth: '72px' }}>{inv.nama}</div>
+                    <small className={isOutOfStock ? 'text-danger fw-bold' : 'text-muted'} style={{ fontSize: '0.64rem' }}>
+                      {isOutOfStock ? 'Habis' : `Stok: ${inv.stok}`}
                     </small>
                   </div>
+
                   {isActive && (
-                    <div className="d-flex align-items-center gap-1 bg-white rounded-pill px-1 py-0 shadow-xs mt-0 w-100 justify-content-center border" style={{ height: '18px' }}>
-                      <button className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center" style={{ width: '14px', height: '14px' }} onClick={(e) => { e.stopPropagation(); updateInventoryQty(inv.id, -1); }}>
-                        <i className="bi bi-dash text-dark" style={{ fontSize: '0.6rem' }}></i>
+                    <div
+                      className="d-flex align-items-center justify-content-center bg-white rounded-pill border"
+                      style={{ marginTop: '6px', height: '26px', gap: '4px', padding: '0 4px' }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center"
+                        style={{ width: '20px', height: '20px' }}
+                        onClick={() => updateInventoryQty(inv.id, -1)}
+                        aria-label="Kurangi"
+                      >
+                        <i className="bi bi-dash text-dark" style={{ fontSize: '0.8rem' }}></i>
                       </button>
-                      <span className="fw-bold text-dark px-0" style={{ fontSize: '0.65rem', minWidth: '12px', textAlign: 'center' }}>{activeItem.quantity || 1}</span>
-                      <button className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center" style={{ width: '14px', height: '14px' }} onClick={(e) => { e.stopPropagation(); updateInventoryQty(inv.id, 1); }}>
-                        <i className="bi bi-plus text-dark" style={{ fontSize: '0.6rem' }}></i>
+                      <span className="fw-bold text-dark" style={{ fontSize: '0.78rem', minWidth: '16px', textAlign: 'center' }}>
+                        {activeItem.quantity || 1}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center"
+                        style={{ width: '20px', height: '20px' }}
+                        onClick={() => updateInventoryQty(inv.id, 1)}
+                        aria-label="Tambah"
+                      >
+                        <i className="bi bi-plus text-dark" style={{ fontSize: '0.8rem' }}></i>
                       </button>
                     </div>
                   )}
@@ -660,7 +711,7 @@ const Transaksi = () => {
             <select
               id="delivery-select"
               className="form-select"
-              style={{ fontSize: '0.82rem', height: '38px' }}
+              style={formFieldStyle}
               value={tipeLayanan}
               onChange={(e) => setTipeLayanan(e.target.value)}
             >
@@ -677,7 +728,7 @@ const Transaksi = () => {
               id="estimasi-input"
               type="number"
               className="form-control"
-              style={{ fontSize: '0.82rem', height: '38px' }}
+              style={formFieldStyle}
               value={estimasi}
               onChange={(e) => setEstimasi(e.target.value)}
               onFocus={(e) => e.target.select()}
@@ -693,7 +744,7 @@ const Transaksi = () => {
             <select
               id="prioritas-select"
               className="form-select"
-              style={{ fontSize: '0.82rem', height: '38px' }}
+              style={formFieldStyle}
               value={isPriority}
               onChange={(e) => setIsPriority(e.target.value)}
             >
@@ -714,11 +765,24 @@ const Transaksi = () => {
                 </span>
               )}
             </div>
-            <div className="input-group flex-nowrap">
+            <div
+              className="d-flex align-items-stretch border rounded bg-white overflow-hidden"
+              style={{ height: FORM_FIELD_HEIGHT, minHeight: FORM_FIELD_HEIGHT, boxSizing: 'border-box' }}
+            >
               <select
                 aria-label="Jenis diskon"
-                className="form-select flex-grow-0"
-                style={{ width: '76px', fontSize: '0.82rem', height: '38px' }}
+                className="form-select rounded-0 flex-shrink-0"
+                style={{
+                  width: '72px',
+                  height: '100%',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  backgroundColor: '#f8f9fa',
+                  boxShadow: 'none',
+                  borderStyle: 'solid',
+                  borderColor: '#dee2e6',
+                  borderWidth: '0 1px 0 0',
+                }}
                 value={diskonTipe}
                 onChange={(e) => setDiskonTipe(e.target.value)}
               >
@@ -728,8 +792,8 @@ const Transaksi = () => {
               <input
                 id="diskon-input"
                 type="number"
-                className="form-control"
-                style={{ fontSize: '0.82rem', height: '38px', minWidth: 0 }}
+                className="form-control rounded-0 flex-grow-1"
+                style={{ height: '100%', fontSize: '0.82rem', fontWeight: 700, minWidth: 0, border: 0, boxShadow: 'none' }}
                 value={diskonNilai}
                 onChange={(e) => setDiskonNilai(e.target.value)}
                 onFocus={(e) => e.target.select()}
@@ -1092,7 +1156,7 @@ const Transaksi = () => {
       ) : !showSuccessModal && (
         <div
           className="position-fixed start-50 translate-middle-x text-center"
-          style={{ bottom: `${BOTTOM_MENU_HEIGHT + 8}px`, zIndex: 1050, animation: 'fadeIn 0.2s ease-out' }}
+          style={{ bottom: `${BOTTOM_MENU_HEIGHT + 4}px`, zIndex: 1050, animation: 'fadeIn 0.2s ease-out' }}
         >
           <button
             type="button"
