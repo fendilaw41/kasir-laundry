@@ -173,6 +173,7 @@ function App() {
           <Route path="/orders" element={<DataOrder user={user} />} />
           <Route path="/reports" element={<Reports user={user} />} />
           <Route path="/setting" element={<Setting user={user} onLogout={handleLogout} />} />
+          <Route path="/setting/:section" element={<Setting user={user} onLogout={handleLogout} />} />
           <Route path="/plan" element={isSubscriptionEnabled() ? <Plan user={user} /> : <Navigate to="/" replace />} />
           <Route path="/paket" element={isSubscriptionEnabled() ? <Plan user={user} /> : <Navigate to="/" replace />} />
           <Route path="/ubah-password" element={<UbahPassword user={user} />} />

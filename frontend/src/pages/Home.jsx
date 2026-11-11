@@ -249,7 +249,7 @@ const Home = ({ user }) => {
             {/* Layanan (Hanya Owner) */}
             {user?.role === 'owner' && (
               <div className="col-3">
-                <Link to="/product" className="text-decoration-none customer-card-clickable d-block">
+                <Link to="/setting?tab=product" className="text-decoration-none customer-card-clickable d-block">
                   <div className="mx-auto text-primary rounded-1 d-flex align-items-center justify-content-center mb-2 shadow-sm flex-shrink-0" style={{ width: '45px', height: '45px', backgroundColor: '#fff', border: '1px solid #bbdefb' }}>
                     <i className="bi bi-grid fs-5"></i>
                   </div>

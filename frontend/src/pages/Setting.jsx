@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useParams, useNavigate, Link } from 'react-router-dom';
 import { getSettingsQuery, updateSettings } from '../db/repositories/settings';
 import { getKasirUsersQuery, addUser, updateUser, deleteUser as deleteUserRepo } from '../db/repositories/users';
 import { getProductsQuery, addProduct, updateProduct, deleteProduct as deleteProductRepo } from '../db/repositories/products';
 import { useLiveQuery } from 'dexie-react-hooks';
 import toast from 'react-hot-toast';
 import UbahPassword from './UbahPassword';
-import { getSubscriptionReport, isTrialExpired } from '../services/subscriptionService';
+import { getSubscriptionReport, isTrialExpired, isSubscriptionEnabled } from '../services/subscriptionService';
 import PlanGateModal from '../components/PlanGateModal';
 import {
   TOAST_MESSAGES,
@@ -34,18 +34,44 @@ const Setting = ({ user, onLogout }) => {
   const users = useLiveQuery(getKasirUsersQuery);
   const products = useLiveQuery(getProductsQuery);
 
+  const { section } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'umum';
+  const navigate = useNavigate();
 
-  // Tab aktif: 'umum' (Informasi Toko & Kontak) | 'struk' (Format Nota Struk) | 'kasir' (Manajemen Kasir) | 'product' (Master Layanan) | 'password' (Ubah Password)
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const getInitialTab = () => {
+    if (section) {
+      const s = section.toLowerCase();
+      if (['product', 'produk'].includes(s)) return 'product';
+      if (['toko', 'umum'].includes(s)) return 'umum';
+      if (s === 'struk') return 'struk';
+      if (s === 'kasir') return 'kasir';
+      if (s === 'password') return 'password';
+    }
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['umum', 'struk', 'kasir', 'product', 'produk', 'toko', 'password'].includes(tabParam)) {
+      if (tabParam === 'produk') return 'product';
+      if (tabParam === 'toko') return 'umum';
+      return tabParam;
+    }
+    return null; // Default: Menu List Pengaturan
+  };
+
+  // Tab aktif: null (List Pengaturan) | 'umum' (Informasi Toko) | 'struk' (Format Struk) | 'kasir' (Manajemen Kasir) | 'product' (Master Layanan) | 'password' (Ubah Password)
+  const [activeTab, setActiveTab] = useState(getInitialTab);
 
   useEffect(() => {
-    const tabParam = searchParams.get('tab');
-    if (tabParam && ['umum', 'struk', 'kasir', 'product', 'password'].includes(tabParam)) {
-      setActiveTab(tabParam);
+    const nextTab = getInitialTab();
+    setActiveTab(nextTab);
+  }, [searchParams, section]);
+
+  const selectTab = (tabName) => {
+    setActiveTab(tabName);
+    if (tabName) {
+      setSearchParams({ tab: tabName });
+    } else {
+      setSearchParams({});
     }
-  }, [searchParams]);
+  };
 
   const [isSaving, setIsSaving] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -298,103 +324,310 @@ const Setting = ({ user, onLogout }) => {
   return (
     <div className="setting-page pb-5" style={{ backgroundColor: '#f4f6fa', minHeight: '100vh' }}>
       <div className="container px-3 pt-3" style={{ maxWidth: '640px' }}>
-        {/* 1. MOBILE SEGMENTED TABS (DI BAGI 3 BAGIAN) */}
-        <div className="sticky-top pt-1 pb-3" style={{ backgroundColor: '#f4f6fa', zIndex: 10 }}>
-          <div
-            className="d-flex p-1 bg-white rounded-pill shadow-sm border overflow-x-auto gap-1"
-            style={{
-              borderColor: '#e2e8f0',
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
-              WebkitOverflowScrolling: 'touch',
-            }}
-          >
-            <button
-              type="button"
-              className={`btn btn-sm rounded-pill flex-fill py-2 px-2.5 fw-semibold d-inline-flex align-items-center justify-content-center gap-1 text-nowrap transition-all ${activeTab === 'umum' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
-                }`}
-              style={{ fontSize: '0.4rem', minWidth: 'fit-content' }}
-              onClick={() => setActiveTab('umum')}
-              title={TAB_TITLE.UMUM}
-              aria-label={TAB_TITLE.UMUM}
-            >
-              <i className="bi bi-shop"></i>
-            </button>
+        {/* ======================================================== */}
+        {/* MENU LIST PENGATURAN (TAMPILAN UTAMA SEBELUM KLIK SUB-MENU) */}
+        {/* ======================================================== */}
+        {!activeTab && (
+          <div>
+            {/* PROFILE & STORE HEADER CARD */}
+            <div className="card border-0 shadow-sm rounded-4 mb-3 bg-white overflow-hidden p-3" style={{ border: '1px solid #eef2f6' }}>
+              <div className="d-flex align-items-center gap-3">
+                <div
+                  className="rounded-4 d-flex align-items-center justify-content-center text-white fw-bold flex-shrink-0"
+                  style={{
+                    width: '52px',
+                    height: '52px',
+                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                    fontSize: '1.35rem',
+                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.22)',
+                  }}
+                >
+                  {settings.namaLaundry ? settings.namaLaundry.charAt(0).toUpperCase() : 'L'}
+                </div>
+                <div className="overflow-hidden flex-grow-1">
+                  <div className="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                    <h5 className="fw-bold text-dark text-truncate mb-0" style={{ fontSize: '1.05rem', letterSpacing: '-0.2px' }}>
+                      {settings.namaLaundry || 'Kasir Laundry'}
+                    </h5>
+                    {settings.storeCode && (
+                      <span
+                        className="badge rounded-pill fw-semibold"
+                        style={{
+                          backgroundColor: '#eff6ff',
+                          color: '#1d4ed8',
+                          border: '1px solid #bfdbfe',
+                          fontSize: '0.68rem',
+                          padding: '2px 8px',
+                          letterSpacing: '0.3px',
+                        }}
+                      >
+                        {settings.storeCode}
+                      </span>
+                    )}
+                  </div>
+                  <div className="d-flex align-items-center text-muted small text-truncate mb-1.5" style={{ fontSize: '0.78rem' }}>
+                    <i className="bi bi-geo-alt-fill text-danger me-1 flex-shrink-0" style={{ fontSize: '0.75rem' }}></i>
+                    <span className="text-truncate">{settings.alamat || 'Alamat toko belum diatur'}</span>
+                  </div>
+                  <div className="d-flex align-items-center gap-1.5 flex-wrap">
+                    <span
+                      className="badge rounded-pill fw-normal d-inline-flex align-items-center gap-1"
+                      style={{
+                        backgroundColor: '#f1f5f9',
+                        color: '#475569',
+                        border: '1px solid #e2e8f0',
+                        fontSize: '0.68rem',
+                        padding: '2.5px 8px',
+                      }}
+                    >
+                      <i className="bi bi-person-fill text-muted" style={{ fontSize: '0.7rem' }}></i>
+                      @{user?.username || 'user'}
+                    </span>
+                    <span
+                      className="badge rounded-pill fw-medium d-inline-flex align-items-center gap-1"
+                      style={{
+                        backgroundColor: isOwner ? '#eff6ff' : '#f0fdf4',
+                        color: isOwner ? '#2563eb' : '#16a34a',
+                        border: `1px solid ${isOwner ? '#bfdbfe' : '#bbf7d0'}`,
+                        fontSize: '0.68rem',
+                        padding: '2.5px 8px',
+                      }}
+                    >
+                      <i className={`bi bi-${isOwner ? 'shield-fill-check' : 'person-badge'}`} style={{ fontSize: '0.7rem' }}></i>
+                      {isOwner ? 'Owner' : 'Kasir'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-            <button
-              type="button"
-              className={`btn btn-sm rounded-pill flex-fill py-2 px-2.5 fw-semibold d-inline-flex align-items-center justify-content-center gap-1 text-nowrap transition-all ${activeTab === 'struk' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
-                }`}
-              style={{ fontSize: '0.8rem', minWidth: 'fit-content' }}
-              onClick={() => setActiveTab('struk')}
-              title={TAB_TITLE.STRUK}
-              aria-label={TAB_TITLE.STRUK}
-            >
-              <i className="bi bi-receipt"></i>
-            </button>
-
-            {isOwner && (
-              <button
-                type="button"
-                className={`btn btn-sm rounded-pill fw-semibold d-inline-flex align-items-center justify-content-center gap-1 text-nowrap transition-all ${activeTab === 'kasir' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
-                  }`}
-                style={{ fontSize: '0.5rem', minWidth: 'fit-content' }}
-                onClick={() => setActiveTab('kasir')}
-                title={TAB_TITLE.KASIR}
-                aria-label={TAB_TITLE.KASIR}
-              >
-                <i className="bi bi-people-fill"></i>
-                {users && users.length > 0 && (
-                  <span
-                    className={`badge rounded-pill ms-1 ${activeTab === 'kasir' ? 'bg-white text-primary' : 'bg-light text-muted'
-                      }`}
-                    style={{ fontSize: '0.4rem' }}
+            {/* SECTION 1: PENGATURAN USAHA */}
+            <div className="mb-3">
+              <div className="text-muted small fw-bold px-1 mb-2 text-uppercase" style={{ fontSize: '0.72rem', letterSpacing: '0.5px' }}>
+                Pengaturan Usaha
+              </div>
+              <div className="card border-0 shadow-sm rounded-4 bg-white overflow-hidden">
+                <div className="list-group list-group-flush">
+                  {/* PENGATURAN TOKO */}
+                  <div
+                    role="button"
+                    className="list-group-item list-group-item-action p-3 d-flex align-items-center justify-content-between border-0 border-bottom"
+                    onClick={() => selectTab('umum')}
                   >
-                    {users.length}
-                  </span>
-                )}
-              </button>
-            )}
+                    <div className="d-flex align-items-center gap-3">
+                      <div
+                        className="rounded-circle d-flex align-items-center justify-content-center text-primary flex-shrink-0"
+                        style={{ width: '40px', height: '40px', backgroundColor: '#eff6ff' }}
+                      >
+                        <i className="bi bi-shop fs-5"></i>
+                      </div>
+                      <div>
+                        <h6 className="fw-bold mb-0.5 text-dark" style={{ fontSize: '0.9rem' }}>
+                          Pengaturan Toko
+                        </h6>
+                        <small className="text-muted" style={{ fontSize: '0.74rem' }}>
+                          Profil laundry, alamat, kontak WhatsApp & operasional
+                        </small>
+                      </div>
+                    </div>
+                    <i className="bi bi-chevron-right text-muted fs-6"></i>
+                  </div>
 
-            {isOwner && (
-              <button
-                type="button"
-                className={`btn btn-sm rounded-pill fw-semibold d-inline-flex align-items-center justify-content-center gap-1 text-nowrap transition-all ${activeTab === 'product' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
-                  }`}
-                style={{ fontSize: '0.5rem', minWidth: 'fit-content' }}
-                onClick={() => setActiveTab('product')}
-                title={TAB_TITLE.PRODUCT}
-                aria-label={TAB_TITLE.PRODUCT}
-              >
-                <i className="bi bi-tag-fill"></i>
-                {products && products.length > 0 && (
-                  <span
-                    className={`badge rounded-pill ms-1 ${activeTab === 'product' ? 'bg-white text-primary' : 'bg-light text-muted'
-                      }`}
-                    style={{ fontSize: '0.4rem' }}
+                  {/* PRODUK & LAYANAN */}
+                  <div
+                    role="button"
+                    className="list-group-item list-group-item-action p-3 d-flex align-items-center justify-content-between border-0 border-bottom"
+                    onClick={() => selectTab('product')}
                   >
-                    {products.length}
-                  </span>
-                )}
-              </button>
-            )}
+                    <div className="d-flex align-items-center gap-3">
+                      <div
+                        className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                        style={{ width: '40px', height: '40px', backgroundColor: '#f5f3ff', color: '#6366f1' }}
+                      >
+                        <i className="bi bi-grid-fill fs-5"></i>
+                      </div>
+                      <div>
+                        <h6 className="fw-bold mb-0.5 text-dark" style={{ fontSize: '0.9rem' }}>
+                          Produk & Layanan
+                        </h6>
+                        <small className="text-muted" style={{ fontSize: '0.74rem' }}>
+                          Kelola master produk, harga jual, stok & multi satuan
+                        </small>
+                      </div>
+                    </div>
+                    <div className="d-flex align-items-center gap-2">
+                      {products && products.length > 0 && (
+                        <span className="badge bg-primary-subtle text-primary rounded-pill px-2.5 py-1" style={{ fontSize: '0.72rem' }}>
+                          {products.length} Layanan
+                        </span>
+                      )}
+                      <i className="bi bi-chevron-right text-muted fs-6"></i>
+                    </div>
+                  </div>
 
-            <button
-              type="button"
-              className={`btn btn-sm rounded-pill flex-fill py-2 px-2.5 fw-semibold d-inline-flex align-items-center justify-content-center gap-1 text-nowrap transition-all ${activeTab === 'password' ? 'btn-primary text-white shadow-sm' : 'text-muted border-0 bg-transparent'
-                }`}
-              style={{ fontSize: '0.8rem', minWidth: 'fit-content' }}
-              onClick={() => setActiveTab('password')}
-              title={TAB_TITLE.PASSWORD}
-              aria-label={TAB_TITLE.PASSWORD}
-            >
-              <i className="bi bi-key-fill"></i>
-            </button>
+                  {/* FORMAT NOTA & STRUK */}
+                  <div
+                    role="button"
+                    className="list-group-item list-group-item-action p-3 d-flex align-items-center justify-content-between border-0"
+                    onClick={() => selectTab('struk')}
+                  >
+                    <div className="d-flex align-items-center gap-3">
+                      <div
+                        className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                        style={{ width: '40px', height: '40px', backgroundColor: '#ecfdf5', color: '#059669' }}
+                      >
+                        <i className="bi bi-receipt fs-5"></i>
+                      </div>
+                      <div>
+                        <h6 className="fw-bold mb-0.5 text-dark" style={{ fontSize: '0.9rem' }}>
+                          Format Nota & Struk
+                        </h6>
+                        <small className="text-muted" style={{ fontSize: '0.74rem' }}>
+                          Header struk, footer, link tracking order & preview thermal
+                        </small>
+                      </div>
+                    </div>
+                    <i className="bi bi-chevron-right text-muted fs-6"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 2: PENGGUNA & KEAMANAN */}
+            <div className="mb-3">
+              <div className="text-muted small fw-bold px-1 mb-2 text-uppercase" style={{ fontSize: '0.72rem', letterSpacing: '0.5px' }}>
+                Pengguna & Keamanan
+              </div>
+              <div className="card border-0 shadow-sm rounded-4 bg-white overflow-hidden">
+                <div className="list-group list-group-flush">
+                  {/* MANAJEMEN KASIR (OWNER ONLY) */}
+                  {isOwner && (
+                    <div
+                      role="button"
+                      className="list-group-item list-group-item-action p-3 d-flex align-items-center justify-content-between border-0 border-bottom"
+                      onClick={() => selectTab('kasir')}
+                    >
+                      <div className="d-flex align-items-center gap-3">
+                        <div
+                          className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                          style={{ width: '40px', height: '40px', backgroundColor: '#fffbeb', color: '#d97706' }}
+                        >
+                          <i className="bi bi-people-fill fs-5"></i>
+                        </div>
+                        <div>
+                          <h6 className="fw-bold mb-0.5 text-dark" style={{ fontSize: '0.9rem' }}>
+                            Manajemen Kasir
+                          </h6>
+                          <small className="text-muted" style={{ fontSize: '0.74rem' }}>
+                            Daftar akun pegawai kasir & hak akses toko
+                          </small>
+                        </div>
+                      </div>
+                      <div className="d-flex align-items-center gap-2">
+                        {users && users.length > 0 && (
+                          <span className="badge bg-warning-subtle text-dark rounded-pill px-2.5 py-1" style={{ fontSize: '0.72rem' }}>
+                            {users.length} Kasir
+                          </span>
+                        )}
+                        <i className="bi bi-chevron-right text-muted fs-6"></i>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* UBAH PASSWORD */}
+                  <div
+                    role="button"
+                    className="list-group-item list-group-item-action p-3 d-flex align-items-center justify-content-between border-0"
+                    onClick={() => selectTab('password')}
+                  >
+                    <div className="d-flex align-items-center gap-3">
+                      <div
+                        className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                        style={{ width: '40px', height: '40px', backgroundColor: '#f1f5f9', color: '#475569' }}
+                      >
+                        <i className="bi bi-shield-lock-fill fs-5"></i>
+                      </div>
+                      <div>
+                        <h6 className="fw-bold mb-0.5 text-dark" style={{ fontSize: '0.9rem' }}>
+                          Ubah Password
+                        </h6>
+                        <small className="text-muted" style={{ fontSize: '0.74rem' }}>
+                          Ganti kata sandi login untuk keamanan akun
+                        </small>
+                      </div>
+                    </div>
+                    <i className="bi bi-chevron-right text-muted fs-6"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 3: LANGGANAN & LOGOUT */}
+            <div className="mb-4">
+              <div className="text-muted small fw-bold px-1 mb-2 text-uppercase" style={{ fontSize: '0.72rem', letterSpacing: '0.5px' }}>
+                Lainnya
+              </div>
+              <div className="card border-0 shadow-sm rounded-4 bg-white overflow-hidden">
+                <div className="list-group list-group-flush">
+                  {/* PLAN / PAKET (JIKA SUBSCRIPTION DIAKTIFKAN) */}
+                  {isSubscriptionEnabled() && isOwner && (
+                    <div
+                      role="button"
+                      className="list-group-item list-group-item-action p-3 d-flex align-items-center justify-content-between border-0 border-bottom"
+                      onClick={() => navigate('/plan')}
+                    >
+                      <div className="d-flex align-items-center gap-3">
+                        <div
+                          className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                          style={{ width: '40px', height: '40px', backgroundColor: '#fefce8', color: '#ca8a04' }}
+                        >
+                          <i className="bi bi-gem fs-5"></i>
+                        </div>
+                        <div>
+                          <h6 className="fw-bold mb-0.5 text-dark" style={{ fontSize: '0.9rem' }}>
+                            Paket Langganan
+                          </h6>
+                          <small className="text-muted" style={{ fontSize: '0.74rem' }}>
+                            Status paket toko, kuota transaksi & upgrade
+                          </small>
+                        </div>
+                      </div>
+                      <i className="bi bi-chevron-right text-muted fs-6"></i>
+                    </div>
+                  )}
+
+                  {/* LOGOUT */}
+                  <div
+                    role="button"
+                    className="list-group-item list-group-item-action p-3 d-flex align-items-center justify-content-between border-0"
+                    onClick={() => setShowLogoutModal(true)}
+                  >
+                    <div className="d-flex align-items-center gap-3">
+                      <div
+                        className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                        style={{ width: '40px', height: '40px', backgroundColor: '#fef2f2', color: '#dc2626' }}
+                      >
+                        <i className="bi bi-box-arrow-right fs-5"></i>
+                      </div>
+                      <div>
+                        <h6 className="fw-bold mb-0.5 text-danger" style={{ fontSize: '0.9rem' }}>
+                          Keluar Akun
+                        </h6>
+                        <small className="text-muted" style={{ fontSize: '0.74rem' }}>
+                          Akhiri sesi login kasir / owner pada perangkat ini
+                        </small>
+                      </div>
+                    </div>
+                    <i className="bi bi-chevron-right text-muted fs-6"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* NOTIFIKASI KHUSUS JIKA BUKAN OWNER */}
-        {!isOwner && (
+        {activeTab && !isOwner && (
           <div
             className="alert alert-warning border-0 rounded-4 py-2 px-3 small d-flex align-items-center gap-2 mb-3 shadow-sm"
             style={{ backgroundColor: '#fff9e6', color: '#8a6200', fontSize: '0.78rem' }}
@@ -624,16 +857,6 @@ const Setting = ({ user, onLogout }) => {
               </button>
             )}
 
-            {/* Tombol Logout Merah di Profil Laundry */}
-            <button
-              type="button"
-              className="btn btn-danger w-100 rounded-pill py-3 fw-bold mt-3 shadow-xs d-flex align-items-center justify-content-center gap-2"
-              onClick={() => setShowLogoutModal(true)}
-              style={{ fontSize: '0.92rem' }}
-            >
-              <i className="bi bi-box-arrow-right fs-5"></i>
-              <span>Keluar</span>
-            </button>
           </form>
         )}
 
@@ -961,16 +1184,16 @@ const Setting = ({ user, onLogout }) => {
         {activeTab === 'product' && isOwner && (
           <div>
             {/* ACTION HEADER */}
-            <div className="d-flex justify-content-between align-items-center gap-2 mb-3 px-1">
-              <div className="overflow-hidden">
-                <h6 className="fw-bold mb-0 text-dark text-truncate">Layanan</h6>
+            <div className="d-flex justify-content-between align-items-center mb-3 px-1">
+              <div>
+                <h6 className="fw-bold mb-0 text-dark">Layanan</h6>
                 <small className="text-muted" style={{ fontSize: '0.74rem' }}>
                   Total {products?.length || 0} layanan terdaftar di toko ini
                 </small>
               </div>
               <button
                 type="button"
-                className="btn btn-outline-primary btn-sm rounded-pill px-3 py-2 fw-semibold d-flex align-items-center gap-1 shadow-sm flex-shrink-0"
+                className="btn btn-outline-primary btn-sm rounded-pill px-3 py-2 fw-semibold d-flex align-items-center gap-1 shadow-sm"
                 onClick={() => openProductModal()}
                 title={BUTTON_TITLE.ADD_PRODUCT}
                 style={{ fontSize: '0.8rem' }}

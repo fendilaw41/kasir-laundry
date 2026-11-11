@@ -149,12 +149,23 @@ const Layout = ({ user, onLogout }) => {
   const titleApp = settings?.namaLaundry || 'Kasir Laundry';
 
   // Daftar menu utama (yang ada di footer)
-  const mainMenus = ['/', '/product', '/transaksi', '/orders'];
-  const isMainMenu = mainMenus.includes(location.pathname);
+  const searchParams = new URLSearchParams(location.search);
+  const isSettingSub = location.pathname === '/setting' && Boolean(searchParams.get('tab'));
+  const mainMenus = ['/', '/product', '/transaksi', '/orders', '/setting'];
+  const isMainMenu = mainMenus.includes(location.pathname) && !isSettingSub;
 
   // Mapping Judul Halaman untuk Sub-menu
   const getPageTitle = () => {
     const path = location.pathname;
+    const tab = searchParams.get('tab');
+    if (path === '/setting' && tab) {
+      if (tab === 'umum') return 'Pengaturan Toko';
+      if (tab === 'product') return 'Produk & Layanan';
+      if (tab === 'struk') return 'Format Nota & Struk';
+      if (tab === 'kasir') return 'Manajemen Kasir';
+      if (tab === 'password') return 'Ubah Password';
+    }
+    if (path === '/setting') return 'Pengaturan';
     if (path === '/pembayaran') return 'Pembayaran';
     if (path.startsWith('/order/')) return 'Detail Order';
     if (path === '/product') return 'Pilih Layanan';
@@ -389,7 +400,17 @@ const Layout = ({ user, onLogout }) => {
                 <>
                   {/* Tampilan Sub-Menu Default (Back Button & Title) */}
                   <div className="back-button">
-                    <button className="btn btn-sm p-0 text-primary" onClick={() => navigate(-1)}>
+                    <button
+                      className="btn btn-sm p-0 text-primary"
+                      onClick={() => {
+                        if (location.pathname === '/setting' && location.search.includes('tab=')) {
+                          navigate('/setting');
+                        } else {
+                          navigate(-1);
+                        }
+                      }}
+                      title="Kembali"
+                    >
                       <i className="bi bi-arrow-left fs-4"></i>
                     </button>
                   </div>
@@ -539,10 +560,10 @@ const Layout = ({ user, onLogout }) => {
                     <span>Home</span>
                   </Link>
                 </li>
-                <li className={location.pathname === '/product' ? 'active' : ''}>
-                  <Link to="/product">
-                    <i className={`bi ${location.pathname === '/product' ? 'bi-grid-fill' : 'bi-grid'}`} style={{ fontSize: '20px' }}></i>
-                    <span>Produk</span>
+                <li className={location.pathname === '/orders' ? 'active' : ''}>
+                  <Link to="/orders">
+                    <i className={`bi ${location.pathname === '/orders' ? 'bi-list-check' : 'bi-list'}`} style={{ fontSize: '20px' }}></i>
+                    <span>Riwayat</span>
                   </Link>
                 </li>
                 <li className={location.pathname === '/transaksi' ? 'active' : ''}>
@@ -567,10 +588,10 @@ const Layout = ({ user, onLogout }) => {
                     <span>Chat</span>
                   </Link>
                 </li>
-                <li className={location.pathname === '/orders' ? 'active' : ''}>
-                  <Link to="/orders">
-                    <i className={`bi ${location.pathname === '/orders' ? 'bi-list-check' : 'bi-list'}`} style={{ fontSize: '20px' }}></i>
-                    <span>Riwayat</span>
+                <li className={location.pathname.startsWith('/setting') ? 'active' : ''}>
+                  <Link to="/setting">
+                    <i className={`bi ${location.pathname.startsWith('/setting') ? 'bi-gear-fill' : 'bi-gear'}`} style={{ fontSize: '20px' }}></i>
+                    <span>Pengaturan</span>
                   </Link>
                 </li>
               </ul>

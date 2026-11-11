@@ -64,6 +64,8 @@ const OrderDetail = ({ user }) => {
   const [printType, setPrintType] = useState(null);
   const [gateModal, setGateModal] = useState({ open: false, type: 'PDF_LIMIT', data: {} });
   const [isQueryTimeout, setIsQueryTimeout] = useState(false);
+  const [isCompactDrawer, setIsCompactDrawer] = useState(false);
+  const [showFloatingDrawer, setShowFloatingDrawer] = useState(true);
 
   const allInventory = useLiveQuery(getInventoryQuery);
 
@@ -479,9 +481,15 @@ const OrderDetail = ({ user }) => {
       {/* Komponen Cetak Standar */}
       <PrintLayout order={order} pelanggan={pelanggan || { nama: order.pelangganNama, hp: order.pelangganHp }} printType={printType} />
 
-      <div className="order-detail-wrapper pb-5">
+      <div
+        className="order-detail-wrapper"
+        style={{
+          paddingBottom: !showFloatingDrawer ? '85px' : isCompactDrawer ? '140px' : '280px',
+          transition: 'padding-bottom 0.22s ease-out',
+        }}
+      >
         {order?.deletedAt && (
-          <div className="alert alert-warning py-2 px-3 rounded-4 small mb-3 d-flex align-items-center gap-2 shadow-xs">
+          <div className="alert alert-warning py-2 px-3 rounded-4 small mb-2 d-flex align-items-center gap-2 shadow-xs">
             <i className="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
             <div>
               <strong>Pesanan Dibatalkan / Dihapus</strong>
@@ -490,7 +498,10 @@ const OrderDetail = ({ user }) => {
           </div>
         )}
 
-        <div className="card shadow-sm border-0 mb-3 overflow-hidden">
+        <div
+          className="card shadow-sm border-0 mb-0 overflow-hidden d-flex flex-column"
+          style={{ minHeight: 'calc(100vh - 140px)' }}
+        >
           {/* Banner */}
           <div className={`p-4 text-center text-white position-relative ${order.isPriority ? 'bg-danger' : 'bg-primary'}`}>
             {order.isPriority && (
@@ -518,7 +529,7 @@ const OrderDetail = ({ user }) => {
             {isOwner && (
               <div className="position-absolute bottom-0 end-0 p-2">
                 <span
-                  className="badge rounded-pill px-2.5 py-1 text-white shadow-sm d-inline-flex align-items-center gap-1"
+                  className="badge rounded-pill px-2 py-1 text-white shadow-sm d-inline-flex align-items-center gap-1"
                   style={{
                     backgroundColor: 'rgba(255, 255, 255, 0.22)',
                     backdropFilter: 'blur(6px)',
@@ -639,7 +650,7 @@ const OrderDetail = ({ user }) => {
           <div className="p-3 bg-light small">
             {order.items && order.items.length > 0 && (
               <div className="mb-2 pb-2 border-bottom">
-                <div className="fw-bold text-muted mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>LAYANAN / PRODUK</div>
+                <div className="fw-bold text-muted mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0px' }}>LAYANAN / PRODUK</div>
                 {order.items.map((item, idx) => (
                   <div key={idx} className="d-flex justify-content-between mb-1" style={{ fontSize: '0.75rem' }}>
                     <span>{item.quantity}x <span className="text-dark text-capitalize">{(item.category || '').toLowerCase()} <span className="d-inline-block">{item.name}</span></span></span>
@@ -651,7 +662,7 @@ const OrderDetail = ({ user }) => {
 
             <div className="mb-2 pb-2 border-bottom">
               <div className="d-flex justify-content-between align-items-center mb-1">
-                <div className="fw-bold text-muted" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>INVENTORY TERPAKAI</div>
+                <div className="fw-bold text-muted" style={{ fontSize: '0.7rem', letterSpacing: '0px' }}>INVENTORY TERPAKAI</div>
                 {order.status === 'Proses' && (
                   <small
                     className="text-primary"
@@ -702,68 +713,341 @@ const OrderDetail = ({ user }) => {
           </div>
         </div>
 
-        {/* Button Group Dropdown (Paling Bawah) */}
-        <div className="row g-2 px-1">
-          <div className="col-6">
-            <div className="dropdown">
-              <button className="btn btn-outline-primary w-100 py-3 fw-bold dropdown-toggle shadow-sm" type="button" data-bs-toggle="dropdown">
-                <i className="bi bi-printer me-2"></i>Cetak
-              </button>
-              <ul className="dropdown-menu shadow border-0 rounded-3 py-2" style={{ minWidth: '180px' }}>
-                <li><button className="dropdown-item py-2 small d-flex align-items-center" onClick={() => triggerPrint('thermal')}><i className="bi bi-file-earmark-text me-2 text-info fs-6"></i> Nota Thermal</button></li>
-                <li><button className="dropdown-item py-2 small d-flex align-items-center" onClick={() => triggerPrint('a4')}><i className="bi bi-file-earmark-pdf me-2 text-danger fs-6"></i> Nota PDF (A4)</button></li>
-                <li><button className="dropdown-item py-2 small d-flex align-items-center" onClick={() => triggerPrint('label')}><i className="bi bi-tag me-2 text-primary fs-6"></i> Label (Pcs)</button></li>
-                <li><button className="dropdown-item py-2 small d-flex align-items-center" onClick={() => triggerPrint('barcode')}><i className="bi bi-upc-scan me-2 text-dark fs-6"></i> Label Barcode</button></li>
-              </ul>
-            </div>
-          </div>
+        {/* FLOATING BOTTOM DRAWER / PANEL AKSI & CETAK SEPERTI DI TRANSAKSI */}
+        {showFloatingDrawer ? (
+          <div
+            className="position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0"
+            style={{
+              maxWidth: isCompactDrawer ? '540px' : '580px',
+              zIndex: 1055,
+              animation: 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+              pointerEvents: 'none',
+            }}
+          >
+            <div
+              className="bg-white w-100 shadow-lg border"
+              style={{
+                borderRadius: isCompactDrawer ? '22px' : '26px',
+                maxHeight: '88vh',
+                overflowY: 'auto',
+                padding: isCompactDrawer ? '10px 14px 14px' : '14px 16px 18px',
+                boxShadow: '0 -10px 35px rgba(0,0,0,0.18)',
+                pointerEvents: 'auto',
+                transition: 'all 0.22s ease-out',
+              }}
+            >
+              {/* Grabber indicator */}
+              <div
+                className="mx-auto"
+                style={{
+                  width: isCompactDrawer ? '36px' : '45px',
+                  height: isCompactDrawer ? '4px' : '5px',
+                  backgroundColor: '#cbd5e1',
+                  borderRadius: '10px',
+                  marginBottom: isCompactDrawer ? '6px' : '10px',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setIsCompactDrawer(!isCompactDrawer)}
+                title={isCompactDrawer ? 'Klik untuk perbesar' : 'Klik untuk perkecil'}
+              ></div>
 
-          <div className="col-6">
-            <div className="dropdown">
-              <button className="btn btn-outline-primary w-100 py-3 fw-bold dropdown-toggle shadow-sm" type="button" data-bs-toggle="dropdown">
-                <i className="bi bi-gear-fill me-2"></i>Aksi
-              </button>
-              <ul className="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 py-2" style={{ minWidth: '210px' }}>
-                {!isStatusLunas(order.statusBayar) && (
-                  <li><button className="dropdown-item py-2 small d-flex align-items-center" onClick={() => navigate('/pembayaran', { state: { orderData: order, isPaymentOnly: true } })}><i className="bi bi-wallet2 me-2 text-primary fs-6"></i> Bayar</button></li>
-                )}
-                {order.status !== 'Ambil' && (
-                  <li>
-                    <button className="dropdown-item py-2 small d-flex align-items-center" onClick={toggleLunas}>
-                      {isStatusLunas(order.statusBayar) ? (
-                        <><i className="bi bi-x-circle me-2 text-danger fs-6"></i> Jadikan Tidak Lunas</>
-                      ) : (
-                        <><i className="bi bi-check-circle me-2 text-success fs-6"></i> Jadikan {getStatusLunasByMetode(order.metodeBayar)}</>
-                      )}
-                    </button>
-                  </li>
-                )}
-                <li>
-                  <button className="dropdown-item py-2 small d-flex align-items-center" onClick={togglePriority}>
-                    <i className={`bi ${order.isPriority ? 'bi-star-fill text-warning' : 'bi-star'} me-2 fs-6`}></i>
-                    {order.isPriority ? 'Batal Prioritas' : 'Jadikan Prioritas'}
-                  </button>
-                </li>
-                <li><hr className="dropdown-divider my-1" /></li>
-                <li>
+              {/* Header Drawer: Info Pelanggan & Toggle Ukuran */}
+              <div className={`d-flex justify-content-between align-items-center ${isCompactDrawer ? 'mb-1' : 'mb-2'}`}>
+                <div className="d-flex align-items-center gap-2 overflow-hidden me-2">
+                 
+                  <div className="overflow-hidden">
+                    <div className="d-flex align-items-center gap-1">
+                      <span className="fw-bold text-dark text-truncate" style={{ fontSize: '0.7rem' }}>
+                        {pelanggan?.nama || order.pelangganNama || 'Pelanggan Umum'}
+                      </span>
+                      <span
+                        className={`badge rounded-pill px-2 py-2 ${isStatusLunas(order.statusBayar) ? 'bg-success' : 'bg-warning text-dark'}`}
+                        style={{ fontSize: '0.65rem' }}
+                      >
+                        {order.statusBayar}
+                      </span>
+                    </div>
+                    {!isCompactDrawer && (pelanggan?.hp || order.pelangganHp) && (
+                      <small className="text-muted text-truncate d-block" style={{ fontSize: '0.68rem', lineHeight: 1.1 }}>
+                        <i className="bi bi-telephone me-1"></i>{pelanggan?.hp || order.pelangganHp}
+                      </small>
+                    )}
+                  </div>
+                </div>
+
+                <div className="d-flex align-items-center gap-1 flex-shrink-0">
+                  {/* Tombol Toggle Mode Kecil / Fullscreen */}
                   <button
-                    className="dropdown-item py-2 small d-flex align-items-center"
-                    onClick={() => setShowQrModal(true)}
+                    type="button"
+                    className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center text-muted border shadow-xs"
+                    style={{ width: isCompactDrawer ? '28px' : '32px', height: isCompactDrawer ? '28px' : '32px' }}
+                    onClick={() => setIsCompactDrawer(!isCompactDrawer)}
+                    title={isCompactDrawer ? 'Perbesar tampilan drawer' : 'Perkecil tampilan drawer'}
                   >
-                    <i className="bi bi-share me-2 text-success fs-6"></i>
-                    <span>Bagikan</span>
+                    <i className={`bi ${isCompactDrawer ? 'bi-arrows-angle-expand' : 'bi-arrows-angle-contract'}`} style={{ fontSize: isCompactDrawer ? '0.75rem' : '0.85rem' }}></i>
                   </button>
-                </li>
-              </ul>
+                  {/* Tombol Tutup / Collapse */}
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center text-muted border shadow-xs"
+                    style={{ width: isCompactDrawer ? '28px' : '32px', height: isCompactDrawer ? '28px' : '32px' }}
+                    onClick={() => setShowFloatingDrawer(false)}
+                    title="Sembunyikan Drawer"
+                  >
+                    <i className="bi bi-x-lg" style={{ fontSize: isCompactDrawer ? '0.75rem' : '0.85rem' }}></i>
+                  </button>
+                </div>
+              </div>
+
+              {/* KONTEN ACTIONS */}
+              {isCompactDrawer ? (
+                /* MODE KECIL (COMPACT): Tombol-Tombol Aksi Cepat Sejajar */
+                <div className="d-flex align-items-center gap-1 pt-0">
+                  {!isStatusLunas(order.statusBayar) ? (
+                    <>
+                      {/* WA */}
+                      <button
+                        type="button"
+                        className="btn btn-success rounded-pill px-2 py-1 fw-bold d-flex align-items-center justify-content-center gap-1 shadow-xs"
+                        style={{ fontSize: '0.78rem' }}
+                        onClick={sendWhatsApp}
+                        title="Kirim Nota via WhatsApp"
+                      >
+                        <i className="bi bi-whatsapp"></i>
+                        <span>WA</span>
+                      </button>
+
+                      {/* Bayar Sekarang */}
+                      <button
+                        type="button"
+                        className="btn btn-primary rounded-pill px-3 py-1 fw-bold d-flex align-items-center justify-content-center gap-1 shadow-xs flex-fill text-nowrap"
+                        style={{ fontSize: '0.78rem', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
+                        onClick={() => navigate('/pembayaran', { state: { orderData: order, isPaymentOnly: true } })}
+                        title="Bayar Sekarang"
+                      >
+                        <i className="bi bi-wallet2"></i>
+                        <span>Bayar</span>
+                      </button>
+
+                      {/* Tandai Lunas (Thermal & PDF tidak ditampilkan saat belum lunas) */}
+                      {order.status !== 'Ambil' && (
+                        <button
+                          type="button"
+                          className="btn btn-outline-success rounded-pill px-2 py-1 fw-bold d-flex align-items-center justify-content-center gap-1 shadow-xs flex-fill text-nowrap"
+                          style={{ fontSize: '0.78rem' }}
+                          onClick={toggleLunas}
+                          title="Tandai pesanan lunas"
+                        >
+                          <i className="bi bi-check-circle"></i>
+                          <span>Lunas</span>
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn-success rounded-pill px-2 py-1 fw-bold d-flex align-items-center justify-content-center gap-1 shadow-xs flex-fill"
+                        style={{ fontSize: '0.78rem' }}
+                        onClick={sendWhatsApp}
+                        title="Kirim Nota via WhatsApp"
+                      >
+                        <i className="bi bi-whatsapp"></i>
+                        <span>WA</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-outline-primary rounded-pill px-2 py-1 fw-bold d-flex align-items-center justify-content-center gap-1 shadow-xs flex-fill"
+                        style={{ fontSize: '0.78rem' }}
+                        onClick={() => triggerPrint('thermal')}
+                        title="Cetak Nota Thermal"
+                      >
+                        <i className="bi bi-printer"></i>
+                        <span>Thermal</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-outline-danger rounded-pill px-2 py-1 fw-bold d-flex align-items-center justify-content-center gap-1 shadow-xs flex-fill"
+                        style={{ fontSize: '0.78rem' }}
+                        onClick={() => triggerPrint('a4')}
+                        title="Cetak PDF A4"
+                      >
+                        <i className="bi bi-file-earmark-pdf"></i>
+                        <span>PDF</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary rounded-pill px-2 py-1 fw-semibold d-flex align-items-center justify-content-center gap-1 shadow-xs"
+                        style={{ fontSize: '0.78rem' }}
+                        onClick={() => setShowQrModal(true)}
+                        title="Bagikan QR"
+                      >
+                        <i className="bi bi-qr-code"></i>
+                        <span>QR</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                /* MODE PENUH (EXPANDED): Semua Tombol Dikeluarkan & Disusun Rapi */
+                <div className="d-flex flex-column gap-2 pt-1">
+                  {/* Status & Aksi Pembayaran */}
+                  {!isStatusLunas(order.statusBayar) ? (
+                    <div className="d-flex gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-primary rounded-pill py-2 fw-bold flex-fill shadow-sm d-flex align-items-center justify-content-center gap-1"
+                        style={{ fontSize: '0.84rem' }}
+                        onClick={() => navigate('/pembayaran', { state: { orderData: order, isPaymentOnly: true } })}
+                      >
+                        <i className="bi bi-wallet2"></i>
+                        <span>Bayar</span>
+                      </button>
+                      {order.status !== 'Ambil' && (
+                        <button
+                          type="button"
+                          className="btn btn-outline-success rounded-pill py-2 fw-bold px-3 d-flex align-items-center justify-content-center gap-1"
+                          style={{ fontSize: '0.82rem' }}
+                          onClick={toggleLunas}
+                        >
+                          <i className="bi bi-check-circle"></i>
+                          <span>Tandai Lunas</span>
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="d-flex align-items-center justify-content-between px-2 py-1 rounded-3 bg-success-subtle text-success border border-success-subtle">
+                      <span className="fw-semibold small d-flex align-items-center gap-1" style={{ fontSize: '0.78rem' }}>
+                        <i className="bi bi-check-circle-fill fs-6"></i>
+                        <span>Lunas ({order.metodeBayar || 'Cash'})</span>
+                      </span>
+                      {order.status !== 'Ambil' && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-link text-danger p-0 text-decoration-none fw-semibold"
+                          style={{ fontSize: '0.72rem' }}
+                          onClick={toggleLunas}
+                        >
+                          Jadikan Belum Lunas
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Grid Tombol Cetak (Semua Button Cetak Dikeluarkan Rapi) */}
+                  <div>
+                    <div className="text-muted fw-bold mb-1 text-uppercase px-1" style={{ fontSize: '0.68rem', letterSpacing: '0px' }}>
+                      Pilihan Cetak Nota & Label
+                    </div>
+                    <div className="row g-1 text-center">
+                      <div className="col-3">
+                        <button
+                          type="button"
+                          className="btn btn-outline-primary rounded-3 w-100 py-1 px-1 d-flex flex-column align-items-center justify-content-center shadow-xs"
+                          onClick={() => triggerPrint('thermal')}
+                          title="Nota Thermal"
+                        >
+                          <i className="bi bi-receipt fs-5 mb-0"></i>
+                          <span style={{ fontSize: '0.68rem', fontWeight: 600 }}>Thermal</span>
+                        </button>
+                      </div>
+                      <div className="col-3">
+                        <button
+                          type="button"
+                          className="btn btn-outline-danger rounded-3 w-100 py-1 px-1 d-flex flex-column align-items-center justify-content-center shadow-xs"
+                          onClick={() => triggerPrint('a4')}
+                          title="Nota PDF (A4)"
+                        >
+                          <i className="bi bi-file-earmark-pdf fs-5 mb-0"></i>
+                          <span style={{ fontSize: '0.68rem', fontWeight: 600 }}>PDF A4</span>
+                        </button>
+                      </div>
+                      <div className="col-3">
+                        <button
+                          type="button"
+                          className="btn btn-outline-info rounded-3 w-100 py-1 px-1 d-flex flex-column align-items-center justify-content-center shadow-xs text-dark"
+                          onClick={() => triggerPrint('label')}
+                          title="Label (Pcs)"
+                        >
+                          <i className="bi bi-tag fs-5 mb-0 text-info"></i>
+                          <span style={{ fontSize: '0.68rem', fontWeight: 600 }}>Label</span>
+                        </button>
+                      </div>
+                      <div className="col-3">
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary rounded-3 w-100 py-1 px-1 d-flex flex-column align-items-center justify-content-center shadow-xs text-dark"
+                          onClick={() => triggerPrint('barcode')}
+                          title="Label Barcode"
+                        >
+                          <i className="bi bi-upc-scan fs-5 mb-0"></i>
+                          <span style={{ fontSize: '0.68rem', fontWeight: 600 }}>Barcode</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tombol Kirim WhatsApp */}
+                  <button
+                    type="button"
+                    className="btn btn-success rounded-pill w-100 py-2 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2 mt-0"
+                    style={{ fontSize: '0.88rem' }}
+                    onClick={sendWhatsApp}
+                  >
+                    <i className="bi bi-whatsapp fs-5"></i>
+                    <span>Kirim WhatsApp</span>
+                  </button>
+
+                  {/* Baris Tambahan: Prioritas & Bagikan QR */}
+                  <div className="d-flex gap-2">
+                    <button
+                      type="button"
+                      className={`btn ${order.isPriority ? 'btn-warning text-dark' : 'btn-light text-muted border'} rounded-pill flex-fill py-1 d-flex align-items-center justify-content-center gap-1 fw-medium`}
+                      style={{ fontSize: '0.78rem' }}
+                      onClick={togglePriority}
+                    >
+                      <i className={`bi ${order.isPriority ? 'bi-star-fill text-dark' : 'bi-star'}`}></i>
+                      <span>{order.isPriority ? 'Batal Prioritas' : 'Prioritas'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-light text-muted border rounded-pill flex-fill py-1 d-flex align-items-center justify-content-center gap-1 fw-medium"
+                      style={{ fontSize: '0.78rem' }}
+                      onClick={() => setShowQrModal(true)}
+                    >
+                      <i className="bi bi-share text-primary"></i>
+                      <span>Bagikan QR</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-
-          <div className="col-12">
-            <button className="btn btn-outline-primary w-100 py-3 fw-bold shadow-sm mb-1" onClick={sendWhatsApp}>
-              <i className="bi bi-whatsapp me-2"></i>Kirim WhatsApp
+        ) : (
+          /* TOMBOL FLOATING CETAK MELAYANG DI BAWAH (DI ATAS BOTTOM NAV) */
+          <div
+            className="position-fixed bottom-0 start-50 translate-middle-x w-100 px-3 pb-3 text-center"
+            style={{ maxWidth: '580px', zIndex: 1045, pointerEvents: 'none' }}
+          >
+            <button
+              type="button"
+              className="btn btn-primary rounded-pill shadow-lg px-4 mb-5 py-2 fw-bold d-inline-flex align-items-center gap-2 border-0"
+              style={{
+                backgroundColor: '#0134d4',
+                pointerEvents: 'auto',
+                fontSize: '0.86rem',
+                boxShadow: '0 8px 24px rgba(1, 52, 212, 0.35)',
+              }}
+              onClick={() => setShowFloatingDrawer(true)}
+            >
+              <i className="bi bi-receipt fs-5"></i>
+              <span>Cetak</span>
             </button>
           </div>
-        </div>
+        )}
 
         {/* Modal Edit Catatan */}
         {showNoteModal && (
@@ -906,31 +1190,116 @@ const OrderDetail = ({ user }) => {
           </>
         )}
 
-        {/* Modal Edit HP WhatsApp */}
+        {/* Floating Bottom Sheet Input Nomor WhatsApp */}
         {showHpModal && (
           <>
-            <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(0,0,0,0.4)' }}></div>
-            <div className="modal fade show d-block" tabIndex="-1">
-              <div className="modal-dialog modal-dialog-centered mx-3">
-                <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '24px' }}>
-                  <div className="modal-header border-0 pb-0 pt-4 px-4">
-                    <h5 className="fw-bold mb-0">No. WhatsApp</h5>
-                    <button type="button" className="btn-close" onClick={() => setShowHpModal(false)}></button>
+            <div
+              className="modal-backdrop fade show"
+              style={{
+                zIndex: 1060,
+                backgroundColor: 'rgba(0,0,0,0.4)',
+                backdropFilter: 'blur(4px)',
+              }}
+              onClick={() => setShowHpModal(false)}
+            ></div>
+            <div
+              className="position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-2"
+              style={{
+                maxWidth: '540px',
+                zIndex: 1065,
+                animation: 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+              }}
+            >
+              <div
+                className="bg-white w-100 shadow-lg border"
+                style={{
+                  borderRadius: '24px',
+                  padding: '14px 18px 18px',
+                  boxShadow: '0 -10px 35px rgba(0,0,0,0.18)',
+                }}
+              >
+                {/* Grabber indicator */}
+                <div
+                  className="mx-auto"
+                  style={{
+                    width: '38px',
+                    height: '4px',
+                    backgroundColor: '#cbd5e1',
+                    borderRadius: '10px',
+                    marginBottom: '10px',
+                  }}
+                ></div>
+
+                {/* Header */}
+                <div className="d-flex align-items-center justify-content-between mb-2">
+                  <div className="d-flex align-items-center gap-2">
+                    <div
+                      className="rounded-circle d-flex align-items-center justify-content-center text-success flex-shrink-0"
+                      style={{ width: '34px', height: '34px', backgroundColor: '#dcfce7' }}
+                    >
+                      <i className="bi bi-whatsapp fs-5"></i>
+                    </div>
+                    <div>
+                      <h6 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.95rem' }}>
+                        WhatsApp Pelanggan
+                      </h6>
+                      <small className="text-muted" style={{ fontSize: '0.72rem' }}>
+                        {pelanggan?.nama || order.pelangganNama || 'Pelanggan'} belum memiliki nomor WhatsApp
+                      </small>
+                    </div>
                   </div>
-                  <div className="modal-body p-4">
-                    <p className="small text-muted mb-3">Pelanggan ini belum memiliki nomor HP. Silakan masukkan nomor HP untuk mengirim nota dan menyimpannya.</p>
-                    <input
-                      type="number"
-                      className="form-control bg-light border-0 rounded-pill px-4 py-3 mb-3 fw-bold"
-                      value={newHp}
-                      onChange={(e) => setNewHp(e.target.value)}
-                      placeholder="Contoh: 081234567890"
-                      autoFocus
-                    />
-                    <button className="btn btn-outline-primary w-100 rounded-pill fw-bold py-3 shadow-sm" onClick={saveHpAndSend}>
-                      <i className="bi bi-whatsapp me-2"></i>{BUTTON_TEXT.SAVE}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center text-muted border shadow-xs"
+                    style={{ width: '30px', height: '30px' }}
+                    onClick={() => setShowHpModal(false)}
+                    title="Tutup"
+                  >
+                    <i className="bi bi-x-lg" style={{ fontSize: '0.8rem' }}></i>
+                  </button>
+                </div>
+
+                {/* Body Form */}
+                <div className="mb-3">
+                  <label className="form-label small fw-semibold text-muted mb-1" style={{ fontSize: '0.74rem' }}>
+                    Nomor WhatsApp
+                  </label>
+                  <input
+                    type="tel"
+                    className="form-control bg-light border-0 rounded-pill px-3 py-2 fw-bold text-dark shadow-none"
+                    style={{ fontSize: '0.92rem' }}
+                    value={newHp}
+                    onChange={(e) => setNewHp(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        saveHpAndSend();
+                      }
+                    }}
+                    placeholder="Contoh: 081234567890"
+                    autoFocus
+                  />
+                </div>
+
+                {/* Tombol Aksi */}
+                <div className="d-flex gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-light rounded-pill px-3 py-2 text-muted fw-semibold flex-shrink-0"
+                    style={{ fontSize: '0.82rem' }}
+                    onClick={() => setShowHpModal(false)}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-success rounded-pill w-100 py-2 fw-bold shadow-xs d-flex align-items-center justify-content-center gap-1"
+                    style={{ fontSize: '0.86rem' }}
+                    onClick={saveHpAndSend}
+                  >
+                    <i className="bi bi-whatsapp"></i>
+                    <span>&nbsp; Kirim WhatsApp</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -940,7 +1309,7 @@ const OrderDetail = ({ user }) => {
         {/* Modal QR Code Cek Status Cucian */}
         {showQrModal && (
           <>
-            <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}></div>
+            <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(0,0,0,0)', zIndex: 1060 }}></div>
             <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1065 }}>
               <div className="modal-dialog modal-dialog-centered mx-auto" style={{ maxWidth: '360px' }}>
                 <div className="modal-content border-0 shadow-lg text-center p-4" style={{ borderRadius: '24px' }}>
