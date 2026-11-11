@@ -33,6 +33,7 @@ export const isPublicRoute = () => {
     path === '/login' ||
     path === '/register' ||
     path === '/reset' ||
+    path === '/reset-cache' ||
     path.startsWith('/c/')
   );
 };

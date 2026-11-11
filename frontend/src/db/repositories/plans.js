@@ -49,30 +49,55 @@ export const getPlanByKey = async (key) => {
   return DEFAULT_PLANS.find((p) => p.key === cleanKey) || DEFAULT_PLANS[0];
 };
 
+let inFlightPlansPromise = null;
+let lastPlansSyncTime = 0;
+const PLANS_SYNC_COOLDOWN_MS = 5 * 60 * 1000; // 5 menit cooldown
+
+export const _resetPlansSyncCooldownForTests = () => {
+  lastPlansSyncTime = 0;
+  inFlightPlansPromise = null;
+};
+
 /**
  * Sinkronisasi Master Plan dari database backend ke Dexie
  */
-export const syncPlansFromBackend = async () => {
-  try {
-    const res = await fetch(`${API_URL}/subscription/plans`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    if (json.success && Array.isArray(json.plans) && json.plans.length > 0) {
-      if (db.plans) {
-        await db.transaction('rw', db.plans, async () => {
-          for (const plan of json.plans) {
-            await db.plans.put({
-              ...plan,
-              key: plan.key.toUpperCase(),
-              updatedAt: new Date(plan.updatedAt || new Date()),
-            });
-          }
-        });
-      }
-      return json.plans;
-    }
-  } catch (err) {
-    console.warn('Sync plans dari backend gagal, menggunakan data lokal Dexie:', err);
+export const syncPlansFromBackend = async (force = false) => {
+  const now = Date.now();
+  if (!force && (now - lastPlansSyncTime < PLANS_SYNC_COOLDOWN_MS)) {
+    return getAllPlansLocal();
   }
-  return getAllPlansLocal();
+
+  if (inFlightPlansPromise) {
+    return inFlightPlansPromise;
+  }
+
+  inFlightPlansPromise = (async () => {
+    try {
+      const res = await fetch(`${API_URL}/subscription/plans`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (json.success && Array.isArray(json.plans) && json.plans.length > 0) {
+        lastPlansSyncTime = Date.now();
+        if (db.plans) {
+          await db.transaction('rw', db.plans, async () => {
+            for (const plan of json.plans) {
+              await db.plans.put({
+                ...plan,
+                key: plan.key.toUpperCase(),
+                updatedAt: new Date(plan.updatedAt || new Date()),
+              });
+            }
+          });
+        }
+        return json.plans;
+      }
+    } catch (err) {
+      console.warn('Sync plans dari backend gagal, menggunakan data lokal Dexie:', err);
+    } finally {
+      inFlightPlansPromise = null;
+    }
+    return getAllPlansLocal();
+  })();
+
+  return inFlightPlansPromise;
 };

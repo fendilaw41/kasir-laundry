@@ -151,10 +151,29 @@ export const PLAN_CONFIGS = {
   },
 };
 
+let inFlightReportPromise = null;
+let lastReportFetchTime = 0;
+let cachedMemoryReport = null;
+const REPORT_CACHE_TTL_MS = 20000; // 20 detik cache memory
+
+export function invalidateSubscriptionCache() {
+  lastReportFetchTime = 0;
+  cachedMemoryReport = null;
+  inFlightReportPromise = null;
+}
+
+export const _resetSubscriptionCacheForTests = () => {
+  lastReportFetchTime = 0;
+  cachedMemoryReport = null;
+  inFlightReportPromise = null;
+};
+
 /**
  * Mengambil status dan laporan penggunaan paket dari backend atau fallback ke kalkulasi Dexie
  */
-export async function getSubscriptionReport() {
+export async function getSubscriptionReport(options = {}) {
+  const force = typeof options === 'boolean' ? options : Boolean(options?.force);
+
   if (!isSubscriptionEnabled()) {
     return {
       enabled: false,
@@ -187,113 +206,138 @@ export async function getSubscriptionReport() {
     };
   }
 
-  const token =
-    (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('token') : null) ||
-    (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') : null) ||
-    (await db.settings.get(1))?.token ||
-    (await db.settings.get(1))?.authToken;
-  const userStr =
-    (typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null) ||
-    (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('user') : null);
-  const user = userStr ? JSON.parse(userStr) : null;
-  const setting = await db.settings.get(1);
-  const storeId = user?.storeId || setting?.storeId || null;
-
-  if (token) {
-    try {
-      // Sinkronkan update master plan dari DB ke Dexie di background
-      syncPlansFromBackend().catch(() => { });
-
-      const res = await fetch(`${API_URL}/subscription/usage`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      if (res.status === 401) {
-        triggerUnauthorized('Sesi login telah berakhir.');
-        return calculateOfflineUsage(storeId);
-      }
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.data) {
-          // Sinkronkan status flag fitur subscription ke session user jika ada perubahan dari server
-          try {
-            const curUser = JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}');
-            let changed = false;
-            if (typeof json.data.featureSubscriptionEnabled === 'boolean' && curUser.featureSubscriptionEnabled !== json.data.featureSubscriptionEnabled) {
-              curUser.featureSubscriptionEnabled = json.data.featureSubscriptionEnabled;
-              changed = true;
-            }
-            if (typeof json.data.showUpgradeBanner === 'boolean' && curUser.showUpgradeBanner !== json.data.showUpgradeBanner) {
-              curUser.showUpgradeBanner = json.data.showUpgradeBanner;
-              changed = true;
-            }
-            if (changed) {
-              if (typeof localStorage !== 'undefined') localStorage.setItem('user', JSON.stringify(curUser));
-              if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('user', JSON.stringify(curUser));
-            }
-          } catch { }
-
-          // Sinkronkan ke db.storeSubscriptions di Dexie
-          if (db.storeSubscriptions && (json.data.storeId || storeId)) {
-            try {
-              const targetSubStoreId = json.data.storeId || storeId;
-              const existingSub = await db.storeSubscriptions.where('storeId').equals(targetSubStoreId).first();
-              await db.storeSubscriptions.put({
-                id: existingSub?.id || json.data.id || crypto.randomUUID(),
-                storeId: targetSubStoreId,
-                plan: json.data.plan,
-                status: json.data.status,
-                currentPeriodStart: new Date(json.data.currentPeriodStart || new Date()),
-                currentPeriodEnd: json.data.currentPeriodEnd ? new Date(json.data.currentPeriodEnd) : null,
-                maxTransactions: json.data.limits?.maxTransactions ?? 150,
-                usedTransactions: json.data.usage?.transactions?.used ?? 0,
-                remainingTransactions: json.data.usage?.transactions?.remaining ?? 150,
-                maxChatPhotos: json.data.limits?.maxChatPhotos ?? 800,
-                usedPhotos: json.data.usage?.photos?.used ?? 0,
-                remainingPhotos: json.data.usage?.photos?.remaining ?? 800,
-                maxUsers: json.data.limits?.maxUsers ?? 3,
-                usedUsers: json.data.usage?.users?.used ?? 1,
-                remainingUsers: json.data.usage?.users?.remaining ?? 2,
-                maxProducts: json.data.limits?.maxProducts ?? 50,
-                usedProducts: json.data.usage?.products?.used ?? 0,
-                remainingProducts: json.data.usage?.products?.remaining ?? 50,
-                maxStockItems: json.data.limits?.maxStockItems ?? 20,
-                usedInventory: json.data.usage?.inventory?.used ?? 0,
-                remainingInventory: json.data.usage?.inventory?.remaining ?? 20,
-                updatedAt: new Date(),
-              });
-            } catch (subErr) {
-              console.warn('Gagal update db.storeSubscriptions dari server:', subErr);
-            }
-          }
-
-          // Cache ke settings Dexie jika memungkinkan
-          try {
-            await db.settings.where('id').equals(1).modify({
-              cachedSubscription: json.data,
-              featureSubscriptionEnabled: json.data.featureSubscriptionEnabled,
-              showUpgradeBanner: json.data.showUpgradeBanner,
-            });
-          } catch (e) { }
-          // Pastikan properti isTrialExpired selalu terhitung
-          if (typeof json.data.isTrialExpired === 'undefined') {
-            const isExp = Boolean(json.data.isExpired || json.data.status === 'EXPIRED');
-            const plan = String(json.data.plan || 'TRIAL').toUpperCase();
-            json.data.isTrialExpired = isExp && plan === 'TRIAL';
-          }
-
-          return json.data;
-        }
-      }
-    } catch (err) {
-      console.warn('Gagal memuat status langganan dari server, beralih ke cache lokal Dexie:', err);
-    }
+  const now = Date.now();
+  if (!force && cachedMemoryReport && (now - lastReportFetchTime < REPORT_CACHE_TTL_MS)) {
+    return cachedMemoryReport;
   }
 
-  // Fallback offline kalkulasi via Dexie
-  return calculateOfflineUsage(storeId);
+  if (inFlightReportPromise) {
+    return inFlightReportPromise;
+  }
+
+  inFlightReportPromise = (async () => {
+    try {
+      const token =
+        (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('token') : null) ||
+        (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') : null) ||
+        (await db.settings.get(1))?.token ||
+        (await db.settings.get(1))?.authToken;
+      const userStr =
+        (typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null) ||
+        (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('user') : null);
+      const user = userStr ? JSON.parse(userStr) : null;
+      const setting = await db.settings.get(1);
+      const storeId = user?.storeId || setting?.storeId || null;
+
+      if (token) {
+        try {
+          // Sinkronkan update master plan dari DB ke Dexie di background hanya jika belum tersinkron
+          syncPlansFromBackend(false).catch(() => { });
+
+          const res = await fetch(`${API_URL}/subscription/usage`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          if (res.status === 401) {
+            triggerUnauthorized('Sesi login telah berakhir.');
+            const offline = await calculateOfflineUsage(storeId);
+            cachedMemoryReport = offline;
+            lastReportFetchTime = Date.now();
+            return offline;
+          }
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && json.data) {
+              // Sinkronkan status flag fitur subscription ke session user jika ada perubahan dari server
+              try {
+                const curUser = JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}');
+                let changed = false;
+                if (typeof json.data.featureSubscriptionEnabled === 'boolean' && curUser.featureSubscriptionEnabled !== json.data.featureSubscriptionEnabled) {
+                  curUser.featureSubscriptionEnabled = json.data.featureSubscriptionEnabled;
+                  changed = true;
+                }
+                if (typeof json.data.showUpgradeBanner === 'boolean' && curUser.showUpgradeBanner !== json.data.showUpgradeBanner) {
+                  curUser.showUpgradeBanner = json.data.showUpgradeBanner;
+                  changed = true;
+                }
+                if (changed) {
+                  if (typeof localStorage !== 'undefined') localStorage.setItem('user', JSON.stringify(curUser));
+                  if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('user', JSON.stringify(curUser));
+                }
+              } catch { }
+
+              // Sinkronkan ke db.storeSubscriptions di Dexie
+              if (db.storeSubscriptions && (json.data.storeId || storeId)) {
+                try {
+                  const targetSubStoreId = json.data.storeId || storeId;
+                  const existingSub = await db.storeSubscriptions.where('storeId').equals(targetSubStoreId).first();
+                  await db.storeSubscriptions.put({
+                    id: existingSub?.id || json.data.id || crypto.randomUUID(),
+                    storeId: targetSubStoreId,
+                    plan: json.data.plan,
+                    status: json.data.status,
+                    currentPeriodStart: new Date(json.data.currentPeriodStart || new Date()),
+                    currentPeriodEnd: json.data.currentPeriodEnd ? new Date(json.data.currentPeriodEnd) : null,
+                    maxTransactions: json.data.limits?.maxTransactions ?? 150,
+                    usedTransactions: json.data.usage?.transactions?.used ?? 0,
+                    remainingTransactions: json.data.usage?.transactions?.remaining ?? 150,
+                    maxChatPhotos: json.data.limits?.maxChatPhotos ?? 800,
+                    usedPhotos: json.data.usage?.photos?.used ?? 0,
+                    remainingPhotos: json.data.usage?.photos?.remaining ?? 800,
+                    maxUsers: json.data.limits?.maxUsers ?? 3,
+                    usedUsers: json.data.usage?.users?.used ?? 1,
+                    remainingUsers: json.data.usage?.users?.remaining ?? 2,
+                    maxProducts: json.data.limits?.maxProducts ?? 50,
+                    usedProducts: json.data.usage?.products?.used ?? 0,
+                    remainingProducts: json.data.usage?.products?.remaining ?? 50,
+                    maxStockItems: json.data.limits?.maxStockItems ?? 20,
+                    usedInventory: json.data.usage?.inventory?.used ?? 0,
+                    remainingInventory: json.data.usage?.inventory?.remaining ?? 20,
+                    updatedAt: new Date(),
+                  });
+                } catch (subErr) {
+                  console.warn('Gagal update db.storeSubscriptions dari server:', subErr);
+                }
+              }
+
+              // Cache ke settings Dexie jika memungkinkan
+              try {
+                await db.settings.where('id').equals(1).modify({
+                  cachedSubscription: json.data,
+                  featureSubscriptionEnabled: json.data.featureSubscriptionEnabled,
+                  showUpgradeBanner: json.data.showUpgradeBanner,
+                });
+              } catch (e) { }
+              // Pastikan properti isTrialExpired selalu terhitung
+              if (typeof json.data.isTrialExpired === 'undefined') {
+                const isExp = Boolean(json.data.isExpired || json.data.status === 'EXPIRED');
+                const plan = String(json.data.plan || 'TRIAL').toUpperCase();
+                json.data.isTrialExpired = isExp && plan === 'TRIAL';
+              }
+
+              cachedMemoryReport = json.data;
+              lastReportFetchTime = Date.now();
+              return json.data;
+            }
+          }
+        } catch (err) {
+          console.warn('Gagal memuat status langganan dari server, beralih ke cache lokal Dexie:', err);
+        }
+      }
+
+      // Fallback offline kalkulasi via Dexie
+      const offlineUsage = await calculateOfflineUsage(storeId);
+      cachedMemoryReport = offlineUsage;
+      lastReportFetchTime = Date.now();
+      return offlineUsage;
+    } finally {
+      inFlightReportPromise = null;
+    }
+  })();
+
+  return inFlightReportPromise;
 }
 
 /**

@@ -55,16 +55,17 @@ export default function NotificationBell({ user }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Sinkronkan notifikasi dari backend saat dropdown dibuka atau saat mount
+  // Sinkronkan notifikasi dari backend saat mount (memakai cooldown 30 detik agar tidak spam/duplikat)
   useEffect(() => {
-    syncNotificationsFromBackend();
+    syncNotificationsFromBackend(false);
   }, []);
 
   const handleToggle = () => {
     const nextState = !isOpen;
     setIsOpen(nextState);
     if (nextState) {
-      syncNotificationsFromBackend();
+      // Refresh instan saat user membuka dropdown
+      syncNotificationsFromBackend(true);
     }
   };
 

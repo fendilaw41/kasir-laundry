@@ -39,7 +39,7 @@ export default function Plan({ user }) {
   const fetchStatus = async () => {
     setLoading(true);
     try {
-      const data = await getSubscriptionReport();
+      const data = await getSubscriptionReport({ force: true });
       setReport(data);
     } catch (err) {
       console.error(err);
@@ -50,7 +50,7 @@ export default function Plan({ user }) {
 
   useEffect(() => {
     fetchStatus();
-    syncPlansFromBackend().catch((err) => console.warn('Sync plans failed:', err));
+    syncPlansFromBackend(true).catch((err) => console.warn('Sync plans failed:', err));
   }, []);
 
   const handleApplyPlan = async (planKey) => {
@@ -652,7 +652,7 @@ export default function Plan({ user }) {
                       className="rounded-circle d-flex align-items-center justify-content-center text-primary"
                       style={{ width: '30px', height: '30px', backgroundColor: '#e0f2fe' }}
                     >
-                      <i className="bi bi-wallet2 fs-6"></i>
+                      <i className="bi bi-gem fs-6"></i>
                     </div>
                     <h6 className="modal-title fw-bold text-dark mb-0" style={{ fontSize: '0.92rem' }}>
                       Ajukan Upgrade Paket

@@ -64,6 +64,13 @@ const Setting = ({ user, onLogout }) => {
     setActiveTab(nextTab);
   }, [searchParams, section]);
 
+  // Selalu reset scroll ke posisi paling atas saat berpindah sub-menu / tab pengaturan
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [activeTab]);
+
   const selectTab = (tabName) => {
     setActiveTab(tabName);
     if (tabName) {
@@ -71,6 +78,9 @@ const Setting = ({ user, onLogout }) => {
     } else {
       setSearchParams({});
     }
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
   };
 
   const [isSaving, setIsSaving] = useState(false);
@@ -595,6 +605,31 @@ const Setting = ({ user, onLogout }) => {
                       <i className="bi bi-chevron-right text-muted fs-6"></i>
                     </div>
                   )}
+
+                  {/* RESET CACHE */}
+                  <div
+                    role="button"
+                    className="list-group-item list-group-item-action p-3 d-flex align-items-center justify-content-between border-0 border-bottom"
+                    onClick={() => navigate('/reset')}
+                  >
+                    <div className="d-flex align-items-center gap-3">
+                      <div
+                        className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                        style={{ width: '40px', height: '40px', backgroundColor: '#e0f2fe', color: '#0284c7' }}
+                      >
+                        <i className="bi bi-arrow-repeat fs-5"></i>
+                      </div>
+                      <div>
+                        <h6 className="fw-bold mb-0.5 text-dark" style={{ fontSize: '0.9rem' }}>
+                          Reset Cache
+                        </h6>
+                        <small className="text-muted" style={{ fontSize: '0.74rem' }}>
+                          Bersihkan cache aplikasi & perbarui data offline
+                        </small>
+                      </div>
+                    </div>
+                    <i className="bi bi-chevron-right text-muted fs-6"></i>
+                  </div>
 
                   {/* LOGOUT */}
                   <div

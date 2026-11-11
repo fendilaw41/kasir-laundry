@@ -63,59 +63,92 @@ export async function getChatContacts() {
   return json.data || [];
 }
 
+let inFlightConversationsPromise = null;
+let lastConversationsFetchTime = 0;
+const CONVERSATIONS_FETCH_COOLDOWN_MS = 30000; // 30 detik cooldown jika di luar halaman /chat
+
+export const _resetConversationsCooldownForTests = () => {
+  lastConversationsFetchTime = 0;
+  inFlightConversationsPromise = null;
+};
+
 /**
  * Mengambil daftar percakapan aktif dari backend dan memperbarui cache Dexie
  */
-export async function fetchConversationsFromBackend() {
-  try {
-    const res = await fetch(`${API_BASE_URL}/chat/conversations`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Gagal memuat percakapan dari server.');
-    const json = await res.json();
-    const conversations = json.data || [];
+export async function fetchConversationsFromBackend(force = false) {
+  const now = Date.now();
+  const isChatPage = typeof window !== 'undefined' && window.location?.pathname?.startsWith('/chat');
+  const cooldownMs = isChatPage ? 5000 : CONVERSATIONS_FETCH_COOLDOWN_MS;
 
-    // Bersihkan percakapan di Dexie yang tidak menjadi hak akses pengguna aktif
-    let currentUser = null;
+  if (!force && (now - lastConversationsFetchTime < cooldownMs)) {
     try {
-      currentUser = JSON.parse(sessionStorage.getItem('user') || localStorage.getItem('user') || '{}');
+      if (db.conversations) {
+        return await db.conversations.orderBy('updatedAt').reverse().toArray();
+      }
     } catch {}
+    return [];
+  }
 
-    const myId = currentUser?.uuid || currentUser?.id || currentUser?.userId;
-    const myUsername = (currentUser?.username || '').toLowerCase().trim();
+  if (inFlightConversationsPromise) {
+    return inFlightConversationsPromise;
+  }
 
-    if (myId || myUsername) {
-      const allLocal = await db.conversations.toArray();
-      const serverConvIds = new Set(conversations.map((c) => c.id));
+  inFlightConversationsPromise = (async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/chat/conversations`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error('Gagal memuat percakapan dari server.');
+      const json = await res.json();
+      lastConversationsFetchTime = Date.now();
+      const conversations = json.data || [];
 
-      for (const localConv of allLocal) {
-        const isMember = localConv.members?.some((m) => {
-          const mUserId = m.userId || m.user?.id || m.user?.uuid;
-          const mUsername = (m.user?.username || '').toLowerCase().trim();
-          return (
-            (mUserId && (mUserId === myId || mUserId === currentUser?.id || mUserId === currentUser?.uuid)) ||
-            (myUsername && mUsername === myUsername)
-          );
-        });
+      // Bersihkan percakapan di Dexie yang tidak menjadi hak akses pengguna aktif
+      let currentUser = null;
+      try {
+        currentUser = JSON.parse(sessionStorage.getItem('user') || localStorage.getItem('user') || '{}');
+      } catch {}
 
-        // Jika percakapan tidak ada dalam respon server dan user adalah kasir / bukan member, bersihkan
-        if (!serverConvIds.has(localConv.id) && (!isMember || currentUser?.role === 'kasir')) {
-          await db.conversations.delete(localConv.id);
-          await db.messages.where('conversationId').equals(localConv.id).delete();
+      const myId = currentUser?.uuid || currentUser?.id || currentUser?.userId;
+      const myUsername = (currentUser?.username || '').toLowerCase().trim();
+
+      if (myId || myUsername) {
+        const allLocal = await db.conversations.toArray();
+        const serverConvIds = new Set(conversations.map((c) => c.id));
+
+        for (const localConv of allLocal) {
+          const isMember = localConv.members?.some((m) => {
+            const mUserId = m.userId || m.user?.id || m.user?.uuid;
+            const mUsername = (m.user?.username || '').toLowerCase().trim();
+            return (
+              (mUserId && (mUserId === myId || mUserId === currentUser?.id || mUserId === currentUser?.uuid)) ||
+              (myUsername && mUsername === myUsername)
+            );
+          });
+
+          // Jika percakapan tidak ada dalam respon server dan user adalah kasir / bukan member, bersihkan
+          if (!serverConvIds.has(localConv.id) && (!isMember || currentUser?.role === 'kasir')) {
+            await db.conversations.delete(localConv.id);
+            await db.messages.where('conversationId').equals(localConv.id).delete();
+          }
         }
       }
-    }
 
-    // Perbarui cache Dexie
-    if (conversations.length > 0) {
-      await db.conversations.bulkPut(conversations);
-    }
+      // Perbarui cache Dexie
+      if (conversations.length > 0) {
+        await db.conversations.bulkPut(conversations);
+      }
 
-    return conversations;
-  } catch (error) {
-    console.warn('[Chat] Menggunakan cache percakapan lokal dari Dexie:', error);
-    return await db.conversations.orderBy('updatedAt').reverse().toArray();
-  }
+      return conversations;
+    } catch (error) {
+      console.warn('[Chat] Menggunakan cache percakapan lokal dari Dexie:', error);
+      return (await db.conversations?.orderBy('updatedAt').reverse().toArray()) || [];
+    } finally {
+      inFlightConversationsPromise = null;
+    }
+  })();
+
+  return inFlightConversationsPromise;
 }
 
 /**

@@ -18,6 +18,7 @@ import { getSubscriptionReport, isTrialExpired, isPaidExpired } from '../service
 import { QRCodeSVG } from '../components/common/QRCodeSVG';
 import { Skeleton, OrderDetailSkeleton } from '../components/common/Skeleton';
 import { db } from '../db';
+import { playSuccessChime } from '../utils/soundHelper';
 
 const isSameInventory = (a, b) => {
   if (!a || !b) return false;
@@ -29,6 +30,47 @@ const isSameInventory = (a, b) => {
   return false;
 };
 
+// Komponen Counter Angka Terisolasi (Render 60fps Halus Tanpa Re-render Parent)
+const AnimatedCounter = ({ target, duration = 1100 }) => {
+  const [val, setVal] = useState(0);
+
+  useEffect(() => {
+    const endVal = Number(target) || 0;
+    if (endVal <= 0) {
+      setVal(0);
+      return;
+    }
+
+    setVal(0);
+    const startTime = performance.now();
+    let animationFrameId;
+
+    const animate = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // Quartic ease-out: akselerasi responsif di awal, lalu melambat sangat halus di akhir
+      const easeOut = 1 - Math.pow(1 - progress, 4);
+      const currentVal = Math.round(easeOut * endVal);
+
+      setVal(currentVal);
+
+      if (progress < 1) {
+        animationFrameId = requestAnimationFrame(animate);
+      } else {
+        setVal(endVal);
+      }
+    };
+
+    animationFrameId = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    };
+  }, [target, duration]);
+
+  return <span>Rp {val.toLocaleString('id-ID')}</span>;
+};
+
 const OrderDetail = ({ user }) => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -37,6 +79,7 @@ const OrderDetail = ({ user }) => {
   const settings = useLiveQuery(getSettingsQuery);
 
   const allUsers = useLiveQuery(() => db.users.toArray(), []);
+  const allInventory = useLiveQuery(getInventoryQuery);
   const currentUser = user || JSON.parse(typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('user') || '{}') : '{}');
   const isOwner = currentUser?.role === 'owner';
 
@@ -45,16 +88,6 @@ const OrderDetail = ({ user }) => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [showCashierNoteModal, setShowCashierNoteModal] = useState(false);
-
-  const getKasirUsername = () => {
-    if (order?.kasirUsername) return order.kasirUsername;
-    if (order?.user?.username) return order.user.username;
-    if (order?.userId && allUsers) {
-      const u = allUsers.find(userItem => userItem.uuid === order.userId || String(userItem.id) === String(order.userId));
-      if (u) return u.username || u.fullname;
-    }
-    return '-';
-  };
   const [showHpModal, setShowHpModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
@@ -67,7 +100,14 @@ const OrderDetail = ({ user }) => {
   const [isCompactDrawer, setIsCompactDrawer] = useState(false);
   const [showFloatingDrawer, setShowFloatingDrawer] = useState(true);
 
-  const allInventory = useLiveQuery(getInventoryQuery);
+  // State untuk Floating Popup Pembayaran (mirip Transaksi)
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [payMetodeBayar, setPayMetodeBayar] = useState('Cash');
+  const [payIsLunas, setPayIsLunas] = useState(true);
+  const [payNominal, setPayNominal] = useState('');
+  const [isSubmittingPay, setIsSubmittingPay] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successPayData, setSuccessPayData] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -111,6 +151,16 @@ const OrderDetail = ({ user }) => {
       </div>
     );
   }
+
+  const getKasirUsername = () => {
+    if (order?.kasirUsername) return order.kasirUsername;
+    if (order?.user?.username) return order.user.username;
+    if (order?.userId && allUsers) {
+      const u = allUsers.find(userItem => userItem.uuid === order.userId || String(userItem.id) === String(order.userId));
+      if (u) return u.username || u.fullname;
+    }
+    return '-';
+  };
 
   const currentStatus = order?.status || 'Proses';
   // Catatan pelanggan tidak bisa diedit jika status sudah Selesai, Ambil, atau Dibatalkan
@@ -234,6 +284,76 @@ const OrderDetail = ({ user }) => {
       }
     } catch (error) {
       toast.error(TOAST_MESSAGES.ERROR);
+    }
+  };
+
+  // Hitung sisa tagihan yang harus dibayar
+  const tagihanToPay = (order?.statusBayar === 'DP' && Number(order?.bayar) > 0)
+    ? Math.max(0, Number(order.total || 0) - Number(order.bayar || 0))
+    : Number(order?.total || 0);
+
+  const parsedPayNominal = payNominal !== '' ? Math.max(0, Number(payNominal) || 0) : null;
+  const effectivePayBayar = parsedPayNominal !== null ? parsedPayNominal : (payIsLunas ? tagihanToPay : 0);
+  const payKembalian = payIsLunas ? Math.max(0, effectivePayBayar - tagihanToPay) : 0;
+  const paySisaTagihan = Math.max(0, tagihanToPay - effectivePayBayar);
+
+  const handleOpenPayModal = () => {
+    setPayMetodeBayar(order?.metodeBayar || 'Cash');
+    setPayIsLunas(true);
+    setPayNominal('');
+    setShowPayModal(true);
+  };
+
+  const handleQuickNominal = (val) => {
+    if (val === 'pas') {
+      setPayNominal(tagihanToPay.toString());
+    } else {
+      setPayNominal(val.toString());
+    }
+  };
+
+  const handleConfirmPayment = async () => {
+    if (isSubmittingPay || !order) return;
+    setIsSubmittingPay(true);
+    try {
+      const finalBayar = parsedPayNominal !== null ? parsedPayNominal : (payIsLunas ? tagihanToPay : 0);
+      const finalKembalian = payIsLunas ? Math.max(0, finalBayar - tagihanToPay) : 0;
+      const totalPaidCumulative = ((order.statusBayar === 'DP' ? Number(order.bayar || 0) : 0) + (finalBayar - finalKembalian));
+      const isNowLunas = payIsLunas || totalPaidCumulative >= Number(order.total || 0);
+
+      const newStatusBayar = isNowLunas
+        ? getStatusLunasByMetode(payMetodeBayar)
+        : (totalPaidCumulative > 0 ? 'DP' : 'Belum Lunas');
+
+      await updateOrder(order.id, {
+        statusBayar: newStatusBayar,
+        bayar: totalPaidCumulative,
+        kembalian: finalKembalian,
+        metodeBayar: payMetodeBayar,
+      });
+
+      syncOrderToBackend(order.id).catch(err => console.warn('[Sync] order error:', err));
+
+      setShowPayModal(false);
+      playSuccessChime();
+
+      setSuccessPayData({
+        id: order.id,
+        invoiceId: order.invoiceId || `#${order.id}`,
+        pelangganNama: pelanggan?.nama || order.pelangganNama || 'Pelanggan Umum',
+        total: tagihanToPay,
+        bayar: finalBayar,
+        kembalian: finalKembalian,
+        metodeBayar: payMetodeBayar,
+        isLunas: isNowLunas,
+      });
+      setShowSuccessModal(true);
+      toast.success('Pembayaran berhasil diproses!');
+    } catch (err) {
+      console.error('[OrderDetail] confirm payment error:', err);
+      toast.error(err?.message || TOAST_MESSAGES.ERROR);
+    } finally {
+      setIsSubmittingPay(false);
     }
   };
 
@@ -822,7 +942,7 @@ const OrderDetail = ({ user }) => {
                         type="button"
                         className="btn btn-primary rounded-pill px-3 py-1 fw-bold d-flex align-items-center justify-content-center gap-1 shadow-xs flex-fill text-nowrap"
                         style={{ fontSize: '0.78rem', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
-                        onClick={() => navigate('/pembayaran', { state: { orderData: order, isPaymentOnly: true } })}
+                        onClick={handleOpenPayModal}
                         title="Bayar Sekarang"
                       >
                         <i className="bi bi-wallet2"></i>
@@ -893,15 +1013,15 @@ const OrderDetail = ({ user }) => {
                 </div>
               ) : (
                 /* MODE PENUH (EXPANDED): Semua Tombol Dikeluarkan & Disusun Rapi */
-                <div className="d-flex flex-column gap-2 pt-1">
+                <div className="d-flex flex-column gap-2">
                   {/* Status & Aksi Pembayaran */}
                   {!isStatusLunas(order.statusBayar) ? (
                     <div className="d-flex gap-2">
                       <button
                         type="button"
-                        className="btn btn-primary rounded-pill py-2 fw-bold flex-fill shadow-sm d-flex align-items-center justify-content-center gap-1"
+                        className="btn btn-primary rounded-pill py-2 px-4 fw-bold flex-fill shadow-sm d-flex align-items-center justify-content-center gap-1"
                         style={{ fontSize: '0.84rem' }}
-                        onClick={() => navigate('/pembayaran', { state: { orderData: order, isPaymentOnly: true } })}
+                        onClick={handleOpenPayModal}
                       >
                         <i className="bi bi-wallet2"></i>
                         <span>Bayar</span>
@@ -909,7 +1029,7 @@ const OrderDetail = ({ user }) => {
                       {order.status !== 'Ambil' && (
                         <button
                           type="button"
-                          className="btn btn-outline-success rounded-pill py-2 fw-bold px-3 d-flex align-items-center justify-content-center gap-1"
+                          className="btn btn-outline-success rounded-pill py-2 fw-bold flex-fill px-2 d-flex align-items-center justify-content-center gap-1"
                           style={{ fontSize: '0.82rem' }}
                           onClick={toggleLunas}
                         >
@@ -919,7 +1039,7 @@ const OrderDetail = ({ user }) => {
                       )}
                     </div>
                   ) : (
-                    <div className="d-flex align-items-center justify-content-between px-2 py-1 rounded-3 bg-success-subtle text-success border border-success-subtle">
+                    <div className="d-flex align-items-center justify-content-between px-2 py-1 rounded-3 bg-success-subtle text-dark border border-success-subtle">
                       <span className="fw-semibold small d-flex align-items-center gap-1" style={{ fontSize: '0.78rem' }}>
                         <i className="bi bi-check-circle-fill fs-6"></i>
                         <span>Lunas ({order.metodeBayar || 'Cash'})</span>
@@ -927,12 +1047,13 @@ const OrderDetail = ({ user }) => {
                       {order.status !== 'Ambil' && (
                         <button
                           type="button"
-                          className="btn btn-sm btn-link text-danger p-0 text-decoration-none fw-semibold"
+                          className="btn btn-sm btn-link text-primary p-0 text-decoration-none fw-semibold"
                           style={{ fontSize: '0.72rem' }}
                           onClick={toggleLunas}
                         >
                           Jadikan Belum Lunas
                         </button>
+                        
                       )}
                     </div>
                   )}
@@ -1362,6 +1483,358 @@ const OrderDetail = ({ user }) => {
               </div>
             </div>
           </>
+        )}
+
+        {/* Floating Modal Pembayaran (Mode Ramping / Kompak Sesuai Mockup) */}
+        {showPayModal && (
+          <>
+            <div
+              className="position-fixed top-0 start-0 w-100 h-100"
+              style={{
+                zIndex: 1060,
+                animation: 'fadeIn 0.2s ease-out',
+              }}
+              onClick={() => !isSubmittingPay && setShowPayModal(false)}
+            ></div>
+            <div
+              className="position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0"
+              style={{
+                maxWidth: '520px',
+                zIndex: 1065,
+                animation: 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+              }}
+            >
+              <div
+                className="bg-white w-100 shadow-lg border"
+                style={{
+                  borderRadius: '20px 20px 0 0',
+                  maxHeight: '90vh',
+                  overflowY: 'auto',
+                  padding: '12px 14px 14px',
+                  boxShadow: '0 -10px 35px rgba(0,0,0,0.22)',
+                }}
+              >
+                {/* Grabber indicator */}
+                <div
+                  className="mx-auto"
+                  style={{
+                    width: '36px',
+                    height: '4px',
+                    backgroundColor: '#cbd5e1',
+                    borderRadius: '10px',
+                    marginBottom: '8px',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => setShowPayModal(false)}
+                ></div>
+
+                {/* Header */}
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <div className="d-flex align-items-center gap-2 overflow-hidden me-2">
+                    <div
+                      className="rounded-circle bg-light d-flex align-items-center justify-content-center text-primary flex-shrink-0 border"
+                      style={{ width: '30px', height: '30px' }}
+                    >
+                      <i className="bi bi-person-fill" style={{ fontSize: '0.88rem' }}></i>
+                    </div>
+                    <div className="overflow-hidden">
+                      <div className="fw-bold text-dark text-truncate" style={{ fontSize: '0.88rem' }}>
+                        {pelanggan?.nama || order.pelangganNama || 'Pelanggan Umum'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="d-flex align-items-center gap-1">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center text-muted border shadow-xs"
+                      style={{ width: '28px', height: '28px' }}
+                      onClick={() => !isSubmittingPay && setShowPayModal(false)}
+                      disabled={isSubmittingPay}
+                      title="Tutup"
+                    >
+                      <i className="bi bi-x-lg" style={{ fontSize: '0.78rem' }}></i>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Total Tagihan Banner Sesuai Mockup */}
+                <div
+                  className="rounded-3 mb-2 d-flex justify-content-between align-items-center py-2 px-3"
+                  style={{
+                    backgroundColor: '#0134d4',
+                    color: '#ffffff',
+                    borderRadius: '14px',
+                  }}
+                >
+                  <div className="fw-bold text-uppercase" style={{ fontSize: '0.72rem', letterSpacing: '0px', opacity: 0.95 }}>
+                    {order.statusBayar === 'DP' ? 'SISA TAGIHAN' : 'TOTAL TAGIHAN'}
+                  </div>
+                  <div className="fw-bolder mb-0 text-white" style={{ fontSize: '1.45rem', lineHeight: 1 }}>
+                    Rp {tagihanToPay.toLocaleString('id-ID')}
+                  </div>
+                </div>
+
+                {/* Status Pembayaran Toggle: Lunas vs Belum Lunas */}
+                <div className="mb-2">
+                  <label className="form-label small fw-bold text-muted text-uppercase mb-1" style={{ fontSize: '0.68rem', letterSpacing: '0.3px' }}>
+                    Status Pembayaran
+                  </label>
+                  <div className="d-flex p-1 rounded-3 bg-light border gap-1">
+                    <button
+                      type="button"
+                      className={`btn flex-fill rounded-2 py-1 fw-bold transition-all border-0 d-flex align-items-center justify-content-center gap-1 ${payIsLunas ? 'btn-success shadow-xs text-white' : 'btn-light text-muted bg-transparent'}`}
+                      style={{ fontSize: '0.8rem', height: '32px' }}
+                      onClick={() => setPayIsLunas(true)}
+                    >
+                      <i className="bi bi-check-circle-fill"></i> Lunas
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn flex-fill rounded-2 py-1 fw-bold transition-all border-0 d-flex align-items-center justify-content-center gap-1 ${!payIsLunas ? 'btn-warning shadow-xs text-dark' : 'btn-light text-muted bg-transparent'}`}
+                      style={{ fontSize: '0.8rem', height: '32px' }}
+                      onClick={() => setPayIsLunas(false)}
+                    >
+                      <i className="bi bi-clock"></i> Belum Lunas
+                    </button>
+                  </div>
+                </div>
+
+                {/* Pilihan Metode Bayar */}
+                <div className="mb-2">
+                  <label className="form-label small fw-bold text-muted text-uppercase mb-1" style={{ fontSize: '0.68rem', letterSpacing: '0.3px' }}>
+                    Metode Pembayaran
+                  </label>
+                  <div className="row g-1">
+                    {[
+                      { key: 'Cash', label: 'Cash', icon: 'bi-cash-stack' },
+                      { key: 'QRIS', label: 'QRIS', icon: 'bi-qr-code' },
+                      { key: 'Transfer', label: 'Transfer', icon: 'bi-bank' },
+                    ].map((item) => (
+                      <div key={item.key} className="col-4">
+                        <button
+                          type="button"
+                          className={`btn w-100 py-1 rounded-2 border d-flex flex-column align-items-center justify-content-center transition-all ${payMetodeBayar === item.key ? 'border-primary bg-primary-subtle text-primary fw-bold shadow-xs' : 'bg-white text-secondary'}`}
+                          onClick={() => setPayMetodeBayar(item.key)}
+                          style={{ height: '48px', fontSize: '0.74rem' }}
+                        >
+                          <i className={`bi ${item.icon} fs-6 mb-0`}></i>
+                          <span className="text-truncate">{item.label}</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Pilihan Nominal Cepat */}
+                <div className="mb-2">
+                  <div className="d-flex justify-content-between align-items-center mb-1">
+                    <label className="form-label small fw-bold text-muted text-uppercase mb-0" style={{ fontSize: '0.68rem', letterSpacing: '0.3px' }}>
+                      {payIsLunas ? 'Pilihan Uang Diterima' : 'Nominal Uang Muka (DP)'}
+                    </label>
+                  </div>
+                  <div className="d-flex align-items-center gap-1 overflow-x-auto no-scrollbar py-0">
+                    <button
+                      type="button"
+                      className={`btn btn-sm ${payNominal === tagihanToPay.toString() ? 'btn-primary text-white' : 'btn-outline-primary'} fw-bold py-0 px-2 rounded-2 text-nowrap`}
+                      style={{ fontSize: '0.68rem', height: '26px', lineHeight: '24px' }}
+                      onClick={() => handleQuickNominal('pas')}
+                    >
+                      Uang Pas
+                    </button>
+                    {[20000, 50000, 100000, 200000].map((nom) => (
+                      <button
+                        key={nom}
+                        type="button"
+                        className={`btn btn-sm ${payNominal === nom.toString() ? 'btn-primary text-white' : 'btn-outline-secondary'} fw-bold py-0 px-2 rounded-2 text-nowrap`}
+                        style={{ fontSize: '0.68rem', height: '26px', lineHeight: '24px' }}
+                        onClick={() => handleQuickNominal(nom)}
+                      >
+                        {nom / 1000}rb
+                      </button>
+                    ))}
+                    {tagihanToPay > 100000 && (
+                      <button
+                        type="button"
+                        className={`btn btn-sm ${payNominal === String(Math.ceil(tagihanToPay / 50000) * 50000) ? 'btn-primary text-white' : 'btn-outline-secondary'} fw-bold py-0 px-2 rounded-2 text-nowrap`}
+                        style={{ fontSize: '0.68rem', height: '26px', lineHeight: '24px' }}
+                        onClick={() => handleQuickNominal(Math.ceil(tagihanToPay / 50000) * 50000)}
+                      >
+                        {(Math.ceil(tagihanToPay / 50000) * 50).toLocaleString()}rb
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Input Nominal Pembayaran (Rp di Kiri) */}
+                <div className="mb-2">
+                  <div className="input-group rounded-2 overflow-hidden border bg-white" style={{ height: '38px' }}>
+                    <span className="input-group-text bg-white border-0 text-muted fw-bold ps-2 pe-1" style={{ fontSize: '0.88rem' }}>
+                      Rp
+                    </span>
+                    <input
+                      id="order-detail-pay-input"
+                      aria-label="Nominal Uang Diterima"
+                      type="number"
+                      className="form-control border-0 px-1 fw-bold text-dark"
+                      style={{
+                        fontSize: '1rem',
+                        height: '38px',
+                        boxShadow: 'none',
+                      }}
+                      placeholder={payIsLunas ? `Uang Pas (${tagihanToPay.toLocaleString('id-ID')})` : '0 (Belum Bayar)'}
+                      value={payNominal}
+                      onChange={(e) => setPayNominal(e.target.value)}
+                      onFocus={(e) => e.target.select()}
+                      min="0"
+                    />
+                    {payNominal && (
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-link text-decoration-none text-muted p-0 pe-2 d-flex align-items-center"
+                        onClick={() => setPayNominal('')}
+                        title="Hapus nominal"
+                      >
+                        <i className="bi bi-x-circle-fill text-secondary" style={{ fontSize: '0.88rem' }}></i>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Rincian Kembalian / Sisa Tagihan (Satu Baris Padat Sesuai Mockup) */}
+                <div className="bg-light px-3 py-2 rounded-3 mb-2 border d-flex justify-content-between align-items-center">
+                  <span className="fw-semibold text-secondary" style={{ fontSize: '0.82rem' }}>
+                    {payIsLunas ? 'Kembalian:' : 'Sisa Tagihan:'}
+                  </span>
+                  <span className={`fw-bolder ${payIsLunas ? 'text-success' : 'text-danger'}`} style={{ fontSize: '1.1rem' }}>
+                    Rp {(payIsLunas ? payKembalian : paySisaTagihan).toLocaleString('id-ID')}
+                  </span>
+                </div>
+
+                {/* Tombol Konfirmasi Selesai Pembayaran */}
+                <button
+                  type="button"
+                  className="btn btn-primary w-100 py-2 rounded-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-1"
+                  style={{ fontSize: '0.96rem', backgroundColor: '#0134d4', borderColor: '#0134d4', height: '42px' }}
+                  onClick={handleConfirmPayment}
+                  disabled={isSubmittingPay}
+                >
+                  {isSubmittingPay ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                      Memproses...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-check2 fs-5"></i>
+                      <span>
+                        {payIsLunas
+                          ? `Bayar`
+                          : (effectivePayBayar > 0
+                            ? `Bayar DP`
+                            : 'Simpan')}
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Modal Sukses Pembayaran dengan Animasi Counter & Suara */}
+        {showSuccessModal && successPayData && (
+          <div
+            className="position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0"
+            style={{
+              maxWidth: '540px',
+              zIndex: 1070,
+              animation: 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          >
+            <div
+              className="bg-white w-100 shadow-lg border d-flex flex-column"
+              style={{
+                borderRadius: '24px 24px 0 0',
+                padding: '16px 18px 20px',
+                boxShadow: '0 -10px 35px rgba(0,0,0,0.22)',
+              }}
+            >
+              {/* Grabber */}
+              <div
+                className="mx-auto"
+                style={{ width: '40px', height: '4px', backgroundColor: '#cbd5e1', borderRadius: '10px', marginBottom: '10px' }}
+              ></div>
+
+              <div className="text-center">
+                <div
+                  className="rounded-circle mx-auto mb-1 d-flex align-items-center justify-content-center"
+                  style={{ width: '48px', height: '48px', backgroundColor: '#dcfce7', color: '#16a34a' }}
+                >
+                  <i className="bi bi-check-lg" style={{ fontSize: '1.75rem' }}></i>
+                </div>
+                <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.05rem' }}>Pembayaran Berhasil!</h5>
+                <p className="text-muted mb-2" style={{ fontSize: '0.72rem' }}>Pembayaran pesanan telah berhasil dicatat & diproses.</p>
+              </div>
+
+              <div
+                className="px-3 py-2 mb-2 d-flex justify-content-between align-items-center"
+                style={{ backgroundColor: '#0134d4', color: '#ffffff', borderRadius: '16px' }}
+              >
+                <div>
+                  <div className="fw-bold text-uppercase" style={{ fontSize: '0.7rem', letterSpacing: '0px', opacity: 0.85 }}>
+                    Total Pembayaran
+                  </div>
+                  {successPayData.isLunas ? (
+                    <span className="badge rounded-pill px-2 py-1 mt-1" style={{ fontSize: '0.66rem', backgroundColor: '#dcfce7', color: '#166534' }}>
+                      <i className="bi bi-check-circle-fill me-1"></i> Lunas
+                    </span>
+                  ) : (
+                    <span className="badge rounded-pill px-2 py-1 mt-1" style={{ fontSize: '0.66rem', backgroundColor: '#fef3c7', color: '#92400e' }}>
+                      <i className="bi bi-clock-fill me-1"></i> DP / Belum Lunas
+                    </span>
+                  )}
+                </div>
+                <div className="fw-bold text-white" style={{ fontSize: '1.45rem' }}>
+                  <AnimatedCounter target={successPayData.total} />
+                </div>
+              </div>
+
+              <div className="text-start bg-light px-3 py-2 rounded-3 border mb-3" style={{ fontSize: '0.78rem' }}>
+                <div className="d-flex justify-content-between mb-1">
+                  <span className="text-muted">No. Nota:</span>
+                  <span className="fw-bold text-dark">{successPayData.invoiceId}</span>
+                </div>
+                <div className="d-flex justify-content-between mb-1">
+                  <span className="text-muted">Pelanggan:</span>
+                  <span className="fw-bold text-dark">{successPayData.pelangganNama}</span>
+                </div>
+                <div className="d-flex justify-content-between mb-1">
+                  <span className="text-muted">Metode Bayar:</span>
+                  <span className="fw-bold text-dark">{successPayData.metodeBayar}</span>
+                </div>
+                {successPayData.kembalian > 0 && (
+                  <div className="d-flex justify-content-between border-top pt-1 mt-1">
+                    <span className="text-muted fw-bold">Kembalian:</span>
+                    <span className="fw-bold text-success">Rp {successPayData.kembalian.toLocaleString('id-ID')}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="d-grid gap-2">
+                <button
+                  type="button"
+                  className="btn btn-primary py-2 rounded-3 fw-bold text-white shadow-sm"
+                  style={{ fontSize: '0.9rem', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    setSuccessPayData(null);
+                  }}
+                >
+                  <i className="bi bi-check-circle me-1"></i> Selesai
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Modal Konfirmasi */}

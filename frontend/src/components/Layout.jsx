@@ -128,11 +128,12 @@ const Layout = ({ user, onLogout }) => {
   // Sinkronisasi data percakapan dari backend saat user aktif (hemat resource jika di luar /chat)
   useEffect(() => {
     if (user) {
-      fetchConversationsFromBackend().catch(() => {});
-      const intervalMs = location.pathname === '/chat' ? 20000 : 120000;
+      const isChat = location.pathname === '/chat';
+      fetchConversationsFromBackend(isChat).catch(() => {});
+      const intervalMs = isChat ? 20000 : 120000;
       const interval = setInterval(() => {
         if (!document.hidden) {
-          fetchConversationsFromBackend().catch(() => {});
+          fetchConversationsFromBackend(isChat).catch(() => {});
         }
       }, intervalMs);
       return () => clearInterval(interval);

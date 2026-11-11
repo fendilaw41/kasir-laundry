@@ -6,6 +6,7 @@ import {
   getAllPlansLocal,
   getPlanByKey,
   syncPlansFromBackend,
+  _resetPlansSyncCooldownForTests,
 } from './plans.js';
 
 vi.mock('../../db.js', () => {
@@ -30,6 +31,7 @@ vi.mock('../../db.js', () => {
 describe('plans repository', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    _resetPlansSyncCooldownForTests();
     await db.plans.clear();
   });
 
@@ -101,5 +103,36 @@ describe('plans repository', () => {
     const queried = await getPlansQuery();
     expect(queried).toHaveLength(2);
     expect(queried[0].maxTransactions).toBe(50);
+  });
+
+  it('deduplicates concurrent syncPlansFromBackend calls and respects cooldown', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        plans: [{ key: 'TRIAL', name: 'Trial', maxTransactions: 50 }],
+      }),
+    });
+
+    // Panggil 3 kali bersamaan (concurrent)
+    const [res1, res2, res3] = await Promise.all([
+      syncPlansFromBackend(),
+      syncPlansFromBackend(),
+      syncPlansFromBackend(),
+    ]);
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(res1).toBeDefined();
+    expect(res2).toBeDefined();
+    expect(res3).toBeDefined();
+
+    // Panggilan berikutnya dalam cooldown tidak memicu fetch baru
+    await syncPlansFromBackend();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    // Panggilan dengan force=true memicu fetch baru
+    await syncPlansFromBackend(true);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 });

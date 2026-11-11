@@ -159,6 +159,7 @@ function App() {
         />
         <Route path="/register" element={<RegisterRouteWrapper user={user} />} />
         <Route path="/reset" element={<Reset user={user} />} />
+        <Route path="/reset-cache" element={<Reset user={user} />} />
         {/* Rute Publik: Cek Status Pesanan Tanpa Login */}
         <Route path="/c/:code" element={<PublicTrackOrder />} />
         <Route path="/daftar-toko" element={<RegisterStoreRouteWrapper user={user} />} />
@@ -222,11 +223,13 @@ function ProtectedLayout({ user, onLogout }) {
 }
 
 function ScrollToTop() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
 
   useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [pathname]);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [pathname, search]);
 
   return null;
 }

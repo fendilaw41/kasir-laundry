@@ -119,51 +119,76 @@ export const markAllNotificationsRead = async (user) => {
   }
 };
 
+let inFlightNotificationSync = null;
+let lastNotificationSyncTime = 0;
+const NOTIFICATION_SYNC_COOLDOWN_MS = 30000; // 30 detik cooldown
+
+export const _resetNotificationCooldownForTests = () => {
+  lastNotificationSyncTime = 0;
+  inFlightNotificationSync = null;
+};
+
 /**
  * Sinkronisasi notifikasi terbaru dari backend PostgreSQL ke Dexie
  */
-export const syncNotificationsFromBackend = async () => {
+export const syncNotificationsFromBackend = async (force = false) => {
   if (!db.notifications) return;
-  try {
-    const token = (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null) || sessionStorage.getItem('token');
-    if (!token) return;
-
-    const res = await fetch(`${API_BASE_URL}/notifications`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (res.status === 401) {
-      triggerUnauthorized('Sesi login telah berakhir.');
-      return;
-    }
-    if (!res.ok) return;
-    const data = await res.json();
-    const serverNotifications = data?.notifications || [];
-
-    await db.transaction('rw', db.notifications, async () => {
-      for (const item of serverNotifications) {
-        const existing = await db.notifications.where('uuid').equals(item.id).first();
-        if (!existing) {
-          await db.notifications.add({
-            uuid: item.id,
-            storeId: item.storeId,
-            role: item.role,
-            title: item.title,
-            message: item.message,
-            type: item.type,
-            link: item.link,
-            isRead: item.isRead,
-            createdAt: item.createdAt,
-            isDirty: 0,
-          });
-        } else if (existing.isRead !== item.isRead) {
-          await db.notifications.update(existing.id, { isRead: item.isRead });
-        }
-      }
-    });
-  } catch (err) {
-    console.warn('[Notification] Sync notifications from backend warning:', err);
+  const now = Date.now();
+  if (!force && (now - lastNotificationSyncTime < NOTIFICATION_SYNC_COOLDOWN_MS)) {
+    return;
   }
+
+  if (inFlightNotificationSync) {
+    return inFlightNotificationSync;
+  }
+
+  inFlightNotificationSync = (async () => {
+    try {
+      const token = (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null) || sessionStorage.getItem('token');
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/notifications`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (res.status === 401) {
+        triggerUnauthorized('Sesi login telah berakhir.');
+        return;
+      }
+      if (!res.ok) return;
+      const data = await res.json();
+      lastNotificationSyncTime = Date.now();
+      const serverNotifications = data?.notifications || [];
+
+      await db.transaction('rw', db.notifications, async () => {
+        for (const item of serverNotifications) {
+          const existing = await db.notifications.where('uuid').equals(item.id).first();
+          if (!existing) {
+            await db.notifications.add({
+              uuid: item.id,
+              storeId: item.storeId,
+              role: item.role,
+              title: item.title,
+              message: item.message,
+              type: item.type,
+              link: item.link,
+              isRead: item.isRead,
+              createdAt: item.createdAt,
+              isDirty: 0,
+            });
+          } else if (existing.isRead !== item.isRead) {
+            await db.notifications.update(existing.id, { isRead: item.isRead });
+          }
+        }
+      });
+    } catch (err) {
+      console.warn('[Notification] Sync notifications from backend warning:', err);
+    } finally {
+      inFlightNotificationSync = null;
+    }
+  })();
+
+  return inFlightNotificationSync;
 };
