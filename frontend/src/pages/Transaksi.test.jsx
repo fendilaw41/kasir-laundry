@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import Transaksi from './Transaksi';
 import { createOrderFromCheckout } from '../db/repositories/orders';
+import { addProductToCart } from '../db/repositories/cart';
 import { playSuccessChime } from '../utils/soundHelper';
 
 // Mock dependencies
@@ -9,6 +10,7 @@ const mockCartItems = vi.fn();
 const mockDaftarPelanggan = vi.fn();
 const mockInventory = vi.fn();
 const mockDraftOrder = vi.fn();
+const mockProducts = vi.fn();
 
 vi.mock('dexie-react-hooks', () => ({
   useLiveQuery: (queryFn) => {
@@ -18,6 +20,7 @@ vi.mock('dexie-react-hooks', () => ({
 
 vi.mock('../db/repositories/cart', () => ({
   getCartQuery: () => mockCartItems(),
+  addProductToCart: vi.fn(),
   removeProductFromCart: vi.fn(),
   updateCartItemQty: vi.fn(),
   clearCart: vi.fn(),
@@ -33,7 +36,7 @@ vi.mock('../db/repositories/inventory', () => ({
 }));
 
 vi.mock('../db/repositories/products', () => ({
-  getProductsQuery: () => [],
+  getProductsQuery: () => mockProducts(),
 }));
 
 vi.mock('../db/repositories/draftOrder', () => ({
@@ -77,6 +80,7 @@ describe('Transaksi Page', () => {
     mockDaftarPelanggan.mockReturnValue([{ id: 1, nama: 'Budi', hp: '08123456789' }]);
     mockInventory.mockReturnValue([]);
     mockDraftOrder.mockReturnValue({ pelanggan: { id: 1, nama: 'Budi' }, inventory: [] });
+    mockProducts.mockReturnValue([]);
   });
 
   it('mengisi otomatis estimasi menjadi 3 hari jika ada 10 item cuci Reguler (2-3 hari)', () => {
@@ -92,7 +96,6 @@ describe('Transaksi Page', () => {
 
     const estimasiInput = screen.getByLabelText(/Estimasi/i);
     expect(estimasiInput).toBeDefined();
-    // Harus bernilai 3 otomatis (nilai terlama dari 2-3 hari)
     expect(estimasiInput.value).toBe('3');
   });
 
@@ -106,7 +109,6 @@ describe('Transaksi Page', () => {
     render(<Transaksi />);
 
     const estimasiInput = screen.getByLabelText(/Estimasi/i);
-    // max(1, 4) = 4 hari
     expect(estimasiInput.value).toBe('4');
   });
 
@@ -120,7 +122,6 @@ describe('Transaksi Page', () => {
     const estimasiInput = screen.getByLabelText(/Estimasi/i);
     expect(estimasiInput.value).toBe('3');
 
-    // Kasir mengubah ke 5 hari
     fireEvent.change(estimasiInput, { target: { value: '5' } });
     expect(estimasiInput.value).toBe('5');
   });
@@ -133,6 +134,10 @@ describe('Transaksi Page', () => {
 
     render(<Transaksi />);
 
+    // Buka modal pelanggan dengan tombol person-plus
+    const personBtn = screen.getByTitle('Pilih / Tambah Pelanggan');
+    fireEvent.click(personBtn);
+
     expect(screen.getAllByText('Pelanggan Umum').length).toBeGreaterThan(0);
   });
 
@@ -144,19 +149,20 @@ describe('Transaksi Page', () => {
 
     render(<Transaksi />);
 
-    // Drawer aktif secara default (Docked Bottom)
-    expect(screen.getByText('Pembayaran Kasir')).toBeDefined();
+    expect(screen.getByText('TOTAL TAGIHAN')).toBeDefined();
     expect(screen.getByRole('button', { name: 'Uang Pas' })).toBeDefined();
     expect(screen.getByRole('button', { name: '20rb' })).toBeDefined();
     expect(screen.getByRole('button', { name: '50rb' })).toBeDefined();
     expect(screen.getByRole('button', { name: '100rb' })).toBeDefined();
 
-    // Klik tombol 50rb
     const btn50rb = screen.getByRole('button', { name: '50rb' });
     fireEvent.click(btn50rb);
 
+    // Input nominal terisi otomatis, kembalian terhitung, dan tombol bayar memuat nominal
     const nominalInput = screen.getByLabelText(/Nominal Uang Diterima/i);
     expect(nominalInput.value).toBe('50000');
+    expect(screen.getAllByText('Rp 25.000').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: /Bayar • Rp 25\.000/i })).toBeDefined();
   });
 
   it('jika nominal tidak diisi, pembayaran otomatis lunas sesuai tagihan dan memutar suara sukses', async () => {
@@ -167,10 +173,9 @@ describe('Transaksi Page', () => {
 
     render(<Transaksi />);
 
-    expect(screen.getByText('Pembayaran Kasir')).toBeDefined();
+    expect(screen.getByText('TOTAL TAGIHAN')).toBeDefined();
 
-    // Nominal dibiarkan kosong, langsung klik tombol Bayar dari floating dock
-    const submitBtn = screen.getByRole('button', { name: /^Bayar$/i });
+    const submitBtn = screen.getByRole('button', { name: /^Bayar •/i });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -198,41 +203,85 @@ describe('Transaksi Page', () => {
 
     render(<Transaksi />);
 
-    expect(screen.getByText('Pembayaran Kasir')).toBeDefined();
+    expect(screen.getByText('TOTAL TAGIHAN')).toBeDefined();
 
-    // Default: Tombol perbesar (bi-arrows-angle-expand) tersedia
     const toggleBtn = screen.getByTitle('Perbesar tampilan drawer');
     expect(toggleBtn).toBeDefined();
 
-    // Klik tombol perbesar -> berubah menjadi tombol perkecil
     fireEvent.click(toggleBtn);
     expect(screen.getByTitle('Perkecil tampilan drawer')).toBeDefined();
 
-    // Klik tombol perkecil -> kembali ke mode ringkas
     const contractBtn = screen.getByTitle('Perkecil tampilan drawer');
     fireEvent.click(contractBtn);
     expect(screen.getByTitle('Perbesar tampilan drawer')).toBeDefined();
 
-    // Test tombol close drawer
+    // Tombol close menutup drawer pembayaran
     const closeBtn = screen.getByTitle('Tutup Pembayaran');
     fireEvent.click(closeBtn);
-    expect(screen.getByRole('button', { name: /^Bayar$/i })).toBeDefined();
+    expect(screen.queryByText('TOTAL TAGIHAN')).toBeNull();
   });
 
-  it('mengklik tombol "New" pada daftar layanan membuka modal popup pemilihan produk/layanan', async () => {
+  it('menampilkan card layanan langsung di halaman transaksi dan mengetuk card menambahkan produk ke keranjang', async () => {
     mockDraftOrder.mockReturnValue({ pelanggan: null, inventory: [] });
-    mockCartItems.mockReturnValue([
-      { id: 1, name: 'CUCI SETRIKA', price: 20000, quantity: 1 },
+    mockCartItems.mockReturnValue([]);
+    mockProducts.mockReturnValue([
+      { id: 1, name: 'Kilat (4 Jam)', category: 'CUCI SETRIKA', price: 14000, code: 'CSK' },
+      { id: 2, name: 'Kilat (4 Jam)', category: 'SETRIKA SAJA', price: 12000, code: 'SSK' },
     ]);
 
     render(<Transaksi />);
 
-    // Tombol 'New' pada header Layanan Dipilih
-    const newBtn = screen.getByRole('button', { name: /New/i });
-    fireEvent.click(newBtn);
+    // Header Layanan dan kartu layanan langsung tampil tanpa modal
+    expect(screen.getByText('Layanan')).toBeDefined();
+    expect(screen.getByText('Ketuk kartu untuk memilih jenis cuci/setrika')).toBeDefined();
+    expect(screen.getByText('CSK')).toBeDefined();
+    expect(screen.getByText('SSK')).toBeDefined();
 
-    await waitFor(() => {
-      expect(screen.getByText('Pilih Layanan / Produk')).toBeDefined();
-    });
+    // Klik kartu Kilat 14.000 untuk menambah ke keranjang
+    const serviceName = screen.getAllByText(/Kilat/i)[0];
+    fireEvent.click(serviceName);
+
+    expect(addProductToCart).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 1, name: 'Kilat (4 Jam)', price: 14000 }),
+      1
+    );
+  });
+
+  it('card badge diskon membuka modal popup untuk mengatur diskon persentase atau rupiah', async () => {
+    mockDraftOrder.mockReturnValue({ pelanggan: null, inventory: [] });
+    mockCartItems.mockReturnValue([
+      { id: 1, name: 'CUCI SETRIKA', price: 50000, quantity: 1 },
+    ]);
+
+    render(<Transaksi />);
+
+    // Klik card badge Diskon
+    const diskonBadge = screen.getByText('Diskon');
+    fireEvent.click(diskonBadge);
+
+    // Modal popup diskon muncul
+    expect(screen.getByText('Pengaturan Diskon')).toBeDefined();
+    expect(screen.getByText('Persentase (%)')).toBeDefined();
+    expect(screen.getByText('Nominal (Rp)')).toBeDefined();
+    expect(screen.getByText('Terapkan')).toBeDefined();
+  });
+
+  it('card badge delivery dan prioritas menggunakan select pilihan dan dapat diubah', async () => {
+    mockDraftOrder.mockReturnValue({ pelanggan: null, inventory: [] });
+    mockCartItems.mockReturnValue([]);
+
+    render(<Transaksi />);
+
+    // Delivery select
+    const deliverySelect = screen.getByLabelText('Delivery');
+    expect(deliverySelect.value).toBe('Datang Langsung');
+    fireEvent.change(deliverySelect, { target: { value: 'Jemput/Antar' } });
+    expect(deliverySelect.value).toBe('Jemput/Antar');
+
+    // Prioritas select
+    const prioritasSelect = screen.getByLabelText('Prioritas');
+    expect(prioritasSelect.value).toBe('Tidak');
+    fireEvent.change(prioritasSelect, { target: { value: 'Ya' } });
+    expect(prioritasSelect.value).toBe('Ya');
   });
 });

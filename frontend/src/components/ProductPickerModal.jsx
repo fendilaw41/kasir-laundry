@@ -403,7 +403,7 @@ const ProductPickerModal = ({ isOpen, onClose }) => {
             style={{ fontSize: '0.78rem' }}
             onClick={onClose}
           >
-            <i className="bi bi-check-lg me-1"></i>
+            <i className="bi bi-check-lg me-1"></i> Selesai
           </button>
         </div>
       </div>
