@@ -298,7 +298,7 @@ const Register = () => {
                           fontSize: '14px',
                         }}
                         type="text"
-                        placeholder="Contoh: Fendi Pratama"
+                        placeholder="Contoh: John Pratama"
                         value={fullname}
                         onChange={(e) => setFullname(e.target.value)}
                         required
@@ -320,7 +320,7 @@ const Register = () => {
                           fontSize: '14px',
                         }}
                         type="text"
-                        placeholder="Contoh: fendi"
+                        placeholder="Contoh: john"
                         value={username}
                         onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
                         required

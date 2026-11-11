@@ -199,7 +199,7 @@ export class AuthService {
         throw new BadRequestException('Nomor WhatsApp Owner wajib diisi.');
       }
 
-      // Generate Kode Toko unik by system: Prefix Username (uppercase) + '-' + 6 karakter acak (Contoh: FENDI-HSY789)
+      // Generate Kode Toko unik by system: Prefix Username (uppercase) + '-' + 6 karakter acak (Contoh: JOHN-HSY789)
       const cleanPrefix = cleanUsername.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase() || 'STORE';
       let generatedCode = '';
       let isUnique = false;

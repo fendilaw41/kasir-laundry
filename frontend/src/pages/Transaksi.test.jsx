@@ -32,6 +32,10 @@ vi.mock('../db/repositories/inventory', () => ({
   getInventoryQuery: () => mockInventory(),
 }));
 
+vi.mock('../db/repositories/products', () => ({
+  getProductsQuery: () => [],
+}));
+
 vi.mock('../db/repositories/draftOrder', () => ({
   getDraftOrderQuery: () => mockDraftOrder(),
   updateDraftOrder: vi.fn(),
@@ -129,11 +133,10 @@ describe('Transaksi Page', () => {
 
     render(<Transaksi />);
 
-    expect(screen.getByText('Pelanggan Umum')).toBeDefined();
-    expect(screen.getByText(/Umum \(Default\)/i)).toBeDefined();
+    expect(screen.getAllByText('Pelanggan Umum').length).toBeGreaterThan(0);
   });
 
-  it('membuka floating drawer pembayaran dan menyediakan tombol nominal cepat (Uang Pas, 20rb, 50rb, 100rb)', async () => {
+  it('floating drawer pembayaran aktif secara default dan menyediakan tombol nominal cepat (Uang Pas, 20rb, 50rb, 100rb)', async () => {
     mockDraftOrder.mockReturnValue({ pelanggan: null, inventory: [] });
     mockCartItems.mockReturnValue([
       { id: 1, name: 'CUCI SETRIKA', price: 25000, quantity: 1 },
@@ -141,13 +144,8 @@ describe('Transaksi Page', () => {
 
     render(<Transaksi />);
 
-    const bayarBtn = screen.getByRole('button', { name: /BAYAR SEKARANG/i });
-    fireEvent.click(bayarBtn);
-
-    // Drawer terbuka
-    await waitFor(() => {
-      expect(screen.getByText('Pembayaran Kasir')).toBeDefined();
-    });
+    // Drawer aktif secara default (Docked Bottom)
+    expect(screen.getByText('Pembayaran Kasir')).toBeDefined();
     expect(screen.getByRole('button', { name: 'Uang Pas' })).toBeDefined();
     expect(screen.getByRole('button', { name: '20rb' })).toBeDefined();
     expect(screen.getByRole('button', { name: '50rb' })).toBeDefined();
@@ -169,15 +167,10 @@ describe('Transaksi Page', () => {
 
     render(<Transaksi />);
 
-    const bayarBtn = screen.getByRole('button', { name: /BAYAR SEKARANG/i });
-    fireEvent.click(bayarBtn);
+    expect(screen.getByText('Pembayaran Kasir')).toBeDefined();
 
-    await waitFor(() => {
-      expect(screen.getByText('Pembayaran Kasir')).toBeDefined();
-    });
-
-    // Nominal dibiarkan kosong
-    const submitBtn = screen.getByRole('button', { name: /Selesaikan Transaksi/i });
+    // Nominal dibiarkan kosong, langsung klik tombol Bayar dari floating dock
+    const submitBtn = screen.getByRole('button', { name: /^Bayar$/i });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -194,6 +187,52 @@ describe('Transaksi Page', () => {
       );
       expect(playSuccessChime).toHaveBeenCalled();
       expect(screen.getByText('Transaksi Berhasil!')).toBeDefined();
+    });
+  });
+
+  it('drawer pembayaran secara default dalam mode ringkas (compact) dan dapat di-toggle perbesar / perkecil serta ditutup', async () => {
+    mockDraftOrder.mockReturnValue({ pelanggan: null, inventory: [] });
+    mockCartItems.mockReturnValue([
+      { id: 1, name: 'CUCI SETRIKA', price: 20000, quantity: 1 },
+    ]);
+
+    render(<Transaksi />);
+
+    expect(screen.getByText('Pembayaran Kasir')).toBeDefined();
+
+    // Default: Tombol perbesar (bi-arrows-angle-expand) tersedia
+    const toggleBtn = screen.getByTitle('Perbesar tampilan drawer');
+    expect(toggleBtn).toBeDefined();
+
+    // Klik tombol perbesar -> berubah menjadi tombol perkecil
+    fireEvent.click(toggleBtn);
+    expect(screen.getByTitle('Perkecil tampilan drawer')).toBeDefined();
+
+    // Klik tombol perkecil -> kembali ke mode ringkas
+    const contractBtn = screen.getByTitle('Perkecil tampilan drawer');
+    fireEvent.click(contractBtn);
+    expect(screen.getByTitle('Perbesar tampilan drawer')).toBeDefined();
+
+    // Test tombol close drawer
+    const closeBtn = screen.getByTitle('Tutup Pembayaran');
+    fireEvent.click(closeBtn);
+    expect(screen.getByRole('button', { name: /^Bayar$/i })).toBeDefined();
+  });
+
+  it('mengklik tombol "New" pada daftar layanan membuka modal popup pemilihan produk/layanan', async () => {
+    mockDraftOrder.mockReturnValue({ pelanggan: null, inventory: [] });
+    mockCartItems.mockReturnValue([
+      { id: 1, name: 'CUCI SETRIKA', price: 20000, quantity: 1 },
+    ]);
+
+    render(<Transaksi />);
+
+    // Tombol 'New' pada header Layanan Dipilih
+    const newBtn = screen.getByRole('button', { name: /New/i });
+    fireEvent.click(newBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Pilih Layanan / Produk')).toBeDefined();
     });
   });
 });

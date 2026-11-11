@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class RegisterDto {
-  @ApiPropertyOptional({ description: 'Kode Toko / Store Code (opsional, jika kosong dibuat otomatis by system)', example: 'FENDI-HSY789' })
+  @ApiPropertyOptional({ description: 'Kode Toko / Store Code (opsional, jika kosong dibuat otomatis by system)', example: 'JOHN-HSY789' })
   storeCode?: string;
 
   @ApiPropertyOptional({ description: 'Nama Toko / Laundry (wajib jika daftar owner baru)', example: 'Laundry Berkah' })

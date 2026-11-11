@@ -81,16 +81,16 @@ describe('Layout Chat Header Integration', () => {
       <MemoryRouter initialEntries={['/chat']}>
         <Routes>
           <Route element={<Layout user={{ role: 'kasir' }} onLogout={vi.fn()} />}>
-            <Route path="/chat" element={<MockChatPage activeType="user" customTitle="Fendi Kasir" />} />
+            <Route path="/chat" element={<MockChatPage activeType="user" customTitle="John Kasir" />} />
           </Route>
         </Routes>
       </MemoryRouter>
     );
 
     // Nama partner tampil
-    expect(screen.getByText('Fendi Kasir')).not.toBeNull();
+    expect(screen.getByText('John Kasir')).not.toBeNull();
     expect(screen.getByText('Kasir Cabang')).not.toBeNull();
-    expect(screen.getByText('F')).not.toBeNull(); // Avatar huruf
+    expect(screen.getByText('J')).not.toBeNull(); // Avatar huruf (dari nama John)
 
     // "+ Chat Baru" hilang
     expect(screen.queryByText('Chat Baru')).toBeNull();
