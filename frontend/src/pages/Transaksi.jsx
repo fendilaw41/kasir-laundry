@@ -11,6 +11,11 @@ import { getProductsQuery } from '../db/repositories/products';
 import { addProductToCart } from '../db/repositories/cart';
 import { playSuccessChime } from '../utils/soundHelper';
 
+// Tinggi menu bawah aplikasi (px). Tombol Bayar yang ditutup menempel tepat di atasnya.
+const BOTTOM_MENU_HEIGHT = 64;
+// Jarak form ke drawer pembayaran dirapatkan sebesar ini (px). Naikkan angkanya = makin rapat.
+const DRAWER_GAP_TRIM = 36;
+
 // Custom Hook untuk Horizontal Scrolling yang Mulus (Touch, Mouse Drag, & Mouse Wheel)
 const useHorizontalScroll = () => {
   const ref = useRef(null);
@@ -151,6 +156,7 @@ const Transaksi = () => {
 
   // Ukur tinggi drawer pembayaran agar konten di belakangnya selalu punya ruang scroll yang pas
   const drawerRef = useRef(null);
+  const lastDrawerHeightRef = useRef(0);
   const [drawerHeight, setDrawerHeight] = useState(0);
 
   // State untuk Search Pelanggan
@@ -172,7 +178,10 @@ const Transaksi = () => {
       setDrawerHeight(0);
       return undefined;
     }
-    const update = () => setDrawerHeight(el.offsetHeight);
+    const update = () => {
+      lastDrawerHeightRef.current = el.offsetHeight;
+      setDrawerHeight(el.offsetHeight);
+    };
     update();
     if (typeof ResizeObserver === 'undefined') return undefined;
     const ro = new ResizeObserver(update);
@@ -401,16 +410,10 @@ const Transaksi = () => {
       style={{
         borderRadius: '20px',
         maxWidth: '580px',
-        marginBottom: showPaymentDrawer ? '16px' : '85px',
+        marginBottom: showPaymentDrawer ? '0px' : `${BOTTOM_MENU_HEIGHT + 56}px`,
       }}
     >
       <div className="card-body p-3">
-
-        {/* Section Header Layanan */}
-        <div className="mb-2 px-1">
-          <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.05rem' }}>Layanan</h5>
-          <small className="text-muted" style={{ fontSize: '0.72rem' }}>Ketuk kartu untuk memilih jenis cuci/setrika</small>
-        </div>
 
         {/* Search Produk + Filter Kategori (sejajar dalam satu baris) */}
         <div className="d-flex gap-2 mb-2">
@@ -648,16 +651,16 @@ const Transaksi = () => {
           </div>
         </div>
 
-        {/* Form Order: Delivery, Estimasi, Prioritas, Diskon (2 baris x 2 kolom, input biasa) */}
+        {/* Form Order: Delivery, Estimasi, Prioritas, Diskon (2 baris x 2 kolom, tinggi input seragam) */}
         <div className="row g-2 mb-2">
           <div className="col-6">
-            <label htmlFor="delivery-select" className="form-label fw-bold text-muted mb-1" style={{ fontSize: '0.72rem' }}>
+            <label htmlFor="delivery-select" className="form-label fw-bold text-muted d-block mb-1" style={{ fontSize: '0.72rem', lineHeight: '16px' }}>
               Delivery
             </label>
             <select
               id="delivery-select"
-              className="form-select form-select-sm"
-              style={{ fontSize: '0.82rem' }}
+              className="form-select"
+              style={{ fontSize: '0.82rem', height: '38px' }}
               value={tipeLayanan}
               onChange={(e) => setTipeLayanan(e.target.value)}
             >
@@ -667,14 +670,14 @@ const Transaksi = () => {
           </div>
 
           <div className="col-6">
-            <label htmlFor="estimasi-input" className="form-label fw-bold text-muted mb-1" style={{ fontSize: '0.72rem' }}>
+            <label htmlFor="estimasi-input" className="form-label fw-bold text-muted d-block mb-1" style={{ fontSize: '0.72rem', lineHeight: '16px' }}>
               Estimasi (Hari)
             </label>
             <input
               id="estimasi-input"
               type="number"
-              className="form-control form-control-sm"
-              style={{ fontSize: '0.82rem' }}
+              className="form-control"
+              style={{ fontSize: '0.82rem', height: '38px' }}
               value={estimasi}
               onChange={(e) => setEstimasi(e.target.value)}
               onFocus={(e) => e.target.select()}
@@ -684,13 +687,13 @@ const Transaksi = () => {
           </div>
 
           <div className="col-6">
-            <label htmlFor="prioritas-select" className="form-label fw-bold text-muted mb-1" style={{ fontSize: '0.72rem' }}>
+            <label htmlFor="prioritas-select" className="form-label fw-bold text-muted d-block mb-1" style={{ fontSize: '0.72rem', lineHeight: '16px' }}>
               Prioritas
             </label>
             <select
               id="prioritas-select"
-              className="form-select form-select-sm"
-              style={{ fontSize: '0.82rem' }}
+              className="form-select"
+              style={{ fontSize: '0.82rem', height: '38px' }}
               value={isPriority}
               onChange={(e) => setIsPriority(e.target.value)}
             >
@@ -700,14 +703,22 @@ const Transaksi = () => {
           </div>
 
           <div className="col-6">
-            <label htmlFor="diskon-input" className="form-label fw-bold text-muted mb-1" style={{ fontSize: '0.72rem' }}>
-              Diskon
-            </label>
-            <div className="input-group input-group-sm flex-nowrap">
+            {/* Label Diskon + total potongan di sebelahnya */}
+            <div className="d-flex justify-content-between align-items-baseline gap-1 mb-1" style={{ lineHeight: '16px' }}>
+              <label htmlFor="diskon-input" className="form-label fw-bold text-muted mb-0" style={{ fontSize: '0.72rem', lineHeight: '16px' }}>
+                Diskon
+              </label>
+              {nilaiDiskon > 0 && (
+                <span className="text-danger fw-bold text-truncate" style={{ fontSize: '0.72rem', lineHeight: '16px' }}>
+                  - Rp {nilaiDiskon.toLocaleString('id-ID')}
+                </span>
+              )}
+            </div>
+            <div className="input-group flex-nowrap">
               <select
                 aria-label="Jenis diskon"
-                className="form-select form-select-sm flex-grow-0"
-                style={{ width: '68px', fontSize: '0.82rem' }}
+                className="form-select flex-grow-0"
+                style={{ width: '76px', fontSize: '0.82rem', height: '38px' }}
                 value={diskonTipe}
                 onChange={(e) => setDiskonTipe(e.target.value)}
               >
@@ -718,7 +729,7 @@ const Transaksi = () => {
                 id="diskon-input"
                 type="number"
                 className="form-control"
-                style={{ fontSize: '0.82rem', minWidth: 0 }}
+                style={{ fontSize: '0.82rem', height: '38px', minWidth: 0 }}
                 value={diskonNilai}
                 onChange={(e) => setDiskonNilai(e.target.value)}
                 onFocus={(e) => e.target.select()}
@@ -728,14 +739,9 @@ const Transaksi = () => {
             </div>
           </div>
         </div>
-        {nilaiDiskon > 0 && (
-          <small className="text-danger fw-bold d-block px-1" style={{ fontSize: '0.72rem' }}>
-            Potongan: - Rp {nilaiDiskon.toLocaleString('id-ID')}
-          </small>
-        )}
 
-        {/* Spacer setinggi drawer pembayaran agar form paling bawah tetap bisa di-scroll dan tidak tertutup */}
-        {showPaymentDrawer && <div aria-hidden="true" style={{ height: `${drawerHeight}px` }}></div>}
+        {/* Spacer setinggi drawer pembayaran (dikurangi DRAWER_GAP_TRIM agar rapat) supaya form paling bawah tetap bisa di-scroll sampai terlihat */}
+        {showPaymentDrawer && <div aria-hidden="true" style={{ height: `${Math.max(0, drawerHeight - DRAWER_GAP_TRIM)}px` }}></div>}
       </div>
 
       {/* Floating Bottom Drawer Pembayaran (Docked Bottom) */}
@@ -1083,10 +1089,10 @@ const Transaksi = () => {
             </button>
           </div>
         </div>
-      ) : (
+      ) : !showSuccessModal && (
         <div
-          className="position-fixed bottom-0 start-50 translate-middle-x mb-5 text-center"
-          style={{ zIndex: 1050, animation: 'fadeIn 0.2s ease-out' }}
+          className="position-fixed start-50 translate-middle-x text-center"
+          style={{ bottom: `${BOTTOM_MENU_HEIGHT + 8}px`, zIndex: 1050, animation: 'fadeIn 0.2s ease-out' }}
         >
           <button
             type="button"
@@ -1100,67 +1106,77 @@ const Transaksi = () => {
         </div>
       )}
 
-      {/* Modal Sukses Transaksi dengan Animasi Counter dan Suara */}
+      {/* Sukses Transaksi: floating bottom sheet menggantikan drawer pembayaran (tinggi sama, tanpa backdrop/blur) */}
       {showSuccessModal && successOrder && (
         <div
-          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3"
+          className="position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0"
           style={{
-            backgroundColor: 'rgba(15, 23, 42, 0.7)',
-            backdropFilter: 'blur(5px)',
+            maxWidth: '540px',
             zIndex: 1060,
-            animation: 'fadeIn 0.25s ease-out'
+            animation: 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+            pointerEvents: 'none',
           }}
         >
           <div
-            className="bg-white rounded-4 shadow-lg p-3 text-center w-100"
+            className="bg-white w-100 shadow-lg border d-flex flex-column"
             style={{
-              maxWidth: '340px',
-              animation: 'scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+              borderRadius: '22px',
+              minHeight: `${Math.max(lastDrawerHeightRef.current, 320)}px`,
+              padding: '10px 14px 14px',
+              boxShadow: '0 -10px 35px rgba(0,0,0,0.18)',
+              pointerEvents: 'auto',
             }}
           >
+            {/* Grabber (sama dengan drawer pembayaran) */}
             <div
-              className="rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center shadow-xs"
-              style={{
-                width: '48px',
-                height: '48px',
-                backgroundColor: '#dcfce7',
-                color: '#16a34a',
-              }}
+              className="mx-auto"
+              style={{ width: '36px', height: '4px', backgroundColor: '#cbd5e1', borderRadius: '10px', marginBottom: '6px' }}
+            ></div>
+
+            <div className="text-center">
+              <div
+                className="rounded-circle mx-auto mb-1 d-flex align-items-center justify-content-center"
+                style={{ width: '48px', height: '48px', backgroundColor: '#dcfce7', color: '#16a34a' }}
+              >
+                <i className="bi bi-check-lg" style={{ fontSize: '1.75rem' }}></i>
+              </div>
+              <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.05rem' }}>Transaksi Berhasil!</h5>
+              <p className="text-muted mb-2" style={{ fontSize: '0.72rem' }}>Pesanan telah berhasil dicatat & diproses.</p>
+            </div>
+
+            <div
+              className="px-3 py-2 mb-2 d-flex justify-content-between align-items-center"
+              style={{ backgroundColor: '#0134d4', color: '#ffffff', borderRadius: '16px' }}
             >
-              <i className="bi bi-check-lg" style={{ fontSize: '1.75rem' }}></i>
-            </div>
-
-            <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.05rem' }}>Transaksi Berhasil!</h5>
-            <p className="text-muted small mb-2" style={{ fontSize: '0.72rem' }}>Pesanan telah berhasil dicatat & diproses.</p>
-
-            <div className="bg-light p-2 rounded-3 mb-2 border">
-              <small className="text-muted text-uppercase fw-bold d-block" style={{ fontSize: '0.65rem' }}>
-                Total Transaksi
-              </small>
-              <h2 className="fw-bold text-primary mb-0 mt-0" style={{ fontSize: '1.45rem', color: '#0134d4' }}>
+              <div>
+                <div className="fw-bold text-uppercase" style={{ fontSize: '0.7rem', letterSpacing: '0.5px', opacity: 0.85 }}>
+                  Total Transaksi
+                </div>
+                {successOrder.isLunas ? (
+                  <span className="badge rounded-pill px-2 py-0 mt-1" style={{ fontSize: '0.66rem', backgroundColor: '#dcfce7', color: '#166534' }}>
+                    <i className="bi bi-check-circle-fill me-1"></i> Lunas
+                  </span>
+                ) : (
+                  <span className="badge rounded-pill px-2 py-0 mt-1" style={{ fontSize: '0.66rem', backgroundColor: '#fef3c7', color: '#92400e' }}>
+                    <i className="bi bi-clock-fill me-1"></i> Belum Lunas
+                  </span>
+                )}
+              </div>
+              <div className="fw-bold text-white" style={{ fontSize: '1.45rem' }}>
                 Rp {animatedAmount.toLocaleString('id-ID')}
-              </h2>
-              {successOrder.isLunas ? (
-                <span className="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0 mt-1" style={{ fontSize: '0.68rem' }}>
-                  <i className="bi bi-check-circle-fill me-1"></i> Lunas
-                </span>
-              ) : (
-                <span className="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2 py-0 mt-1" style={{ fontSize: '0.68rem' }}>
-                  <i className="bi bi-clock-fill me-1"></i> Belum Lunas
-                </span>
-              )}
+              </div>
             </div>
 
-            <div className="text-start bg-white p-2 rounded-3 border mb-2" style={{ fontSize: '0.75rem' }}>
-              <div className="d-flex justify-content-between mb-0">
+            <div className="text-start bg-light px-2 py-1 rounded-3 border mb-2" style={{ fontSize: '0.75rem' }}>
+              <div className="d-flex justify-content-between">
                 <span className="text-muted">No. Nota:</span>
                 <span className="fw-bold text-dark">{successOrder.invoiceId}</span>
               </div>
-              <div className="d-flex justify-content-between mb-0">
+              <div className="d-flex justify-content-between">
                 <span className="text-muted">Pelanggan:</span>
                 <span className="fw-bold text-dark">{successOrder.pelangganNama}</span>
               </div>
-              <div className="d-flex justify-content-between mb-0">
+              <div className="d-flex justify-content-between">
                 <span className="text-muted">Metode Bayar:</span>
                 <span className="fw-bold text-dark">{successOrder.metodeBayar}</span>
               </div>
@@ -1172,11 +1188,11 @@ const Transaksi = () => {
               )}
             </div>
 
-            <div className="d-grid gap-1">
+            <div className="d-grid gap-2 mt-auto">
               <button
                 type="button"
-                className="btn btn-outline-primary py-1 rounded-3 fw-bold"
-                style={{ fontSize: '0.8rem' }}
+                className="btn btn-outline-primary py-2 rounded-3 fw-bold"
+                style={{ fontSize: '0.85rem' }}
                 onClick={() => {
                   setShowSuccessModal(false);
                   navigate(`/order/${successOrder.id}`);
@@ -1186,8 +1202,8 @@ const Transaksi = () => {
               </button>
               <button
                 type="button"
-                className="btn btn-primary py-1 rounded-3 fw-bold shadow-xs text-white"
-                style={{ fontSize: '0.8rem', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
+                className="btn btn-primary py-2 rounded-3 fw-bold text-white"
+                style={{ fontSize: '0.88rem', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
                 onClick={() => {
                   setShowSuccessModal(false);
                   setSuccessOrder(null);
