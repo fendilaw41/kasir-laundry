@@ -860,7 +860,7 @@ const Transaksi = () => {
             {/* Status Pembayaran Toggle: Lunas vs Belum Lunas */}
             <div className={isCompactPayment ? 'mb-1' : 'mb-3'}>
               {!isCompactPayment && (
-                <label className="form-label small fw-bold text-muted text-uppercase mb-2">Status Pembayaran</label>
+                <label className="form-label small fw-bold text-muted text-uppercase">Status Pembayaran</label>
               )}
               <div className={`d-flex ${isCompactPayment ? 'p-0 rounded-3' : 'p-1 rounded-4'} bg-light border`}>
                 <button
@@ -885,16 +885,16 @@ const Transaksi = () => {
             {/* Pilihan Metode Bayar */}
             <div className={isCompactPayment ? 'mb-1' : 'mb-3'}>
               {!isCompactPayment && (
-                <label className="form-label small fw-bold text-muted text-uppercase mb-2">Metode Pembayaran</label>
+                <label className="form-label small fw-bold text-muted text-uppercase">Metode Pembayaran</label>
               )}
               <div className="row g-1">
                 {[
                   { key: 'Cash', label: 'Cash', icon: 'bi-cash-stack' },
                   { key: 'QRIS', label: 'QRIS', icon: 'bi-qr-code' },
                   { key: 'Transfer', label: 'Transfer', icon: 'bi-bank' },
-                  { key: 'Deposit', label: 'Deposit', icon: 'bi-wallet2' },
+                  // { key: 'Deposit', label: 'Deposit', icon: 'bi-wallet2' },
                 ].map((item) => (
-                  <div key={item.key} className={isCompactPayment ? 'col-3' : 'col-6 col-sm-3'}>
+                  <div key={item.key} className={isCompactPayment ? 'col-4' : 'col-4 col-sm-3'}>
                     <button
                       type="button"
                       className={`btn w-100 ${isCompactPayment ? 'py-1 px-1 rounded-2' : 'py-2 rounded-3'} border d-flex flex-column align-items-center justify-content-center transition-all ${drawerMetodeBayar === item.key ? 'border-primary bg-primary-subtle text-primary fw-bold shadow-xs' : 'bg-white text-dark'}`}

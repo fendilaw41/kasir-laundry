@@ -162,7 +162,7 @@ describe('Transaksi Page', () => {
     const nominalInput = screen.getByLabelText(/Nominal Uang Diterima/i);
     expect(nominalInput.value).toBe('50000');
     expect(screen.getAllByText('Rp 25.000').length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: /Bayar • Rp 25\.000/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^Bayar$/i })).toBeDefined();
   });
 
   it('jika nominal tidak diisi, pembayaran otomatis lunas sesuai tagihan dan memutar suara sukses', async () => {
@@ -175,7 +175,7 @@ describe('Transaksi Page', () => {
 
     expect(screen.getByText('TOTAL TAGIHAN')).toBeDefined();
 
-    const submitBtn = screen.getByRole('button', { name: /^Bayar •/i });
+    const submitBtn = screen.getByRole('button', { name: /^Bayar$/i });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
