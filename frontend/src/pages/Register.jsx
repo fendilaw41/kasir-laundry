@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { registerUser } from '../db/repositories/users';
-import { db } from '../db';
-import { updatePwaManifest, promptPwaInstall, fetchStoreInfoByCode } from '../utils/pwaHelper';
+import { fetchStoreInfoByCode } from '../utils/pwaHelper';
 
 const formatWhatsAppNumber = (rawPhone) => {
   let clean = (rawPhone || '').replace(/\D/g, '');
@@ -19,9 +18,6 @@ const Register = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Mode: 'owner' (Daftar Toko & Owner Baru) atau 'kasir' (Gabung ke Toko yang Sudah Ada)
-  const [registerMode, setRegisterMode] = useState(searchParams.get('mode') === 'kasir' || searchParams.get('code') ? 'kasir' : 'owner');
-
   // Form State
   const [fullname, setFullname] = useState('');
   const [storeName, setStoreName] = useState('');
@@ -30,6 +26,7 @@ const Register = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [storeCodeInput, setStoreCodeInput] = useState(searchParams.get('code') || '');
+  const [existingStoreInfo, setExistingStoreInfo] = useState(null);
 
   // UI State
   const [showPassword, setShowPassword] = useState(false);
@@ -48,12 +45,19 @@ const Register = () => {
   const isPassMatching = password && confirmPassword && password === confirmPassword;
   const isPasswordValid = hasMinLen && hasLower && hasUpper && hasSpecial;
 
-  // Auto detect if code param exists
+  // Auto detect if code param exists from URL (misal setelah registrasi toko baru)
   useEffect(() => {
     const urlCode = searchParams.get('code');
     if (urlCode) {
-      setStoreCodeInput(urlCode.trim().toUpperCase());
-      setRegisterMode('kasir');
+      const cleanCode = urlCode.trim().toUpperCase();
+      setStoreCodeInput(cleanCode);
+      fetchStoreInfoByCode(cleanCode).then((info) => {
+        if (info) {
+          setExistingStoreInfo(info);
+          if (info.name) setStoreName(info.name);
+          if (info.phone) setPhone(info.phone);
+        }
+      });
     }
   }, [searchParams]);
 
@@ -76,7 +80,7 @@ const Register = () => {
       return;
     }
 
-    if (registerMode === 'owner') {
+    if (!storeCodeInput) {
       if (!storeName.trim()) {
         setMessage('Nama Toko / Laundry wajib diisi.');
         return;
@@ -85,30 +89,25 @@ const Register = () => {
         setMessage('Nomor WhatsApp Owner wajib diisi.');
         return;
       }
-    } else {
-      if (!storeCodeInput.trim()) {
-        setMessage('Kode Toko wajib diisi jika mendaftar sebagai kasir.');
-        return;
-      }
     }
 
     setLoading(true);
 
     try {
       const res = await registerUser({
-        storeName: registerMode === 'owner' ? storeName.trim() : undefined,
-        phone: registerMode === 'owner' ? phone.trim() : undefined,
-        storeCode: registerMode === 'kasir' ? storeCodeInput.trim().toUpperCase() : undefined,
+        storeName: storeCodeInput ? (existingStoreInfo?.name || storeName.trim()) : storeName.trim(),
+        phone: storeCodeInput ? (existingStoreInfo?.phone || phone.trim()) : phone.trim(),
+        storeCode: storeCodeInput ? storeCodeInput.trim().toUpperCase() : undefined,
         fullname: fullname.trim(),
         username: username.trim(),
         password,
         confirmPassword,
-        role: registerMode === 'owner' ? 'owner' : 'kasir',
+        role: 'owner',
       });
 
       const finalCode = res.storeCode || (typeof res === 'object' && res.storeCode) || storeCodeInput.toUpperCase();
-      const finalName = res.storeName || storeName.trim();
-      const cleanWa = formatWhatsAppNumber(phone);
+      const finalName = res.storeName || storeName.trim() || existingStoreInfo?.name || 'Laundry';
+      const cleanWa = formatWhatsAppNumber(phone || existingStoreInfo?.phone || '');
       const origin = window.location.origin;
       const activationUrl = `${origin}/login?code=${encodeURIComponent(finalCode)}&activated=true`;
 
@@ -117,7 +116,7 @@ const Register = () => {
       localStorage.setItem('saved_store_code', finalCode);
 
       // Template pesan WhatsApp dengan kode toko BOLD
-      const waMessage = `Halo *${finalName}*,\n\nSelamat! Pendaftaran Toko Laundry dan Akun Owner Anda berhasil didaftarkan di sistem Kasir Laundry:\n\n🏪 *Nama Toko*: ${finalName}\n🔑 *Kode Toko*: *${finalCode}*\n👤 *Username*: ${username.trim()}\n\nSilakan klik tautan resmi aktivasi & login berikut untuk langsung membuka toko Anda:\n👉 ${activationUrl}\n\nSimpan Kode Toko Anda untuk login di perangkat lain atau menambahkan kasir. Terima kasih! 🙏`;
+      const waMessage = `Halo *${finalName}*,\n\nSelamat! Pendaftaran Toko Laundry dan Akun Owner Anda berhasil didaftarkan di sistem Kasir Laundry:\n\n *Nama Toko*: ${finalName}\n *Kode Toko*: *${finalCode}*\n *Username*: ${username.trim()}\n\nSilakan klik tautan resmi aktivasi & login berikut untuk langsung membuka toko Anda:\n ${activationUrl}\n\n Simpan Kode Toko Anda untuk login di perangkat lain atau menambahkan kasir. Terima kasih! 🙏`;
       const waUrl = `https://wa.me/${cleanWa}?text=${encodeURIComponent(waMessage)}`;
 
       setSuccessData({
@@ -129,18 +128,16 @@ const Register = () => {
         waUrl,
       });
 
-      toast.success('Pendaftaran berhasil!');
+      toast.success('Pendaftaran akun Owner berhasil!');
+
+      // Langsung buka WhatsApp owner untuk kirim undangan & link aktivasi
+      if (cleanWa && typeof window !== 'undefined') {
+        window.open(waUrl, '_blank');
+      }
     } catch (err) {
       setMessage(err.message || 'Gagal melakukan pendaftaran.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleCopyCode = () => {
-    if (successData?.storeCode) {
-      navigator.clipboard.writeText(successData.storeCode);
-      toast.success('Kode Toko disalin ke clipboard!');
     }
   };
 
@@ -158,10 +155,10 @@ const Register = () => {
                 <i className="bi bi-shop fs-3"></i>
               </div>
               <h4 className="fw-bold text-dark mb-0" style={{ letterSpacing: '-0.3px' }}>
-                {successData ? 'Pendaftaran Berhasil!' : 'Daftar Kasir Laundry'}
+                {successData ? 'Pendaftaran Berhasil!' : 'Daftar Akun'}
               </h4>
               <p className="text-muted small mb-0" style={{ fontSize: '13px' }}>
-                {successData ? 'Akun dan Toko Anda siap digunakan' : 'Satu akun untuk kelola cucian, kasir & nota otomatis'}
+                {successData ? 'Akun dan Toko Anda siap digunakan' : 'Satu akun owner untuk kelola cucian, kasir & nota otomatis'}
               </p>
             </div>
 
@@ -177,78 +174,40 @@ const Register = () => {
 
                 <h5 className="fw-bold text-dark mb-1">{successData.storeName}</h5>
                 <p className="text-muted small mb-3" style={{ fontSize: '13px' }}>
-                  Toko dan akun Owner berhasil dibuat by system.
+                  Toko dan akun Owner berhasil didaftarkan.
                 </p>
 
-                {/* Box Kode Toko BOLD */}
-                <div className="p-3 rounded-4 mb-3" style={{ backgroundColor: '#f1f5f9', border: '1.5px dashed #0134d4' }}>
-                  <small className="text-muted d-block mb-1 fw-semibold" style={{ fontSize: '11px' }}>KODE TOKO ANDA:</small>
-                  <div className="d-flex align-items-center justify-content-center gap-2">
-                    <span className="fs-3 fw-bolder font-monospace text-primary" style={{ letterSpacing: '1px' }}>
-                      {successData.storeCode}
-                    </span>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-light rounded-circle shadow-xs"
-                      onClick={handleCopyCode}
-                      title="Salin Kode Toko"
-                      style={{ width: '32px', height: '32px' }}
-                    >
-                      <i className="bi bi-clipboard"></i>
-                    </button>
-                  </div>
-                  <small className="text-muted d-block mt-1" style={{ fontSize: '11px' }}>
-                    Simpan kode unik ini untuk login di perangkat kasir lain.
-                  </small>
+                {/* Konfirmasi Undangan & Aktivasi WhatsApp */}
+                <div className="p-3 rounded-3 mb-3 text-center" style={{ backgroundColor: '#f0fdf4', border: '1.5px solid #bbf7d0' }}>
+                  <i className="bi bi-whatsapp text-success fs-2 d-block mb-1"></i>
+                  <h6 className="fw-bold text-success mb-1" style={{ fontSize: '14px' }}>
+                    Undangan Aktivasi Terkirim ke WhatsApp
+                  </h6>
+                  <p className="text-muted small mb-0" style={{ fontSize: '12px' }}>
+                    Silahkan buka WhatsApp dan klik tautan untuk langsung mengaktifkan toko.
+                  </p>
                 </div>
 
                 {/* Tombol Kirim WA & Login */}
                 <div className="d-grid gap-2 mb-2">
-                  <a
-                    href={successData.waUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-success fw-bold py-2.5 rounded-3 d-flex align-items-center justify-content-center gap-2 shadow-sm text-decoration-none"
-                    style={{ fontSize: '14px' }}
-                  >
-                    <i className="bi bi-whatsapp fs-5"></i>
-                    <span>Kirim Kode & Link ke WhatsApp Owner</span>
-                  </a>
-
-                  <button
-                    type="button"
-                    className="btn btn-primary fw-bold py-2.5 rounded-3 shadow-sm"
-                    style={{ fontSize: '14px', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
-                    onClick={() => navigate(`/login?code=${encodeURIComponent(successData.storeCode)}&activated=true`)}
-                  >
-                    Lanjut ke Halaman Login (Aktivasi)
-                  </button>
+                  {successData.phone && (
+                    <a
+                      href={successData.waUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-success fw-bold py-2.5 rounded-3 d-flex align-items-center justify-content-center gap-2 shadow-sm text-decoration-none"
+                      style={{ fontSize: '14px' }}
+                    >
+                      <i className="bi bi-whatsapp fs-5"></i>
+                      <span>Buka WhatsApp Owner</span>
+                    </a>
+                  )}
                 </div>
               </div>
             ) : (
-              /* FORM REGISTRASI UNIFIED */
+              /* FORM REGISTRASI OWNER */
               <div className="card shadow-sm border-0 rounded-4 overflow-hidden bg-white">
                 <div className="card-body p-4">
-                  {/* Mode Switcher: Owner vs Kasir */}
-                  <div className="d-flex p-1 rounded-pill bg-light mb-3" style={{ border: '1px solid #e2e8f0' }}>
-                    <button
-                      type="button"
-                      className={`btn btn-sm rounded-pill flex-fill fw-bold transition-all ${registerMode === 'owner' ? 'btn-primary shadow-xs' : 'text-muted'}`}
-                      style={{ fontSize: '12px', backgroundColor: registerMode === 'owner' ? '#0134d4' : 'transparent', border: 'none' }}
-                      onClick={() => { setRegisterMode('owner'); setMessage(''); }}
-                    >
-                      Daftar Toko Baru (Owner)
-                    </button>
-                    <button
-                      type="button"
-                      className={`btn btn-sm rounded-pill flex-fill fw-bold transition-all ${registerMode === 'kasir' ? 'btn-primary shadow-xs' : 'text-muted'}`}
-                      style={{ fontSize: '12px', backgroundColor: registerMode === 'kasir' ? '#0134d4' : 'transparent', border: 'none' }}
-                      onClick={() => { setRegisterMode('kasir'); setMessage(''); }}
-                    >
-                      Gabung Kasir
-                    </button>
-                  </div>
-
                   {message && (
                     <div className="alert alert-danger border-0 rounded-3 py-2 px-3 small d-flex align-items-center gap-2 mb-3">
                       <i className="bi bi-exclamation-circle-fill fs-5 flex-shrink-0"></i>
@@ -256,9 +215,20 @@ const Register = () => {
                     </div>
                   )}
 
+                  {/* Info Toko Terdaftar jika kode toko disertakan */}
+                  {storeCodeInput && (
+                    <div className="alert alert-primary border-0 rounded-3 py-2 px-3 small d-flex align-items-center gap-2 mb-3">
+                      <i className="bi bi-info-circle-fill fs-5 flex-shrink-0 text-primary"></i>
+                      <div>
+                        <strong>Mendaftarkan Akun Owner</strong> untuk toko{' '}
+                        <strong>{existingStoreInfo?.name || storeName || 'Laundry'}</strong>
+                      </div>
+                    </div>
+                  )}
+
                   <form onSubmit={handleSubmit}>
-                    {/* KHUSUS OWNER: Nama Toko & No WA */}
-                    {registerMode === 'owner' && (
+                    {/* KHUSUS PENDAFTARAN TOKO BARU (TANPA KODE TOKO DI URL) */}
+                    {!storeCodeInput && (
                       <>
                         <div className="form-group mb-2.5">
                           <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
@@ -307,44 +277,16 @@ const Register = () => {
                             />
                           </div>
                           <div className="form-text text-muted" style={{ fontSize: '11px' }}>
-                            Kode toko unik akan otomatis dibuat dan dikirim ke nomor ini.
+                            Tautan undangan dan aktivasi toko akan otomatis dikirim ke nomor ini.
                           </div>
                         </div>
                       </>
                     )}
 
-                    {/* KHUSUS KASIR: Input Kode Toko yang Sudah Ada */}
-                    {registerMode === 'kasir' && (
-                      <div className="form-group mb-2.5">
-                        <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
-                          Kode Toko <span className="text-danger">*</span>
-                        </label>
-                        <input
-                          className="form-control text-uppercase font-monospace fw-bold"
-                          style={{
-                            height: '42px',
-                            backgroundColor: '#f8fafc',
-                            border: '1.5px solid #cbd5e1',
-                            borderRadius: '10px',
-                            fontSize: '14px',
-                            letterSpacing: '1px',
-                          }}
-                          type="text"
-                          placeholder="Contoh: FENDI-HSY789"
-                          value={storeCodeInput}
-                          onChange={(e) => setStoreCodeInput(e.target.value.toUpperCase())}
-                          required
-                        />
-                        <div className="form-text text-muted" style={{ fontSize: '11px' }}>
-                          Minta kode toko dari Owner laundry Anda.
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Nama Lengkap Pengguna */}
+                    {/* Nama Lengkap Owner */}
                     <div className="form-group mb-2.5">
                       <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
-                        Nama Lengkap {registerMode === 'owner' ? 'Owner' : 'Kasir'} <span className="text-danger">*</span>
+                        Nama Lengkap Owner <span className="text-danger">*</span>
                       </label>
                       <input
                         className="form-control"
@@ -383,11 +325,6 @@ const Register = () => {
                         onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
                         required
                       />
-                      {registerMode === 'owner' && username && (
-                        <div className="form-text text-muted" style={{ fontSize: '11px' }}>
-                          Prefix kode toko Anda akan menjadi: <strong>{username.slice(0, 6).toUpperCase()}-XXXXXX</strong>
-                        </div>
-                      )}
                     </div>
 
                     {/* Password */}
@@ -454,7 +391,7 @@ const Register = () => {
 
                     {/* Indikator Validasi Password Ringkas */}
                     {password && (
-                      <div className="p-2.5 rounded-3 mb-3 bg-light" style={{ fontSize: '11px', border: '1px solid #e2e8f0' }}>
+                      <div className="p-3 rounded-3 mb-3 bg-light" style={{ fontSize: '11px', border: '1px solid #e2e8f0' }}>
                         <div className="fw-semibold text-muted mb-1">Ketentuan Keamanan Password:</div>
                         <div className="d-flex flex-wrap gap-x-3 gap-y-1">
                           <span className={hasMinLen ? 'text-success fw-bold' : 'text-muted'}>
@@ -492,11 +429,9 @@ const Register = () => {
                       {loading ? (
                         <div className="d-flex align-items-center justify-content-center gap-2">
                           <div className="spinner-border spinner-border-sm" role="status"></div>
-                          <span>Membuat Toko & Akun...</span>
+                          <span>Membuat Akun Owner...</span>
                         </div>
-                      ) : (
-                        registerMode === 'owner' ? 'Daftar Toko & Buat Kode Toko' : 'Daftar Akun Kasir'
-                      )}
+                      ) : ('Daftar')}
                     </button>
                   </form>
                 </div>
