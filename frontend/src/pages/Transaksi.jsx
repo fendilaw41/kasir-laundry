@@ -1217,11 +1217,11 @@ const Transaksi = () => {
                   Total Transaksi
                 </div>
                 {successOrder.isLunas ? (
-                  <span className="badge rounded-pill px-2 py-0 mt-1" style={{ fontSize: '0.66rem', backgroundColor: '#dcfce7', color: '#166534' }}>
+                  <span className="badge rounded-pill px-2 py-2 mt-1" style={{ fontSize: '0.66rem', backgroundColor: '#dcfce7', color: '#166534' }}>
                     <i className="bi bi-check-circle-fill me-1"></i> Lunas
                   </span>
                 ) : (
-                  <span className="badge rounded-pill px-2 py-0 mt-1" style={{ fontSize: '0.66rem', backgroundColor: '#fef3c7', color: '#92400e' }}>
+                  <span className="badge rounded-pill px-2 py-2 mt-1" style={{ fontSize: '0.66rem', backgroundColor: '#fef3c7', color: '#92400e' }}>
                     <i className="bi bi-clock-fill me-1"></i> Belum Lunas
                   </span>
                 )}
