@@ -178,7 +178,7 @@ const Layout = ({ user, onLogout }) => {
   };
 
   return (
-    <>
+    <div className="desktop-app-frame">
       {/* Header Area */}
       <div className="header-area" id="headerArea">
         <div className="container-fluid h-100 d-flex align-items-center justify-content-between px-3">
@@ -617,7 +617,7 @@ const Layout = ({ user, onLogout }) => {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };
 

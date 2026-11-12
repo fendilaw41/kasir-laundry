@@ -848,7 +848,7 @@ const OrderDetail = ({ user }) => {
 
         {/* FLOATING BOTTOM DRAWER / PANEL AKSI & CETAK SEPERTI DI TRANSAKSI */}
         <div
-          className={DRAWER_FOLLOW_CONTENT ? 'w-100 px-2 pb-0 mx-auto' : 'position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0'}
+          className={DRAWER_FOLLOW_CONTENT ? 'w-100 px-2 pb-0 mx-auto order-detail-drawer' : 'position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0 order-detail-drawer'}
           style={DRAWER_FOLLOW_CONTENT ? {
             position: 'sticky',
             bottom: 0,
@@ -1301,7 +1301,7 @@ const OrderDetail = ({ user }) => {
               onClick={() => setShowHpModal(false)}
             ></div>
             <div
-              className="position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-2"
+              className="position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-2 order-detail-drawer"
               style={{
                 maxWidth: '540px',
                 zIndex: 1065,
@@ -1474,7 +1474,7 @@ const OrderDetail = ({ user }) => {
               onClick={() => !isSubmittingPay && setShowPayModal(false)}
             ></div>
             <div
-              className="position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0"
+              className="position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0 order-detail-drawer"
               style={{
                 maxWidth: '520px',
                 zIndex: 1065,
@@ -1715,7 +1715,7 @@ const OrderDetail = ({ user }) => {
         {/* Modal Sukses Pembayaran dengan Animasi Counter & Suara */}
         {showSuccessModal && successPayData && (
           <div
-            className="position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0"
+            className="position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0 order-detail-drawer"
             style={{
               maxWidth: '540px',
               zIndex: 1070,

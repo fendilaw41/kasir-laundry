@@ -198,7 +198,7 @@ const Chat = ({ user }) => {
 
   return (
     <div
-      className="bg-white"
+      className="bg-white chat-container-fixed"
       style={{
         position: 'fixed',
         top: '50px',

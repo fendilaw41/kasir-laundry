@@ -837,7 +837,7 @@ const Transaksi = ({ user } = {}) => {
       {!showSuccessModal && (
         <div
           ref={drawerRef}
-          className={DRAWER_FOLLOW_CONTENT ? 'w-100 px-2 pb-0 mx-auto' : 'position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0'}
+          className={DRAWER_FOLLOW_CONTENT ? 'w-100 px-2 pb-0 mx-auto transaksi-drawer' : 'position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0 transaksi-drawer'}
           style={DRAWER_FOLLOW_CONTENT ? {
             position: 'sticky',
             bottom: 0,
@@ -1281,7 +1281,7 @@ const Transaksi = ({ user } = {}) => {
       {/* Sukses Transaksi: floating bottom sheet menggantikan drawer pembayaran (tinggi sama, tanpa backdrop/blur) */}
       {showSuccessModal && successOrder && (
         <div
-          className="position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0"
+          className="position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0 transaksi-drawer"
           style={{
             maxWidth: '540px',
             zIndex: 1060,
