@@ -59,6 +59,9 @@ export const setIsEnabledKasir = (val, user) => {
   localStorage.setItem(`user_${userKey}_isEnabledKasir`, String(boolVal));
   localStorage.setItem(`isEnabledKasir_${userKey}`, String(boolVal));
   localStorage.setItem('isEnabledKasir', String(boolVal));
+  localStorage.setItem(`user_${userKey}_showPaymentDrawer`, String(boolVal));
+  localStorage.setItem(`showPaymentDrawer_${userKey}`, String(boolVal));
+  localStorage.setItem('showPaymentDrawer', String(boolVal));
 
   // Update object user di storage
   try {
@@ -210,4 +213,93 @@ export const setIsCompactCetak = (val, user) => {
   const userKey = getUserKey(user);
   localStorage.setItem(`user_${userKey}_isCompactCetak`, String(boolVal));
   localStorage.setItem('isCompactCetak', String(boolVal));
+};
+
+/**
+ * Mengambil setting mode mini drawer pembayaran kasir (mini vs maximize)
+ * Default: true (mode mini)
+ * @param {object|null} user
+ * @returns {boolean}
+ */
+export const getIsMiniPayment = (user) => {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return true;
+  const userKey = getUserKey(user);
+
+  if (userKey && userKey !== 'default') {
+    const userPref = localStorage.getItem(`user_${userKey}_isMiniPayment`);
+    if (userPref !== null) return userPref === 'true';
+
+    const altPref = localStorage.getItem(`isMiniPayment_${userKey}`);
+    if (altPref !== null) return altPref === 'true';
+
+    return true;
+  }
+
+  const legacy = localStorage.getItem('isMiniPayment');
+  if (legacy !== null) return legacy === 'true';
+
+  return true;
+};
+
+/**
+ * Menyimpan setting mode mini drawer pembayaran kasir (mini vs maximize)
+ * @param {boolean} val
+ * @param {object|null} user
+ */
+export const setIsMiniPayment = (val, user) => {
+  const boolVal = Boolean(val);
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+  const userKey = getUserKey(user);
+
+  if (userKey && userKey !== 'default') {
+    localStorage.setItem(`user_${userKey}_isMiniPayment`, String(boolVal));
+    localStorage.setItem(`isMiniPayment_${userKey}`, String(boolVal));
+  }
+  localStorage.setItem('isMiniPayment', String(boolVal));
+};
+
+/**
+ * Mengambil status tampilan drawer pembayaran kasir (terbuka vs tertutup)
+ * Default: true
+ * @param {object|null} user
+ * @returns {boolean}
+ */
+export const getShowPaymentDrawer = (user) => {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return true;
+  const userKey = getUserKey(user);
+
+  if (userKey && userKey !== 'default') {
+    const userPref = localStorage.getItem(`user_${userKey}_showPaymentDrawer`);
+    if (userPref !== null) return userPref === 'true';
+
+    const altPref = localStorage.getItem(`showPaymentDrawer_${userKey}`);
+    if (altPref !== null) return altPref === 'true';
+
+    return getIsEnabledKasir(user);
+  }
+
+  const legacy = localStorage.getItem('showPaymentDrawer');
+  if (legacy !== null) return legacy === 'true';
+
+  return getIsEnabledKasir(user);
+};
+
+/**
+ * Menyimpan status tampilan drawer pembayaran kasir (terbuka vs tertutup)
+ * @param {boolean} val
+ * @param {object|null} user
+ */
+export const setShowPaymentDrawerPref = (val, user) => {
+  const boolVal = Boolean(val);
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+  const userKey = getUserKey(user);
+
+  if (userKey && userKey !== 'default') {
+    localStorage.setItem(`user_${userKey}_showPaymentDrawer`, String(boolVal));
+    localStorage.setItem(`showPaymentDrawer_${userKey}`, String(boolVal));
+  }
+  localStorage.setItem('showPaymentDrawer', String(boolVal));
+
+  // Sinkronkan juga dengan isEnabledKasir
+  setIsEnabledKasir(boolVal, user);
 };

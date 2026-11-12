@@ -6,6 +6,10 @@ import {
   setIsEnabledCetak,
   getIsCompactCetak,
   setIsCompactCetak,
+  getIsMiniPayment,
+  setIsMiniPayment,
+  getShowPaymentDrawer,
+  setShowPaymentDrawerPref,
   getUserKey
 } from './userPreferences';
 
@@ -48,6 +52,37 @@ describe('userPreferences utility', () => {
     setIsCompactCetak(true, mockUser1);
     expect(getIsCompactCetak(mockUser1)).toBe(true);
     expect(getIsCompactCetak(mockUser2)).toBe(false);
+  });
+
+  it('menyimpan dan membaca mode mini drawer kasir isMiniPayment', () => {
+    // Default mode mini harus true
+    expect(getIsMiniPayment(mockUser1)).toBe(true);
+    expect(getIsMiniPayment(mockUser2)).toBe(true);
+
+    // Set user 1 ke maximize (false)
+    setIsMiniPayment(false, mockUser1);
+    expect(getIsMiniPayment(mockUser1)).toBe(false);
+    expect(getIsMiniPayment(mockUser2)).toBe(true);
+
+    // Set user 1 kembali ke mini (true)
+    setIsMiniPayment(true, mockUser1);
+    expect(getIsMiniPayment(mockUser1)).toBe(true);
+  });
+
+  it('menyimpan dan membaca status open/close drawer kasir showPaymentDrawer', () => {
+    // Default harus true
+    expect(getShowPaymentDrawer(mockUser1)).toBe(true);
+
+    // Set user 1 ke close (false)
+    setShowPaymentDrawerPref(false, mockUser1);
+    expect(getShowPaymentDrawer(mockUser1)).toBe(false);
+    expect(getIsEnabledKasir(mockUser1)).toBe(false);
+    expect(getShowPaymentDrawer(mockUser2)).toBe(true);
+
+    // Set user 1 ke open (true)
+    setShowPaymentDrawerPref(true, mockUser1);
+    expect(getShowPaymentDrawer(mockUser1)).toBe(true);
+    expect(getIsEnabledKasir(mockUser1)).toBe(true);
   });
 
   it('memperbarui object user di localStorage dan sessionStorage', () => {

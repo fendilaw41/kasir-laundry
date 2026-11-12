@@ -8,11 +8,15 @@ import PlanGateModal from '../components/PlanGateModal';
 import { createOrderFromCheckout, getOrderByIdQuery } from '../db/repositories/orders';
 import { clearDraftOrder } from '../db/repositories/draftOrder';
 import { getProductsQuery } from '../db/repositories/products';
-import { getSettingsQuery } from '../db/repositories/settings';
 import { addProductToCart } from '../db/repositories/cart';
 import { playSuccessChime } from '../utils/soundHelper';
-import { getIsEnabledKasir, setIsEnabledKasir } from '../utils/userPreferences';
 import { getStoredUser } from '../utils/authSession';
+import {
+  getShowPaymentDrawer,
+  setShowPaymentDrawerPref,
+  getIsMiniPayment,
+  setIsMiniPayment as setIsMiniPaymentPref
+} from '../utils/userPreferences';
 
 // Tinggi menu bawah aplikasi (px). Tombol Bayar yang ditutup menempel tepat di atasnya.
 const BOTTOM_MENU_HEIGHT = 58;
@@ -130,6 +134,7 @@ const useHorizontalScroll = () => {
 
 const Transaksi = ({ user } = {}) => {
   const activeUser = user || getStoredUser();
+
   const {
     cartItems, daftarPelanggan, inventory, navigate,
     selectedPelanggan, setSelectedPelanggan,
@@ -151,25 +156,40 @@ const Transaksi = ({ user } = {}) => {
 
   // Query Daftar Produk untuk ditampilkan langsung di halaman Transaksi
   const products = useLiveQuery(getProductsQuery);
-  const settings = useLiveQuery(getSettingsQuery);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [productSearchTerm, setProductSearchTerm] = useState('');
 
   // Horizontal Scroll Ref untuk Layanan
   const productScrollRef = useHorizontalScroll();
 
-  // State untuk Floating Bottom Sheet / Drawer Pembayaran (Membaca preference isEnabledKasir dari localStorage)
-  const [showPaymentDrawer, setShowPaymentDrawerState] = useState(() => getIsEnabledKasir(activeUser));
+  // State untuk Floating Bottom Sheet / Drawer Pembayaran (Disimpan ke localStorage)
+  const [showPaymentDrawer, setShowPaymentDrawerState] = useState(() => getShowPaymentDrawer(activeUser));
+  // Tampilan drawer pembayaran: true = PENDEK (seperti Order Detail), false = BESAR (lengkap) (Disimpan ke localStorage)
+  const [isMiniPayment, setIsMiniPaymentState] = useState(() => getIsMiniPayment(activeUser));
 
+  // Handler tersinkronisasi ke localStorage
   const setShowPaymentDrawer = (val) => {
-    setShowPaymentDrawerState(val);
-    setIsEnabledKasir(val, activeUser);
+    setShowPaymentDrawerState((prev) => {
+      const nextVal = typeof val === 'function' ? val(prev) : val;
+      setShowPaymentDrawerPref(nextVal, activeUser);
+      return nextVal;
+    });
+  };
+
+  const setIsMiniPayment = (val) => {
+    setIsMiniPaymentState((prev) => {
+      const nextVal = typeof val === 'function' ? val(prev) : val;
+      setIsMiniPaymentPref(nextVal, activeUser);
+      return nextVal;
+    });
   };
 
   useEffect(() => {
-    setShowPaymentDrawerState(getIsEnabledKasir(activeUser));
-  }, [user, activeUser?.id, activeUser?.username]);
-  const [isCompactPayment, setIsCompactPayment] = useState(true);
+    setShowPaymentDrawerState(getShowPaymentDrawer(activeUser));
+    setIsMiniPaymentState(getIsMiniPayment(activeUser));
+  }, [activeUser?.id, activeUser?.uuid, activeUser?.username]);
+
+  const isCompactPayment = true; // ukuran layout versi besar (sudah rapi, tidak diubah)
   const [orderDataPending, setOrderDataPending] = useState(null);
   const [isLunas, setIsLunas] = useState(true);
   const [nominalBayar, setNominalBayar] = useState('');
@@ -209,7 +229,7 @@ const Transaksi = ({ user } = {}) => {
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [showPaymentDrawer, isCompactPayment]);
+  }, [showPaymentDrawer, isMiniPayment]);
 
   // Ekstrak kategori unik dari daftar produk
   const categories = useMemo(() => {
@@ -343,10 +363,6 @@ const Transaksi = ({ user } = {}) => {
   // Proses Selesaikan Pembayaran
   const handleConfirmPayment = async () => {
     if (isSubmitting) return;
-    if (settings?.isTokoTutup) {
-      toast.error('Toko sedang tutup. Transaksi kasir diblokir.');
-      return;
-    }
     setIsSubmitting(true);
     try {
       let currentOrderData = orderDataPending;
@@ -440,22 +456,6 @@ const Transaksi = ({ user } = {}) => {
       }}
     >
       <div className="card-body p-3">
-
-        {/* BANNER TOKO TUTUP */}
-        {settings?.isTokoTutup && (
-          <div
-            className="alert alert-danger border-0 rounded-4 py-2.5 px-3 small d-flex align-items-center gap-2.5 mb-3 shadow-sm"
-            style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' }}
-          >
-            <i className="bi bi-slash-circle-fill fs-5 text-danger flex-shrink-0"></i>
-            <div>
-              <div className="fw-bold" style={{ fontSize: '0.84rem' }}>Toko Sedang Tutup</div>
-              <div style={{ fontSize: '0.74rem', opacity: 0.9 }}>
-                Status operasional toko diatur TUTUP. Pembuatan transaksi baru di kasir diblokir sementara.
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Search Produk + Filter Kategori (sejajar dalam satu baris) */}
         <div className="d-flex gap-2 mb-2">
@@ -877,323 +877,423 @@ const Transaksi = ({ user } = {}) => {
                 marginBottom: isCompactPayment ? '6px' : '12px',
                 cursor: 'pointer'
               }}
-              onClick={() => setIsCompactPayment(!isCompactPayment)}
-              title={isCompactPayment ? 'Klik untuk perbesar' : 'Klik untuk perkecil'}
+              onClick={() => setIsMiniPayment(!isMiniPayment)}
+              title={isMiniPayment ? 'Klik untuk perbesar' : 'Klik untuk perkecil'}
             ></div>
 
-            {/* Header Drawer: Icon & Nama Pelanggan Terpilih di Kiri, Aksi Drawer di Kanan */}
-            <div className={`d-flex justify-content-between align-items-center ${isCompactPayment ? 'mb-2' : 'mb-3'}`}>
-              {/* Info Pelanggan Terpilih (Pengganti Teks Pembayaran Kasir) */}
-              <div
-                className="d-flex align-items-center gap-2 flex-grow-1 overflow-hidden me-2"
-                style={{ cursor: 'pointer' }}
-                onClick={() => {
-                  setIsAdding(false);
-                  setShowModal(true);
-                }}
-                title="Klik untuk memilih / mengganti pelanggan"
-              >
-                <div
-                  className="rounded-circle bg-light d-flex align-items-center justify-content-center text-primary flex-shrink-0 border"
-                  style={{ width: isCompactPayment ? '28px' : '32px', height: isCompactPayment ? '28px' : '32px' }}
-                >
-                  <i className="bi bi-person-fill" style={{ fontSize: isCompactPayment ? '0.85rem' : '0.95rem' }}></i>
-                </div>
-                <div className="overflow-hidden">
-                  <div className="fw-bold text-dark text-truncate" style={{ fontSize: isCompactPayment ? '0.82rem' : '0.9rem' }}>
-                    {selectedPelanggan?.nama || 'Pelanggan Umum'}
+            {isMiniPayment ? (
+              <>
+                {/* ===== Versi PENDEK (mirip Order Detail): pelanggan + status di atas, 3 tombol aksi di bawah ===== */}
+                <div className="d-flex justify-content-between align-items-center gap-2 mb-2">
+                  <div
+                    className="d-flex align-items-center gap-2 flex-grow-1 overflow-hidden"
+                    style={{ cursor: 'pointer', minWidth: 0 }}
+                    onClick={() => {
+                      setIsAdding(false);
+                      setShowModal(true);
+                    }}
+                    title="Klik untuk memilih / mengganti pelanggan"
+                  >
+                    <span className="fw-bold text-dark text-truncate" style={{ fontSize: '0.9rem' }}>
+                      {selectedPelanggan?.nama || 'Pelanggan Umum'}
+                    </span>
+                    <span
+                      className={`badge rounded-pill flex-shrink-0 ${isLunas ? 'bg-success text-white' : 'bg-warning text-dark'}`}
+                      style={{ fontSize: '0.7rem', padding: '5px 10px' }}
+                    >
+                      {isLunas ? 'Lunas' : 'Belum Lunas'}
+                    </span>
                   </div>
-                  {selectedPelanggan?.noHp && !isCompactPayment && (
-                    <div className="text-muted small text-truncate" style={{ fontSize: '0.68rem', lineHeight: 1.1 }}>
-                      {selectedPelanggan.noHp}
-                    </div>
-                  )}
-                </div>
-              </div>
 
-              <div className="d-flex align-items-center gap-1 flex-shrink-0">
-                {/* Tombol Person Plus untuk Memilih / Tambah Pelanggan */}
-                <button
-                  type="button"
-                  className="btn btn-sm btn-outline-primary rounded-circle p-0 d-flex align-items-center justify-content-center shadow-xs"
-                  style={{ width: isCompactPayment ? '28px' : '32px', height: isCompactPayment ? '28px' : '32px' }}
-                  onClick={() => {
-                    setIsAdding(false);
-                    setShowModal(true);
-                  }}
-                  title="Pilih / Tambah Pelanggan"
-                >
-                  <i className="bi bi-person-plus-fill" style={{ fontSize: isCompactPayment ? '0.8rem' : '0.9rem' }}></i>
-                </button>
-                {/* Tombol Toggle Perbesar / Perkecil */}
-                <button
-                  type="button"
-                  className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center text-muted"
-                  style={{ width: isCompactPayment ? '28px' : '32px', height: isCompactPayment ? '28px' : '32px' }}
-                  onClick={() => setIsCompactPayment(!isCompactPayment)}
-                  title={isCompactPayment ? 'Perbesar tampilan drawer' : 'Perkecil tampilan drawer'}
-                >
-                  <i className={`bi ${isCompactPayment ? 'bi-arrows-angle-expand' : 'bi-arrows-angle-contract'}`} style={{ fontSize: isCompactPayment ? '0.75rem' : '0.85rem' }}></i>
-                </button>
-                {/* Tombol Tutup Drawer */}
-                <button
-                  type="button"
-                  className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center text-muted"
-                  style={{ width: isCompactPayment ? '28px' : '32px', height: isCompactPayment ? '28px' : '32px' }}
-                  onClick={() => !isSubmitting && setShowPaymentDrawer(false)}
-                  disabled={isSubmitting}
-                  title="Tutup Pembayaran"
-                  aria-label="Tutup Pembayaran"
-                >
-                  <i className="bi bi-x-lg" style={{ fontSize: isCompactPayment ? '0.75rem' : '0.85rem' }}></i>
-                </button>
-              </div>
-            </div>
-
-            {/* Total Tagihan Banner Sesuai Mockup (Biru Solid / Gradient dengan Teks Putih Tebal) */}
-            <div
-              className={`rounded-4 mb-2 d-flex justify-content-between align-items-center ${isCompactPayment ? 'px-3 py-2' : 'p-3'}`}
-              style={{
-                backgroundColor: '#0134d4',
-                color: '#ffffff',
-                borderRadius: '16px',
-              }}
-            >
-              <div className="fw-bold text-uppercase" style={{ fontSize: isCompactPayment ? '0.78rem' : '0.85rem', letterSpacing: '0.5px' }}>
-                TOTAL TAGIHAN
-              </div>
-              <div className="fw-bold mb-0 text-white" style={{ fontSize: isCompactPayment ? '1.25rem' : '1.75rem' }}>
-                Rp {total.toLocaleString('id-ID')}
-              </div>
-            </div>
-
-            {/* Status Pembayaran Toggle: Lunas vs Belum Lunas */}
-            <div className={isCompactPayment ? 'mb-1' : 'mb-3'}>
-              {!isCompactPayment && (
-                <label className="form-label small fw-bold text-muted text-uppercase">Status Pembayaran</label>
-              )}
-              <div className={`d-flex ${isCompactPayment ? 'p-0 rounded-3' : 'p-1 rounded-4'} bg-light border`}>
-                <button
-                  type="button"
-                  className={`btn flex-fill ${isCompactPayment ? 'rounded-2 py-1' : 'rounded-3 py-2'} fw-bold transition-all border-0 ${isLunas ? 'btn-success shadow-sm text-white' : 'btn-light text-muted bg-transparent'}`}
-                  style={{ fontSize: isCompactPayment ? '0.72rem' : '0.85rem' }}
-                  onClick={() => setIsLunas(true)}
-                >
-                  <i className="bi bi-check-circle-fill me-1"></i> Lunas
-                </button>
-                <button
-                  type="button"
-                  className={`btn flex-fill ${isCompactPayment ? 'rounded-2 py-1' : 'rounded-3 py-2'} fw-bold transition-all border-0 ${!isLunas ? 'btn-warning shadow-sm text-dark' : 'btn-light text-muted bg-transparent'}`}
-                  style={{ fontSize: isCompactPayment ? '0.72rem' : '0.85rem' }}
-                  onClick={() => setIsLunas(false)}
-                >
-                  <i className="bi bi-clock-history me-1"></i> Belum Lunas
-                </button>
-              </div>
-            </div>
-
-            {/* Pilihan Metode Bayar */}
-            <div className={isCompactPayment ? 'mb-1' : 'mb-3'}>
-              {!isCompactPayment && (
-                <label className="form-label small fw-bold text-muted text-uppercase">Metode Pembayaran</label>
-              )}
-              <div className="row g-1">
-                {[
-                  { key: 'Cash', label: 'Cash', icon: 'bi-cash-stack' },
-                  { key: 'QRIS', label: 'QRIS', icon: 'bi-qr-code' },
-                  { key: 'Transfer', label: 'Transfer', icon: 'bi-bank' },
-                  // { key: 'Deposit', label: 'Deposit', icon: 'bi-wallet2' },
-                ].map((item) => (
-                  <div key={item.key} className={isCompactPayment ? 'col-4' : 'col-4 col-sm-3'}>
+                  <div className="d-flex align-items-center gap-1 flex-shrink-0">
                     <button
                       type="button"
-                      className={`btn w-100 ${isCompactPayment ? 'py-1 px-1 rounded-2' : 'py-2 rounded-3'} border d-flex flex-column align-items-center justify-content-center transition-all ${drawerMetodeBayar === item.key ? 'border-primary bg-primary-subtle text-primary fw-bold shadow-xs' : 'bg-white text-dark'}`}
-                      onClick={() => setDrawerMetodeBayar(item.key)}
-                      style={{ fontSize: isCompactPayment ? '0.68rem' : '0.8rem' }}
+                      className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center text-muted"
+                      style={{ width: '32px', height: '32px' }}
+                      onClick={() => setIsMiniPayment(false)}
+                      title="Perbesar tampilan pembayaran"
+                      aria-label="Perbesar tampilan pembayaran"
                     >
-                      <i className={`bi ${item.icon} ${isCompactPayment ? 'fs-6' : 'fs-5 mb-1'}`}></i>
-                      <span className="text-truncate">{item.label}</span>
+                      <i className="bi bi-arrows-angle-expand" style={{ fontSize: '0.8rem' }}></i>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center text-muted"
+                      style={{ width: '32px', height: '32px' }}
+                      onClick={() => !isSubmitting && setShowPaymentDrawer(false)}
+                      disabled={isSubmitting}
+                      title="Tutup Pembayaran"
+                      aria-label="Tutup Pembayaran"
+                    >
+                      <i className="bi bi-x-lg" style={{ fontSize: '0.8rem' }}></i>
                     </button>
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
 
-            {/* Pilihan Nominal Cepat */}
-            <div className={isCompactPayment ? 'mb-1' : 'mb-3'}>
-              <div className={`d-flex justify-content-between align-items-center ${isCompactPayment ? 'mb-0' : 'mb-1'}`}>
-                <label
-                  className={isCompactPayment ? 'small fw-bold text-muted text-uppercase mb-0' : 'form-label small fw-bold text-muted text-uppercase mb-0'}
-                  style={{ fontSize: isCompactPayment ? '0.5rem' : '0.75rem' }}
-                >
-                  {isLunas ? 'Pilihan Uang Diterima' : 'Nominal Uang Muka (DP)'}
-                </label>
-              </div>
-              <div className="d-flex align-items-center gap-1 overflow-x-auto no-scrollbar py-1">
-                <button
-                  type="button"
-                  className={`btn btn-sm ${nominalBayar === total.toString() ? 'btn-primary text-white' : 'btn-outline-secondary'} fw-bold py-0 px-2 rounded-2 text-nowrap`}
-                  style={{ fontSize: '0.68rem', height: '26px', lineHeight: '24px' }}
-                  onClick={() => handleQuickNominal('pas')}
-                >
-                  Uang Pas
-                </button>
-                <button
-                  type="button"
-                  className={`btn btn-sm ${nominalBayar === '20000' ? 'btn-primary text-white' : 'btn-outline-secondary'} fw-bold py-0 px-2 rounded-2 text-nowrap`}
-                  style={{ fontSize: '0.68rem', height: '26px', lineHeight: '24px' }}
-                  onClick={() => handleQuickNominal(20000)}
-                >
-                  20rb
-                </button>
-                <button
-                  type="button"
-                  className={`btn btn-sm ${nominalBayar === '50000' ? 'btn-primary text-white' : 'btn-outline-secondary'} fw-bold py-0 px-2 rounded-2 text-nowrap`}
-                  style={{ fontSize: '0.68rem', height: '26px', lineHeight: '24px' }}
-                  onClick={() => handleQuickNominal(50000)}
-                >
-                  50rb
-                </button>
-                <button
-                  type="button"
-                  className={`btn btn-sm ${nominalBayar === '100000' ? 'btn-primary text-white' : 'btn-outline-secondary'} fw-bold py-0 px-2 rounded-2 text-nowrap`}
-                  style={{ fontSize: '0.68rem', height: '26px', lineHeight: '24px' }}
-                  onClick={() => handleQuickNominal(100000)}
-                >
-                  100rb
-                </button>
-                <button
-                  type="button"
-                  className={`btn btn-sm ${nominalBayar === '200000' ? 'btn-primary text-white' : 'btn-outline-secondary'} fw-bold py-0 px-2 rounded-2 text-nowrap`}
-                  style={{ fontSize: '0.68rem', height: '26px', lineHeight: '24px' }}
-                  onClick={() => handleQuickNominal(200000)}
-                >
-                  200rb
-                </button>
-                {total > 100000 && (
+                <div className="d-flex align-items-stretch gap-2">
+                  {/* Pilih / Tambah Pelanggan */}
                   <button
                     type="button"
-                    className={`btn btn-sm ${nominalBayar === String(Math.ceil(total / 50000) * 50000) ? 'btn-primary text-white' : 'btn-outline-secondary'} fw-bold py-0 px-2 rounded-2 text-nowrap`}
-                    style={{ fontSize: '0.68rem', height: '26px', lineHeight: '24px' }}
-                    onClick={() => handleQuickNominal(Math.ceil(total / 50000) * 50000)}
+                    className="btn btn-outline-primary rounded-pill fw-bold d-flex align-items-center justify-content-center gap-1 px-2"
+                    style={{ flex: '1 1 0', minWidth: 0, minHeight: '46px', fontSize: '0.7rem' }}
+                    onClick={() => {
+                      setIsAdding(false);
+                      setShowModal(true);
+                    }}
+                    title="Pilih / Tambah Pelanggan"
                   >
-                    {(Math.ceil(total / 50000) * 50).toLocaleString()}rb
+                    <i className="bi bi-person-plus-fill"></i> Pelanggan
                   </button>
-                )}
-              </div>
-            </div>
 
-            {/* Input Nominal Pembayaran (Rp di Kiri) Tepat di Atas Kembalian */}
-            <div className={isCompactPayment ? 'mb-2' : 'mb-3'}>
-              <div className={`input-group ${isCompactPayment ? 'input-group-sm rounded-3' : 'input-group-lg rounded-4 shadow-sm'} overflow-hidden border bg-white`}>
-                <span
-                  className="input-group-text bg-white border-0 text-muted fw-bold ps-2 pe-1"
-                  style={{ fontSize: isCompactPayment ? '0.78rem' : '0.95rem' }}
-                >
-                  Rp
-                </span>
-                <input
-                  id="nominal-bayar-input"
-                  aria-label="Nominal Uang Diterima"
-                  type="number"
-                  className="form-control border-0 px-1 fw-bold text-dark"
-                  style={{
-                    fontSize: isCompactPayment ? '0.85rem' : '1.1rem',
-                    height: isCompactPayment ? '32px' : '42px',
-                    boxShadow: 'none',
-                  }}
-                  placeholder={isLunas ? `Uang Pas (${total.toLocaleString('id-ID')})` : '0 (Belum Bayar)'}
-                  value={nominalBayar}
-                  onChange={(e) => setNominalBayar(e.target.value)}
-                  onFocus={(e) => e.target.select()}
-                  min="0"
-                />
-                {nominalBayar && (
+                  {/* Bayar: total + metode bayar tampil di tombol */}
                   <button
                     type="button"
-                    className="btn btn-sm btn-link text-decoration-none text-muted p-0 pe-2 d-flex align-items-center"
-                    onClick={() => setNominalBayar('')}
-                    title="Hapus nominal"
+                    className="btn btn-primary rounded-pill fw-bold d-flex align-items-center justify-content-center gap-2 px-2"
+                    style={{ flex: '1.45 1 0', minWidth: 0, minHeight: '46px', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
+                    onClick={handleConfirmPayment}
+                    disabled={isSubmitting || !cartItems || cartItems.length === 0}
                   >
-                    <i className="bi bi-x-circle-fill text-secondary" style={{ fontSize: isCompactPayment ? '0.8rem' : '0.95rem' }}></i>
+                    {isSubmitting ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm" role="status"></span>
+                        <span style={{ fontSize: '0.8rem' }}>Memproses...</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-wallet2 fs-6"></i>
+                        <span className="d-flex flex-column text-start" style={{ lineHeight: 1.15, minWidth: 0 }}>
+                          <span style={{ fontSize: '0.84rem' }}>
+                            {isLunas ? 'Bayar' : (effectiveBayar > 0 ? 'Bayar DP' : 'Simpan')}
+                          </span>
+                          <span className="text-truncate" style={{ fontSize: '0.64rem', fontWeight: 600, opacity: 0.9 }}>
+                            Rp {total.toLocaleString('id-ID')} · {drawerMetodeBayar}
+                          </span>
+                        </span>
+                      </>
+                    )}
                   </button>
-                )}
-              </div>
-            </div>
 
-            {/* Rincian Kembalian / Sisa Tagihan */}
-            {isCompactPayment ? (
-              <div className="bg-light px-2 py-1 rounded-3 mb-2 border d-flex justify-content-between align-items-center">
-                <span className="small text-muted" style={{ fontSize: '0.75rem' }}>
-                  {isLunas ? 'Kembalian:' : 'Sisa Tagihan:'}
-                </span>
-                <span className={`fw-bold ${isLunas ? 'text-success' : 'text-danger'}`} style={{ fontSize: '0.85rem' }}>
-                  Rp {(isLunas ? kembalian : sisaTagihan).toLocaleString('id-ID')}
-                </span>
-              </div>
+                  {/* Status pembayaran: ketuk untuk ganti Lunas / Belum Lunas */}
+                  <button
+                    type="button"
+                    className={`btn rounded-pill fw-bold d-flex align-items-center justify-content-center gap-1 px-2 ${isLunas ? 'btn-outline-success' : 'btn-outline-warning text-dark'}`}
+                    style={{ flex: '1 1 0', minWidth: 0, minHeight: '46px', fontSize: '0.8rem' }}
+                    onClick={() => setIsLunas(!isLunas)}
+                    title="Ketuk untuk mengganti status Lunas / Belum Lunas"
+                  >
+                    <i className={`bi ${isLunas ? 'bi-check-circle' : 'bi-clock-history'}`}></i>
+                    <span className="text-truncate">{isLunas ? 'Lunas' : 'Belum'}</span>
+                  </button>
+                </div>
+              </>
             ) : (
-              <div className="bg-light p-3 rounded-4 mb-4 border">
-                <div className="d-flex justify-content-between mb-1">
-                  <span className="small text-muted">Total Tagihan:</span>
-                  <span className="small fw-bold">Rp {total.toLocaleString('id-ID')}</span>
+              <>
+                {/* Header Drawer: Icon & Nama Pelanggan Terpilih di Kiri, Aksi Drawer di Kanan */}
+                <div className={`d-flex justify-content-between align-items-center ${isCompactPayment ? 'mb-2' : 'mb-3'}`}>
+                  {/* Info Pelanggan Terpilih (Pengganti Teks Pembayaran Kasir) */}
+                  <div
+                    className="d-flex align-items-center gap-2 flex-grow-1 overflow-hidden me-2"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => {
+                      setIsAdding(false);
+                      setShowModal(true);
+                    }}
+                    title="Klik untuk memilih / mengganti pelanggan"
+                  >
+                    <div
+                      className="rounded-circle bg-light d-flex align-items-center justify-content-center text-primary flex-shrink-0 border"
+                      style={{ width: isCompactPayment ? '28px' : '32px', height: isCompactPayment ? '28px' : '32px' }}
+                    >
+                      <i className="bi bi-person-fill" style={{ fontSize: isCompactPayment ? '0.85rem' : '0.95rem' }}></i>
+                    </div>
+                    <div className="overflow-hidden">
+                      <div className="fw-bold text-dark text-truncate" style={{ fontSize: isCompactPayment ? '0.82rem' : '0.9rem' }}>
+                        {selectedPelanggan?.nama || 'Pelanggan Umum'}
+                      </div>
+                      {selectedPelanggan?.noHp && !isCompactPayment && (
+                        <div className="text-muted small text-truncate" style={{ fontSize: '0.68rem', lineHeight: 1.1 }}>
+                          {selectedPelanggan.noHp}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="d-flex align-items-center gap-1 flex-shrink-0">
+                    {/* Tombol Person Plus untuk Memilih / Tambah Pelanggan */}
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-primary rounded-circle p-0 d-flex align-items-center justify-content-center shadow-xs"
+                      style={{ width: isCompactPayment ? '28px' : '32px', height: isCompactPayment ? '28px' : '32px' }}
+                      onClick={() => {
+                        setIsAdding(false);
+                        setShowModal(true);
+                      }}
+                      title="Pilih / Tambah Pelanggan"
+                    >
+                      <i className="bi bi-person-plus-fill" style={{ fontSize: isCompactPayment ? '0.8rem' : '0.9rem' }}></i>
+                    </button>
+                    {/* Tombol Toggle Perbesar / Perkecil */}
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center text-muted"
+                      style={{ width: isCompactPayment ? '28px' : '32px', height: isCompactPayment ? '28px' : '32px' }}
+                      onClick={() => setIsMiniPayment(true)}
+                      title="Perkecil tampilan drawer"
+                    >
+                      <i className="bi bi-arrows-angle-contract" style={{ fontSize: '0.75rem' }}></i>
+                    </button>
+                    {/* Tombol Tutup Drawer */}
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center text-muted"
+                      style={{ width: isCompactPayment ? '28px' : '32px', height: isCompactPayment ? '28px' : '32px' }}
+                      onClick={() => !isSubmitting && setShowPaymentDrawer(false)}
+                      disabled={isSubmitting}
+                      title="Tutup Pembayaran"
+                      aria-label="Tutup Pembayaran"
+                    >
+                      <i className="bi bi-x-lg" style={{ fontSize: isCompactPayment ? '0.75rem' : '0.85rem' }}></i>
+                    </button>
+                  </div>
                 </div>
-                <div className="d-flex justify-content-between mb-2">
-                  <span className="small text-muted">Diterima:</span>
-                  <span className="small fw-bold text-primary">Rp {effectiveBayar.toLocaleString('id-ID')}</span>
+
+                {/* Total Tagihan Banner Sesuai Mockup (Biru Solid / Gradient dengan Teks Putih Tebal) */}
+                <div
+                  className={`rounded-4 mb-2 d-flex justify-content-between align-items-center ${isCompactPayment ? 'px-3 py-2' : 'p-3'}`}
+                  style={{
+                    backgroundColor: '#0134d4',
+                    color: '#ffffff',
+                    borderRadius: '16px',
+                  }}
+                >
+                  <div className="fw-bold text-uppercase" style={{ fontSize: isCompactPayment ? '0.78rem' : '0.85rem', letterSpacing: '0.5px' }}>
+                    TOTAL TAGIHAN
+                  </div>
+                  <div className="fw-bold mb-0 text-white" style={{ fontSize: isCompactPayment ? '1.25rem' : '1.75rem' }}>
+                    Rp {total.toLocaleString('id-ID')}
+                  </div>
                 </div>
-                <div className="border-top pt-2 d-flex justify-content-between align-items-center">
-                  {isLunas ? (
+
+                {/* Status Pembayaran Toggle: Lunas vs Belum Lunas */}
+                <div className={isCompactPayment ? 'mb-1' : 'mb-3'}>
+                  {!isCompactPayment && (
+                    <label className="form-label small fw-bold text-muted text-uppercase">Status Pembayaran</label>
+                  )}
+                  <div className={`d-flex ${isCompactPayment ? 'p-0 rounded-3' : 'p-1 rounded-4'} bg-light border`}>
+                    <button
+                      type="button"
+                      className={`btn flex-fill ${isCompactPayment ? 'rounded-2 py-1' : 'rounded-3 py-2'} fw-bold transition-all border-0 ${isLunas ? 'btn-success shadow-sm text-white' : 'btn-light text-muted bg-transparent'}`}
+                      style={{ fontSize: isCompactPayment ? '0.72rem' : '0.85rem' }}
+                      onClick={() => setIsLunas(true)}
+                    >
+                      <i className="bi bi-check-circle-fill me-1"></i> Lunas
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn flex-fill ${isCompactPayment ? 'rounded-2 py-1' : 'rounded-3 py-2'} fw-bold transition-all border-0 ${!isLunas ? 'btn-warning shadow-sm text-dark' : 'btn-light text-muted bg-transparent'}`}
+                      style={{ fontSize: isCompactPayment ? '0.72rem' : '0.85rem' }}
+                      onClick={() => setIsLunas(false)}
+                    >
+                      <i className="bi bi-clock-history me-1"></i> Belum Lunas
+                    </button>
+                  </div>
+                </div>
+
+                {/* Pilihan Metode Bayar */}
+                <div className={isCompactPayment ? 'mb-1' : 'mb-3'}>
+                  {!isCompactPayment && (
+                    <label className="form-label small fw-bold text-muted text-uppercase">Metode Pembayaran</label>
+                  )}
+                  <div className="row g-1">
+                    {[
+                      { key: 'Cash', label: 'Cash', icon: 'bi-cash-stack' },
+                      { key: 'QRIS', label: 'QRIS', icon: 'bi-qr-code' },
+                      { key: 'Transfer', label: 'Transfer', icon: 'bi-bank' },
+                      // { key: 'Deposit', label: 'Deposit', icon: 'bi-wallet2' },
+                    ].map((item) => (
+                      <div key={item.key} className={isCompactPayment ? 'col-4' : 'col-4 col-sm-3'}>
+                        <button
+                          type="button"
+                          className={`btn w-100 ${isCompactPayment ? 'py-1 px-1 rounded-2' : 'py-2 rounded-3'} border d-flex flex-column align-items-center justify-content-center transition-all ${drawerMetodeBayar === item.key ? 'border-primary bg-primary-subtle text-primary fw-bold shadow-xs' : 'bg-white text-dark'}`}
+                          onClick={() => setDrawerMetodeBayar(item.key)}
+                          style={{ fontSize: isCompactPayment ? '0.68rem' : '0.8rem' }}
+                        >
+                          <i className={`bi ${item.icon} ${isCompactPayment ? 'fs-6' : 'fs-5 mb-1'}`}></i>
+                          <span className="text-truncate">{item.label}</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Pilihan Nominal Cepat */}
+                <div className={isCompactPayment ? 'mb-1' : 'mb-3'}>
+                  <div className={`d-flex justify-content-between align-items-center ${isCompactPayment ? 'mb-0' : 'mb-1'}`}>
+                    <label
+                      className={isCompactPayment ? 'small fw-bold text-muted text-uppercase mb-0' : 'form-label small fw-bold text-muted text-uppercase mb-0'}
+                      style={{ fontSize: isCompactPayment ? '0.5rem' : '0.75rem' }}
+                    >
+                      {isLunas ? 'Pilihan Uang Diterima' : 'Nominal Uang Muka (DP)'}
+                    </label>
+                  </div>
+                  <div className="d-flex align-items-center gap-1 overflow-x-auto no-scrollbar py-1">
+                    <button
+                      type="button"
+                      className={`btn btn-sm ${nominalBayar === total.toString() ? 'btn-primary text-white' : 'btn-outline-primary'} fw-bold py-0 px-2 rounded-2 text-nowrap`}
+                      style={{ fontSize: '0.68rem', height: '26px', lineHeight: '24px' }}
+                      onClick={() => handleQuickNominal('pas')}
+                    >
+                      Uang Pas
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn btn-sm ${nominalBayar === '20000' ? 'btn-primary text-white' : 'btn-outline-secondary'} fw-bold py-0 px-2 rounded-2 text-nowrap`}
+                      style={{ fontSize: '0.68rem', height: '26px', lineHeight: '24px' }}
+                      onClick={() => handleQuickNominal(20000)}
+                    >
+                      20rb
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn btn-sm ${nominalBayar === '50000' ? 'btn-primary text-white' : 'btn-outline-secondary'} fw-bold py-0 px-2 rounded-2 text-nowrap`}
+                      style={{ fontSize: '0.68rem', height: '26px', lineHeight: '24px' }}
+                      onClick={() => handleQuickNominal(50000)}
+                    >
+                      50rb
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn btn-sm ${nominalBayar === '100000' ? 'btn-primary text-white' : 'btn-outline-secondary'} fw-bold py-0 px-2 rounded-2 text-nowrap`}
+                      style={{ fontSize: '0.68rem', height: '26px', lineHeight: '24px' }}
+                      onClick={() => handleQuickNominal(100000)}
+                    >
+                      100rb
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn btn-sm ${nominalBayar === '200000' ? 'btn-primary text-white' : 'btn-outline-secondary'} fw-bold py-0 px-2 rounded-2 text-nowrap`}
+                      style={{ fontSize: '0.68rem', height: '26px', lineHeight: '24px' }}
+                      onClick={() => handleQuickNominal(200000)}
+                    >
+                      200rb
+                    </button>
+                    {total > 100000 && (
+                      <button
+                        type="button"
+                        className={`btn btn-sm ${nominalBayar === String(Math.ceil(total / 50000) * 50000) ? 'btn-primary text-white' : 'btn-outline-secondary'} fw-bold py-0 px-2 rounded-2 text-nowrap`}
+                        style={{ fontSize: '0.68rem', height: '26px', lineHeight: '24px' }}
+                        onClick={() => handleQuickNominal(Math.ceil(total / 50000) * 50000)}
+                      >
+                        {(Math.ceil(total / 50000) * 50).toLocaleString()}rb
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Input Nominal Pembayaran (Rp di Kiri) Tepat di Atas Kembalian */}
+                <div className={isCompactPayment ? 'mb-2' : 'mb-3'}>
+                  <div className={`input-group ${isCompactPayment ? 'input-group-sm rounded-3' : 'input-group-lg rounded-4 shadow-sm'} overflow-hidden border bg-white`}>
+                    <span
+                      className="input-group-text bg-white border-0 text-muted fw-bold ps-2 pe-1"
+                      style={{ fontSize: isCompactPayment ? '0.78rem' : '0.95rem' }}
+                    >
+                      Rp
+                    </span>
+                    <input
+                      id="nominal-bayar-input"
+                      aria-label="Nominal Uang Diterima"
+                      type="number"
+                      className="form-control border-0 px-1 fw-bold text-dark"
+                      style={{
+                        fontSize: isCompactPayment ? '0.85rem' : '1.1rem',
+                        height: isCompactPayment ? '32px' : '42px',
+                        boxShadow: 'none',
+                      }}
+                      placeholder={isLunas ? `Uang Pas (${total.toLocaleString('id-ID')})` : '0 (Belum Bayar)'}
+                      value={nominalBayar}
+                      onChange={(e) => setNominalBayar(e.target.value)}
+                      onFocus={(e) => e.target.select()}
+                      min="0"
+                    />
+                    {nominalBayar && (
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-link text-decoration-none text-muted p-0 pe-2 d-flex align-items-center"
+                        onClick={() => setNominalBayar('')}
+                        title="Hapus nominal"
+                      >
+                        <i className="bi bi-x-circle-fill text-secondary" style={{ fontSize: isCompactPayment ? '0.8rem' : '0.95rem' }}></i>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Rincian Kembalian / Sisa Tagihan */}
+                {isCompactPayment ? (
+                  <div className="bg-light px-2 py-1 rounded-3 mb-2 border d-flex justify-content-between align-items-center">
+                    <span className="small text-muted" style={{ fontSize: '0.75rem' }}>
+                      {isLunas ? 'Kembalian:' : 'Sisa Tagihan:'}
+                    </span>
+                    <span className={`fw-bold ${isLunas ? 'text-success' : 'text-danger'}`} style={{ fontSize: '0.85rem' }}>
+                      Rp {(isLunas ? kembalian : sisaTagihan).toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="bg-light p-3 rounded-4 mb-4 border">
+                    <div className="d-flex justify-content-between mb-1">
+                      <span className="small text-muted">Total Tagihan:</span>
+                      <span className="small fw-bold">Rp {total.toLocaleString('id-ID')}</span>
+                    </div>
+                    <div className="d-flex justify-content-between mb-2">
+                      <span className="small text-muted">Diterima:</span>
+                      <span className="small fw-bold text-primary">Rp {effectiveBayar.toLocaleString('id-ID')}</span>
+                    </div>
+                    <div className="border-top pt-2 d-flex justify-content-between align-items-center">
+                      {isLunas ? (
+                        <>
+                          <span className="fw-bold text-dark">Kembalian:</span>
+                          <span className="fw-bold fs-5 text-success">
+                            Rp {kembalian.toLocaleString('id-ID')}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="fw-bold text-dark">Sisa Tagihan:</span>
+                          <span className="fw-bold fs-5 text-danger">
+                            Rp {sisaTagihan.toLocaleString('id-ID')}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tombol Konfirmasi Selesai Pembayaran */}
+                <button
+                  type="button"
+                  className={`btn btn-primary w-100 ${isCompactPayment ? 'py-2 rounded-3' : 'py-3 rounded-4 fs-5 shadow'} fw-bold`}
+                  style={{ fontSize: isCompactPayment ? '0.88rem' : '1.1rem', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
+                  onClick={handleConfirmPayment}
+                  disabled={isSubmitting || !cartItems || cartItems.length === 0}
+                >
+                  {isSubmitting ? (
                     <>
-                      <span className="fw-bold text-dark">Kembalian:</span>
-                      <span className="fw-bold fs-5 text-success">
-                        Rp {kembalian.toLocaleString('id-ID')}
-                      </span>
+                      <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                      Memproses...
                     </>
                   ) : (
                     <>
-                      <span className="fw-bold text-dark">Sisa Tagihan:</span>
-                      <span className="fw-bold fs-5 text-danger">
-                        Rp {sisaTagihan.toLocaleString('id-ID')}
-                      </span>
+                      <i className="bi bi-check2-circle me-1"></i>
+                      {isLunas
+                        ? `Bayar`
+                        : (effectiveBayar > 0
+                          ? `Bayar DP`
+                          : 'Simpan')}
                     </>
                   )}
-                </div>
-              </div>
+                </button>
+              </>
             )}
-
-            {/* Tombol Konfirmasi Selesai Pembayaran */}
-            <button
-              type="button"
-              className={`btn btn-primary w-100 ${isCompactPayment ? 'py-2 rounded-3' : 'py-3 rounded-4 fs-5 shadow'} fw-bold`}
-              style={{
-                fontSize: isCompactPayment ? '0.88rem' : '1.1rem',
-                backgroundColor: settings?.isTokoTutup ? '#94a3b8' : '#0134d4',
-                borderColor: settings?.isTokoTutup ? '#94a3b8' : '#0134d4',
-              }}
-              onClick={handleConfirmPayment}
-              disabled={isSubmitting || !cartItems || cartItems.length === 0 || settings?.isTokoTutup}
-            >
-              {isSubmitting ? (
-                <>
-                  <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                  Memproses...
-                </>
-              ) : settings?.isTokoTutup ? (
-                <>
-                  <i className="bi bi-slash-circle me-1"></i>
-                  Toko Tutup
-                </>
-              ) : (
-                <>
-                  <i className="bi bi-check2-circle me-1"></i>
-                  {isLunas
-                    ? `Bayar`
-                    : (effectiveBayar > 0
-                      ? `Bayar DP`
-                      : 'Simpan')}
-                </>
-              )}
-            </button>
           </div>
         </div>
       ) : !showSuccessModal && (
@@ -1347,6 +1447,7 @@ const Transaksi = ({ user } = {}) => {
             style={{
               maxWidth: '380px',
               maxHeight: '85vh',
+              borderRadius: '14px',
               animation: 'scaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
             }}
           >

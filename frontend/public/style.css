@@ -1271,7 +1271,7 @@ caption {
 body,
 html {
   font-family: "Poppins", sans-serif;
-  overflow-x: hidden;
+  overflow-x: overflow;
   background-color: #e2e9fe;
   color: #8480ae;
   scrollbar-width: thin;
@@ -2001,7 +2001,7 @@ a.affan-element-item i {
   overflow-y: auto;
   padding-top: 2rem;
   padding-bottom: 2rem;
-  overflow-x: hidden;
+  overflow-x: overflow;
   background-color: #ffffff;
 }
 
