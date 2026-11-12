@@ -19,7 +19,11 @@ import {
 } from '../utils/userPreferences';
 
 // Tinggi menu bawah aplikasi (px). Tombol Bayar yang ditutup menempel tepat di atasnya.
-const BOTTOM_MENU_HEIGHT = 58;
+const BOTTOM_MENU_HEIGHT = 62; // .footer-nav-area di CSS = 62px
+// true  = drawer / tombol Bayar menempel tepat di bawah form (tanpa celah kosong), lalu menempel
+//         di dasar layar kalau halaman panjang. Butuh `overflow-x: clip` pada html/body di CSS.
+// false = perilaku lama (fixed di dasar layar + spacer).
+const DRAWER_FOLLOW_CONTENT = true;
 // Jarak form ke drawer pembayaran dirapatkan sebesar ini (px). Naikkan angkanya = makin rapat.
 const DRAWER_GAP_TRIM = 156;
 // Tinggi seragam semua field form (Delivery, Estimasi, Prioritas, Diskon)
@@ -447,413 +451,427 @@ const Transaksi = ({ user } = {}) => {
   }, [showSuccessModal, successOrder]);
 
   return (
-    <div
-      className="card shadow-sm border-0 mx-auto"
-      style={{
-        borderRadius: '20px',
-        maxWidth: '580px',
-        marginBottom: showPaymentDrawer ? '0px' : `${BOTTOM_MENU_HEIGHT + 56}px`,
-      }}
-    >
-      <div className="card-body p-3">
+    <>
+      <div
+        className="card shadow-sm border-0 mx-auto"
+        style={{
+          borderRadius: '20px',
+          maxWidth: '580px',
+          marginBottom: DRAWER_FOLLOW_CONTENT ? 0 : (showPaymentDrawer ? '0px' : `${BOTTOM_MENU_HEIGHT + 56}px`),
+        }}
+      >
+        <div className="card-body p-3">
 
-        {/* Search Produk + Filter Kategori (sejajar dalam satu baris) */}
-        <div className="d-flex gap-2 mb-2">
-          <div className="input-group input-group-sm border rounded-3 overflow-hidden flex-grow-1 bg-white" style={{ minWidth: 0 }}>
-            <span className="input-group-text bg-white border-0 text-muted ps-2 pe-1">
-              <i className="bi bi-search" style={{ fontSize: '0.8rem' }}></i>
-            </span>
-            <input
-              type="text"
-              aria-label="Cari layanan"
-              className="form-control border-0 shadow-none ps-1"
-              style={{ fontSize: '0.82rem', minWidth: 0 }}
-              placeholder="Cari nama atau kode..."
-              value={productSearchTerm}
-              onChange={(e) => setProductSearchTerm(e.target.value)}
-            />
-            {productSearchTerm && (
-              <button
-                type="button"
-                className="btn btn-sm btn-link text-decoration-none text-muted pe-2"
-                onClick={() => setProductSearchTerm('')}
-                aria-label="Hapus pencarian"
+          {/* Search Produk + Filter Kategori (sejajar dalam satu baris) */}
+          <div className="d-flex gap-2 mb-2">
+            <div className="input-group input-group-sm border rounded-3 overflow-hidden flex-grow-1 bg-white" style={{ minWidth: 0 }}>
+              <span className="input-group-text bg-white border-0 text-muted ps-2 pe-1">
+                <i className="bi bi-search" style={{ fontSize: '0.8rem' }}></i>
+              </span>
+              <input
+                type="text"
+                aria-label="Cari layanan"
+                className="form-control border-0 shadow-none ps-1"
+                style={{ fontSize: '0.82rem', minWidth: 0 }}
+                placeholder="Cari nama atau kode..."
+                value={productSearchTerm}
+                onChange={(e) => setProductSearchTerm(e.target.value)}
+              />
+              {productSearchTerm && (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-link text-decoration-none text-muted pe-2"
+                  onClick={() => setProductSearchTerm('')}
+                  aria-label="Hapus pencarian"
+                >
+                  <i className="bi bi-x-circle-fill"></i>
+                </button>
+              )}
+            </div>
+            <select
+              aria-label="Filter kategori"
+              className="form-select form-select-sm rounded-3 flex-shrink-0 fw-bold"
+              style={{ width: '128px', fontSize: '0.78rem' }}
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+            >
+              <option value="ALL">Semua</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Card Layanan / Produk (2 Baris x 2 Kolom, geser kanan jika lebih dari 4; geser atas/bawah tetap scroll halaman) */}
+          <div className="mb-3">
+            {(!products || products.length === 0) ? (
+              <div className="p-3 text-center bg-light rounded-3 border text-muted small">
+                Belum ada produk/layanan yang tersedia.
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="p-3 text-center bg-light rounded-3 border text-muted small">
+                Tidak ada layanan yang cocok dengan pencarian/kategori ini.
+              </div>
+            ) : (
+              <div
+                ref={productScrollRef}
+                className="no-scrollbar w-100"
+                style={{
+                  display: 'grid',
+                  gridTemplateRows: 'repeat(2, 1fr)',
+                  gridAutoFlow: 'column',
+                  gridAutoColumns: 'calc(50% - 6px)',
+                  gap: '10px',
+                  overflowX: 'auto',
+                  overflowY: 'hidden',
+                  WebkitOverflowScrolling: 'touch',
+                  // pan-x + pan-y: geser kanan untuk produk, geser atas/bawah tetap menggulir halaman
+                  touchAction: 'pan-x pan-y',
+                  cursor: 'grab',
+                  paddingBottom: '4px',
+                }}
               >
-                <i className="bi bi-x-circle-fill"></i>
-              </button>
+                {filteredProducts.map((p) => {
+                  const cartItem = getCartItemForProduct(p);
+                  const isInCart = !!cartItem;
+                  const badgeStyle = getCategoryBadgeStyle(p.category);
+                  const code = getProductCode(p);
+
+                  return (
+                    <div
+                      key={p.id || p.uuid}
+                      className="p-3 rounded-4 d-flex flex-column justify-content-between transition-all"
+                      style={{
+                        backgroundColor: '#ffffff',
+                        border: isInCart ? '2px solid #0134d4' : '1px solid #e2e8f0',
+                        borderRadius: '16px',
+                        cursor: isInCart ? 'default' : 'pointer',
+                        minHeight: '128px',
+                        boxShadow: isInCart ? '0 4px 12px rgba(1, 52, 212, 0.08)' : '0 2px 4px rgba(0,0,0,0.02)',
+                      }}
+                      onClick={() => {
+                        if (!isInCart) handleAddProduct(p);
+                      }}
+                    >
+                      {/* Top Row: Category Badge & Code */}
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <span
+                          className="fw-bold text-uppercase px-2 py-0 rounded-2"
+                          style={{
+                            fontSize: '0.5rem',
+                            letterSpacing: '0.3px',
+                            ...badgeStyle,
+                          }}
+                        >
+                          {p.category || 'LAYANAN'}
+                        </span>
+                        <span className="fw-bold text-muted small" style={{ fontSize: '0.7rem' }}>
+                          {code}
+                        </span>
+                      </div>
+
+                      {/* Middle: Service Name & Price */}
+                      <div>
+                        {(() => {
+                          const display = formatServiceDisplay(p.name);
+                          return (
+                            <div className="d-flex align-items-center justify-content-between gap-1 mb-1" title={p.name}>
+                              <div className="fw-bold text-dark text-truncate" style={{ fontSize: '0.7rem' }}>
+                                {display.title}
+                              </div>
+                              {display.estimateText && (
+                                <span
+                                  className="fst-italic text-nowrap flex-shrink-0"
+                                  style={{
+                                    fontSize: '0.66rem',
+                                    fontStyle: 'italic',
+                                    backgroundColor: '#f1f5f9',
+                                    color: '#475569',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '4px',
+                                    padding: '1px 5px',
+                                    letterSpacing: '0.2px',
+                                  }}
+                                >
+                                  {display.estimateText}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
+                        <div className="fw-bold" style={{ fontSize: '0.96rem', color: '#0134d4' }}>
+                          Rp {p.price?.toLocaleString('id-ID')}
+                        </div>
+                      </div>
+
+                      {/* Bottom: Stepper jika ada di Cart atau Spacer */}
+                      {isInCart ? (
+                        <div className="d-flex align-items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-light border-0 rounded-circle p-0 d-flex align-items-center justify-content-center shadow-xs"
+                            style={{ width: '28px', height: '28px', backgroundColor: '#f1f5f9', color: '#1e293b' }}
+                            onClick={() => updateItemQty(cartItem.id, -1)}
+                            title="Kurangi kuantitas"
+                          >
+                            <i className="bi bi-dash fw-bold" style={{ fontSize: '0.85rem' }}></i>
+                          </button>
+                          <span className="fw-bold text-dark px-1" style={{ fontSize: '0.88rem', minWidth: '16px', textAlign: 'center' }}>
+                            {cartItem.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-primary rounded-circle p-0 d-flex align-items-center justify-content-center shadow-xs"
+                            style={{ width: '28px', height: '28px', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
+                            onClick={() => updateItemQty(cartItem.id, 1)}
+                            title="Tambah kuantitas"
+                          >
+                            <i className="bi bi-plus fw-bold text-white" style={{ fontSize: '0.85rem' }}></i>
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ height: '28px' }} className="d-flex align-items-center mt-2">
+                          <small className="text-muted" style={{ fontSize: '0.68rem' }}>
+                            + Ketuk untuk tambah
+                          </small>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
-          <select
-            aria-label="Filter kategori"
-            className="form-select form-select-sm rounded-3 flex-shrink-0 fw-bold"
-            style={{ width: '128px', fontSize: '0.78rem' }}
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-          >
-            <option value="ALL">Semua</option>
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
-        </div>
 
-        {/* Card Layanan / Produk (2 Baris x 2 Kolom, geser kanan jika lebih dari 4; geser atas/bawah tetap scroll halaman) */}
-        <div className="mb-3">
-          {(!products || products.length === 0) ? (
-            <div className="p-3 text-center bg-light rounded-3 border text-muted small">
-              Belum ada produk/layanan yang tersedia.
-            </div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="p-3 text-center bg-light rounded-3 border text-muted small">
-              Tidak ada layanan yang cocok dengan pencarian/kategori ini.
-            </div>
-          ) : (
+          {/* Gunakan Inventori - hanya geser kanan (tanpa scroll atas/bawah), kartu cukup tinggi agar stepper tidak tenggelam */}
+          <div className="mb-3">
+            <label className="form-label small fw-bold text-muted text-uppercase mb-1 px-1" style={{ fontSize: '0.68rem', letterSpacing: '0.3px' }}>
+              Gunakan Inventori
+            </label>
             <div
-              ref={productScrollRef}
-              className="no-scrollbar w-100"
+              className="d-flex gap-2 mx-n1 px-1 no-scrollbar inventory-scroller"
               style={{
-                display: 'grid',
-                gridTemplateRows: 'repeat(2, 1fr)',
-                gridAutoFlow: 'column',
-                gridAutoColumns: 'calc(50% - 6px)',
-                gap: '10px',
                 overflowX: 'auto',
                 overflowY: 'hidden',
-                WebkitOverflowScrolling: 'touch',
-                // pan-x + pan-y: geser kanan untuk produk, geser atas/bawah tetap menggulir halaman
                 touchAction: 'pan-x pan-y',
-                cursor: 'grab',
+                WebkitOverflowScrolling: 'touch',
+                paddingTop: '2px',
                 paddingBottom: '4px',
               }}
             >
-              {filteredProducts.map((p) => {
-                const cartItem = getCartItemForProduct(p);
-                const isInCart = !!cartItem;
-                const badgeStyle = getCategoryBadgeStyle(p.category);
-                const code = getProductCode(p);
-
+              {inventory?.filter(inv => !(inv.status === 'pending' && inv.stok === 0)).map(inv => {
+                const activeItem = selectedInventory.find(s => s.id === inv.id);
+                const isActive = !!activeItem;
+                const isOutOfStock = Number(inv.stok || 0) <= 0;
                 return (
                   <div
-                    key={p.id || p.uuid}
-                    className="p-3 rounded-4 d-flex flex-column justify-content-between transition-all"
+                    key={inv.id}
+                    className={`position-relative flex-shrink-0 border d-flex flex-column align-items-center justify-content-center transition-all ${isOutOfStock && !isActive ? 'border-dashed opacity-50' : ''}`}
                     style={{
-                      backgroundColor: '#ffffff',
-                      border: isInCart ? '2px solid #0134d4' : '1px solid #e2e8f0',
-                      borderRadius: '16px',
-                      cursor: isInCart ? 'default' : 'pointer',
-                      minHeight: '128px',
-                      boxShadow: isInCart ? '0 4px 12px rgba(1, 52, 212, 0.08)' : '0 2px 4px rgba(0,0,0,0.02)',
-                    }}
-                    onClick={() => {
-                      if (!isInCart) handleAddProduct(p);
+                      width: '88px',
+                      height: '102px',
+                      borderRadius: '14px',
+                      padding: '8px 6px',
+                      backgroundColor: isActive ? '#eef3ff' : '#ffffff',
+                      borderColor: isActive ? '#0134d4' : '#e2e8f0',
+                      borderWidth: isActive ? '2px' : '1px',
+                      boxShadow: isActive ? '0 4px 12px rgba(1, 52, 212, 0.10)' : '0 1px 3px rgba(0,0,0,0.03)',
                     }}
                   >
-                    {/* Top Row: Category Badge & Code */}
-                    <div className="d-flex justify-content-between align-items-center mb-1">
+                    {/* Badge ceklis: di pojok kanan atas dengan jarak dari tepi */}
+                    {isActive && (
                       <span
-                        className="fw-bold text-uppercase px-2 py-0 rounded-2"
-                        style={{
-                          fontSize: '0.5rem',
-                          letterSpacing: '0.3px',
-                          ...badgeStyle,
-                        }}
+                        className="position-absolute d-flex align-items-center justify-content-center rounded-circle"
+                        style={{ top: '6px', right: '6px', width: '18px', height: '18px', backgroundColor: '#0134d4', color: '#ffffff' }}
                       >
-                        {p.category || 'LAYANAN'}
+                        <i className="bi bi-check-lg" style={{ fontSize: '0.7rem', lineHeight: 1 }}></i>
                       </span>
-                      <span className="fw-bold text-muted small" style={{ fontSize: '0.7rem' }}>
-                        {code}
-                      </span>
+                    )}
+
+                    <div
+                      className="text-center w-100"
+                      onClick={() => {
+                        if (isOutOfStock && !isActive) {
+                          toast.error(TOAST_MESSAGES.ERROR);
+                          return;
+                        }
+                        toggleInventory(inv);
+                      }}
+                      style={{ cursor: isOutOfStock && !isActive ? 'not-allowed' : 'pointer' }}
+                    >
+                      <i className="bi bi-box-seam d-block text-muted" style={{ fontSize: '1rem', lineHeight: 1, marginBottom: '4px' }}></i>
+                      <div className="fw-bold text-dark text-truncate mx-auto" style={{ fontSize: '0.74rem', maxWidth: '72px' }}>{inv.nama}</div>
+                      <small className={isOutOfStock ? 'text-danger fw-bold' : 'text-muted'} style={{ fontSize: '0.64rem' }}>
+                        {isOutOfStock ? 'Habis' : `Stok: ${inv.stok}`}
+                      </small>
                     </div>
 
-                    {/* Middle: Service Name & Price */}
-                    <div>
-                      {(() => {
-                        const display = formatServiceDisplay(p.name);
-                        return (
-                          <div className="d-flex align-items-center justify-content-between gap-1 mb-1" title={p.name}>
-                            <div className="fw-bold text-dark text-truncate" style={{ fontSize: '0.7rem' }}>
-                              {display.title}
-                            </div>
-                            {display.estimateText && (
-                              <span
-                                className="fst-italic text-nowrap flex-shrink-0"
-                                style={{
-                                  fontSize: '0.66rem',
-                                  fontStyle: 'italic',
-                                  backgroundColor: '#f1f5f9',
-                                  color: '#475569',
-                                  border: '1px solid #e2e8f0',
-                                  borderRadius: '4px',
-                                  padding: '1px 5px',
-                                  letterSpacing: '0.2px',
-                                }}
-                              >
-                                {display.estimateText}
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })()}
-                      <div className="fw-bold" style={{ fontSize: '0.96rem', color: '#0134d4' }}>
-                        Rp {p.price?.toLocaleString('id-ID')}
-                      </div>
-                    </div>
-
-                    {/* Bottom: Stepper jika ada di Cart atau Spacer */}
-                    {isInCart ? (
-                      <div className="d-flex align-items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                    {isActive && (
+                      <div
+                        className="d-flex align-items-center justify-content-center bg-white rounded-pill border"
+                        style={{ marginTop: '6px', height: '26px', gap: '4px', padding: '0 4px' }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <button
                           type="button"
-                          className="btn btn-sm btn-light border-0 rounded-circle p-0 d-flex align-items-center justify-content-center shadow-xs"
-                          style={{ width: '28px', height: '28px', backgroundColor: '#f1f5f9', color: '#1e293b' }}
-                          onClick={() => updateItemQty(cartItem.id, -1)}
-                          title="Kurangi kuantitas"
+                          className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center"
+                          style={{ width: '20px', height: '20px' }}
+                          onClick={() => updateInventoryQty(inv.id, -1)}
+                          aria-label="Kurangi"
                         >
-                          <i className="bi bi-dash fw-bold" style={{ fontSize: '0.85rem' }}></i>
+                          <i className="bi bi-dash text-dark" style={{ fontSize: '0.8rem' }}></i>
                         </button>
-                        <span className="fw-bold text-dark px-1" style={{ fontSize: '0.88rem', minWidth: '16px', textAlign: 'center' }}>
-                          {cartItem.quantity}
+                        <span className="fw-bold text-dark" style={{ fontSize: '0.78rem', minWidth: '16px', textAlign: 'center' }}>
+                          {activeItem.quantity || 1}
                         </span>
                         <button
                           type="button"
-                          className="btn btn-sm btn-primary rounded-circle p-0 d-flex align-items-center justify-content-center shadow-xs"
-                          style={{ width: '28px', height: '28px', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
-                          onClick={() => updateItemQty(cartItem.id, 1)}
-                          title="Tambah kuantitas"
+                          className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center"
+                          style={{ width: '20px', height: '20px' }}
+                          onClick={() => updateInventoryQty(inv.id, 1)}
+                          aria-label="Tambah"
                         >
-                          <i className="bi bi-plus fw-bold text-white" style={{ fontSize: '0.85rem' }}></i>
+                          <i className="bi bi-plus text-dark" style={{ fontSize: '0.8rem' }}></i>
                         </button>
-                      </div>
-                    ) : (
-                      <div style={{ height: '28px' }} className="d-flex align-items-center mt-2">
-                        <small className="text-muted" style={{ fontSize: '0.68rem' }}>
-                          + Ketuk untuk tambah
-                        </small>
                       </div>
                     )}
                   </div>
                 );
               })}
             </div>
-          )}
-        </div>
-
-        {/* Gunakan Inventori - hanya geser kanan (tanpa scroll atas/bawah), kartu cukup tinggi agar stepper tidak tenggelam */}
-        <div className="mb-3">
-          <label className="form-label small fw-bold text-muted text-uppercase mb-1 px-1" style={{ fontSize: '0.68rem', letterSpacing: '0.3px' }}>
-            Gunakan Inventori
-          </label>
-          <div
-            className="d-flex gap-2 mx-n1 px-1 no-scrollbar inventory-scroller"
-            style={{
-              overflowX: 'auto',
-              overflowY: 'hidden',
-              touchAction: 'pan-x pan-y',
-              WebkitOverflowScrolling: 'touch',
-              paddingTop: '2px',
-              paddingBottom: '4px',
-            }}
-          >
-            {inventory?.filter(inv => !(inv.status === 'pending' && inv.stok === 0)).map(inv => {
-              const activeItem = selectedInventory.find(s => s.id === inv.id);
-              const isActive = !!activeItem;
-              const isOutOfStock = Number(inv.stok || 0) <= 0;
-              return (
-                <div
-                  key={inv.id}
-                  className={`position-relative flex-shrink-0 border d-flex flex-column align-items-center justify-content-center transition-all ${isOutOfStock && !isActive ? 'border-dashed opacity-50' : ''}`}
-                  style={{
-                    width: '88px',
-                    height: '102px',
-                    borderRadius: '14px',
-                    padding: '8px 6px',
-                    backgroundColor: isActive ? '#eef3ff' : '#ffffff',
-                    borderColor: isActive ? '#0134d4' : '#e2e8f0',
-                    borderWidth: isActive ? '2px' : '1px',
-                    boxShadow: isActive ? '0 4px 12px rgba(1, 52, 212, 0.10)' : '0 1px 3px rgba(0,0,0,0.03)',
-                  }}
-                >
-                  {/* Badge ceklis: di pojok kanan atas dengan jarak dari tepi */}
-                  {isActive && (
-                    <span
-                      className="position-absolute d-flex align-items-center justify-content-center rounded-circle"
-                      style={{ top: '6px', right: '6px', width: '18px', height: '18px', backgroundColor: '#0134d4', color: '#ffffff' }}
-                    >
-                      <i className="bi bi-check-lg" style={{ fontSize: '0.7rem', lineHeight: 1 }}></i>
-                    </span>
-                  )}
-
-                  <div
-                    className="text-center w-100"
-                    onClick={() => {
-                      if (isOutOfStock && !isActive) {
-                        toast.error(TOAST_MESSAGES.ERROR);
-                        return;
-                      }
-                      toggleInventory(inv);
-                    }}
-                    style={{ cursor: isOutOfStock && !isActive ? 'not-allowed' : 'pointer' }}
-                  >
-                    <i className="bi bi-box-seam d-block text-muted" style={{ fontSize: '1rem', lineHeight: 1, marginBottom: '4px' }}></i>
-                    <div className="fw-bold text-dark text-truncate mx-auto" style={{ fontSize: '0.74rem', maxWidth: '72px' }}>{inv.nama}</div>
-                    <small className={isOutOfStock ? 'text-danger fw-bold' : 'text-muted'} style={{ fontSize: '0.64rem' }}>
-                      {isOutOfStock ? 'Habis' : `Stok: ${inv.stok}`}
-                    </small>
-                  </div>
-
-                  {isActive && (
-                    <div
-                      className="d-flex align-items-center justify-content-center bg-white rounded-pill border"
-                      style={{ marginTop: '6px', height: '26px', gap: '4px', padding: '0 4px' }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center"
-                        style={{ width: '20px', height: '20px' }}
-                        onClick={() => updateInventoryQty(inv.id, -1)}
-                        aria-label="Kurangi"
-                      >
-                        <i className="bi bi-dash text-dark" style={{ fontSize: '0.8rem' }}></i>
-                      </button>
-                      <span className="fw-bold text-dark" style={{ fontSize: '0.78rem', minWidth: '16px', textAlign: 'center' }}>
-                        {activeItem.quantity || 1}
-                      </span>
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center"
-                        style={{ width: '20px', height: '20px' }}
-                        onClick={() => updateInventoryQty(inv.id, 1)}
-                        aria-label="Tambah"
-                      >
-                        <i className="bi bi-plus text-dark" style={{ fontSize: '0.8rem' }}></i>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Form Order: Delivery, Estimasi, Prioritas, Diskon (2 baris x 2 kolom, tinggi input seragam) */}
-        <div className="row g-2 mb-2">
-          <div className="col-6">
-            <label htmlFor="delivery-select" className="form-label fw-bold text-muted d-block mb-1" style={{ fontSize: '0.72rem', lineHeight: '16px' }}>
-              Delivery
-            </label>
-            <select
-              id="delivery-select"
-              className="form-select"
-              style={formFieldStyle}
-              value={tipeLayanan}
-              onChange={(e) => setTipeLayanan(e.target.value)}
-            >
-              <option value="Datang Langsung">Datang Langsung</option>
-              <option value="Jemput/Antar">Antar Jemput</option>
-            </select>
           </div>
 
-          <div className="col-6">
-            <label htmlFor="estimasi-input" className="form-label fw-bold text-muted d-block mb-1" style={{ fontSize: '0.72rem', lineHeight: '16px' }}>
-              Estimasi (Hari)
-            </label>
-            <input
-              id="estimasi-input"
-              type="number"
-              className="form-control"
-              style={formFieldStyle}
-              value={estimasi}
-              onChange={(e) => setEstimasi(e.target.value)}
-              onFocus={(e) => e.target.select()}
-              min="0"
-              required
-            />
-          </div>
-
-          <div className="col-6">
-            <label htmlFor="prioritas-select" className="form-label fw-bold text-muted d-block mb-1" style={{ fontSize: '0.72rem', lineHeight: '16px' }}>
-              Prioritas
-            </label>
-            <select
-              id="prioritas-select"
-              className="form-select"
-              style={formFieldStyle}
-              value={isPriority}
-              onChange={(e) => setIsPriority(e.target.value)}
-            >
-              <option value="Tidak">Biasa</option>
-              <option value="Ya">Prioritas</option>
-            </select>
-          </div>
-
-          <div className="col-6">
-            {/* Label Diskon + total potongan di sebelahnya */}
-            <div className="d-flex justify-content-between align-items-baseline gap-1 mb-1" style={{ lineHeight: '16px' }}>
-              <label htmlFor="diskon-input" className="form-label fw-bold text-muted mb-0" style={{ fontSize: '0.72rem', lineHeight: '16px' }}>
-                Diskon
+          {/* Form Order: Delivery, Estimasi, Prioritas, Diskon (2 baris x 2 kolom, tinggi input seragam) */}
+          <div className="row g-2 mb-2">
+            <div className="col-6">
+              <label htmlFor="delivery-select" className="form-label fw-bold text-muted d-block mb-1" style={{ fontSize: '0.72rem', lineHeight: '16px' }}>
+                Delivery
               </label>
-              {nilaiDiskon > 0 && (
-                <span className="text-danger fw-bold text-truncate" style={{ fontSize: '0.72rem', lineHeight: '16px' }}>
-                  - Rp {nilaiDiskon.toLocaleString('id-ID')}
-                </span>
-              )}
-            </div>
-            <div
-              className="d-flex align-items-stretch border rounded bg-white overflow-hidden"
-              style={{ height: FORM_FIELD_HEIGHT, minHeight: FORM_FIELD_HEIGHT, boxSizing: 'border-box' }}
-            >
               <select
-                aria-label="Jenis diskon"
-                className="form-select rounded-0 flex-shrink-0"
-                style={{
-                  width: '72px',
-                  height: '100%',
-                  fontSize: '0.82rem',
-                  fontWeight: 700,
-                  backgroundColor: '#f8f9fa',
-                  boxShadow: 'none',
-                  borderStyle: 'solid',
-                  borderColor: '#dee2e6',
-                  borderWidth: '0 1px 0 0',
-                }}
-                value={diskonTipe}
-                onChange={(e) => setDiskonTipe(e.target.value)}
+                id="delivery-select"
+                className="form-select"
+                style={formFieldStyle}
+                value={tipeLayanan}
+                onChange={(e) => setTipeLayanan(e.target.value)}
               >
-                <option value="Persentase">%</option>
-                <option value="Harga">Rp</option>
+                <option value="Datang Langsung">Datang Langsung</option>
+                <option value="Jemput/Antar">Antar Jemput</option>
               </select>
+            </div>
+
+            <div className="col-6">
+              <label htmlFor="estimasi-input" className="form-label fw-bold text-muted d-block mb-1" style={{ fontSize: '0.72rem', lineHeight: '16px' }}>
+                Estimasi (Hari)
+              </label>
               <input
-                id="diskon-input"
+                id="estimasi-input"
                 type="number"
-                className="form-control rounded-0 flex-grow-1"
-                style={{ height: '100%', fontSize: '0.82rem', fontWeight: 700, minWidth: 0, border: 0, boxShadow: 'none' }}
-                value={diskonNilai}
-                onChange={(e) => setDiskonNilai(e.target.value)}
+                className="form-control"
+                style={formFieldStyle}
+                value={estimasi}
+                onChange={(e) => setEstimasi(e.target.value)}
                 onFocus={(e) => e.target.select()}
                 min="0"
-                max={diskonTipe === 'Persentase' ? 100 : subtotal}
+                required
               />
             </div>
-          </div>
-        </div>
 
-        {/* Spacer setinggi drawer pembayaran (dikurangi DRAWER_GAP_TRIM agar rapat) supaya form paling bawah tetap bisa di-scroll sampai terlihat */}
-        {showPaymentDrawer && <div aria-hidden="true" style={{ height: `${Math.max(0, drawerHeight - DRAWER_GAP_TRIM)}px` }}></div>}
+            <div className="col-6">
+              <label htmlFor="prioritas-select" className="form-label fw-bold text-muted d-block mb-1" style={{ fontSize: '0.72rem', lineHeight: '16px' }}>
+                Prioritas
+              </label>
+              <select
+                id="prioritas-select"
+                className="form-select"
+                style={formFieldStyle}
+                value={isPriority}
+                onChange={(e) => setIsPriority(e.target.value)}
+              >
+                <option value="Tidak">Biasa</option>
+                <option value="Ya">Prioritas</option>
+              </select>
+            </div>
+
+            <div className="col-6">
+              {/* Label Diskon + total potongan di sebelahnya */}
+              <div className="d-flex justify-content-between align-items-baseline gap-1 mb-1" style={{ lineHeight: '16px' }}>
+                <label htmlFor="diskon-input" className="form-label fw-bold text-muted mb-0" style={{ fontSize: '0.72rem', lineHeight: '16px' }}>
+                  Diskon
+                </label>
+                {nilaiDiskon > 0 && (
+                  <span className="text-danger fw-bold text-truncate" style={{ fontSize: '0.72rem', lineHeight: '16px' }}>
+                    - Rp {nilaiDiskon.toLocaleString('id-ID')}
+                  </span>
+                )}
+              </div>
+              <div
+                className="d-flex align-items-stretch border rounded bg-white overflow-hidden"
+                style={{ height: FORM_FIELD_HEIGHT, minHeight: FORM_FIELD_HEIGHT, boxSizing: 'border-box' }}
+              >
+                <select
+                  aria-label="Jenis diskon"
+                  className="form-select rounded-0 flex-shrink-0"
+                  style={{
+                    width: '72px',
+                    height: '100%',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    backgroundColor: '#f8f9fa',
+                    boxShadow: 'none',
+                    borderStyle: 'solid',
+                    borderColor: '#dee2e6',
+                    borderWidth: '0 1px 0 0',
+                  }}
+                  value={diskonTipe}
+                  onChange={(e) => setDiskonTipe(e.target.value)}
+                >
+                  <option value="Persentase">%</option>
+                  <option value="Harga">Rp</option>
+                </select>
+                <input
+                  id="diskon-input"
+                  type="number"
+                  className="form-control rounded-0 flex-grow-1"
+                  style={{ height: '100%', fontSize: '0.82rem', fontWeight: 700, minWidth: 0, border: 0, boxShadow: 'none' }}
+                  value={diskonNilai}
+                  onChange={(e) => setDiskonNilai(e.target.value)}
+                  onFocus={(e) => e.target.select()}
+                  min="0"
+                  max={diskonTipe === 'Persentase' ? 100 : subtotal}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Spacer setinggi drawer pembayaran (dikurangi DRAWER_GAP_TRIM agar rapat) supaya form paling bawah tetap bisa di-scroll sampai terlihat */}
+          {showPaymentDrawer && !DRAWER_FOLLOW_CONTENT && <div aria-hidden="true" style={{ height: `${Math.max(0, drawerHeight - DRAWER_GAP_TRIM)}px` }}></div>}
+        </div>
       </div>
 
       {/* Floating Bottom Drawer Pembayaran (Docked Bottom) */}
       {showPaymentDrawer ? (
         <div
           ref={drawerRef}
-          className="position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0"
-          style={{
+          className={DRAWER_FOLLOW_CONTENT ? 'w-100 px-2 pb-0 mx-auto' : 'position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0'}
+          style={DRAWER_FOLLOW_CONTENT ? {
+            position: 'sticky',
+            bottom: 0,
+            marginTop: '8px',
+            // Layout memberi jarak bawah: pb-3 (1rem) + .page-content-wrapper margin-bottom 62px.
+            // Ditarik balik agar drawer rata dengan dasar layar (menutupi menu bawah) di akhir scroll.
+            marginBottom: `calc(-1rem - ${BOTTOM_MENU_HEIGHT}px)`,
+            maxWidth: isCompactPayment ? '540px' : '580px',
+            zIndex: 1055,
+            animation: 'drawerRise 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+            pointerEvents: 'none'
+          } : {
             maxWidth: isCompactPayment ? '540px' : '580px',
             zIndex: 1055,
             animation: 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
             pointerEvents: 'none'
           }}
         >
+          <style>{`@keyframes drawerRise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }`}</style>
           <div
             className="bg-white w-100 shadow-lg border"
             style={{
@@ -916,7 +934,7 @@ const Transaksi = ({ user } = {}) => {
                     >
                       <i className="bi bi-arrows-angle-expand" style={{ fontSize: '0.8rem' }}></i>
                     </button>
-                    <button
+                    {/* <button
                       type="button"
                       className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center text-muted"
                       style={{ width: '32px', height: '32px' }}
@@ -926,7 +944,7 @@ const Transaksi = ({ user } = {}) => {
                       aria-label="Tutup Pembayaran"
                     >
                       <i className="bi bi-x-lg" style={{ fontSize: '0.8rem' }}></i>
-                    </button>
+                    </button> */}
                   </div>
                 </div>
 
@@ -1043,7 +1061,7 @@ const Transaksi = ({ user } = {}) => {
                       <i className="bi bi-arrows-angle-contract" style={{ fontSize: '0.75rem' }}></i>
                     </button>
                     {/* Tombol Tutup Drawer */}
-                    <button
+                    {/* <button
                       type="button"
                       className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center text-muted"
                       style={{ width: isCompactPayment ? '28px' : '32px', height: isCompactPayment ? '28px' : '32px' }}
@@ -1053,7 +1071,7 @@ const Transaksi = ({ user } = {}) => {
                       aria-label="Tutup Pembayaran"
                     >
                       <i className="bi bi-x-lg" style={{ fontSize: isCompactPayment ? '0.75rem' : '0.85rem' }}></i>
-                    </button>
+                    </button> */}
                   </div>
                 </div>
 
@@ -1298,14 +1316,22 @@ const Transaksi = ({ user } = {}) => {
         </div>
       ) : !showSuccessModal && (
         <div
-          className="position-fixed start-50 translate-middle-x text-center"
-          style={{ bottom: `${BOTTOM_MENU_HEIGHT + 4}px`, zIndex: 1050, animation: 'fadeIn 0.2s ease-out' }}
+          className={DRAWER_FOLLOW_CONTENT ? 'w-100 text-center mx-auto' : 'position-fixed start-50 translate-middle-x text-center'}
+          style={DRAWER_FOLLOW_CONTENT ? {
+            position: 'sticky',
+            bottom: `${BOTTOM_MENU_HEIGHT + 4}px`,
+            marginTop: '8px',
+            maxWidth: '580px',
+            zIndex: 1050,
+            animation: 'fadeIn 0.2s ease-out',
+            pointerEvents: 'none'
+          } : { bottom: `${BOTTOM_MENU_HEIGHT + 4}px`, zIndex: 1050, animation: 'fadeIn 0.2s ease-out' }}
         >
           <button
             type="button"
             className="btn btn-primary shadow-lg rounded-pill px-4 py-2 fw-bold d-inline-flex align-items-center gap-2 border-2 border-white"
             onClick={() => setShowPaymentDrawer(true)}
-            style={{ fontSize: '0.9rem', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
+            style={{ fontSize: '0.9rem', backgroundColor: '#0134d4', borderColor: '#0134d4', pointerEvents: 'auto' }}
           >
             <i className="bi bi-wallet2 fs-6"></i>
             <span>Bayar</span>
@@ -1680,7 +1706,7 @@ const Transaksi = ({ user } = {}) => {
         type={gateModal?.type || 'TRANSACTION_LIMIT'}
         customData={gateModal?.data || {}}
       />
-    </div>
+    </>
   );
 };
 

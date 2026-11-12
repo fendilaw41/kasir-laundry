@@ -21,6 +21,13 @@ import { db } from '../db';
 import { playSuccessChime } from '../utils/soundHelper';
 import { getIsEnabledCetak, setIsEnabledCetak, getIsCompactCetak, setIsCompactCetak } from '../utils/userPreferences';
 
+// true  = drawer / tombol Cetak menempel tepat di bawah konten (tidak ada celah kosong), lalu
+//         menempel di dasar layar kalau konten panjang.
+// false = perilaku lama (selalu menempel di dasar layar).
+const DRAWER_FOLLOW_CONTENT = true;
+// Tinggi menu bawah aplikasi (px) - dipakai untuk posisi tombol Cetak saat drawer disembunyikan
+const BOTTOM_MENU_HEIGHT = 62; // .footer-nav-area di CSS = 62px
+
 const isSameInventory = (a, b) => {
   if (!a || !b) return false;
   if (a.id && b.id && String(a.id) === String(b.id)) return true;
@@ -624,7 +631,13 @@ const OrderDetail = ({ user }) => {
       <div
         className="order-detail-wrapper"
         style={{
-          paddingBottom: !showFloatingDrawer ? '85px' : isCompactDrawer ? '140px' : '280px',
+          paddingBottom: DRAWER_FOLLOW_CONTENT
+            ? (showFloatingDrawer ? '0px' : '85px')
+            : (!showFloatingDrawer ? '85px' : isCompactDrawer ? '140px' : '280px'),
+          // Layout memberi jarak di bawah halaman: pb-3 (1rem) + .page-content-wrapper margin-bottom 62px.
+          // Saat drawer menempel di bawah konten, jarak itu ditarik balik agar drawer tepat rata
+          // dengan dasar layar (menutupi menu bawah, sama seperti sebelumnya) di akhir scroll.
+          marginBottom: DRAWER_FOLLOW_CONTENT && showFloatingDrawer ? `calc(-1rem - ${BOTTOM_MENU_HEIGHT}px)` : 0,
           transition: 'padding-bottom 0.22s ease-out',
         }}
       >
@@ -856,14 +869,23 @@ const OrderDetail = ({ user }) => {
         {/* FLOATING BOTTOM DRAWER / PANEL AKSI & CETAK SEPERTI DI TRANSAKSI */}
         {showFloatingDrawer ? (
           <div
-            className="position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0"
-            style={{
+            className={DRAWER_FOLLOW_CONTENT ? 'w-100 px-2 pb-0 mx-auto' : 'position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0'}
+            style={DRAWER_FOLLOW_CONTENT ? {
+              position: 'sticky',
+              bottom: 0,
+              marginTop: '8px',
+              maxWidth: isCompactDrawer ? '540px' : '580px',
+              zIndex: 1055,
+              animation: 'drawerRise 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+              pointerEvents: 'none',
+            } : {
               maxWidth: isCompactDrawer ? '540px' : '580px',
               zIndex: 1055,
               animation: 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
               pointerEvents: 'none',
             }}
           >
+            <style>{`@keyframes drawerRise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }`}</style>
             <div
               className="bg-white w-100 shadow-lg border"
               style={{
@@ -931,7 +953,7 @@ const OrderDetail = ({ user }) => {
                     <i className={`bi ${isCompactDrawer ? 'bi-arrows-angle-expand' : 'bi-arrows-angle-contract'}`} style={{ fontSize: isCompactDrawer ? '0.75rem' : '0.85rem' }}></i>
                   </button>
                   {/* Tombol Tutup / Collapse */}
-                  <button
+                  {/* <button
                     type="button"
                     className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center text-muted border shadow-xs"
                     style={{ width: isCompactDrawer ? '28px' : '32px', height: isCompactDrawer ? '28px' : '32px' }}
@@ -939,7 +961,7 @@ const OrderDetail = ({ user }) => {
                     title="Sembunyikan Drawer"
                   >
                     <i className="bi bi-x-lg" style={{ fontSize: isCompactDrawer ? '0.75rem' : '0.85rem' }}></i>
-                  </button>
+                  </button> */}
                 </div>
               </div>
 
@@ -1158,12 +1180,19 @@ const OrderDetail = ({ user }) => {
         ) : (
           /* TOMBOL FLOATING CETAK MELAYANG DI BAWAH (DI ATAS BOTTOM NAV) */
           <div
-            className="position-fixed bottom-0 start-50 translate-middle-x w-100 px-3 pb-3 text-center"
-            style={{ maxWidth: '580px', zIndex: 1045, pointerEvents: 'none' }}
+            className={DRAWER_FOLLOW_CONTENT ? 'w-100 px-3 text-center mx-auto' : 'position-fixed bottom-0 start-50 translate-middle-x w-100 px-3 pb-3 text-center'}
+            style={DRAWER_FOLLOW_CONTENT ? {
+              position: 'sticky',
+              bottom: `${BOTTOM_MENU_HEIGHT + 6}px`,
+              marginTop: '8px',
+              maxWidth: '580px',
+              zIndex: 1045,
+              pointerEvents: 'none',
+            } : { maxWidth: '580px', zIndex: 1045, pointerEvents: 'none' }}
           >
             <button
               type="button"
-              className="btn btn-primary rounded-pill shadow-lg px-4 mb-5 py-2 fw-bold d-inline-flex align-items-center gap-2 border-0"
+              className={`btn btn-primary rounded-pill shadow-lg px-4 ${DRAWER_FOLLOW_CONTENT ? '' : 'mb-5 '}py-2 fw-bold d-inline-flex align-items-center gap-2 border-0`}
               style={{
                 backgroundColor: '#0134d4',
                 pointerEvents: 'auto',
