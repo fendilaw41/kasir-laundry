@@ -482,6 +482,7 @@ export const syncSettingsToBackend = async () => {
       telepon: setting.telepon,
       jamBuka: setting.jamBuka,
       menerimaCucian: setting.menerimaCucian,
+      isTokoTutup: Boolean(setting.isTokoTutup),
       headerStruk: setting.headerStruk,
       footerStruk: setting.footerStruk,
       updatedAt: setting.updatedAt ? new Date(setting.updatedAt).toISOString() : new Date().toISOString(),

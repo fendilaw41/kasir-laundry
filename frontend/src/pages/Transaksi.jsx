@@ -8,8 +8,11 @@ import PlanGateModal from '../components/PlanGateModal';
 import { createOrderFromCheckout, getOrderByIdQuery } from '../db/repositories/orders';
 import { clearDraftOrder } from '../db/repositories/draftOrder';
 import { getProductsQuery } from '../db/repositories/products';
+import { getSettingsQuery } from '../db/repositories/settings';
 import { addProductToCart } from '../db/repositories/cart';
 import { playSuccessChime } from '../utils/soundHelper';
+import { getIsEnabledKasir, setIsEnabledKasir } from '../utils/userPreferences';
+import { getStoredUser } from '../utils/authSession';
 
 // Tinggi menu bawah aplikasi (px). Tombol Bayar yang ditutup menempel tepat di atasnya.
 const BOTTOM_MENU_HEIGHT = 58;
@@ -125,7 +128,8 @@ const useHorizontalScroll = () => {
   return ref;
 };
 
-const Transaksi = () => {
+const Transaksi = ({ user } = {}) => {
+  const activeUser = user || getStoredUser();
   const {
     cartItems, daftarPelanggan, inventory, navigate,
     selectedPelanggan, setSelectedPelanggan,
@@ -147,14 +151,24 @@ const Transaksi = () => {
 
   // Query Daftar Produk untuk ditampilkan langsung di halaman Transaksi
   const products = useLiveQuery(getProductsQuery);
+  const settings = useLiveQuery(getSettingsQuery);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [productSearchTerm, setProductSearchTerm] = useState('');
 
   // Horizontal Scroll Ref untuk Layanan
   const productScrollRef = useHorizontalScroll();
 
-  // State untuk Floating Bottom Sheet / Drawer Pembayaran (Default: Terbuka)
-  const [showPaymentDrawer, setShowPaymentDrawer] = useState(true);
+  // State untuk Floating Bottom Sheet / Drawer Pembayaran (Membaca preference isEnabledKasir dari localStorage)
+  const [showPaymentDrawer, setShowPaymentDrawerState] = useState(() => getIsEnabledKasir(activeUser));
+
+  const setShowPaymentDrawer = (val) => {
+    setShowPaymentDrawerState(val);
+    setIsEnabledKasir(val, activeUser);
+  };
+
+  useEffect(() => {
+    setShowPaymentDrawerState(getIsEnabledKasir(activeUser));
+  }, [user, activeUser?.id, activeUser?.username]);
   const [isCompactPayment, setIsCompactPayment] = useState(true);
   const [orderDataPending, setOrderDataPending] = useState(null);
   const [isLunas, setIsLunas] = useState(true);
@@ -329,6 +343,10 @@ const Transaksi = () => {
   // Proses Selesaikan Pembayaran
   const handleConfirmPayment = async () => {
     if (isSubmitting) return;
+    if (settings?.isTokoTutup) {
+      toast.error('Toko sedang tutup. Transaksi kasir diblokir.');
+      return;
+    }
     setIsSubmitting(true);
     try {
       let currentOrderData = orderDataPending;
@@ -422,6 +440,22 @@ const Transaksi = () => {
       }}
     >
       <div className="card-body p-3">
+
+        {/* BANNER TOKO TUTUP */}
+        {settings?.isTokoTutup && (
+          <div
+            className="alert alert-danger border-0 rounded-4 py-2.5 px-3 small d-flex align-items-center gap-2.5 mb-3 shadow-sm"
+            style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' }}
+          >
+            <i className="bi bi-slash-circle-fill fs-5 text-danger flex-shrink-0"></i>
+            <div>
+              <div className="fw-bold" style={{ fontSize: '0.84rem' }}>Toko Sedang Tutup</div>
+              <div style={{ fontSize: '0.74rem', opacity: 0.9 }}>
+                Status operasional toko diatur TUTUP. Pembuatan transaksi baru di kasir diblokir sementara.
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Search Produk + Filter Kategori (sejajar dalam satu baris) */}
         <div className="d-flex gap-2 mb-2">
@@ -1131,14 +1165,23 @@ const Transaksi = () => {
             <button
               type="button"
               className={`btn btn-primary w-100 ${isCompactPayment ? 'py-2 rounded-3' : 'py-3 rounded-4 fs-5 shadow'} fw-bold`}
-              style={{ fontSize: isCompactPayment ? '0.88rem' : '1.1rem', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
+              style={{
+                fontSize: isCompactPayment ? '0.88rem' : '1.1rem',
+                backgroundColor: settings?.isTokoTutup ? '#94a3b8' : '#0134d4',
+                borderColor: settings?.isTokoTutup ? '#94a3b8' : '#0134d4',
+              }}
               onClick={handleConfirmPayment}
-              disabled={isSubmitting || !cartItems || cartItems.length === 0}
+              disabled={isSubmitting || !cartItems || cartItems.length === 0 || settings?.isTokoTutup}
             >
               {isSubmitting ? (
                 <>
                   <span className="spinner-border spinner-border-sm me-2" role="status"></span>
                   Memproses...
+                </>
+              ) : settings?.isTokoTutup ? (
+                <>
+                  <i className="bi bi-slash-circle me-1"></i>
+                  Toko Tutup
                 </>
               ) : (
                 <>
@@ -1400,67 +1443,67 @@ const Transaksi = () => {
                 <>
                   {/* Bagian atas (tetap): tombol tambah, search, Pelanggan Umum */}
                   <div className="flex-shrink-0">
-                  <div className="d-flex gap-2 mb-2">
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline-primary rounded-3 w-100 fw-bold py-1 d-flex align-items-center justify-content-center gap-1 shadow-xs"
-                      style={{ fontSize: '0.78rem' }}
-                      onClick={() => setIsAdding(true)}
-                      title={BUTTON_TITLE.ADD}
-                    >
-                      <i className="bi bi-person-plus-fill"></i>
-                      <span>Tambah Pelanggan Baru</span>
-                    </button>
-                  </div>
-
-                  <div className="input-group input-group-sm mb-2 border rounded-3 overflow-hidden shadow-xs">
-                    <span className="input-group-text bg-white border-0 text-muted ps-2">
-                      <i className="bi bi-search" style={{ fontSize: '0.75rem' }}></i>
-                    </span>
-                    <input
-                      type="text"
-                      className="form-control border-0 shadow-none ps-1 py-1"
-                      style={{ fontSize: '0.8rem' }}
-                      placeholder="Cari nama atau no. HP..."
-                      value={pelangganSearchTerm}
-                      onChange={(e) => setPelangganSearchTerm(e.target.value)}
-                    />
-                    {pelangganSearchTerm && (
+                    <div className="d-flex gap-2 mb-2">
                       <button
                         type="button"
-                        className="btn btn-sm btn-link text-decoration-none text-muted pe-2"
-                        onClick={() => setPelangganSearchTerm('')}
+                        className="btn btn-sm btn-outline-primary rounded-3 w-100 fw-bold py-1 d-flex align-items-center justify-content-center gap-1 shadow-xs"
+                        style={{ fontSize: '0.78rem' }}
+                        onClick={() => setIsAdding(true)}
+                        title={BUTTON_TITLE.ADD}
                       >
-                        <i className="bi bi-x-circle-fill"></i>
+                        <i className="bi bi-person-plus-fill"></i>
+                        <span>Tambah Pelanggan Baru</span>
                       </button>
-                    )}
-                  </div>
-
-                  <div
-                    className="p-2 rounded-3 border mb-2 d-flex justify-content-between align-items-center transition-all bg-light"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => {
-                      setSelectedPelanggan(null);
-                      setShowModal(false);
-                      setPelangganSearchTerm('');
-                    }}
-                  >
-                    <div className="d-flex align-items-center gap-2">
-                      <div
-                        className="rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center"
-                        style={{ width: '28px', height: '28px' }}
-                      >
-                        <i className="bi bi-person-dash" style={{ fontSize: '0.8rem' }}></i>
-                      </div>
-                      <div>
-                        <div className="fw-bold text-dark" style={{ fontSize: '0.8rem' }}>Pelanggan Umum</div>
-                        <small className="text-muted" style={{ fontSize: '0.68rem' }}>Pelanggan tanpa data kontak (Default)</small>
-                      </div>
                     </div>
-                    <span className="badge bg-secondary-subtle text-secondary rounded-pill px-2 py-0" style={{ fontSize: '0.65rem' }}>
-                      Pilih
-                    </span>
-                  </div>
+
+                    <div className="input-group input-group-sm mb-2 border rounded-3 overflow-hidden shadow-xs">
+                      <span className="input-group-text bg-white border-0 text-muted ps-2">
+                        <i className="bi bi-search" style={{ fontSize: '0.75rem' }}></i>
+                      </span>
+                      <input
+                        type="text"
+                        className="form-control border-0 shadow-none ps-1 py-1"
+                        style={{ fontSize: '0.8rem' }}
+                        placeholder="Cari nama atau no. HP..."
+                        value={pelangganSearchTerm}
+                        onChange={(e) => setPelangganSearchTerm(e.target.value)}
+                      />
+                      {pelangganSearchTerm && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-link text-decoration-none text-muted pe-2"
+                          onClick={() => setPelangganSearchTerm('')}
+                        >
+                          <i className="bi bi-x-circle-fill"></i>
+                        </button>
+                      )}
+                    </div>
+
+                    <div
+                      className="p-2 rounded-3 border mb-2 d-flex justify-content-between align-items-center transition-all bg-light"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => {
+                        setSelectedPelanggan(null);
+                        setShowModal(false);
+                        setPelangganSearchTerm('');
+                      }}
+                    >
+                      <div className="d-flex align-items-center gap-2">
+                        <div
+                          className="rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center"
+                          style={{ width: '28px', height: '28px' }}
+                        >
+                          <i className="bi bi-person-dash" style={{ fontSize: '0.8rem' }}></i>
+                        </div>
+                        <div>
+                          <div className="fw-bold text-dark" style={{ fontSize: '0.8rem' }}>Pelanggan Umum</div>
+                          <small className="text-muted" style={{ fontSize: '0.68rem' }}>Pelanggan tanpa data kontak (Default)</small>
+                        </div>
+                      </div>
+                      <span className="badge bg-secondary-subtle text-secondary rounded-pill px-2 py-0" style={{ fontSize: '0.65rem' }}>
+                        Pilih
+                      </span>
+                    </div>
 
                   </div>
 

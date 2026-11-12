@@ -135,6 +135,14 @@ export class OrdersService {
         include: { items: true, pelanggan: true },
       });
 
+      // Validasi toko tutup: jika toko tutup, pembuatan transaksi baru diblokir
+      if (!beforeOrder) {
+        const storeSettings = await tx.settings.findUnique({ where: { storeId } });
+        if (storeSettings?.isTokoTutup) {
+          throw new BadRequestException('Toko sedang tutup. Transaksi kasir diblokir.');
+        }
+      }
+
       // 4. Upsert Order
       const createdAt = dto.createdAt ? new Date(dto.createdAt) : new Date();
       const updatedAt = dto.updatedAt ? new Date(dto.updatedAt) : new Date();

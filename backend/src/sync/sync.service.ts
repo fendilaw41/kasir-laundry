@@ -295,6 +295,7 @@ export class SyncService {
       telepon: dto.telepon || store.phone,
       jamBuka: dto.jamBuka || '08.00 - 17.00',
       menerimaCucian: typeof dto.menerimaCucian === 'boolean' ? dto.menerimaCucian : true,
+      isTokoTutup: typeof dto.isTokoTutup === 'boolean' ? dto.isTokoTutup : (dto.tokoTutup === true),
       headerStruk: dto.headerStruk || null,
       footerStruk: dto.footerStruk || null,
       updatedAt,

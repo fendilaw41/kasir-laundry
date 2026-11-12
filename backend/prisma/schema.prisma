@@ -180,6 +180,7 @@ model Settings {
   telepon        String?
   jamBuka        String?
   menerimaCucian Boolean  @default(true)
+  isTokoTutup    Boolean  @default(false)
   headerStruk    String?
   footerStruk    String?
   storageDriver  String? // 'local' | 's3'

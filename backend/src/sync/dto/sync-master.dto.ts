@@ -109,6 +109,12 @@ export class SyncSettingsDto {
   @ApiPropertyOptional({ description: 'Status Menerima Cucian', example: true, default: true })
   menerimaCucian?: boolean;
 
+  @ApiPropertyOptional({ description: 'Status Toko Tutup (Jika true, transaksi kasir diblokir)', example: false, default: false })
+  isTokoTutup?: boolean;
+
+  @ApiPropertyOptional({ description: 'Alias Status Toko Tutup', example: false })
+  tokoTutup?: boolean;
+
   @ApiPropertyOptional({ description: 'Header Struk Cetak', example: 'Terima kasih atas kunjungan anda' })
   headerStruk?: string;
 

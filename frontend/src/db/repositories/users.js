@@ -59,6 +59,7 @@ const hydrateFromBackend = async (data) => {
       telepon: settings?.telepon || store?.phone || '',
       jamBuka: settings?.jamBuka || '08.00 - 17.00',
       menerimaCucian: typeof settings?.menerimaCucian === 'boolean' ? settings.menerimaCucian : true,
+      isTokoTutup: typeof settings?.isTokoTutup === 'boolean' ? settings.isTokoTutup : (settings?.tokoTutup === true ? true : (existingSetting?.isTokoTutup ?? false)),
       headerStruk: settings?.headerStruk || 'Terima kasih atas kunjungan anda',
       footerStruk: settings?.footerStruk || 'kasirlaundry.my.id',
       lastInvoiceNumber: existingSetting?.lastInvoiceNumber || 0,

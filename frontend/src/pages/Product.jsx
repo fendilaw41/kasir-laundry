@@ -118,6 +118,18 @@ const Product = () => {
     return matchesSearch && matchesCategory;
   });
 
+  // Pagination / Limit 10 data dengan tombol View More
+  const [visibleCount, setVisibleCount] = useState(10);
+
+  useEffect(() => {
+    setVisibleCount(10);
+  }, [searchTerm, selectedCategory]);
+
+  const displayedProducts = useMemo(() => {
+    if (!filteredProducts) return [];
+    return filteredProducts.slice(0, visibleCount);
+  }, [filteredProducts, visibleCount]);
+
   return (
     <div className="product-page pb-5" style={{ backgroundColor: '#f8faff', minHeight: '100vh' }}>
       {/* Category Filter Chips - Di Body & Tidak Menyambung Langsung dengan Header */}
@@ -277,7 +289,7 @@ const Product = () => {
       {/* Grid Produk Layanan */}
       {filteredProducts && filteredProducts.length > 0 ? (
         <div className="row g-2 g-sm-3 px-1">
-          {filteredProducts.map((product) => {
+          {displayedProducts.map((product) => {
             const isSetrikaOnly = product.category?.includes('SETRIKA') && !product.category?.includes('CUCI');
             const isSetrika = product.category?.includes('SETRIKA');
 
@@ -424,6 +436,24 @@ const Product = () => {
               </div>
             );
           })}
+
+          {/* Button View More (Jika data lebih dari 10) */}
+          {filteredProducts && filteredProducts.length > visibleCount && (
+            <div className="col-12 text-center mt-3 mb-2">
+              <button
+                type="button"
+                className="btn btn-outline-primary rounded-pill px-4 py-2 fw-semibold shadow-xs d-inline-flex align-items-center gap-2"
+                style={{ fontSize: '0.84rem' }}
+                onClick={() => setVisibleCount((prev) => prev + 10)}
+              >
+                <span>View More</span>
+                <span className="badge bg-primary text-white rounded-pill px-2 py-0.5" style={{ fontSize: '0.68rem' }}>
+                  +{filteredProducts.length - visibleCount}
+                </span>
+                <i className="bi bi-chevron-down"></i>
+              </button>
+            </div>
+          )}
         </div>
       ) : products === undefined ? (
         <ProductListSkeleton count={6} />

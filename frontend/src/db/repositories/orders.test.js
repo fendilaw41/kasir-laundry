@@ -30,6 +30,13 @@ describe('orders repository', () => {
       await expect(createOrderFromCheckout({ orderData: { total: -5000 } })).rejects.toThrow('Total order tidak valid');
     });
 
+    it('should throw error when store is closed (isTokoTutup is true)', async () => {
+      db.settings.get.mockResolvedValue({ isTokoTutup: true, deviceId: 'TEST', lastInvoiceNumber: 10 });
+      const orderData = { total: 50000, cartItems: [{ id: 1, name: 'Cuci', price: 50000, qty: 1 }] };
+      await expect(createOrderFromCheckout({ orderData, bayarNum: 50000, kembalian: 0, isLunas: true }))
+        .rejects.toThrow('Toko sedang tutup. Transaksi kasir diblokir.');
+    });
+
     it('should proceed and add order if valid', async () => {
       db.settings.get.mockResolvedValue({ deviceId: 'TEST', namaLaundry: 'KASIR TEST', lastInvoiceNumber: 10 });
       db.orders.add.mockResolvedValue(1);

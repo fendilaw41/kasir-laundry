@@ -28,6 +28,12 @@ import {
   formatReceiptFooterText,
   getReceiptTrackingUrl,
 } from '../utils/receiptFooter';
+import {
+  getIsEnabledKasir,
+  setIsEnabledKasir,
+  getIsEnabledCetak,
+  setIsEnabledCetak,
+} from '../utils/userPreferences';
 
 const Setting = ({ user, onLogout }) => {
   const settings = useLiveQuery(getSettingsQuery);
@@ -119,6 +125,26 @@ const Setting = ({ user, onLogout }) => {
     role: 'kasir',
   });
 
+  const [isEnabledKasir, setLocalIsEnabledKasir] = useState(() => getIsEnabledKasir(user));
+  const [isEnabledCetak, setLocalIsEnabledCetak] = useState(() => getIsEnabledCetak(user));
+
+  useEffect(() => {
+    setLocalIsEnabledKasir(getIsEnabledKasir(user));
+    setLocalIsEnabledCetak(getIsEnabledCetak(user));
+  }, [user]);
+
+  const handleToggleEnabledKasir = (val) => {
+    setLocalIsEnabledKasir(val);
+    setIsEnabledKasir(val, user);
+    toast.success(val ? 'Papan bayar kasir diaktifkan' : 'Papan bayar kasir disembunyikan');
+  };
+
+  const handleToggleEnabledCetak = (val) => {
+    setLocalIsEnabledCetak(val);
+    setIsEnabledCetak(val, user);
+    toast.success(val ? 'FloatPapaning cetak nota diaktifkan' : 'Papan cetak nota disembunyikan');
+  };
+
   const [formData, setFormData] = useState({
     namaLaundry: '',
     motto: '',
@@ -127,6 +153,7 @@ const Setting = ({ user, onLogout }) => {
     telepon: '',
     jamBuka: '',
     menerimaCucian: true,
+    isTokoTutup: false,
     headerStruk: '',
     footerStruk: '',
   });
@@ -142,6 +169,7 @@ const Setting = ({ user, onLogout }) => {
         telepon: settings.telepon || '',
         jamBuka: settings.jamBuka || '',
         menerimaCucian: typeof settings.menerimaCucian === 'boolean' ? settings.menerimaCucian : true,
+        isTokoTutup: typeof settings.isTokoTutup === 'boolean' ? settings.isTokoTutup : (settings.tokoTutup === true),
         headerStruk: settings.headerStruk || '',
         footerStruk: settings.footerStruk || '',
       });
@@ -150,8 +178,9 @@ const Setting = ({ user, onLogout }) => {
 
   const handleSaveSettings = async (e) => {
     e?.preventDefault();
-    if (user?.role !== 'owner') {
-      toast.error(TOAST_MESSAGES.ERROR);
+    // Kasir boleh mengedit format nota dan struk
+    if (activeTab !== 'struk' && user?.role !== 'owner') {
+      toast.error('Hanya owner yang dapat mengubah pengaturan ini.');
       return;
     }
 
@@ -166,6 +195,8 @@ const Setting = ({ user, onLogout }) => {
     setIsSaving(true);
     try {
       await updateSettings(formData);
+      setIsEnabledKasir(isEnabledKasir, user);
+      setIsEnabledCetak(isEnabledCetak, user);
       toast.success(TOAST_MESSAGES.SUCCESS);
     } catch (err) {
       console.error(err);
@@ -276,12 +307,35 @@ const Setting = ({ user, onLogout }) => {
     setShowProductModal(true);
   };
 
+  const [deleteProductConfirm, setDeleteProductConfirm] = useState({ show: false, product: null });
+  const [visibleProductCount, setVisibleProductCount] = useState(10);
+
+  const confirmDeleteProduct = (product) => {
+    setDeleteProductConfirm({ show: true, product });
+  };
+
+  const handleConfirmDeleteProduct = async () => {
+    const p = deleteProductConfirm.product;
+    setDeleteProductConfirm({ show: false, product: null });
+    if (!p) return;
+    try {
+      const sub = await getSubscriptionReport().catch(() => null);
+      if (sub?.isExpired) {
+        triggerExpiredModal(sub);
+        return;
+      }
+    } catch (e) { }
+
+    try {
+      await deleteProductRepo(p.id);
+      toast.success(TOAST_MESSAGES.SUCCESS);
+    } catch (err) {
+      toast.error(TOAST_MESSAGES.ERROR);
+    }
+  };
+
   const handleProductSave = async (e) => {
     e.preventDefault();
-    if (!isOwner) {
-      toast.error(TOAST_MESSAGES.ERROR);
-      return;
-    }
     try {
       const sub = await getSubscriptionReport().catch(() => null);
       if (sub?.isExpired) {
@@ -304,24 +358,11 @@ const Setting = ({ user, onLogout }) => {
   };
 
   const deleteProduct = async (id) => {
-    if (!isOwner) {
-      toast.error(TOAST_MESSAGES.ERROR);
-      return;
-    }
-    try {
-      const sub = await getSubscriptionReport().catch(() => null);
-      if (sub?.isExpired) {
-        triggerExpiredModal(sub);
-        return;
-      }
-    } catch (e) { }
-    if (window.confirm(CONFIRM_MESSAGES.DELETE_PRODUCT)) {
-      try {
-        await deleteProductRepo(id);
-        toast.success(TOAST_MESSAGES.SUCCESS);
-      } catch (err) {
-        toast.error(TOAST_MESSAGES.ERROR);
-      }
+    const p = products?.find(item => item.id === id);
+    if (p) {
+      confirmDeleteProduct(p);
+    } else {
+      confirmDeleteProduct({ id, name: 'Layanan' });
     }
   };
 
@@ -458,10 +499,10 @@ const Setting = ({ user, onLogout }) => {
                       </div>
                       <div>
                         <h6 className="fw-bold mb-0.5 text-dark" style={{ fontSize: '0.9rem' }}>
-                          Produk & Layanan
+                          Layanan
                         </h6>
                         <small className="text-muted" style={{ fontSize: '0.74rem' }}>
-                          Kelola master produk, harga jual, stok & multi satuan
+                          Kelola layanan dan harga jual
                         </small>
                       </div>
                     </div>
@@ -661,8 +702,8 @@ const Setting = ({ user, onLogout }) => {
           </div>
         )}
 
-        {/* NOTIFIKASI KHUSUS JIKA BUKAN OWNER */}
-        {activeTab && !isOwner && (
+        {/* NOTIFIKASI KHUSUS JIKA BUKAN OWNER (Kecuali tab struk & product di mana kasir diperbolehkan edit) */}
+        {activeTab && activeTab !== 'struk' && activeTab !== 'product' && !isOwner && (
           <div
             className="alert alert-warning border-0 rounded-4 py-2 px-3 small d-flex align-items-center gap-2 mb-3 shadow-sm"
             style={{ backgroundColor: '#fff9e6', color: '#8a6200', fontSize: '0.78rem' }}
@@ -867,6 +908,46 @@ const Setting = ({ user, onLogout }) => {
                     />
                   </div>
                 </div>
+
+                {/* Switch Status Toko Tutup (Jika tutup transaksi kasir diblokir) */}
+                <div
+                  className="d-flex align-items-center justify-content-between p-3 rounded-3"
+                  style={{
+                    backgroundColor: formData.isTokoTutup ? '#fef2f2' : '#f8fafc',
+                    border: formData.isTokoTutup ? '1px solid #fecaca' : '1px solid #edf2f7',
+                  }}
+                >
+                  <div className="pe-2">
+                    <div className="d-flex align-items-center gap-1.5 mb-0.5">
+                      <h6 className="mb-0 fw-bold text-dark" style={{ fontSize: '0.88rem' }}>Toko Tutup</h6>
+                      {formData.isTokoTutup ? (
+                        <span className="badge bg-danger text-white rounded-pill px-2 py-0.5" style={{ fontSize: '0.65rem' }}>
+                          🔴 Tutup
+                        </span>
+                      ) : (
+                        <span className="badge bg-success-subtle text-success rounded-pill px-2 py-0.5" style={{ fontSize: '0.65rem' }}>
+                          🟢 Buka
+                        </span>
+                      )}
+                    </div>
+                    <small className={formData.isTokoTutup ? 'text-danger fw-semibold d-block' : 'text-muted d-block'} style={{ fontSize: '0.72rem' }}>
+                      {formData.isTokoTutup
+                        ? 'Toko dalam keadaan tutup. Semua transaksi kasir diblokir.'
+                        : 'Toko beroperasi normal. Transaksi kasir dapat dilakukan.'}
+                    </small>
+                  </div>
+                  <div className="form-check form-switch m-0 p-0 d-flex align-items-center">
+                    <input
+                      className="form-check-input ms-0"
+                      type="checkbox"
+                      role="switch"
+                      checked={Boolean(formData.isTokoTutup)}
+                      onChange={(e) => setFormData({ ...formData, isTokoTutup: e.target.checked })}
+                      style={{ width: '46px', height: '24px', cursor: isOwner ? 'pointer' : 'default' }}
+                      disabled={!isOwner}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -927,7 +1008,6 @@ const Setting = ({ user, onLogout }) => {
                     value={formData.headerStruk}
                     onChange={(e) => setFormData({ ...formData, headerStruk: e.target.value })}
                     placeholder="Contoh: Terima kasih atas kunjungan anda"
-                    disabled={!isOwner}
                   />
                   <small className="text-muted d-block mt-1" style={{ fontSize: '0.7rem' }}>
                     Muncul tepat di bawah nama & alamat laundry pada struk thermal.
@@ -956,7 +1036,6 @@ const Setting = ({ user, onLogout }) => {
                     value={formData.footerStruk}
                     onChange={(e) => setFormData({ ...formData, footerStruk: e.target.value })}
                     placeholder="Gunakan LINK_ORDER untuk link thermal, atau INVOICE untuk barcode PDF/Invoice."
-                    disabled={!isOwner}
                   />
                   <div className="d-flex flex-wrap gap-2 mt-2">
                     <button
@@ -964,7 +1043,6 @@ const Setting = ({ user, onLogout }) => {
                       className={`btn btn-sm rounded-pill py-1 px-3 d-flex align-items-center gap-1 shadow-none ${isFooterLinkOrder(formData.footerStruk) ? 'btn-success text-white' : 'btn-outline-success'
                         }`}
                       style={{ fontSize: '0.72rem' }}
-                      disabled={!isOwner}
                       onClick={() => {
                         const current = (formData.footerStruk || '').trim();
                         if (isFooterLinkOrder(current)) {
@@ -992,7 +1070,6 @@ const Setting = ({ user, onLogout }) => {
                       className={`btn btn-sm rounded-pill py-1 px-3 d-flex align-items-center gap-1 shadow-none ${isFooterBarcode(formData.footerStruk) ? 'btn-primary text-white' : 'btn-outline-primary'
                         }`}
                       style={{ fontSize: '0.72rem' }}
-                      disabled={!isOwner}
                       onClick={() => {
                         const current = (formData.footerStruk || '').trim();
                         if (isFooterBarcode(current)) {
@@ -1082,26 +1159,25 @@ const Setting = ({ user, onLogout }) => {
               </div>
             </div>
 
-            {isOwner && (
-              <button
-                type="submit"
-                className="btn btn-outline-primary w-100 rounded-pill py-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2"
-                disabled={isSaving}
-                style={{ fontSize: '0.92rem' }}
-              >
-                {isSaving ? (
-                  <>
-                    <span className="spinner-border spinner-border-sm" role="status"></span>
-                    <span>{BUTTON_TEXT.SAVING}</span>
-                  </>
-                ) : (
-                  <>
-                    <i className="bi bi-check-circle-fill fs-5"></i>
-                    <span>{BUTTON_TEXT.SAVE}</span>
-                  </>
-                )}
-              </button>
-            )}
+            {/* STICKY BOTTOM ACTION BUTTON (Kasir & Owner Boleh Simpan Format Struk & Preferensi) */}
+            <button
+              type="submit"
+              className="btn btn-outline-primary w-100 rounded-pill py-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2"
+              disabled={isSaving}
+              style={{ fontSize: '0.92rem' }}
+            >
+              {isSaving ? (
+                <>
+                  <span className="spinner-border spinner-border-sm" role="status"></span>
+                  <span>{BUTTON_TEXT.SAVING}</span>
+                </>
+              ) : (
+                <>
+                  <i className="bi bi-check-circle-fill fs-5"></i>
+                  <span>{BUTTON_TEXT.SAVE}</span>
+                </>
+              )}
+            </button>
           </form>
         )}
 
@@ -1214,9 +1290,9 @@ const Setting = ({ user, onLogout }) => {
         )}
 
         {/* ======================================================== */}
-        {/* BAGIAN 4: MASTER PRODUK / LAYANAN (KHUSUS OWNER)          */}
+        {/* BAGIAN 4: MASTER LAYANAN (OWNER & KASIR BISA KELOLA)      */}
         {/* ======================================================== */}
-        {activeTab === 'product' && isOwner && (
+        {activeTab === 'product' && (
           <div>
             {/* ACTION HEADER */}
             <div className="d-flex justify-content-between align-items-center mb-3 px-1">
@@ -1265,7 +1341,7 @@ const Setting = ({ user, onLogout }) => {
                   </div>
                 </div>
               ) : (
-                products.map((p) => {
+                products.slice(0, visibleProductCount).map((p) => {
                   const isSetrika = p.category?.includes('SETRIKA');
                   return (
                     <div
@@ -1316,7 +1392,7 @@ const Setting = ({ user, onLogout }) => {
                           type="button"
                           className="btn btn-sm btn-light rounded-circle text-danger border shadow-xs d-flex align-items-center justify-content-center"
                           style={{ width: '34px', height: '34px' }}
-                          onClick={() => deleteProduct(p.id)}
+                          onClick={() => confirmDeleteProduct(p)}
                           title={BUTTON_TITLE.DELETE}
                         >
                           <i className="bi bi-trash-fill" style={{ fontSize: '0.8rem' }}></i>
@@ -1325,6 +1401,24 @@ const Setting = ({ user, onLogout }) => {
                     </div>
                   );
                 })
+              )}
+
+              {/* Button View More untuk Layanan jika data lebih dari 10 */}
+              {products && products.length > visibleProductCount && (
+                <div className="text-center my-3">
+                  <button
+                    type="button"
+                    className="btn btn-outline-primary rounded-pill px-4 py-2 fw-semibold shadow-xs d-inline-flex align-items-center gap-2"
+                    style={{ fontSize: '0.84rem' }}
+                    onClick={() => setVisibleProductCount((prev) => prev + 10)}
+                  >
+                    <span>View More</span>
+                    <span className="badge bg-primary text-white rounded-pill px-2 py-0.5" style={{ fontSize: '0.68rem' }}>
+                      +{products.length - visibleProductCount}
+                    </span>
+                    <i className="bi bi-chevron-down"></i>
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -1661,6 +1755,52 @@ const Setting = ({ user, onLogout }) => {
                     }}
                   >
                     Ya, Keluar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Modal Konfirmasi Hapus Layanan Modern */}
+      {deleteProductConfirm.show && (
+        <>
+          <div
+            className="modal-backdrop fade show"
+            style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(15, 23, 42, 0.55)', zIndex: 1075 }}
+            onClick={() => setDeleteProductConfirm({ show: false, product: null })}
+          ></div>
+          <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1080 }}>
+            <div className="modal-dialog modal-dialog-centered mx-auto" style={{ maxWidth: '340px' }}>
+              <div className="modal-content border-0 shadow-lg text-center p-4" style={{ borderRadius: '24px' }}>
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
+                  style={{ width: '56px', height: '56px', backgroundColor: '#fef2f2', color: '#dc2626' }}
+                >
+                  <i className="bi bi-trash3-fill fs-3"></i>
+                </div>
+                <h6 className="fw-bold text-dark mb-1">Hapus Layanan?</h6>
+                <p className="text-muted small mb-4" style={{ fontSize: '0.8rem', lineHeight: '1.4' }}>
+                  Yakin ingin menghapus layanan <strong>&quot;{deleteProductConfirm.product?.name}&quot;</strong>? Layanan ini tidak akan muncul lagi di kasir.
+                </p>
+                <div className="d-flex gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-light rounded-pill flex-fill fw-bold py-2 border shadow-none"
+                    style={{ fontSize: '0.85rem' }}
+                    onClick={() => setDeleteProductConfirm({ show: false, product: null })}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger rounded-pill flex-fill fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-1.5"
+                    style={{ fontSize: '0.85rem' }}
+                    onClick={handleConfirmDeleteProduct}
+                  >
+                    <i className="bi bi-trash-fill"></i>
+                    <span>Hapus</span>
                   </button>
                 </div>
               </div>

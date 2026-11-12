@@ -19,6 +19,7 @@ import { QRCodeSVG } from '../components/common/QRCodeSVG';
 import { Skeleton, OrderDetailSkeleton } from '../components/common/Skeleton';
 import { db } from '../db';
 import { playSuccessChime } from '../utils/soundHelper';
+import { getIsEnabledCetak, setIsEnabledCetak, getIsCompactCetak, setIsCompactCetak } from '../utils/userPreferences';
 
 const isSameInventory = (a, b) => {
   if (!a || !b) return false;
@@ -97,8 +98,27 @@ const OrderDetail = ({ user }) => {
   const [printType, setPrintType] = useState(null);
   const [gateModal, setGateModal] = useState({ open: false, type: 'PDF_LIMIT', data: {} });
   const [isQueryTimeout, setIsQueryTimeout] = useState(false);
-  const [isCompactDrawer, setIsCompactDrawer] = useState(false);
-  const [showFloatingDrawer, setShowFloatingDrawer] = useState(true);
+  const [isCompactDrawer, setIsCompactDrawerState] = useState(() => getIsCompactCetak(user));
+  const [showFloatingDrawer, setShowFloatingDrawerState] = useState(() => getIsEnabledCetak(user));
+
+  const setShowFloatingDrawer = (val) => {
+    setShowFloatingDrawerState(val);
+    setIsEnabledCetak(val, user);
+  };
+
+  const setIsCompactDrawer = (val) => {
+    setShowCompactState(val);
+    setIsCompactCetak(val, user);
+  };
+
+  const setShowCompactState = (val) => {
+    setIsCompactDrawerState(val);
+  };
+
+  useEffect(() => {
+    setShowFloatingDrawerState(getIsEnabledCetak(user));
+    setIsCompactDrawerState(getIsCompactCetak(user));
+  }, [user]);
 
   // State untuk Floating Popup Pembayaran (mirip Transaksi)
   const [showPayModal, setShowPayModal] = useState(false);

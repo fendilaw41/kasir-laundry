@@ -64,6 +64,9 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
 
   await db.transaction('rw', [db.orders, db.inventory, db.inventoryEvents, db.cart, db.settings], async () => {
     const setting = await db.settings.get(1);
+    if (setting?.isTokoTutup) {
+      throw new Error('Toko sedang tutup. Transaksi kasir diblokir.');
+    }
     const storedUser = JSON.parse(
       (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('user') : null) ||
       (typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null) ||

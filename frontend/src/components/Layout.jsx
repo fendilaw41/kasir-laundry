@@ -8,6 +8,7 @@ import { getActiveStoreId } from '../db/repositories/storeHelper';
 import { Skeleton } from './common/Skeleton';
 import OfflineAlertBanner from './OfflineAlertBanner';
 import NotificationBell from './NotificationBell';
+import { isStatusLunas } from '../utils/paymentStatus';
 
 const Layout = ({ user, onLogout }) => {
   const location = useLocation();
@@ -161,7 +162,7 @@ const Layout = ({ user, onLogout }) => {
     const tab = searchParams.get('tab');
     if (path === '/setting' && tab) {
       if (tab === 'umum') return 'Pengaturan Toko';
-      if (tab === 'product') return 'Produk & Layanan';
+      if (tab === 'product') return 'Layanan';
       if (tab === 'struk') return 'Format Nota & Struk';
       if (tab === 'kasir') return 'Manajemen Kasir';
       if (tab === 'password') return 'Ubah Password';
@@ -169,7 +170,7 @@ const Layout = ({ user, onLogout }) => {
     if (path === '/setting') return 'Pengaturan';
     if (path === '/pembayaran') return 'Pembayaran';
     if (path.startsWith('/order/')) return 'Detail Order';
-    if (path === '/product') return 'Pilih Layanan';
+    if (path === '/product') return 'Layanan';
     if (path === '/chat') return 'Chat';
     if (path === '/pergerakan-stok' || path === '/inventory-movement') return 'Stock History';
     if (path === '/plan' || path === '/paket') return 'Plan';
@@ -477,7 +478,7 @@ const Layout = ({ user, onLogout }) => {
           ) : (
             <div className="d-flex flex-column gap-2">
               {homeSearchResults.map((order) => {
-                const isLunas = order.statusBayar === 'Lunas' || order.sisaBayar === 0;
+                const isLunas = isStatusLunas(order.statusBayar) || order.sisaBayar === 0 || (order.total > 0 && (order.bayar || 0) >= order.total);
                 const dateStr = order.createdAt
                   ? new Date(order.createdAt).toLocaleDateString('id-ID', {
                       day: 'numeric',
