@@ -515,6 +515,16 @@ export class OrdersService {
 
     const shortCode = this.encodeTrackingCode(order.invoiceId);
 
+    const isDefaultPlaceholder = (val?: string | null) =>
+      !val || ['KASIR LAUNDRY', 'TOKOPLUS', 'LAUNDRY STORE'].includes(val.trim().toUpperCase());
+
+    const resolvedStoreName =
+      (!isDefaultPlaceholder(order.store?.settings?.namaLaundry) ? order.store?.settings?.namaLaundry : null) ||
+      (!isDefaultPlaceholder(order.store?.name) ? order.store?.name : null) ||
+      order.store?.name ||
+      order.store?.settings?.namaLaundry ||
+      '';
+
     return {
       id: order.id,
       storeId: order.storeId,
@@ -553,11 +563,9 @@ export class OrdersService {
           alamat: '',
         },
       store: {
-        id: order.store?.id,
-        name:
-          order.store?.settings?.namaLaundry ||
-          order.store?.name ||
-          'TokoPlus',
+        id: order.store?.id || order.storeId,
+        code: order.store?.code || '',
+        name: resolvedStoreName,
         motto:
           order.store?.settings?.motto || order.store?.settings?.headerStruk || 'Solusi Laundry Bersih & Cepat',
         address:
@@ -568,6 +576,7 @@ export class OrdersService {
         jamBuka: order.store?.settings?.jamBuka || '08.00 - 17.00',
         headerStruk: order.store?.settings?.headerStruk || '',
         footerStruk: order.store?.settings?.footerStruk || '',
+        subscription: order.store?.subscription || null,
       },
     };
   }

@@ -109,10 +109,34 @@ export const fetchPublicOrder = async (code) => {
         }
       }
       const localSettings = await db.settings.get(1);
+      const targetStoreId = localOrder.storeId || localSettings?.storeId || '';
+      const isMatchingLocalStore = !localOrder.storeId || !localSettings?.storeId || String(localSettings.storeId) === String(localOrder.storeId);
+      const storeSettings = isMatchingLocalStore ? localSettings : null;
+
+      let storeUser = null;
+      if (targetStoreId && db.users?.where) {
+        try {
+          storeUser = await db.users.where('storeId').equals(targetStoreId).first();
+        } catch { }
+      }
+
+      let localSub = storeSettings?.cachedSubscription || null;
+      if (!localSub && targetStoreId && db.storeSubscriptions?.where) {
+        try {
+          localSub = await db.storeSubscriptions.where('storeId').equals(targetStoreId).first();
+        } catch { }
+      }
+
+      const resolvedLocalStoreName =
+        localOrder.storeName ||
+        localOrder.namaLaundry ||
+        storeSettings?.namaLaundry ||
+        storeUser?.storeName ||
+        '';
 
       localFormatted = {
         id: localOrder.uuid || String(localOrder.id),
-        storeId: localOrder.storeId || localSettings?.storeId || '',
+        storeId: targetStoreId,
         invoiceId: localOrder.invoiceId,
         shortCode: encodeTrackingCode(localOrder.invoiceId),
         status: localOrder.status || 'Baru',
@@ -136,12 +160,15 @@ export const fetchPublicOrder = async (code) => {
           alamat: localPelanggan?.alamat || '',
         },
         store: {
-          name: localSettings?.namaLaundry || 'TokoPlus',
-          motto: localSettings?.motto || 'Solusi Laundry Bersih & Cepat',
-          address: localSettings?.alamat || '',
-          city: localSettings?.kota || '',
-          phone: localSettings?.telepon || '',
-          jamBuka: localSettings?.jamBuka || '08.00 - 17.00',
+          id: targetStoreId,
+          code: storeSettings?.storeCode || storeUser?.storeCode || '',
+          name: resolvedLocalStoreName,
+          motto: storeSettings?.motto || 'Solusi Laundry Bersih & Cepat',
+          address: storeSettings?.alamat || '',
+          city: storeSettings?.kota || '',
+          phone: storeSettings?.telepon || '',
+          jamBuka: storeSettings?.jamBuka || '08.00 - 17.00',
+          subscription: localSub,
         },
         fromLocal: true,
       };
@@ -163,6 +190,15 @@ export const fetchPublicOrder = async (code) => {
       if (response.ok) {
         const json = await response.json();
         const serverOrder = json.data;
+
+        if (serverOrder && localFormatted && (!serverOrder.storeId || !localFormatted.storeId || String(serverOrder.storeId) === String(localFormatted.storeId))) {
+          serverOrder.store = {
+            ...localFormatted.store,
+            ...(serverOrder.store || {}),
+            name: serverOrder.store?.name || localFormatted.store?.name || '',
+            subscription: serverOrder.store?.subscription || localFormatted.store?.subscription || null,
+          };
+        }
 
         // Simpan ke cache localStorage untuk fallback offline di browser pelanggan
         try {

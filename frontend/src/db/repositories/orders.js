@@ -122,8 +122,10 @@ export const createOrderFromCheckout = async ({ orderData, bayarNum, kembalian, 
 
     const orderDate = new Date();
     const resolvedStatusLunas = getStatusLunasByMetode(orderData.metodeBayar);
+    const storeName = orderData.storeName || setting?.namaLaundry || storedUser?.storeName || undefined;
     newId = await db.orders.add(withNewSyncMeta({
       storeId,
+      storeName,
       ...orderData,
       invoiceId,
       userId: orderData.userId || storedUser?.uuid || storedUser?.id || undefined,

@@ -277,6 +277,16 @@ a {
 }
 
 /* ==========================================================================
+   Public Track Order Styling (Tanpa ruang kosong top/bottom dari body)
+   ========================================================================== */
+body.public-track-active,
+body:has(.public-track-wrapper) {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    background-color: #f3f6fc !important;
+}
+
+/* ==========================================================================
    Landing Page Styling (Desktop Full-Width & Responsive Mobile)
    ========================================================================== */
 body.landing-page-active,

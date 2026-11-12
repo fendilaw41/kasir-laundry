@@ -6,6 +6,7 @@ import { fetchPublicOrder } from '../utils/tracking';
 import { isStatusLunas } from '../utils/paymentStatus';
 import { PublicTrackOrderSkeleton } from '../components/common/Skeleton';
 import { isSubscriptionEnabled } from '../services/subscriptionService';
+import { db } from '../db';
 
 const TRACKING_STEPS = [
   { key: 'Baru', label: 'Diterima', icon: 'bi-inbox-fill', desc: 'Pesanan masuk antrean kasir' },
@@ -22,7 +23,15 @@ export default function PublicTrackOrder() {
   const [errorMsg, setErrorMsg] = useState('');
   const [isOfflineData, setIsOfflineData] = useState(false);
 
-  // Ambil data pesanan
+  // Hilangkan padding-top & padding-bottom bawaan body agar tidak ada ruang kosong saat scroll
+  useEffect(() => {
+    document.body.classList.add('public-track-active');
+    return () => {
+      document.body.classList.remove('public-track-active');
+    };
+  }, []);
+
+  // Ambil data pesanan & pastikan informasi toko diambil dari DB toko transaksi
   const loadOrder = useCallback(async (codeToLoad) => {
     if (!codeToLoad || !codeToLoad.trim()) {
       setLoading(false);
@@ -32,7 +41,49 @@ export default function PublicTrackOrder() {
     try {
       setErrorMsg('');
       const result = await fetchPublicOrder(codeToLoad);
-      setOrder(result.order);
+      let loadedOrder = result.order;
+
+      // Pastikan data toko diambil dari DB lokal jika dari order belum lengkap
+      if (loadedOrder) {
+        try {
+          const localSetting = db.settings?.get ? await db.settings.get(1) : null;
+          const targetStoreId = loadedOrder.storeId || loadedOrder.store?.id || localSetting?.storeId || '';
+          const isSameLocalStore = !loadedOrder.storeId || !localSetting?.storeId || String(localSetting.storeId) === String(loadedOrder.storeId);
+          const matchedSetting = isSameLocalStore ? localSetting : null;
+
+          let matchedUser = null;
+          if (targetStoreId && db.users?.where) {
+            matchedUser = await db.users.where('storeId').equals(targetStoreId).first().catch(() => null);
+          }
+
+          const dbStoreName =
+            loadedOrder.store?.name ||
+            loadedOrder.store?.namaLaundry ||
+            loadedOrder.storeName ||
+            matchedSetting?.namaLaundry ||
+            matchedUser?.storeName ||
+            '';
+
+          loadedOrder = {
+            ...loadedOrder,
+            store: {
+              ...(loadedOrder.store || {}),
+              id: targetStoreId,
+              name: dbStoreName,
+              motto: loadedOrder.store?.motto || matchedSetting?.motto || 'Solusi Laundry Bersih & Cepat',
+              address: loadedOrder.store?.address || matchedSetting?.alamat || '',
+              city: loadedOrder.store?.city || matchedSetting?.kota || '',
+              phone: loadedOrder.store?.phone || matchedSetting?.telepon || '',
+              jamBuka: loadedOrder.store?.jamBuka || matchedSetting?.jamBuka || '08.00 - 17.00',
+              subscription: loadedOrder.store?.subscription || matchedSetting?.cachedSubscription || null,
+            },
+          };
+        } catch {
+          // Abaikan jika IndexedDB tidak tersedia di environment test/browser tertentu
+        }
+      }
+
+      setOrder(loadedOrder);
       setIsOfflineData(result.isOffline);
     } catch (err) {
       console.warn('[PublicTrackOrder] Gagal memuat:', err);

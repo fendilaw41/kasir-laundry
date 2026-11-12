@@ -167,7 +167,7 @@ html { scroll-behavior: smooth; scroll-padding-top: 84px; }
 .lp-app-card .st i.pl { background: var(--lp-deep); color: #fff; }
 .lp-app-card .hint { font-size: .55rem; color: #8480ae; }
 .lp-app-dock {
-  position: absolute; left: 10px; right: 10px; bottom: 10px; background: #ffffff; border-radius: 20px; border: 1px solid #e2e8f0;
+  position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 3; background: #ffffff; border-radius: 20px; border: 1px solid #e2e8f0;
   box-shadow: 0 -8px 24px -6px rgba(15, 23, 42, .18); padding: 10px 12px 12px;
 }
 .lp-app-dock .grab { width: 32px; height: 4px; border-radius: 2px; background: #cbd5e1; margin: 0 auto 10px; }
@@ -618,6 +618,30 @@ const LandingPage = ({ user }) => {
                         <span className="tag" style={{ background: '#dcfce7', color: '#166534' }}>CUCI LIPAT</span>
                         <span className="nm">Express · 1 hari</span>
                         <span className="pr">Rp 7.000</span>
+                        <span className="hint">+ Ketuk untuk tambah</span>
+                      </div>
+                      <div className="lp-app-card">
+                        <span className="tag" style={{ background: '#fef3c7', color: '#92400e' }}>BED COVER</span>
+                        <span className="nm">Jumbo · 2 hari</span>
+                        <span className="pr">Rp 25.000</span>
+                        <span className="hint">+ Ketuk untuk tambah</span>
+                      </div>
+                      <div className="lp-app-card">
+                        <span className="tag" style={{ background: '#ede9fe', color: '#5b21b6' }}>CUCI SEPATU</span>
+                        <span className="nm">Sneakers · Deep Clean</span>
+                        <span className="pr">Rp 30.000</span>
+                        <span className="hint">+ Ketuk untuk tambah</span>
+                      </div>
+                      <div className="lp-app-card">
+                        <span className="tag" style={{ background: '#e0f2fe', color: '#0369a1' }}>SELIMUT</span>
+                        <span className="nm">Tebal · 2 hari</span>
+                        <span className="pr">Rp 18.000</span>
+                        <span className="hint">+ Ketuk untuk tambah</span>
+                      </div>
+                      <div className="lp-app-card">
+                        <span className="tag" style={{ background: '#fae8ff', color: '#86198f' }}>GORDEN</span>
+                        <span className="nm">Standar · per meter</span>
+                        <span className="pr">Rp 15.000</span>
                         <span className="hint">+ Ketuk untuk tambah</span>
                       </div>
                     </div>
