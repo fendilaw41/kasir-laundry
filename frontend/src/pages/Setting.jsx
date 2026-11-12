@@ -729,7 +729,7 @@ const Setting = ({ user, onLogout }) => {
                           Install Aplikasi
                         </h6>
                         <small className="text-muted" style={{ fontSize: '0.74rem' }}>
-                          Pasang aplikasi kasir di smartphone.
+                          Pasang aplikasi di smartphone.
                         </small>
                       </div>
                     </div>
