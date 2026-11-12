@@ -686,7 +686,7 @@ const Setting = ({ user, onLogout }) => {
                     </div>
                   )}
 
-                  {/* RESET CACHE */}
+                  {/* RESET DATA */}
                   <div
                     role="button"
                     className="list-group-item list-group-item-action p-3 d-flex align-items-center justify-content-between border-0 border-bottom"
@@ -701,7 +701,7 @@ const Setting = ({ user, onLogout }) => {
                       </div>
                       <div>
                         <h6 className="fw-bold mb-0.5 text-dark" style={{ fontSize: '0.9rem' }}>
-                          Reset Cache
+                          Reset Data
                         </h6>
                         <small className="text-muted" style={{ fontSize: '0.74rem' }}>
                           Bersihkan dan perbarui data offline
