@@ -534,7 +534,7 @@ const Setting = ({ user, onLogout }) => {
                           Pengaturan Toko
                         </h6>
                         <small className="text-muted" style={{ fontSize: '0.74rem' }}>
-                          Profil laundry, alamat, kontak WhatsApp & operasional
+                          Profil laundry, alamat, kontak WhatsApp
                         </small>
                       </div>
                     </div>
@@ -591,7 +591,7 @@ const Setting = ({ user, onLogout }) => {
                           Format Nota & Struk
                         </h6>
                         <small className="text-muted" style={{ fontSize: '0.74rem' }}>
-                          Header struk, footer, link tracking order & preview thermal
+                          Header struk, footer, link tracking order
                         </small>
                       </div>
                     </div>
@@ -722,7 +722,7 @@ const Setting = ({ user, onLogout }) => {
                           Reset Cache
                         </h6>
                         <small className="text-muted" style={{ fontSize: '0.74rem' }}>
-                          Bersihkan cache aplikasi & perbarui data offline
+                          Bersihkan dan perbarui data offline
                         </small>
                       </div>
                     </div>
@@ -747,7 +747,7 @@ const Setting = ({ user, onLogout }) => {
                           Install Aplikasi
                         </h6>
                         <small className="text-muted" style={{ fontSize: '0.74rem' }}>
-                          Pasang aplikasi kasir di smartphone Android / Desktop
+                          Pasang aplikasi kasir di smartphone.
                         </small>
                       </div>
                     </div>
@@ -783,7 +783,7 @@ const Setting = ({ user, onLogout }) => {
                           Keluar Akun
                         </h6>
                         <small className="text-muted" style={{ fontSize: '0.74rem' }}>
-                          Akhiri sesi login kasir / owner pada perangkat ini
+                          Akhiri sesi login pada perangkat ini
                         </small>
                       </div>
                     </div>
