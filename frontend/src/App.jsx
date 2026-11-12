@@ -21,6 +21,7 @@ import Chat from './pages/Chat';
 import Reset from './pages/Reset';
 import PublicTrackOrder from './pages/PublicTrackOrder';
 import RegisterStore from './pages/RegisterStore';
+import ResetPassword from './pages/ResetPassword';
 import PergerakanStok from './pages/PergerakanStok';
 import Plan from './pages/Plan';
 import { isSubscriptionEnabled } from './services/subscriptionService';
@@ -164,6 +165,7 @@ function App() {
         <Route path="/c/:code" element={<PublicTrackOrder />} />
         <Route path="/daftar-toko" element={<RegisterStoreRouteWrapper user={user} />} />
         <Route path="/register-store" element={<RegisterStoreRouteWrapper user={user} />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route element={<ProtectedLayout user={user} onLogout={handleLogout} />}>
           <Route path="/" element={<Home user={user} />} />
           <Route path="/transaksi" element={<Transaksi user={user} />} />

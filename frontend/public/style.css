@@ -1271,7 +1271,7 @@ caption {
 body,
 html {
   font-family: "Poppins", sans-serif;
-  overflow-x: overflow;
+  overflow-x: clip;
   background-color: #e2e9fe;
   color: #8480ae;
   scrollbar-width: thin;

@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { SyncOrderDto } from './dto/sync-order.dto';
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { Public } from '../auth/public.decorator';
 
 @ApiTags('Orders')
@@ -101,6 +102,31 @@ export class OrdersController {
     const data = await this.ordersService.trackPublicOrder(code);
     return {
       success: true,
+      data,
+    };
+  }
+
+  /**
+   * Endpoint cepat khusus ubah status pengerjaan pesanan
+   * PATCH /orders/:id/status
+   */
+  @Patch(':id/status')
+  @ApiOperation({
+    summary: 'Update Status Pengerjaan Order Cepat (Lightweight)',
+    description: 'Mengubah status pengerjaan order (Antrean, Proses, Selesai, Ambil, Dibatalkan) dengan query tunggal tanpa memproses ulang order item atau pelanggan.',
+  })
+  @ApiParam({ name: 'id', description: 'ID UUID atau InvoiceID dari Order', example: 'c3f81e69-0268-4a94-bfbe-d45e12f672fa' })
+  @ApiBody({ type: UpdateOrderStatusDto })
+  @ApiResponse({ status: 200, description: 'Status order berhasil diperbarui.' })
+  @ApiResponse({ status: 404, description: 'Order tidak ditemukan.' })
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateOrderStatusDto,
+  ) {
+    const data = await this.ordersService.updateStatus(id, dto);
+    return {
+      success: true,
+      message: 'Status order berhasil diperbarui',
       data,
     };
   }

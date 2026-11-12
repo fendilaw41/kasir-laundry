@@ -12,9 +12,25 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RegisterStoreDto } from './dto/register-store.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SubscriptionService } from '../subscription/subscription.service';
 import { SubscriptionPlan } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+
+/**
+ * Normalisasi nomor WhatsApp / HP ke format standar (E.164 tanpa tanda plus: 628xxx)
+ */
+export function normalizePhoneNumber(phone: string): string {
+  if (!phone) return '';
+  let cleaned = phone.replace(/\D/g, '');
+  if (cleaned.startsWith('0')) {
+    cleaned = '62' + cleaned.slice(1);
+  } else if (!cleaned.startsWith('62') && (cleaned.startsWith('8') || cleaned.length >= 8)) {
+    cleaned = '62' + cleaned;
+  }
+  return cleaned;
+}
 
 @Injectable()
 export class AuthService {
@@ -200,6 +216,72 @@ export class AuthService {
         throw new BadRequestException('Nomor WhatsApp Owner wajib diisi.');
       }
 
+      const normalizedPhone = normalizePhoneNumber(cleanPhone);
+      if (normalizedPhone.length < 9) {
+        throw new BadRequestException('Nomor WhatsApp tidak valid. Masukkan nomor yang benar (minimal 9 digit).');
+      }
+
+      // 1. CEK ANTI-ABUSE: 1 Nomor WhatsApp hanya berhak 1x Toko Trial
+      const phoneSuffix = normalizedPhone.startsWith('62') ? normalizedPhone.slice(2) : normalizedPhone;
+      const existingStoreWithPhone = await this.prisma.store.findFirst({
+        where: {
+          OR: [
+            { phone: cleanPhone },
+            { phone: normalizedPhone },
+            { phone: `0${phoneSuffix}` },
+            { phone: `+62${phoneSuffix}` },
+            { phone: { endsWith: phoneSuffix } },
+          ],
+        },
+      });
+
+      const existingSettingWithPhone = !existingStoreWithPhone
+        ? await this.prisma.settings.findFirst({
+          where: {
+            OR: [
+              { telepon: cleanPhone },
+              { telepon: normalizedPhone },
+              { telepon: `0${phoneSuffix}` },
+              { telepon: `+62${phoneSuffix}` },
+              { telepon: { endsWith: phoneSuffix } },
+            ],
+          },
+        })
+        : null;
+
+      if (existingStoreWithPhone || existingSettingWithPhone) {
+        throw new ConflictException(
+          `Nomor WhatsApp "${cleanPhone}" sudah pernah terdaftar untuk toko lain. Satu nomor WhatsApp hanya berhak mendapatkan 1x paket trial. Silakan login ke toko Anda atau hubungi admin.`
+        );
+      }
+
+      // 2. CEK ANTI-ABUSE: Nama Toko Unik (Case-Insensitive)
+      const existingStoreWithName = await this.prisma.store.findFirst({
+        where: {
+          name: { equals: cleanStoreName, mode: 'insensitive' },
+        },
+      });
+
+      if (existingStoreWithName) {
+        throw new ConflictException(
+          `Nama Toko / Laundry "${cleanStoreName}" sudah terdaftar dalam sistem. Silakan gunakan nama toko lain.`
+        );
+      }
+
+      // 3. CEK ANTI-ABUSE: Username Owner Unik Global
+      const existingOwnerWithUsername = await this.prisma.user.findFirst({
+        where: {
+          username: cleanUsername,
+          deletedAt: null,
+        },
+      });
+
+      if (existingOwnerWithUsername) {
+        throw new ConflictException(
+          `Username "${cleanUsername}" sudah digunakan dalam sistem. Silakan gunakan username lain.`
+        );
+      }
+
       // Generate Kode Toko unik by system: Prefix Username (uppercase) + '-' + 6 karakter acak (Contoh: JOHN-HSY789)
       const cleanPrefix = cleanUsername.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase() || 'STORE';
       let generatedCode = '';
@@ -219,7 +301,7 @@ export class AuthService {
           data: {
             code: generatedCode,
             name: cleanStoreName,
-            phone: cleanPhone,
+            phone: normalizedPhone,
             address: null,
             city: null,
             featureSubscriptionEnabled: true,
@@ -234,7 +316,7 @@ export class AuthService {
             motto: null,
             alamat: null,
             kota: null,
-            telepon: cleanPhone,
+            telepon: normalizedPhone,
             menerimaCucian: true,
             isTokoTutup: false,
             headerStruk: 'Terima kasih atas kunjungan anda',
@@ -498,7 +580,7 @@ export class AuthService {
         menerimaCucian: true,
         isTokoTutup: false,
         headerStruk: 'Terima kasih atas kunjungan anda',
-        footerStruk: 'kasirlaundry.my.id',
+        footerStruk: '',
       },
       products: products.map((p) => ({
         id: p.id,
@@ -653,7 +735,7 @@ export class AuthService {
   }
 
   /**
-   * Mengambil info toko publik berdasarkan kode toko (untuk register dan PWA personalisasi)
+   * Mengambil info toko publik berdasarkan kode toko (Data Minimization: hanya data publik branding)
    */
   async getStoreInfo(code: string) {
     if (!code || !code.trim()) {
@@ -674,33 +756,171 @@ export class AuthService {
       throw new NotFoundException('Store tidak ditemukan.');
     }
 
-    const owner = await this.prisma.user.findFirst({
-      where: {
-        storeId: store.id,
-        role: 'owner',
-        deletedAt: null,
-      },
-    });
-
-    const sub = this.prisma.storeSubscription
-      ? await this.prisma.storeSubscription.findUnique({
-        where: { storeId: store.id },
-      })
-      : null;
-
     const storeName = store.settings?.namaLaundry || store.name;
 
     return {
-      id: store.id,
       code: store.code,
       name: storeName,
       address: store.settings?.alamat || store.address || '',
       city: store.settings?.kota || store.city || '',
       phone: store.settings?.telepon || store.phone || '',
-      featureSubscriptionEnabled: store.featureSubscriptionEnabled,
-      showUpgradeBanner: store.showUpgradeBanner,
-      hasOwner: Boolean(owner),
-      currentPlan: sub?.plan || 'TRIAL',
+    };
+  }
+
+  /**
+   * Request forgot password - mencari nomor WA Owner dan membuat tautan reset berbatas waktu (30 menit)
+   */
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const { storeCode, username, origin } = dto;
+    if (!storeCode || !storeCode.trim()) {
+      throw new BadRequestException('Kode Toko wajib diisi.');
+    }
+    if (!username || !username.trim()) {
+      throw new BadRequestException('Username akun wajib diisi.');
+    }
+
+    const cleanStoreCode = storeCode.trim().toUpperCase();
+    const cleanUsername = username.trim();
+
+    // 1. Cari Toko
+    const store = await this.prisma.store.findFirst({
+      where: {
+        code: { equals: cleanStoreCode, mode: 'insensitive' },
+      },
+      include: {
+        settings: true,
+      },
+    });
+
+    if (!store) {
+      throw new NotFoundException(`Toko dengan kode "${cleanStoreCode}" tidak ditemukan.`);
+    }
+
+    // 2. Cari User di Toko tersebut
+    const user = await this.prisma.user.findFirst({
+      where: {
+        storeId: store.id,
+        username: cleanUsername,
+        deletedAt: null,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`Username "${cleanUsername}" tidak ditemukan di toko "${store.name}".`);
+    }
+
+    // 3. Cari Nomor WhatsApp Owner Toko
+    let ownerPhone = store.phone || store.settings?.telepon || '';
+    if (!ownerPhone) {
+      const ownerUser = await this.prisma.user.findFirst({
+        where: {
+          storeId: store.id,
+          role: 'owner',
+          deletedAt: null,
+        },
+      });
+      if (ownerUser) {
+        ownerPhone = store.phone || store.settings?.telepon || '';
+      }
+    }
+
+    const targetPhone = normalizePhoneNumber(ownerPhone);
+    if (!targetPhone || targetPhone.length < 9) {
+      throw new BadRequestException('Nomor WhatsApp Owner toko belum terdaftar atau tidak valid. Silakan hubungi admin.');
+    }
+
+    // 4. Generate Reset Token (Stateless signed JWT, masa berlaku 30 menit)
+    const resetToken = this.jwtService.sign(
+      {
+        sub: user.id,
+        username: user.username,
+        storeId: store.id,
+        type: 'reset_password',
+      },
+      {
+        expiresIn: '30m',
+      },
+    );
+
+    // 5. Susun URL Reset dan Template Pesan WhatsApp
+    const clientOrigin = origin ? origin.replace(/\/$/, '') : 'https://kasirlaundry.my.id';
+    const resetUrl = `${clientOrigin}/reset-password?token=${encodeURIComponent(resetToken)}`;
+
+    const storeDisplayName = store.settings?.namaLaundry || store.name;
+    const waMessage = `Halo Owner *${storeDisplayName}*,\n\nAda permintaan reset password untuk akun:\n- *Username*: ${user.username} (${user.role})\n- *Toko*: ${storeDisplayName} (${store.code})\n\nSilakan klik tautan resmi berikut untuk membuat password baru Anda (tautan berlaku selama 30 menit):\n${resetUrl}\n\nJika Anda tidak merasa meminta reset password ini, abaikan pesan ini. Terima kasih! 🙏`;
+
+    const waUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(waMessage)}`;
+
+    const maskedPhone =
+      targetPhone.length > 7
+        ? targetPhone.substring(0, 4) + '****' + targetPhone.substring(targetPhone.length - 3)
+        : targetPhone;
+
+    return {
+      storeName: storeDisplayName,
+      storeCode: store.code,
+      username: user.username,
+      ownerPhone: targetPhone,
+      maskedPhone,
+      resetUrl,
+      waUrl,
+    };
+  }
+
+  /**
+   * Reset password dengan memverifikasi token JWT dari link WhatsApp
+   */
+  async resetPassword(dto: ResetPasswordDto) {
+    const { token, newPassword, confirmPassword } = dto;
+    if (!token) {
+      throw new BadRequestException('Token reset password wajib disertakan.');
+    }
+    if (!newPassword || newPassword.length < 6) {
+      throw new BadRequestException('Password baru minimal 6 karakter.');
+    }
+    if (confirmPassword && newPassword !== confirmPassword) {
+      throw new BadRequestException('Konfirmasi password baru tidak cocok.');
+    }
+
+    // Validasi token JWT
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(token);
+    } catch (err: any) {
+      if (err?.name === 'TokenExpiredError') {
+        throw new BadRequestException('Tautan reset password sudah kedaluwarsa (lebih dari 30 menit). Silakan minta tautan baru.');
+      }
+      throw new BadRequestException('Tautan reset password tidak valid atau rusak.');
+    }
+
+    if (payload?.type !== 'reset_password' || !payload?.sub) {
+      throw new BadRequestException('Token tidak valid untuk pengaturan ulang password.');
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: payload.sub,
+        deletedAt: null,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Akun pengguna tidak ditemukan.');
+    }
+
+    // Hash password baru dan update di PostgreSQL
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        updatedAt: new Date(),
+      },
+    });
+
+    return {
+      username: user.username,
+      message: 'Password berhasil diatur ulang. Silakan login kembali dengan password baru Anda.',
     };
   }
 }

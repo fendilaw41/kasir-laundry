@@ -158,4 +158,40 @@ describe('OrdersService - Public Tracking', () => {
       });
     });
   });
+
+  describe('updateStatus', () => {
+    it('berhasil mengupdate status secara cepat dengan single query', async () => {
+      prisma.order.findFirst = jest.fn().mockResolvedValue({
+        id: 'ord-uuid-12345',
+        storeId: 'store-uuid-001',
+        invoiceId: '8126-00001',
+        status: 'Proses',
+      });
+      prisma.order.update = jest.fn().mockResolvedValue({
+        id: 'ord-uuid-12345',
+        invoiceId: '8126-00001',
+        storeId: 'store-uuid-001',
+        status: 'Selesai',
+        catatan: null,
+        catatanKasir: null,
+        updatedAt: new Date(),
+      });
+
+      const res = await service.updateStatus('ord-uuid-12345', { status: 'Selesai' });
+
+      expect(res.status).toBe('Selesai');
+      expect(prisma.order.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'ord-uuid-12345' },
+          data: expect.objectContaining({ status: 'Selesai' }),
+        }),
+      );
+    });
+
+    it('melempar NotFoundException jika order tidak ditemukan', async () => {
+      prisma.order.findFirst = jest.fn().mockResolvedValue(null);
+
+      await expect(service.updateStatus('tidak-ada', { status: 'Selesai' })).rejects.toThrow(NotFoundException);
+    });
+  });
 });

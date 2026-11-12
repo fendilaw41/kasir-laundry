@@ -4,6 +4,7 @@ import { db } from '../../db.js';
 
 vi.mock('../../services/syncService.js', () => ({
   syncOrderToBackend: vi.fn().mockResolvedValue(true),
+  syncOrderStatusToBackend: vi.fn().mockResolvedValue(true),
   syncDirtyOrders: vi.fn().mockResolvedValue(true)
 }));
 

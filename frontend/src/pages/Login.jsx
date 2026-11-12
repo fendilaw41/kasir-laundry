@@ -6,6 +6,8 @@ import { db } from '../db';
 import { fetchStoreInfoByCode, updatePwaManifest, promptPwaInstall } from '../utils/pwaHelper';
 import { Skeleton } from '../components/common/Skeleton';
 
+const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:3000/api';
+
 // Cek apakah browser mendukung WebkitTextSecurity untuk memblokir peringatan password breach Chrome
 const isTextSecuritySupported =
   typeof window !== 'undefined' &&
@@ -33,6 +35,63 @@ const Login = ({ onLogin }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirectPath = searchParams.get('redirect') || '/';
+
+  // State untuk Modal Forgot Password via WhatsApp Owner
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotStoreCode, setForgotStoreCode] = useState('');
+  const [forgotUsername, setForgotUsername] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState('');
+  const [forgotSuccessData, setForgotSuccessData] = useState(null);
+
+  const handleRequestForgotPassword = async (e) => {
+    e.preventDefault();
+    setForgotError('');
+
+    const cleanCode = forgotStoreCode.trim().toUpperCase();
+    const cleanUser = forgotUsername.trim();
+
+    if (!cleanCode) {
+      setForgotError('Kode Toko wajib diisi.');
+      return;
+    }
+    if (!cleanUser) {
+      setForgotError('Username wajib diisi.');
+      return;
+    }
+
+    setForgotLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          storeCode: cleanCode,
+          username: cleanUser,
+          origin: window.location.origin,
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.message || 'Gagal memproses permintaan reset password.');
+      }
+
+      setForgotSuccessData(json.data);
+      toast.success('Tautan reset password berhasil disiapkan!');
+
+      // Langsung buka WhatsApp owner jika tersedia
+      if (json.data?.waUrl && typeof window !== 'undefined') {
+        window.open(json.data.waUrl, '_blank');
+      }
+    } catch (err) {
+      setForgotError(err.message || 'Terjadi kesalahan saat memproses reset password.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   useEffect(() => {
     const initLogin = async () => {
@@ -616,9 +675,25 @@ const Login = ({ onLogin }) => {
 
                 {/* Password */}
                 <div className="form-group mb-4">
-                  <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
-                    Password
-                  </label>
+                  <div className="d-flex justify-content-between align-items-center mb-1">
+                    <label className="form-label small fw-bold text-muted mb-0" style={{ fontSize: '12px' }}>
+                      Password
+                    </label>
+                    <button
+                      type="button"
+                      className="btn btn-link p-0 text-decoration-none small fw-bold"
+                      style={{ fontSize: '11.5px', color: '#0134d4' }}
+                      onClick={() => {
+                        setForgotStoreCode(storeCode || storeInfo?.code || '');
+                        setForgotUsername(username || '');
+                        setForgotError('');
+                        setForgotSuccessData(null);
+                        setShowForgotModal(true);
+                      }}
+                    >
+                      Lupa Password?
+                    </button>
+                  </div>
                   <div className="input-group">
                     <input
                       className="form-control"
@@ -697,6 +772,178 @@ const Login = ({ onLogin }) => {
           </div>
         </div>
       </div>
+
+      {/* Modal Lupa Password (Kirim Link ke WhatsApp Owner) */}
+      {showForgotModal && (
+        <div
+          className="modal fade show d-block"
+          tabIndex="-1"
+          style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(3px)', zIndex: 1055 }}
+        >
+          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '420px', margin: 'auto' }}>
+            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden' }}>
+              <div className="modal-header border-0 pb-0 pt-3 px-3 d-flex justify-content-between align-items-center">
+                <div className="d-flex align-items-center gap-2">
+                  <div
+                    className="d-flex align-items-center justify-content-center text-white rounded-circle shadow-xs"
+                    style={{ width: '32px', height: '32px', backgroundColor: '#0134d4', fontSize: '14px' }}
+                  >
+                    <i className="bi bi-key-fill"></i>
+                  </div>
+                  <h6 className="modal-title fw-bold text-dark mb-0" style={{ fontSize: '15px' }}>
+                    Lupa Password
+                  </h6>
+                </div>
+                <button
+                  type="button"
+                  className="btn-close"
+                  aria-label="Tutup"
+                  onClick={() => setShowForgotModal(false)}
+                ></button>
+              </div>
+
+              <div className="modal-body p-3 pt-2">
+                {forgotSuccessData ? (
+                  <div className="text-center py-2">
+                    <div
+                      className="d-inline-flex align-items-center justify-content-center bg-success text-white rounded-circle mb-2"
+                      style={{ width: '48px', height: '48px' }}
+                    >
+                      <i className="bi bi-whatsapp fs-3"></i>
+                    </div>
+                    <h6 className="fw-bold text-dark mb-1" style={{ fontSize: '15px' }}>
+                      Tautan Reset Disiapkan!
+                    </h6>
+                    <p className="text-muted small mb-3" style={{ fontSize: '12px' }}>
+                      Tautan reset password berbatas waktu (30 menit) telah dibuat dan ditujukan ke WhatsApp Owner toko.
+                    </p>
+
+                    <div
+                      className="bg-light p-2.5 rounded-3 mb-3 text-start small border"
+                      style={{ fontSize: '12px', lineHeight: 1.5 }}
+                    >
+                      <div>
+                        <span className="text-muted">Toko:</span>{' '}
+                        <strong>{forgotSuccessData.storeName} ({forgotSuccessData.storeCode})</strong>
+                      </div>
+                      <div>
+                        <span className="text-muted">Username:</span>{' '}
+                        <strong>{forgotSuccessData.username}</strong>
+                      </div>
+                      <div>
+                        <span className="text-muted">No. WA Owner:</span>{' '}
+                        <strong className="text-success">{forgotSuccessData.maskedPhone}</strong>
+                      </div>
+                    </div>
+
+                    <div className="d-grid gap-2">
+                      <a
+                        href={forgotSuccessData.waUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-success fw-bold py-2 rounded-3 d-flex align-items-center justify-content-center gap-2 text-white shadow-xs"
+                        style={{ fontSize: '13.5px' }}
+                      >
+                        <i className="bi bi-whatsapp fs-5"></i>
+                        <span>Buka WhatsApp Owner</span>
+                      </a>
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary py-2 rounded-3 fw-bold small"
+                        style={{ fontSize: '12px' }}
+                        onClick={() => {
+                          if (navigator.clipboard) {
+                            navigator.clipboard.writeText(forgotSuccessData.resetUrl);
+                            toast.success('Link reset disalin ke clipboard!');
+                          }
+                        }}
+                      >
+                        <i className="bi bi-clipboard me-1"></i> Salin Link Reset
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleRequestForgotPassword}>
+                    <p className="text-muted small mb-3" style={{ fontSize: '12px', lineHeight: 1.4 }}>
+                      Masukkan Kode Toko dan Username Anda. Tautan reset password akan langsung disiapkan dan dikirimkan ke nomor WhatsApp Owner toko.
+                    </p>
+
+                    {forgotError && (
+                      <div className="alert alert-danger border-0 p-2 rounded-3 small mb-2 d-flex align-items-center gap-1.5" style={{ fontSize: '12px' }}>
+                        <i className="bi bi-exclamation-circle-fill text-danger flex-shrink-0"></i>
+                        <div>{forgotError}</div>
+                      </div>
+                    )}
+
+                    <div className="form-group mb-2.5">
+                      <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
+                        Kode Toko
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control text-uppercase fw-bold text-primary"
+                        style={{
+                          height: '42px',
+                          backgroundColor: '#f8fafc',
+                          border: '1.5px solid #cbd5e1',
+                          borderRadius: '10px',
+                          fontSize: '14px',
+                        }}
+                        placeholder="Contoh: STORE01"
+                        value={forgotStoreCode}
+                        onChange={(e) => setForgotStoreCode(e.target.value.toUpperCase())}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group mb-3">
+                      <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
+                        Username
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        style={{
+                          height: '42px',
+                          backgroundColor: '#f8fafc',
+                          border: '1.5px solid #cbd5e1',
+                          borderRadius: '10px',
+                          fontSize: '14px',
+                        }}
+                        placeholder="Masukkan username akun"
+                        value={forgotUsername}
+                        onChange={(e) => setForgotUsername(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="d-grid gap-2">
+                      <button
+                        type="submit"
+                        className="btn btn-primary fw-bold py-2 rounded-3 text-white shadow-xs"
+                        style={{ fontSize: '13.5px', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
+                        disabled={forgotLoading}
+                      >
+                        {forgotLoading ? (
+                          <>
+                            <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                            Memproses...
+                          </>
+                        ) : (
+                          <>
+                            <i className="bi bi-whatsapp me-1.5"></i>
+                            Kirim Link ke WhatsApp Owner
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

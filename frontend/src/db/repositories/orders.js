@@ -1,6 +1,6 @@
 import { db } from '../../db.js';
 import { withNewSyncMeta, withUpdatedSyncMeta } from '../syncMeta.js';
-import { syncOrderToBackend, syncInventoryToBackend, syncInventoryEventsToBackend } from '../../services/syncService.js';
+import { syncOrderToBackend, syncOrderStatusToBackend, syncInventoryToBackend, syncInventoryEventsToBackend } from '../../services/syncService.js';
 import { getActiveStoreId, getActiveStoreIdSync } from './storeHelper.js';
 import { getStatusLunasByMetode, isStatusLunas } from '../../utils/paymentStatus.js';
 
@@ -234,7 +234,15 @@ export const updateOrder = async (id, data) => {
   const result = await db.orders.update(targetId, withUpdatedSyncMeta(data));
   
   // Trigger sync ke backend secara non-blocking di background (0 ms response bagi kasir)
-  syncOrderToBackend(targetId).catch(err => console.warn('Sync update order failed:', err));
+  const isStatusOnly = Object.keys(data).length === 1 && Boolean(data.status);
+  const isNotesOnly = Object.keys(data).length > 0 && Object.keys(data).every(k => k === 'catatan' || k === 'catatanKasir');
+  if (isStatusOnly) {
+    syncOrderStatusToBackend(targetId, data.status).catch(err => console.warn('Sync status order failed:', err));
+  } else if (isNotesOnly) {
+    syncOrderStatusToBackend(targetId, order.status, data).catch(err => console.warn('Sync notes order failed:', err));
+  } else {
+    syncOrderToBackend(targetId).catch(err => console.warn('Sync update order failed:', err));
+  }
 
   return result;
 };

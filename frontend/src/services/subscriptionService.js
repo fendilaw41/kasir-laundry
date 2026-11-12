@@ -162,6 +162,23 @@ export function invalidateSubscriptionCache() {
   inFlightReportPromise = null;
 }
 
+/**
+ * Mengambil cache subscription report secara sinkron (0 ms) tanpa menunggu network
+ */
+export function getCachedSubscriptionReportSync() {
+  if (cachedMemoryReport) return cachedMemoryReport;
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = sessionStorage.getItem('cached_sub_report') || localStorage.getItem('cached_sub_report');
+      if (stored) {
+        cachedMemoryReport = JSON.parse(stored);
+        return cachedMemoryReport;
+      }
+    } catch { }
+  }
+  return null;
+}
+
 export const _resetSubscriptionCacheForTests = () => {
   lastReportFetchTime = 0;
   cachedMemoryReport = null;
@@ -319,6 +336,11 @@ export async function getSubscriptionReport(options = {}) {
 
               cachedMemoryReport = json.data;
               lastReportFetchTime = Date.now();
+              try {
+                if (typeof window !== 'undefined') {
+                  sessionStorage.setItem('cached_sub_report', JSON.stringify(json.data));
+                }
+              } catch { }
               return json.data;
             }
           }

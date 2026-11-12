@@ -14,7 +14,7 @@ import { getTrackingUrl } from '../utils/tracking';
 import { getStatusLunasByMetode, isStatusLunas } from '../utils/paymentStatus';
 import PrintLayout from '../components/PrintLayout';
 import PlanGateModal from '../components/PlanGateModal';
-import { getSubscriptionReport, isTrialExpired, isPaidExpired } from '../services/subscriptionService';
+import { getSubscriptionReport, getCachedSubscriptionReportSync, isTrialExpired, isPaidExpired } from '../services/subscriptionService';
 import { QRCodeSVG } from '../components/common/QRCodeSVG';
 import { Skeleton, OrderDetailSkeleton } from '../components/common/Skeleton';
 import { db } from '../db';
@@ -206,91 +206,80 @@ const OrderDetail = ({ user }) => {
   };
 
   const updateStatus = async (status) => {
-    try {
-      const sub = await getSubscriptionReport().catch(() => null);
-      if (isPaidExpired(sub)) {
-        setShowConfirmModal(false);
-        setGateModal({ open: true, type: 'SUBSCRIPTION_EXPIRED', data: { plan: sub?.plan, isTrial: false } });
-        return;
-      }
-    } catch (e) { }
+    setShowConfirmModal(false);
+
+    // Cek subscription dari cache secara instan (0 ms, non-blocking)
+    const sub = getCachedSubscriptionReportSync();
+    if (isPaidExpired(sub)) {
+      setGateModal({ open: true, type: 'SUBSCRIPTION_EXPIRED', data: { plan: sub?.plan, isTrial: false } });
+      return;
+    }
 
     try {
+      // Optimistic update langsung ke Dexie lokal (0-2 ms), sync berjalan di background
       await updateOrder(order.id, { status });
-      setShowConfirmModal(false);
       toast.success(TOAST_MESSAGES.SUCCESS);
     } catch (error) {
       toast.error(error?.message || TOAST_MESSAGES.ERROR);
-      setShowConfirmModal(false);
     }
   };
 
   const updateCatatan = async () => {
-    try {
-      const sub = await getSubscriptionReport().catch(() => null);
-      if (sub?.isExpired) {
-        setShowNoteModal(false);
-        setGateModal({
-          open: true,
-          type: isTrialExpired(sub) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
-          data: { plan: sub?.plan, isTrial: isTrialExpired(sub) },
-        });
-        return;
-      }
-    } catch (e) { }
+    setShowNoteModal(false);
+    const sub = getCachedSubscriptionReportSync();
+    if (sub?.isExpired) {
+      setGateModal({
+        open: true,
+        type: isTrialExpired(sub) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
+        data: { plan: sub?.plan, isTrial: isTrialExpired(sub) },
+      });
+      return;
+    }
     if (isCustomerNoteLocked) {
       toast.error('Catatan pelanggan tidak dapat diedit karena cucian sudah selesai/diambil');
-      setShowNoteModal(false);
       return;
     }
     try {
       await updateOrder(order.id, { catatan });
       toast.success(TOAST_MESSAGES.SUCCESS);
-      setShowNoteModal(false);
     } catch (error) {
       toast.error(TOAST_MESSAGES.ERROR);
     }
   };
 
   const updateCatatanKasir = async () => {
-    try {
-      const sub = await getSubscriptionReport().catch(() => null);
-      if (sub?.isExpired) {
-        setShowCashierNoteModal(false);
-        setGateModal({
-          open: true,
-          type: isTrialExpired(sub) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
-          data: { plan: sub?.plan, isTrial: isTrialExpired(sub) },
-        });
-        return;
-      }
-    } catch (e) { }
+    setShowCashierNoteModal(false);
+    const sub = getCachedSubscriptionReportSync();
+    if (sub?.isExpired) {
+      setGateModal({
+        open: true,
+        type: isTrialExpired(sub) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
+        data: { plan: sub?.plan, isTrial: isTrialExpired(sub) },
+      });
+      return;
+    }
     if (isCashierNoteLocked) {
       toast.error('Catatan kasir tidak dapat diedit karena pesanan sudah diambil pelanggan');
-      setShowCashierNoteModal(false);
       return;
     }
     try {
       await updateOrder(order.id, { catatanKasir });
       toast.success(TOAST_MESSAGES.SUCCESS);
-      setShowCashierNoteModal(false);
     } catch (error) {
       toast.error(TOAST_MESSAGES.ERROR);
     }
   };
 
   const togglePriority = async () => {
-    try {
-      const sub = await getSubscriptionReport().catch(() => null);
-      if (sub?.isExpired) {
-        setGateModal({
-          open: true,
-          type: isTrialExpired(sub) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
-          data: { plan: sub?.plan, isTrial: isTrialExpired(sub) },
-        });
-        return;
-      }
-    } catch (e) { }
+    const sub = getCachedSubscriptionReportSync();
+    if (sub?.isExpired) {
+      setGateModal({
+        open: true,
+        type: isTrialExpired(sub) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
+        data: { plan: sub?.plan, isTrial: isTrialExpired(sub) },
+      });
+      return;
+    }
     try {
       await updateOrder(order.id, { isPriority: !order.isPriority });
       toast.success(TOAST_MESSAGES.SUCCESS);
@@ -403,18 +392,16 @@ const OrderDetail = ({ user }) => {
       toast.error(TOAST_MESSAGES.ERROR);
       return;
     }
-    try {
-      const sub = await getSubscriptionReport().catch(() => null);
-      if (sub?.isExpired) {
-        setShowHpModal(false);
-        setGateModal({
-          open: true,
-          type: isTrialExpired(sub) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
-          data: { plan: sub?.plan, isTrial: isTrialExpired(sub) },
-        });
-        return;
-      }
-    } catch (e) { }
+    const sub = getCachedSubscriptionReportSync();
+    if (sub?.isExpired) {
+      setShowHpModal(false);
+      setGateModal({
+        open: true,
+        type: isTrialExpired(sub) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
+        data: { plan: sub?.plan, isTrial: isTrialExpired(sub) },
+      });
+      return;
+    }
     try {
       let updatedPelanggan = { ...pelanggan, hp: newHp };
       if (pelanggan && pelanggan.id) {

@@ -9,7 +9,7 @@ import { TOAST_MESSAGES, CONFIRM_MESSAGES, BUTTON_TITLE } from '../constants/app
 import { OrderListSkeleton } from '../components/common/Skeleton';
 import { db } from '../db';
 import PlanGateModal from '../components/PlanGateModal';
-import { getSubscriptionReport, isTrialExpired, isPaidExpired } from '../services/subscriptionService';
+import { getSubscriptionReport, getCachedSubscriptionReportSync, isTrialExpired, isPaidExpired } from '../services/subscriptionService';
 
 const DataOrder = ({ user }) => {
   const navigate = useNavigate();
@@ -118,30 +118,27 @@ const DataOrder = ({ user }) => {
 
   const handleExecuteAction = async () => {
     if (!confirmData.id) return;
+    setShowConfirmModal(false);
 
-    try {
-      const sub = await getSubscriptionReport().catch(() => null);
-      if (isPaidExpired(sub)) {
-        setShowConfirmModal(false);
-        setGateModalConfig({
-          open: true,
-          type: 'SUBSCRIPTION_EXPIRED',
-          plan: sub?.plan,
-          isTrial: false,
-        });
-        return;
-      }
-      if ((confirmData.type === 'request' || confirmData.type === 'hard') && isTrialExpired(sub)) {
-        setShowConfirmModal(false);
-        setGateModalConfig({
-          open: true,
-          type: 'TRIAL_EXPIRED',
-          plan: 'TRIAL',
-          isTrial: true,
-        });
-        return;
-      }
-    } catch (e) {}
+    const sub = getCachedSubscriptionReportSync();
+    if (isPaidExpired(sub)) {
+      setGateModalConfig({
+        open: true,
+        type: 'SUBSCRIPTION_EXPIRED',
+        plan: sub?.plan,
+        isTrial: false,
+      });
+      return;
+    }
+    if ((confirmData.type === 'request' || confirmData.type === 'hard') && isTrialExpired(sub)) {
+      setGateModalConfig({
+        open: true,
+        type: 'TRIAL_EXPIRED',
+        plan: 'TRIAL',
+        isTrial: true,
+      });
+      return;
+    }
 
     try {
       if (confirmData.type === 'request') {
@@ -157,10 +154,8 @@ const DataOrder = ({ user }) => {
         await updateOrder(confirmData.id, { status: 'Ambil' });
         toast.success(TOAST_MESSAGES.SUCCESS);
       }
-      setShowConfirmModal(false);
     } catch (error) {
       toast.error(error?.message || TOAST_MESSAGES.ERROR);
-      setShowConfirmModal(false);
     }
   };
 

@@ -280,6 +280,62 @@ export const syncOrderToBackend = async (orderId) => {
   }
 };
 
+/**
+ * Sinkronisasi cepat status order ke endpoint PATCH /orders/:id/status
+ * Sangat ringan (<5 ms di backend), mengeksekusi single query update tanpa memproses ulang order item
+ */
+export const syncOrderStatusToBackend = async (orderId, status, extraFields = {}) => {
+  try {
+    let order = null;
+    const numId = parseInt(orderId, 10);
+    if (!isNaN(numId)) {
+      order = await db.orders.get(numId);
+    }
+    if (!order && typeof orderId === 'string') {
+      order = (await db.orders.where('uuid').equals(orderId).first()) ||
+        (await db.orders.where('invoiceId').equals(orderId).first());
+    }
+    if (!order) return false;
+
+    // Utamakan identifier yang dikenali server: uuid atau invoiceId
+    const targetId = order.uuid || order.invoiceId;
+    if (!targetId) {
+      return await syncOrderToBackend(order.id);
+    }
+
+    const payload = {
+      status: status || order.status,
+      ...extraFields,
+    };
+
+    const response = await fetch(`${API_BASE_URL}/orders/${encodeURIComponent(targetId)}/status`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+
+    if (response.ok) {
+      await db.orders.update(order.id, { isDirty: 0 });
+      return true;
+    }
+
+    // Jika 404 (order dibuat saat offline dan belum ada di backend), fallback ke full sync
+    if (response.status === 404) {
+      return await syncOrderToBackend(order.id);
+    }
+
+    if (response.status === 401) {
+      console.warn(`[SyncStatus] Gagal sync status order ${order.invoiceId}: 401 Unauthorized`);
+      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+    }
+
+    return false;
+  } catch (err) {
+    console.warn('[SyncStatus] Error saat sync status ke backend:', err);
+    return false;
+  }
+};
+
 let isSyncing = false;
 let isMasterSyncing = false;
 

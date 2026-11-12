@@ -5,6 +5,8 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RegisterStoreDto } from './dto/register-store.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Public } from './public.decorator';
 
 @ApiTags('Authentication')
@@ -103,6 +105,41 @@ export class AuthController {
   @ApiResponse({ status: 400, description: 'Password lama tidak cocok atau format tidak valid.' })
   async changePassword(@Body() dto: ChangePasswordDto) {
     const result = await this.authService.changePassword(dto);
+    return {
+      success: true,
+      message: result.message,
+    };
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @ApiOperation({
+    summary: 'Request Reset Password via WhatsApp Owner',
+    description: 'Mencari nomor WhatsApp owner toko dan mengembalikan tautan reset password berbatas waktu.',
+  })
+  @ApiBody({ type: ForgotPasswordDto })
+  @ApiResponse({ status: 200, description: 'Tautan reset password berhasil dibuat.' })
+  @ApiResponse({ status: 404, description: 'Toko atau Username tidak ditemukan.' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    const result = await this.authService.forgotPassword(dto);
+    return {
+      success: true,
+      message: 'Tautan reset password berhasil dibuat',
+      data: result,
+    };
+  }
+
+  @Public()
+  @Post('reset-password')
+  @ApiOperation({
+    summary: 'Reset Password Baru dengan Token JWT',
+    description: 'Memverifikasi token JWT dari link WhatsApp dan menyimpan password baru ke database.',
+  })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiResponse({ status: 200, description: 'Password berhasil diatur ulang.' })
+  @ApiResponse({ status: 400, description: 'Token tidak valid atau password tidak memenuhi syarat.' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    const result = await this.authService.resetPassword(dto);
     return {
       success: true,
       message: result.message,

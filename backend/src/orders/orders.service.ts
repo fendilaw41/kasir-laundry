@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SyncOrderDto } from './dto/sync-order.dto';
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { SubscriptionService } from '../subscription/subscription.service';
 import { createStoreNotification } from '../notifications/notifications.service';
 
@@ -569,5 +570,53 @@ export class OrdersService {
         footerStruk: order.store?.settings?.footerStruk || '',
       },
     };
+  }
+
+  /**
+   * Update status pengerjaan order secara cepat (Single Query UPDATE)
+   * PATCH /orders/:id/status
+   */
+  async updateStatus(id: string, dto: UpdateOrderStatusDto) {
+    if (!dto || !dto.status) {
+      throw new BadRequestException('status wajib diisi');
+    }
+
+    // Cari order by ID atau invoiceId
+    const existing = await this.prisma.order.findFirst({
+      where: {
+        OR: [
+          { id },
+          { invoiceId: id },
+        ],
+      },
+      select: { id: true, storeId: true, status: true, invoiceId: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException(`Order dengan ID / Invoice "${id}" tidak ditemukan`);
+    }
+
+    const updateData: any = {
+      status: dto.status,
+      updatedAt: new Date(),
+    };
+    if (dto.catatan !== undefined) updateData.catatan = dto.catatan;
+    if (dto.catatanKasir !== undefined) updateData.catatanKasir = dto.catatanKasir;
+
+    const updated = await this.prisma.order.update({
+      where: { id: existing.id },
+      data: updateData,
+      select: {
+        id: true,
+        invoiceId: true,
+        storeId: true,
+        status: true,
+        catatan: true,
+        catatanKasir: true,
+        updatedAt: true,
+      },
+    });
+
+    return updated;
   }
 }
