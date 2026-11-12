@@ -21,6 +21,8 @@ import {
 } from '../constants/settingConstants';
 import { SettingSkeleton, ProductListSkeleton } from '../components/common/Skeleton';
 import { Barcode } from '../components/common/Barcode';
+import { db } from '../db';
+import { promptPwaInstall } from '../utils/pwaHelper';
 import {
   isFooterBarcode,
   isFooterLinkOrder,
@@ -118,6 +120,69 @@ const Setting = ({ user, onLogout }) => {
     password: '',
     role: 'kasir',
   });
+
+  const [isPwaInstalled, setIsPwaInstalled] = useState(false);
+  const [showInstallPopup, setShowInstallPopup] = useState(false);
+  const [installManualHelp, setInstallManualHelp] = useState(false);
+  const [installSuccess, setInstallSuccess] = useState(false);
+
+  useEffect(() => {
+    const checkInstalled = () => {
+      const standalone = typeof window !== 'undefined' && (
+        (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches) ||
+        window.navigator?.standalone === true ||
+        (typeof document !== 'undefined' && document.referrer?.includes('android-app://'))
+      );
+      const installed = standalone || localStorage.getItem('pwa_user_clicked_install') === 'true' || settings?.isAppInstalled === true;
+      setIsPwaInstalled(Boolean(installed));
+    };
+    checkInstalled();
+
+    const handleInstalled = () => {
+      setIsPwaInstalled(true);
+      localStorage.setItem('pwa_user_clicked_install', 'true');
+      db.settings.update(1, { isAppInstalled: true }).catch(() => { });
+    };
+
+    window.addEventListener('pwa:installed', handleInstalled);
+    window.addEventListener('appinstalled', handleInstalled);
+    return () => {
+      window.removeEventListener('pwa:installed', handleInstalled);
+      window.removeEventListener('appinstalled', handleInstalled);
+    };
+  }, [settings?.isAppInstalled]);
+
+  const handleCloseInstallPopup = () => {
+    setShowInstallPopup(false);
+    setInstallManualHelp(false);
+  };
+
+  const handleInstallApp = async () => {
+    try {
+      await db.settings.update(1, { isAppInstalled: true, appInstalledAt: new Date() });
+    } catch (e) {
+      console.warn('[PWA] Gagal simpan status install ke Dexie:', e);
+    }
+    localStorage.setItem('pwa_user_clicked_install', 'true');
+    localStorage.setItem('pwa_dismissed_forever', 'true');
+    setIsPwaInstalled(true);
+
+    try {
+      const res = await promptPwaInstall();
+      if (res?.outcome === 'accepted') {
+        setInstallSuccess(true);
+        setTimeout(() => {
+          setShowInstallPopup(false);
+          setInstallSuccess(false);
+        }, 2000);
+      } else {
+        setInstallManualHelp(true);
+      }
+    } catch (err) {
+      console.warn('[PWA] prompt error:', err);
+      setInstallManualHelp(true);
+    }
+  };
 
   const [formData, setFormData] = useState({
     namaLaundry: '',
@@ -368,25 +433,43 @@ const Setting = ({ user, onLogout }) => {
                   {settings.namaLaundry ? settings.namaLaundry.charAt(0).toUpperCase() : 'L'}
                 </div>
                 <div className="overflow-hidden flex-grow-1">
-                  <div className="d-flex align-items-center gap-2 mb-1 flex-wrap">
-                    <h5 className="fw-bold text-dark text-truncate mb-0" style={{ fontSize: '1.05rem', letterSpacing: '-0.2px' }}>
-                      {settings.namaLaundry || 'Kasir Laundry'}
-                    </h5>
-                    {settings.storeCode && (
-                      <span
-                        className="badge rounded-pill fw-semibold"
-                        style={{
-                          backgroundColor: '#eff6ff',
-                          color: '#1d4ed8',
-                          border: '1px solid #bfdbfe',
-                          fontSize: '0.68rem',
-                          padding: '2px 8px',
-                          letterSpacing: '0.3px',
-                        }}
-                      >
-                        {settings.storeCode}
-                      </span>
-                    )}
+                  <div className="d-flex align-items-center justify-content-between gap-2 mb-1 flex-wrap">
+                    <div className="d-flex align-items-center gap-2 overflow-hidden flex-wrap">
+                      <h5 className="fw-bold text-dark text-truncate mb-0" style={{ fontSize: '1.05rem', letterSpacing: '-0.2px' }}>
+                        {settings.namaLaundry || 'Kasir Laundry'}
+                      </h5>
+                      {settings.storeCode && (
+                        <span
+                          className="badge rounded-pill fw-semibold"
+                          style={{
+                            backgroundColor: '#eff6ff',
+                            color: '#1d4ed8',
+                            border: '1px solid #bfdbfe',
+                            fontSize: '0.68rem',
+                            padding: '2px 8px',
+                            letterSpacing: '0.3px',
+                          }}
+                        >
+                          {settings.storeCode}
+                        </span>
+                      )}
+                    </div>
+                    {/* Tombol Upgrade Akun di sebelah kanan nama toko */}
+                    <button
+                      type="button"
+                      className="btn btn-sm rounded-pill fw-bold d-inline-flex align-items-center gap-1 shadow-xs px-2.5 py-1 flex-shrink-0"
+                      style={{
+                        fontSize: '0.72rem',
+                        background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                        color: '#ffffff',
+                        border: 'none',
+                        boxShadow: '0 2px 6px rgba(217, 119, 6, 0.25)',
+                      }}
+                      onClick={() => navigate('/plan')}
+                    >
+                      <i className="bi bi-gem"></i>
+                      <span>Upgrade Akun</span>
+                    </button>
                   </div>
                   <div className="d-flex align-items-center text-muted small text-truncate mb-1.5" style={{ fontSize: '0.78rem' }}>
                     <i className="bi bi-geo-alt-fill text-danger me-1 flex-shrink-0" style={{ fontSize: '0.75rem' }}></i>
@@ -644,6 +727,42 @@ const Setting = ({ user, onLogout }) => {
                     <i className="bi bi-chevron-right text-muted fs-6"></i>
                   </div>
 
+                  {/* INSTALL APLIKASI */}
+                  <div
+                    role="button"
+                    className="list-group-item list-group-item-action p-3 d-flex align-items-center justify-content-between border-0 border-top"
+                    onClick={() => setShowInstallPopup(true)}
+                  >
+                    <div className="d-flex align-items-center gap-3">
+                      <div
+                        className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                        style={{ width: '40px', height: '40px', backgroundColor: '#eff6ff', color: '#0134d4' }}
+                      >
+                        <i className="bi bi-phone fs-5"></i>
+                      </div>
+                      <div>
+                        <h6 className="fw-bold mb-0.5 text-dark" style={{ fontSize: '0.9rem' }}>
+                          Install Aplikasi
+                        </h6>
+                        <small className="text-muted" style={{ fontSize: '0.74rem' }}>
+                          Pasang aplikasi kasir di smartphone Android / Desktop
+                        </small>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-sm rounded-pill px-2.5 py-1 fw-bold flex-shrink-0 d-flex align-items-center gap-1 shadow-xs"
+                      style={{ fontSize: '11px', backgroundColor: '#0134d4', color: '#fff', border: 'none' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowInstallPopup(true);
+                      }}
+                    >
+                      <i className="bi bi-phone"></i>
+                      <span>Install</span>
+                    </button>
+                  </div>
+
                   {/* LOGOUT */}
                   <div
                     role="button"
@@ -668,6 +787,7 @@ const Setting = ({ user, onLogout }) => {
                     </div>
                     <i className="bi bi-chevron-right text-muted fs-6"></i>
                   </div>
+                  {/* LOGOUT */}
                 </div>
               </div>
             </div>
@@ -1775,6 +1895,106 @@ const Setting = ({ user, onLogout }) => {
                     <span>Hapus</span>
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Modal / Sheet Edukasi PWA Install Khusus Android */}
+      {showInstallPopup && (
+        <>
+          <div
+            className="modal-backdrop fade show"
+            style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(15, 23, 42, 0.55)', zIndex: 1070 }}
+            onClick={handleCloseInstallPopup}
+          ></div>
+          <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1075 }}>
+            <div className="modal-dialog modal-dialog-centered mx-auto" style={{ maxWidth: '360px' }}>
+              <div className="modal-content border-0 shadow-lg text-center p-4" style={{ borderRadius: '24px' }}>
+                {/* Icon Ponsel Modern */}
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3 shadow-sm"
+                  style={{
+                    width: '64px',
+                    height: '64px',
+                    background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)',
+                    borderRadius: '20px',
+                  }}
+                >
+                  <i className="bi bi-phone text-white fs-1"></i>
+                </div>
+
+                <span className="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-1 mb-2 fw-semibold" style={{ fontSize: '11px' }}>
+                  Aplikasi Siap Diinstall
+                </span>
+
+                <h5 className="fw-bold mb-1 text-dark" style={{ letterSpacing: '-0.3px' }}>
+                  Install Aplikasi {settings?.namaLaundry || 'Kasir Laundry'}
+                </h5>
+                <p className="text-muted small mb-3" style={{ fontSize: '12px', lineHeight: '1.5' }}>
+                  Pasang aplikasi kasir <strong>{settings?.namaLaundry || 'Kasir Laundry'}</strong> langsung di layar utama smartphone Android Anda untuk akses cepat &amp; fitur offline.
+                </p>
+
+                {/* Outlet Details Card */}
+                {settings && (
+                  <div className="bg-light p-3 rounded-3 mb-3 text-start small border">
+                    <div className="d-flex justify-content-between mb-1">
+                      <span className="text-muted">Nama App:</span>
+                      <span className="fw-bold text-dark text-truncate ps-2">{settings.namaLaundry || 'Kasir Laundry'}</span>
+                    </div>
+                    {settings.storeCode && (
+                      <div className="d-flex justify-content-between mb-1">
+                        <span className="text-muted">Kode Toko:</span>
+                        <span className="badge bg-secondary-subtle text-dark border px-2 py-0.5">{settings.storeCode}</span>
+                      </div>
+                    )}
+                    {settings.alamat && (
+                      <div className="d-flex justify-content-between">
+                        <span className="text-muted">Alamat:</span>
+                        <span className="text-dark text-truncate ps-2" style={{ maxWidth: '180px' }}>{settings.alamat}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Status Sukses Install */}
+                {installSuccess ? (
+                  <div className="alert alert-success py-2 px-3 rounded-3 small mb-2 d-flex align-items-center justify-content-center gap-2">
+                    <i className="bi bi-check-circle-fill"></i>
+                    <span>Aplikasi berhasil dipasang di perangkat!</span>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-lg rounded-pill fw-bold w-100 shadow-sm mb-2 d-flex align-items-center justify-content-center gap-2"
+                      style={{ fontSize: '14px', height: '46px', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
+                      onClick={handleInstallApp}
+                    >
+                      <i className="bi bi-download"></i>
+                      <span>Install Aplikasi Sekarang</span>
+                    </button>
+
+                    {installManualHelp && (
+                      <div className="alert alert-info py-2 px-3 text-start rounded-3 mb-2 small" style={{ fontSize: '11px', lineHeight: '1.4' }}>
+                        <i className="bi bi-info-circle-fill me-1"></i>
+                        Jika prompt tidak muncul otomatis:
+                        <br />
+                        Buka menu browser titik 3 (<strong>⋮</strong>) di pojok kanan atas, lalu pilih <strong>&quot;Tambahkan ke Layar Utama&quot;</strong> atau <strong>&quot;Install Aplikasi&quot;</strong>.
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      className="btn btn-light rounded-pill py-2 w-100 text-muted fw-semibold"
+                      style={{ fontSize: '13px' }}
+                      onClick={handleCloseInstallPopup}
+                    >
+                      Nanti Saja
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

@@ -156,4 +156,23 @@ describe('Setting Component - Mobile Redesign', () => {
     expect(screen.getByText('Cuci Setrika Express')).toBeDefined();
     expect(screen.getByRole('button', { name: /Tambah Layanan/i })).toBeDefined();
   });
+
+  it('menampilkan tombol Upgrade Akun di card paling atas sebelah nama toko dan tombol Install di bagian bawah', () => {
+    setupMockQueries();
+
+    renderSetting({ user: { role: 'owner' } });
+
+    // Tombol Upgrade Akun
+    const upgradeBtn = screen.getByRole('button', { name: /Upgrade Akun/i });
+    expect(upgradeBtn).toBeDefined();
+
+    // Tombol Install di bagian bawah
+    const installBtns = screen.getAllByRole('button', { name: /Install/i });
+    expect(installBtns.length).toBeGreaterThan(0);
+
+    // Klik tombol install membuka modal popup install
+    fireEvent.click(installBtns[0]);
+    expect(screen.getByText(/Aplikasi Siap Diinstall/i)).toBeDefined();
+    expect(screen.getByRole('button', { name: /Install Aplikasi Sekarang/i })).toBeDefined();
+  });
 });

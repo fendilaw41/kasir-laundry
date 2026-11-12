@@ -100,9 +100,9 @@ const Login = ({ onLogin }) => {
 
         // 1. Cek apakah aplikasi sudah diinstall (PWA standalone / cache Dexie)
         const standalone = typeof window !== 'undefined' && (
-          window.matchMedia('(display-mode: standalone)').matches ||
-          window.navigator.standalone === true ||
-          document.referrer.includes('android-app://')
+          (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches) ||
+          window.navigator?.standalone === true ||
+          (typeof document !== 'undefined' && document.referrer?.includes('android-app://'))
         );
         const installed = standalone || s?.isAppInstalled === true || localStorage.getItem('pwa_user_clicked_install') === 'true';
         if (installed) {

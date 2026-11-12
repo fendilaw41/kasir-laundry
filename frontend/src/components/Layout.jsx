@@ -552,9 +552,25 @@ const Layout = ({ user, onLogout }) => {
 
       {/* Footer Nav */}
       {location.pathname !== '/chat' && (
-        <div className="footer-nav-area" id="footerNav">
-          <div className="container px-0">
-            <div className="footer-nav position-relative shadow-sm" style={{ borderTop: '1px solid #ebebeb' }}>
+        <div
+          className="footer-nav-area"
+          id="footerNav"
+          style={{
+            backgroundColor: '#ffffff',
+            borderTop: '1px solid #f1f5f9',
+            boxShadow: 'none',
+          }}
+        >
+          <div className="container px-0" style={{ maxWidth: '640px', backgroundColor: '#ffffff' }}>
+            <div
+              className="footer-nav position-relative"
+              style={{
+                backgroundColor: '#ffffff',
+                border: 'none',
+                boxShadow: 'none',
+                borderRadius: 0,
+              }}
+            >
               <ul className="h-100 d-flex align-items-center justify-content-between ps-0 mb-0">
                 <li className={location.pathname === '/' ? 'active' : ''}>
                   <Link to="/">

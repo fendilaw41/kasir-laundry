@@ -194,3 +194,19 @@ a {
     border-radius: 16px;
     border: 1px solid rgba(0, 0, 0, 0.04);
 }
+
+/* ==========================================================================
+   Bottom Navigation Bar - Menyatu Putih Bersih (Tanpa Box Shadow / Garis Kotak)
+   ========================================================================== */
+.footer-nav-area {
+    background-color: #ffffff !important;
+    border-top: 1px solid #f1f5f9 !important;
+    box-shadow: none !important;
+}
+
+.footer-nav {
+    background-color: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
