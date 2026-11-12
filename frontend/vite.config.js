@@ -9,11 +9,11 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Kasir Laundry',
-        short_name: 'Kasir Laundry',
-        description: 'Aplikasi Kasir Laundry Berbasis PWA',
+        name: 'TokoPlus',
+        short_name: 'TokoPlus',
+        description: 'Aplikasi Kasir TokoPlus Berbasis PWA',
         theme_color: '#0134d4',
-        start_url: '/',
+        start_url: '/login',
         scope: '/',
         display: 'standalone',
         icons: [

@@ -5,6 +5,7 @@ import { getSettingsQuery } from './db/repositories/settings';
 import { Toaster } from 'react-hot-toast';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import LandingPage from './pages/LandingPage';
 import Home from './pages/Home';
 import Transaksi from './pages/Transaksi';
 import Cari from './pages/Cari';
@@ -154,6 +155,23 @@ function App() {
       <PageLoader />
       <Toaster position="top-center" reverseOrder={false} />
       <Routes>
+        {/* Rute Landing Page Publik */}
+        <Route path="/landing" element={<LandingPage user={user} />} />
+        
+        {/* Rute Root /: Landing page saat buka via browser pertama kali, /login jika PWA standalone, Home jika login */}
+        <Route
+          path="/"
+          element={
+            user ? (
+              <ProtectedLayout user={user} onLogout={handleLogout} />
+            ) : (
+              <RootPublicWrapper />
+            )
+          }
+        >
+          <Route index element={<Home user={user} />} />
+        </Route>
+
         <Route
           path="/login"
           element={<LoginRouteWrapper user={user} onLogin={handleLogin} />}
@@ -167,7 +185,6 @@ function App() {
         <Route path="/register-store" element={<RegisterStoreRouteWrapper user={user} />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route element={<ProtectedLayout user={user} onLogout={handleLogout} />}>
-          <Route path="/" element={<Home user={user} />} />
           <Route path="/transaksi" element={<Transaksi user={user} />} />
           <Route path="/cari" element={<Cari user={user} />} />
           <Route path="/product" element={<Product user={user} />} />
@@ -190,6 +207,23 @@ function App() {
   );
 }
 
+// Wrapper Root Publik: Saat belum login, cek apakah PWA standalone atau browser biasa
+function RootPublicWrapper() {
+  const isStandalone = typeof window !== 'undefined' && (
+    (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches) ||
+    window.navigator?.standalone === true ||
+    (typeof document !== 'undefined' && document.referrer?.includes('android-app://'))
+  );
+
+  // Jika dibuka dari PWA yang terinstall (mode standalone), langsung arahkan ke /login
+  if (isStandalone) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Jika dibuka pertama kali via browser web normal (laptop/PC/HP), tampilkan Landing Page
+  return <LandingPage />;
+}
+
 // Wrapper Login: jika user sudah login tapi membuka /login?redirect=..., arahkan ke redirect target
 function LoginRouteWrapper({ user, onLogin }) {
   const [searchParams] = useSearchParams();
@@ -200,12 +234,12 @@ function LoginRouteWrapper({ user, onLogin }) {
   return <Login onLogin={onLogin} />;
 }
 
-// Wrapper Register: jika user sudah login tapi membuka /register, arahkan ke Home / Dashboard
+// Wrapper Register: arahkan ke halaman login (login dan register mengarah ke /login)
 function RegisterRouteWrapper({ user }) {
   if (user) {
     return <Navigate to="/" replace />;
   }
-  return <Register />;
+  return <Navigate to="/login" replace />;
 }
 
 // Wrapper RegisterStore: jika user sudah login tapi membuka /daftar-toko, arahkan ke Home / Dashboard

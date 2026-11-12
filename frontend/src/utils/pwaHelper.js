@@ -93,8 +93,8 @@ export function updatePwaManifest(storeName) {
     const manifestData = {
       name: cleanName,
       short_name: shortName,
-      description: `Aplikasi Kasir Laundry - ${cleanName}`,
-      start_url: '/',
+      description: `Aplikasi TokoPlus - ${cleanName}`,
+      start_url: '/login',
       scope: '/',
       display: 'standalone',
       orientation: 'portrait',

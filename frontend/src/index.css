@@ -275,3 +275,49 @@ a {
         max-width: var(--desktop-frame-width) !important;
     }
 }
+
+/* ==========================================================================
+   Landing Page Styling (Desktop Full-Width & Responsive Mobile)
+   ========================================================================== */
+body.landing-page-active,
+body:has(.landing-page-wrapper) {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    background-color: #ffffff !important;
+    background-image: none !important;
+}
+
+.landing-page-wrapper {
+    position: relative;
+    width: 100%;
+    min-height: 100vh;
+    background-color: #ffffff;
+    color: #1e293b;
+    overflow-x: hidden;
+}
+
+.landing-page-wrapper .hover-primary {
+    transition: color 0.2s ease;
+}
+
+.landing-page-wrapper .hover-primary:hover {
+    color: #0134d4 !important;
+}
+
+.landing-page-wrapper .hover-lift {
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.landing-page-wrapper .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -4px rgba(13, 90, 253, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04) !important;
+}
+
+.shadow-2xs {
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.2s ease-out;
+}
+

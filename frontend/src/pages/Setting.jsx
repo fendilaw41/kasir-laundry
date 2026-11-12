@@ -436,7 +436,7 @@ const Setting = ({ user, onLogout }) => {
                   <div className="d-flex align-items-center justify-content-between gap-2 mb-1 flex-wrap">
                     <div className="d-flex align-items-center gap-2 overflow-hidden flex-wrap">
                       <h5 className="fw-bold text-dark text-truncate mb-0" style={{ fontSize: '1.05rem', letterSpacing: '-0.2px' }}>
-                        {settings.namaLaundry || 'Kasir Laundry'}
+                        {settings.namaLaundry || 'TokoPlus'}
                       </h5>
                       {settings.storeCode && (
                         <span
@@ -455,21 +455,23 @@ const Setting = ({ user, onLogout }) => {
                       )}
                     </div>
                     {/* Tombol Upgrade Akun di sebelah kanan nama toko */}
-                    <button
-                      type="button"
-                      className="btn btn-sm rounded-pill fw-bold d-inline-flex align-items-center gap-1 shadow-xs px-2.5 py-1 flex-shrink-0"
-                      style={{
-                        fontSize: '0.72rem',
-                        background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                        color: '#ffffff',
-                        border: 'none',
-                        boxShadow: '0 2px 6px rgba(217, 119, 6, 0.25)',
-                      }}
-                      onClick={() => navigate('/plan')}
-                    >
-                      <i className="bi bi-gem"></i>
-                      <span>Upgrade Akun</span>
-                    </button>
+                    {isSubscriptionEnabled() && (
+                      <button
+                        type="button"
+                        className="btn btn-sm rounded-pill fw-bold d-inline-flex align-items-center gap-1 shadow-xs px-2.5 py-1 flex-shrink-0"
+                        style={{
+                          fontSize: '0.72rem',
+                          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                          color: '#fff',
+                          border: 'none',
+                          boxShadow: '0 2px 6px rgba(217, 119, 6, 0.25)',
+                        }}
+                        onClick={() => navigate('/plan')}
+                      >
+                        <i className="bi bi-gem"></i>
+                        <span>Upgrade Akun</span>
+                      </button>
+                    )}
                   </div>
                   <div className="d-flex align-items-center text-muted small text-truncate mb-1.5" style={{ fontSize: '0.78rem' }}>
                     <i className="bi bi-geo-alt-fill text-danger me-1 flex-shrink-0" style={{ fontSize: '0.75rem' }}></i>
@@ -1930,10 +1932,10 @@ const Setting = ({ user, onLogout }) => {
                 </span>
 
                 <h5 className="fw-bold mb-1 text-dark" style={{ letterSpacing: '-0.3px' }}>
-                  Install Aplikasi {settings?.namaLaundry || 'Kasir Laundry'}
+                  Install Aplikasi {settings?.namaLaundry || 'TokoPlus'}
                 </h5>
                 <p className="text-muted small mb-3" style={{ fontSize: '12px', lineHeight: '1.5' }}>
-                  Pasang aplikasi kasir <strong>{settings?.namaLaundry || 'Kasir Laundry'}</strong> langsung di layar utama smartphone Android Anda untuk akses cepat &amp; fitur offline.
+                  Pasang aplikasi kasir <strong>{settings?.namaLaundry || 'TokoPlus'}</strong> langsung di layar utama smartphone Android Anda untuk akses cepat &amp; fitur offline.
                 </p>
 
                 {/* Outlet Details Card */}
@@ -1941,7 +1943,7 @@ const Setting = ({ user, onLogout }) => {
                   <div className="bg-light p-3 rounded-3 mb-3 text-start small border">
                     <div className="d-flex justify-content-between mb-1">
                       <span className="text-muted">Nama App:</span>
-                      <span className="fw-bold text-dark text-truncate ps-2">{settings.namaLaundry || 'Kasir Laundry'}</span>
+                      <span className="fw-bold text-dark text-truncate ps-2">{settings.namaLaundry || 'TokoPlus'}</span>
                     </div>
                     {settings.storeCode && (
                       <div className="d-flex justify-content-between mb-1">

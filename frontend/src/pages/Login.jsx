@@ -216,7 +216,7 @@ const Login = ({ onLogin }) => {
           if (s?.storeCode?.toUpperCase() === cleanCode) {
             info = {
               code: cleanCode,
-              name: s.namaLaundry || 'Kasir Laundry',
+              name: s.namaLaundry || 'TokoPlus',
               address: s.alamat || '',
               city: s.kota || '',
               phone: s.telepon || '',
@@ -424,10 +424,10 @@ const Login = ({ onLogin }) => {
                 </span>
 
                 <h5 className="fw-bold mb-1 text-dark" style={{ letterSpacing: '-0.3px' }}>
-                  Install Aplikasi {storeInfo?.name || 'Kasir Laundry'}
+                  Install Aplikasi {storeInfo?.name || 'TokoPlus'}
                 </h5>
                 <p className="text-muted small mb-3" style={{ fontSize: '12px', lineHeight: '1.5' }}>
-                  Pasang aplikasi kasir <strong>{storeInfo?.name || 'Kasir Laundry'}</strong> langsung di layar utama smartphone Android Anda untuk akses cepat &amp; fitur offline.
+                  Pasang aplikasi kasir <strong>{storeInfo?.name || 'TokoPlus'}</strong> langsung di layar utama smartphone Android Anda untuk akses cepat &amp; fitur offline.
                 </p>
 
                 {/* Outlet Details Card */}
@@ -520,7 +520,7 @@ const Login = ({ onLogin }) => {
                 }}
               >
                 <span style={{ fontSize: '32px', fontWeight: '900', color: '#fff', letterSpacing: '-1px' }}>
-                  {storeInfo?.name ? storeInfo.name.charAt(0).toUpperCase() : 'K'}
+                  {storeInfo?.name ? storeInfo.name.charAt(0).toUpperCase() : 'T'}
                 </span>
               </div>
               {isCheckingStore ? (
@@ -536,7 +536,7 @@ const Login = ({ onLogin }) => {
                     fontSize: '1.25rem',
                   }}
                 >
-                  {(storeInfo?.name || 'KASIR LAUNDRY').toUpperCase()}
+                  {(storeInfo?.name || 'TOKOPLUS').toUpperCase()}
                 </h4>
               )}
               <p className="text-muted small mb-0" style={{ fontSize: '12px' }}>

@@ -654,7 +654,7 @@ const OrderDetail = ({ user }) => {
                 }}
               />
             ) : (
-              <h5 className="text-white fw-bold mb-0">{settings?.namaLaundry || 'Kasir Laundry'}</h5>
+              <h5 className="text-white fw-bold mb-0">{settings?.namaLaundry || 'TokoPlus'}</h5>
             )}
             <small className="opacity-75">{settings?.motto || 'Solusi Laundry Bersih & Cepat'}</small>
 

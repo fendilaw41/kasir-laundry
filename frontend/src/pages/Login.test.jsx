@@ -24,14 +24,14 @@ describe('Login Page Store Branding', () => {
     }));
   });
 
-  it('menampilkan "KASIR LAUNDRY" secara default saat belum ada kode toko', () => {
+  it('menampilkan "TOKOPLUS" secara default saat belum ada kode toko', () => {
     render(
       <MemoryRouter initialEntries={['/login']}>
         <Login onLogin={vi.fn()} />
       </MemoryRouter>
     );
 
-    expect(screen.getByText('KASIR LAUNDRY')).not.toBeNull();
+    expect(screen.getByText('TOKOPLUS')).not.toBeNull();
   });
 
   it('memuat dan menampilkan nama store dari API auth/store-info?code=STORE02 dari query params URL', async () => {

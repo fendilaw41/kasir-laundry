@@ -148,7 +148,7 @@ const Layout = ({ user, onLogout }) => {
     }
   }, [location.pathname]);
 
-  const titleApp = settings?.namaLaundry || 'Kasir Laundry';
+  const titleApp = settings?.namaLaundry || 'TokoPlus';
 
   // Daftar menu utama (yang ada di footer)
   const searchParams = new URLSearchParams(location.search);
@@ -285,7 +285,7 @@ const Layout = ({ user, onLogout }) => {
                 /* Header Halaman Transaksi / Data Order */
                 <div className="logo-wrapper">
                   <h5 className="mb-0 fw-bold text-primary">
-                    {location.pathname === '/transaksi' ? 'Transaksi' : location.pathname === '/orders' ? 'Data Order' : (settings?.namaLaundry || 'Kasir Laundry')}
+                    {location.pathname === '/transaksi' ? 'Transaksi' : location.pathname === '/orders' ? 'Data Order' : (settings?.namaLaundry || 'TokoPlus')}
                   </h5>
                 </div>
               )}
