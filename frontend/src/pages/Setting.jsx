@@ -28,12 +28,6 @@ import {
   formatReceiptFooterText,
   getReceiptTrackingUrl,
 } from '../utils/receiptFooter';
-import {
-  getIsEnabledKasir,
-  setIsEnabledKasir,
-  getIsEnabledCetak,
-  setIsEnabledCetak,
-} from '../utils/userPreferences';
 
 const Setting = ({ user, onLogout }) => {
   const settings = useLiveQuery(getSettingsQuery);
@@ -125,26 +119,6 @@ const Setting = ({ user, onLogout }) => {
     role: 'kasir',
   });
 
-  const [isEnabledKasir, setLocalIsEnabledKasir] = useState(() => getIsEnabledKasir(user));
-  const [isEnabledCetak, setLocalIsEnabledCetak] = useState(() => getIsEnabledCetak(user));
-
-  useEffect(() => {
-    setLocalIsEnabledKasir(getIsEnabledKasir(user));
-    setLocalIsEnabledCetak(getIsEnabledCetak(user));
-  }, [user]);
-
-  const handleToggleEnabledKasir = (val) => {
-    setLocalIsEnabledKasir(val);
-    setIsEnabledKasir(val, user);
-    toast.success(val ? 'Papan bayar kasir diaktifkan' : 'Papan bayar kasir disembunyikan');
-  };
-
-  const handleToggleEnabledCetak = (val) => {
-    setLocalIsEnabledCetak(val);
-    setIsEnabledCetak(val, user);
-    toast.success(val ? 'FloatPapaning cetak nota diaktifkan' : 'Papan cetak nota disembunyikan');
-  };
-
   const [formData, setFormData] = useState({
     namaLaundry: '',
     motto: '',
@@ -195,8 +169,6 @@ const Setting = ({ user, onLogout }) => {
     setIsSaving(true);
     try {
       await updateSettings(formData);
-      setIsEnabledKasir(isEnabledKasir, user);
-      setIsEnabledCetak(isEnabledCetak, user);
       toast.success(TOAST_MESSAGES.SUCCESS);
     } catch (err) {
       console.error(err);

@@ -93,26 +93,25 @@ describe('Setting Component - Mobile Redesign', () => {
     expect(screen.getByText(/Memuat data pengaturan.../i)).toBeDefined();
   });
 
-  it('merender segmented tabs Toko, Struk, dan Kasir untuk akun owner', () => {
+  it('merender menu Pengaturan Toko, Format Nota & Struk, dan Manajemen Kasir untuk akun owner', () => {
     setupMockQueries();
 
     renderSetting({ user: { role: 'owner' } });
 
-    expect(screen.getByRole('button', { name: /^Toko$/i })).toBeDefined();
-    expect(screen.getByRole('button', { name: /^Struk$/i })).toBeDefined();
-    expect(screen.getByRole('button', { name: /Kasir/i })).toBeDefined();
-    expect(screen.getByDisplayValue('Laundry Bersih')).toBeDefined();
+    expect(screen.getByRole('button', { name: /Pengaturan Toko/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Format Nota & Struk/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Manajemen Kasir/i })).toBeDefined();
+    expect(screen.getByText('Laundry Bersih')).toBeDefined();
   });
 
-  it('menyembunyikan tab Kasir dan menampilkan peringatan read-only jika user bukan owner', () => {
+  it('menyembunyikan menu Manajemen Kasir jika user bukan owner', () => {
     setupMockQueries();
 
     renderSetting({ user: { role: 'kasir' } });
 
-    expect(screen.getByRole('button', { name: /^Toko$/i })).toBeDefined();
-    expect(screen.getByRole('button', { name: /^Struk$/i })).toBeDefined();
-    expect(screen.queryByRole('button', { name: /Kasir/i })).toBeNull();
-    expect(screen.getByText(/Mode Baca/i)).toBeDefined();
+    expect(screen.getByRole('button', { name: /Pengaturan Toko/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Format Nota & Struk/i })).toBeDefined();
+    expect(screen.queryByRole('button', { name: /Manajemen Kasir/i })).toBeNull();
   });
 
   it('dapat berpindah tab ke Struk dan menampilkan simulasi nota thermal', () => {
@@ -120,9 +119,9 @@ describe('Setting Component - Mobile Redesign', () => {
 
     renderSetting({ user: { role: 'owner' } });
 
-    // Click tab Struk
-    const strukTab = screen.getByRole('button', { name: /^Struk$/i });
-    fireEvent.click(strukTab);
+    // Click menu Format Nota & Struk
+    const strukMenu = screen.getByRole('button', { name: /Format Nota & Struk/i });
+    fireEvent.click(strukMenu);
 
     expect(screen.getByText(/Simulasi Struk Thermal \(58mm\)/i)).toBeDefined();
     expect(screen.getByDisplayValue('Terima Kasih Atas Kunjungan Anda')).toBeDefined();
@@ -133,9 +132,9 @@ describe('Setting Component - Mobile Redesign', () => {
 
     renderSetting({ user: { role: 'owner' } });
 
-    // Click tab Kasir
-    const kasirTab = screen.getByRole('button', { name: /Kasir/i });
-    fireEvent.click(kasirTab);
+    // Click menu Manajemen Kasir
+    const kasirMenu = screen.getByRole('button', { name: /Manajemen Kasir/i });
+    fireEvent.click(kasirMenu);
 
     expect(screen.getByText(/Daftar Akun Kasir/i)).toBeDefined();
     expect(screen.getByText('Siti Kasir')).toBeDefined();

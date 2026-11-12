@@ -19,7 +19,7 @@ import { QRCodeSVG } from '../components/common/QRCodeSVG';
 import { Skeleton, OrderDetailSkeleton } from '../components/common/Skeleton';
 import { db } from '../db';
 import { playSuccessChime } from '../utils/soundHelper';
-import { getIsEnabledCetak, setIsEnabledCetak, getIsCompactCetak, setIsCompactCetak } from '../utils/userPreferences';
+import { getIsCompactCetak, setIsCompactCetak } from '../utils/userPreferences';
 
 // true  = drawer / tombol Cetak menempel tepat di bawah konten (tidak ada celah kosong), lalu
 //         menempel di dasar layar kalau konten panjang.
@@ -106,12 +106,6 @@ const OrderDetail = ({ user }) => {
   const [gateModal, setGateModal] = useState({ open: false, type: 'PDF_LIMIT', data: {} });
   const [isQueryTimeout, setIsQueryTimeout] = useState(false);
   const [isCompactDrawer, setIsCompactDrawerState] = useState(() => getIsCompactCetak(user));
-  const [showFloatingDrawer, setShowFloatingDrawerState] = useState(() => getIsEnabledCetak(user));
-
-  const setShowFloatingDrawer = (val) => {
-    setShowFloatingDrawerState(val);
-    setIsEnabledCetak(val, user);
-  };
 
   const setIsCompactDrawer = (val) => {
     setShowCompactState(val);
@@ -123,7 +117,6 @@ const OrderDetail = ({ user }) => {
   };
 
   useEffect(() => {
-    setShowFloatingDrawerState(getIsEnabledCetak(user));
     setIsCompactDrawerState(getIsCompactCetak(user));
   }, [user]);
 
@@ -619,12 +612,12 @@ const OrderDetail = ({ user }) => {
         className="order-detail-wrapper"
         style={{
           paddingBottom: DRAWER_FOLLOW_CONTENT
-            ? (showFloatingDrawer ? '0px' : '85px')
-            : (!showFloatingDrawer ? '85px' : isCompactDrawer ? '140px' : '280px'),
+            ? '0px'
+            : (isCompactDrawer ? '140px' : '280px'),
           // Layout memberi jarak di bawah halaman: pb-3 (1rem) + .page-content-wrapper margin-bottom 62px.
           // Saat drawer menempel di bawah konten, jarak itu ditarik balik agar drawer tepat rata
           // dengan dasar layar (menutupi menu bawah, sama seperti sebelumnya) di akhir scroll.
-          marginBottom: DRAWER_FOLLOW_CONTENT && showFloatingDrawer ? `calc(-1rem - ${BOTTOM_MENU_HEIGHT}px)` : 0,
+          marginBottom: DRAWER_FOLLOW_CONTENT ? `calc(-1rem - ${BOTTOM_MENU_HEIGHT}px)` : 0,
           transition: 'padding-bottom 0.22s ease-out',
         }}
       >
@@ -854,103 +847,92 @@ const OrderDetail = ({ user }) => {
         </div>
 
         {/* FLOATING BOTTOM DRAWER / PANEL AKSI & CETAK SEPERTI DI TRANSAKSI */}
-        {showFloatingDrawer ? (
+        <div
+          className={DRAWER_FOLLOW_CONTENT ? 'w-100 px-2 pb-0 mx-auto' : 'position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0'}
+          style={DRAWER_FOLLOW_CONTENT ? {
+            position: 'sticky',
+            bottom: 0,
+            marginTop: '8px',
+            maxWidth: isCompactDrawer ? '540px' : '580px',
+            zIndex: 1055,
+            animation: 'drawerRise 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+            pointerEvents: 'none',
+          } : {
+            maxWidth: isCompactDrawer ? '540px' : '580px',
+            zIndex: 1055,
+            animation: 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+            pointerEvents: 'none',
+          }}
+        >
+          <style>{`@keyframes drawerRise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }`}</style>
           <div
-            className={DRAWER_FOLLOW_CONTENT ? 'w-100 px-2 pb-0 mx-auto' : 'position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0'}
-            style={DRAWER_FOLLOW_CONTENT ? {
-              position: 'sticky',
-              bottom: 0,
-              marginTop: '8px',
-              maxWidth: isCompactDrawer ? '540px' : '580px',
-              zIndex: 1055,
-              animation: 'drawerRise 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-              pointerEvents: 'none',
-            } : {
-              maxWidth: isCompactDrawer ? '540px' : '580px',
-              zIndex: 1055,
-              animation: 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-              pointerEvents: 'none',
+            className="bg-white w-100 shadow-lg border"
+            style={{
+              borderRadius: isCompactDrawer ? '22px' : '26px',
+              maxHeight: '88vh',
+              overflowY: 'auto',
+              padding: isCompactDrawer ? '10px 14px 14px' : '14px 16px 18px',
+              boxShadow: '0 -10px 35px rgba(0,0,0,0.18)',
+              pointerEvents: 'auto',
+              transition: 'all 0.22s ease-out',
             }}
           >
-            <style>{`@keyframes drawerRise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }`}</style>
+            {/* Grabber indicator */}
             <div
-              className="bg-white w-100 shadow-lg border"
+              className="mx-auto"
               style={{
-                borderRadius: isCompactDrawer ? '22px' : '26px',
-                maxHeight: '88vh',
-                overflowY: 'auto',
-                padding: isCompactDrawer ? '10px 14px 14px' : '14px 16px 18px',
-                boxShadow: '0 -10px 35px rgba(0,0,0,0.18)',
-                pointerEvents: 'auto',
-                transition: 'all 0.22s ease-out',
+                width: isCompactDrawer ? '36px' : '45px',
+                height: isCompactDrawer ? '4px' : '5px',
+                backgroundColor: '#cbd5e1',
+                borderRadius: '10px',
+                marginBottom: isCompactDrawer ? '6px' : '10px',
+                cursor: 'pointer',
               }}
-            >
-              {/* Grabber indicator */}
-              <div
-                className="mx-auto"
-                style={{
-                  width: isCompactDrawer ? '36px' : '45px',
-                  height: isCompactDrawer ? '4px' : '5px',
-                  backgroundColor: '#cbd5e1',
-                  borderRadius: '10px',
-                  marginBottom: isCompactDrawer ? '6px' : '10px',
-                  cursor: 'pointer',
-                }}
-                onClick={() => setIsCompactDrawer(!isCompactDrawer)}
-                title={isCompactDrawer ? 'Klik untuk perbesar' : 'Klik untuk perkecil'}
-              ></div>
+              onClick={() => setIsCompactDrawer(!isCompactDrawer)}
+              title={isCompactDrawer ? 'Klik untuk perbesar' : 'Klik untuk perkecil'}
+            ></div>
 
-              {/* Header Drawer: Info Pelanggan & Toggle Ukuran */}
-              <div className={`d-flex justify-content-between align-items-center ${isCompactDrawer ? 'mb-1' : 'mb-2'}`}>
-                <div className="d-flex align-items-center gap-2 overflow-hidden me-2">
+            {/* Header Drawer: Info Pelanggan & Toggle Ukuran */}
+            <div className={`d-flex justify-content-between align-items-center ${isCompactDrawer ? 'mb-1' : 'mb-2'}`}>
+              <div className="d-flex align-items-center gap-2 overflow-hidden me-2">
 
-                  <div className="overflow-hidden">
-                    <div className="d-flex align-items-center gap-1">
-                      <span className="fw-bold text-dark text-truncate" style={{ fontSize: '0.7rem' }}>
-                        {pelanggan?.nama || order.pelangganNama || 'Pelanggan Umum'}
-                      </span>
-                    </div>
-                    {!isCompactDrawer && (pelanggan?.hp || order.pelangganHp) && (
-                      <small className="text-muted text-truncate d-block" style={{ fontSize: '0.68rem', lineHeight: 1.1 }}>
-                        <i className="bi bi-telephone me-1"></i>{pelanggan?.hp || order.pelangganHp}
-                      </small>
-                    )}
+                <div className="overflow-hidden">
+                  <div className="d-flex align-items-center gap-1">
+                    <span className="fw-bold text-dark text-truncate" style={{ fontSize: '0.7rem' }}>
+                      {pelanggan?.nama || order.pelangganNama || 'Pelanggan Umum'}
+                    </span>
                   </div>
-                </div>
-
-                <div className="d-flex align-items-center gap-1 flex-shrink-0">
-                  {/* Tombol Toggle Mode Kecil / Fullscreen */}
-                  {order.status !== 'Ambil' && isStatusLunas(order.statusBayar) && (
-                    <button
-                      type="button"
-                      className="btn btn-primary rounded-pill px-3 py-1 fw-bold d-flex align-items-center justify-content-center gap-1 shadow-xs flex-fill text-nowrap"
-                      style={{ fontSize: '0.72rem' }}
-                      onClick={toggleLunas}
-                    >
-                      Set Belum Lunas
-                    </button>
+                  {!isCompactDrawer && (pelanggan?.hp || order.pelangganHp) && (
+                    <small className="text-muted text-truncate d-block" style={{ fontSize: '0.68rem', lineHeight: 1.1 }}>
+                      <i className="bi bi-telephone me-1"></i>{pelanggan?.hp || order.pelangganHp}
+                    </small>
                   )}
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center text-muted border shadow-xs"
-                    style={{ width: isCompactDrawer ? '28px' : '32px', height: isCompactDrawer ? '28px' : '32px' }}
-                    onClick={() => setIsCompactDrawer(!isCompactDrawer)}
-                    title={isCompactDrawer ? 'Perbesar tampilan drawer' : 'Perkecil tampilan drawer'}
-                  >
-                    <i className={`bi ${isCompactDrawer ? 'bi-arrows-angle-expand' : 'bi-arrows-angle-contract'}`} style={{ fontSize: isCompactDrawer ? '0.75rem' : '0.85rem' }}></i>
-                  </button>
-                  {/* Tombol Tutup / Collapse */}
-                  {/* <button
-                    type="button"
-                    className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center text-muted border shadow-xs"
-                    style={{ width: isCompactDrawer ? '28px' : '32px', height: isCompactDrawer ? '28px' : '32px' }}
-                    onClick={() => setShowFloatingDrawer(false)}
-                    title="Sembunyikan Drawer"
-                  >
-                    <i className="bi bi-x-lg" style={{ fontSize: isCompactDrawer ? '0.75rem' : '0.85rem' }}></i>
-                  </button> */}
                 </div>
               </div>
+
+              <div className="d-flex align-items-center gap-1 flex-shrink-0">
+                {/* Tombol Toggle Mode Kecil / Fullscreen */}
+                {order.status !== 'Ambil' && isStatusLunas(order.statusBayar) && (
+                  <button
+                    type="button"
+                    className="btn btn-primary rounded-pill px-3 py-1 fw-bold d-flex align-items-center justify-content-center gap-1 shadow-xs flex-fill text-nowrap"
+                    style={{ fontSize: '0.72rem' }}
+                    onClick={toggleLunas}
+                  >
+                    Set Belum Lunas
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center text-muted border shadow-xs"
+                  style={{ width: isCompactDrawer ? '28px' : '32px', height: isCompactDrawer ? '28px' : '32px' }}
+                  onClick={() => setIsCompactDrawer(!isCompactDrawer)}
+                  title={isCompactDrawer ? 'Perbesar tampilan drawer' : 'Perkecil tampilan drawer'}
+                >
+                  <i className={`bi ${isCompactDrawer ? 'bi-arrows-angle-expand' : 'bi-arrows-angle-contract'}`} style={{ fontSize: isCompactDrawer ? '0.75rem' : '0.85rem' }}></i>
+                </button>
+              </div>
+            </div>
 
               {/* KONTEN ACTIONS */}
               {isCompactDrawer ? (
@@ -1164,35 +1146,6 @@ const OrderDetail = ({ user }) => {
               )}
             </div>
           </div>
-        ) : (
-          /* TOMBOL FLOATING CETAK MELAYANG DI BAWAH (DI ATAS BOTTOM NAV) */
-          <div
-            className={DRAWER_FOLLOW_CONTENT ? 'w-100 px-3 text-center mx-auto' : 'position-fixed bottom-0 start-50 translate-middle-x w-100 px-3 pb-3 text-center'}
-            style={DRAWER_FOLLOW_CONTENT ? {
-              position: 'sticky',
-              bottom: `${BOTTOM_MENU_HEIGHT + 6}px`,
-              marginTop: '8px',
-              maxWidth: '580px',
-              zIndex: 1045,
-              pointerEvents: 'none',
-            } : { maxWidth: '580px', zIndex: 1045, pointerEvents: 'none' }}
-          >
-            <button
-              type="button"
-              className={`btn btn-primary rounded-pill shadow-lg px-4 ${DRAWER_FOLLOW_CONTENT ? '' : 'mb-5 '}py-2 fw-bold d-inline-flex align-items-center gap-2 border-0`}
-              style={{
-                backgroundColor: '#0134d4',
-                pointerEvents: 'auto',
-                fontSize: '0.86rem',
-                boxShadow: '0 8px 24px rgba(1, 52, 212, 0.35)',
-              }}
-              onClick={() => setShowFloatingDrawer(true)}
-            >
-              <i className="bi bi-receipt fs-5"></i>
-              <span>Cetak</span>
-            </button>
-          </div>
-        )}
 
         {/* Modal Edit Catatan */}
         {showNoteModal && (

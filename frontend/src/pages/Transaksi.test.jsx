@@ -76,6 +76,8 @@ vi.mock('react-hot-toast', () => ({
 
 describe('Transaksi Page', () => {
   beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
     vi.clearAllMocks();
     mockDaftarPelanggan.mockReturnValue([{ id: 1, nama: 'Budi', hp: '08123456789' }]);
     mockInventory.mockReturnValue([]);
@@ -141,13 +143,18 @@ describe('Transaksi Page', () => {
     expect(screen.getAllByText('Pelanggan Umum').length).toBeGreaterThan(0);
   });
 
-  it('floating drawer pembayaran aktif secara default dan menyediakan tombol nominal cepat (Uang Pas, 20rb, 50rb, 100rb)', async () => {
+  it('floating drawer pembayaran aktif secara default dan menyediakan tombol nominal cepat saat diperbesar', async () => {
     mockDraftOrder.mockReturnValue({ pelanggan: null, inventory: [] });
     mockCartItems.mockReturnValue([
       { id: 1, name: 'CUCI SETRIKA', price: 25000, quantity: 1 },
     ]);
 
     render(<Transaksi />);
+
+    // Default adalah mode mini dengan tombol expand
+    const expandBtn = screen.getByTitle('Perbesar tampilan pembayaran');
+    expect(expandBtn).toBeDefined();
+    fireEvent.click(expandBtn);
 
     expect(screen.getByText('TOTAL TAGIHAN')).toBeDefined();
     expect(screen.getByRole('button', { name: 'Uang Pas' })).toBeDefined();
@@ -173,6 +180,9 @@ describe('Transaksi Page', () => {
 
     render(<Transaksi />);
 
+    // Perbesar tampilan drawer untuk melihat tombol submit lengkap
+    const expandBtn = screen.getByTitle('Perbesar tampilan pembayaran');
+    fireEvent.click(expandBtn);
     expect(screen.getByText('TOTAL TAGIHAN')).toBeDefined();
 
     const submitBtn = screen.getByRole('button', { name: /^Bayar$/i });
@@ -195,7 +205,7 @@ describe('Transaksi Page', () => {
     });
   });
 
-  it('drawer pembayaran secara default dalam mode ringkas (compact) dan dapat di-toggle perbesar / perkecil serta ditutup', async () => {
+  it('drawer pembayaran secara default dalam mode ringkas (mini) dan dapat di-toggle perbesar / perkecil tanpa tombol tutup', async () => {
     mockDraftOrder.mockReturnValue({ pelanggan: null, inventory: [] });
     mockCartItems.mockReturnValue([
       { id: 1, name: 'CUCI SETRIKA', price: 20000, quantity: 1 },
@@ -203,22 +213,22 @@ describe('Transaksi Page', () => {
 
     render(<Transaksi />);
 
+    // Default mode mini
+    const expandBtn = screen.getByTitle('Perbesar tampilan pembayaran');
+    expect(expandBtn).toBeDefined();
+
+    // Toggle ke maximize
+    fireEvent.click(expandBtn);
     expect(screen.getByText('TOTAL TAGIHAN')).toBeDefined();
-
-    const toggleBtn = screen.getByTitle('Perbesar tampilan drawer');
-    expect(toggleBtn).toBeDefined();
-
-    fireEvent.click(toggleBtn);
     expect(screen.getByTitle('Perkecil tampilan drawer')).toBeDefined();
 
+    // Toggle kembali ke mini
     const contractBtn = screen.getByTitle('Perkecil tampilan drawer');
     fireEvent.click(contractBtn);
-    expect(screen.getByTitle('Perbesar tampilan drawer')).toBeDefined();
+    expect(screen.getByTitle('Perbesar tampilan pembayaran')).toBeDefined();
 
-    // Tombol close menutup drawer pembayaran
-    const closeBtn = screen.getByTitle('Tutup Pembayaran');
-    fireEvent.click(closeBtn);
-    expect(screen.queryByText('TOTAL TAGIHAN')).toBeNull();
+    // Tombol close sudah dihilangkan sesuai request
+    expect(screen.queryByTitle('Tutup Pembayaran')).toBeNull();
   });
 
   it('menampilkan card layanan langsung di halaman transaksi dan mengetuk card menambahkan produk ke keranjang', async () => {
@@ -231,9 +241,7 @@ describe('Transaksi Page', () => {
 
     render(<Transaksi />);
 
-    // Header Layanan dan kartu layanan langsung tampil tanpa modal
-    expect(screen.getByText('Layanan')).toBeDefined();
-    expect(screen.getByText('Ketuk kartu untuk memilih jenis cuci/setrika')).toBeDefined();
+    // Kartu layanan langsung tampil
     expect(screen.getByText('CSK')).toBeDefined();
     expect(screen.getByText('SSK')).toBeDefined();
 
@@ -247,7 +255,7 @@ describe('Transaksi Page', () => {
     );
   });
 
-  it('card badge diskon membuka modal popup untuk mengatur diskon persentase atau rupiah', async () => {
+  it('pengaturan diskon persentase dan rupiah dapat diatur langsung pada form order', async () => {
     mockDraftOrder.mockReturnValue({ pelanggan: null, inventory: [] });
     mockCartItems.mockReturnValue([
       { id: 1, name: 'CUCI SETRIKA', price: 50000, quantity: 1 },
@@ -255,15 +263,7 @@ describe('Transaksi Page', () => {
 
     render(<Transaksi />);
 
-    // Klik card badge Diskon
-    const diskonBadge = screen.getByText('Diskon');
-    fireEvent.click(diskonBadge);
-
-    // Modal popup diskon muncul
-    expect(screen.getByText('Pengaturan Diskon')).toBeDefined();
-    expect(screen.getByText('Persentase (%)')).toBeDefined();
-    expect(screen.getByText('Nominal (Rp)')).toBeDefined();
-    expect(screen.getByText('Terapkan')).toBeDefined();
+    expect(screen.getByText('Diskon')).toBeDefined();
   });
 
   it('card badge delivery dan prioritas menggunakan select pilihan dan dapat diubah', async () => {

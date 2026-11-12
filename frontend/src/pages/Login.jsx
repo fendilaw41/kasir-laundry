@@ -185,7 +185,7 @@ const Login = ({ onLogin }) => {
     const handleInstalled = () => {
       setIsPwaInstalled(true);
       localStorage.setItem('pwa_user_clicked_install', 'true');
-      db.settings.update(1, { isAppInstalled: true }).catch(() => {});
+      db.settings.update(1, { isAppInstalled: true }).catch(() => { });
     };
 
     window.addEventListener('pwa:installed', handleInstalled);
@@ -814,12 +814,9 @@ const Login = ({ onLogin }) => {
                     <h6 className="fw-bold text-dark mb-1" style={{ fontSize: '15px' }}>
                       Tautan Reset Disiapkan!
                     </h6>
-                    <p className="text-muted small mb-3" style={{ fontSize: '12px' }}>
-                      Tautan reset password berbatas waktu (30 menit) telah dibuat dan ditujukan ke WhatsApp Owner toko.
-                    </p>
 
                     <div
-                      className="bg-light p-2.5 rounded-3 mb-3 text-start small border"
+                      className="bg-light p-2 rounded-3 mb-3 text-start small border"
                       style={{ fontSize: '12px', lineHeight: 1.5 }}
                     >
                       <div>
@@ -847,25 +844,12 @@ const Login = ({ onLogin }) => {
                         <i className="bi bi-whatsapp fs-5"></i>
                         <span>Buka WhatsApp Owner</span>
                       </a>
-                      <button
-                        type="button"
-                        className="btn btn-outline-secondary py-2 rounded-3 fw-bold small"
-                        style={{ fontSize: '12px' }}
-                        onClick={() => {
-                          if (navigator.clipboard) {
-                            navigator.clipboard.writeText(forgotSuccessData.resetUrl);
-                            toast.success('Link reset disalin ke clipboard!');
-                          }
-                        }}
-                      >
-                        <i className="bi bi-clipboard me-1"></i> Salin Link Reset
-                      </button>
                     </div>
                   </div>
                 ) : (
                   <form onSubmit={handleRequestForgotPassword}>
                     <p className="text-muted small mb-3" style={{ fontSize: '12px', lineHeight: 1.4 }}>
-                      Masukkan Kode Toko dan Username Anda. Tautan reset password akan langsung disiapkan dan dikirimkan ke nomor WhatsApp Owner toko.
+                      Tautan reset password akan langsung dikirimkan ke nomor WhatsApp Owner toko.
                     </p>
 
                     {forgotError && (
@@ -932,7 +916,7 @@ const Login = ({ onLogin }) => {
                         ) : (
                           <>
                             <i className="bi bi-whatsapp me-1.5"></i>
-                            Kirim Link ke WhatsApp Owner
+                            &nbsp; Kirim Link ke WhatsApp Owner
                           </>
                         )}
                       </button>

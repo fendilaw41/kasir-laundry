@@ -12,8 +12,6 @@ import { addProductToCart } from '../db/repositories/cart';
 import { playSuccessChime } from '../utils/soundHelper';
 import { getStoredUser } from '../utils/authSession';
 import {
-  getShowPaymentDrawer,
-  setShowPaymentDrawerPref,
   getIsMiniPayment,
   setIsMiniPayment as setIsMiniPaymentPref
 } from '../utils/userPreferences';
@@ -166,19 +164,8 @@ const Transaksi = ({ user } = {}) => {
   // Horizontal Scroll Ref untuk Layanan
   const productScrollRef = useHorizontalScroll();
 
-  // State untuk Floating Bottom Sheet / Drawer Pembayaran (Disimpan ke localStorage)
-  const [showPaymentDrawer, setShowPaymentDrawerState] = useState(() => getShowPaymentDrawer(activeUser));
   // Tampilan drawer pembayaran: true = PENDEK (seperti Order Detail), false = BESAR (lengkap) (Disimpan ke localStorage)
   const [isMiniPayment, setIsMiniPaymentState] = useState(() => getIsMiniPayment(activeUser));
-
-  // Handler tersinkronisasi ke localStorage
-  const setShowPaymentDrawer = (val) => {
-    setShowPaymentDrawerState((prev) => {
-      const nextVal = typeof val === 'function' ? val(prev) : val;
-      setShowPaymentDrawerPref(nextVal, activeUser);
-      return nextVal;
-    });
-  };
 
   const setIsMiniPayment = (val) => {
     setIsMiniPaymentState((prev) => {
@@ -189,7 +176,6 @@ const Transaksi = ({ user } = {}) => {
   };
 
   useEffect(() => {
-    setShowPaymentDrawerState(getShowPaymentDrawer(activeUser));
     setIsMiniPaymentState(getIsMiniPayment(activeUser));
   }, [activeUser?.id, activeUser?.uuid, activeUser?.username]);
 
@@ -220,7 +206,7 @@ const Transaksi = ({ user } = {}) => {
 
   useEffect(() => {
     const el = drawerRef.current;
-    if (!showPaymentDrawer || !el) {
+    if (showSuccessModal || !el) {
       setDrawerHeight(0);
       return undefined;
     }
@@ -233,7 +219,7 @@ const Transaksi = ({ user } = {}) => {
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [showPaymentDrawer, isMiniPayment]);
+  }, [showSuccessModal, isMiniPayment]);
 
   // Ekstrak kategori unik dari daftar produk
   const categories = useMemo(() => {
@@ -396,7 +382,6 @@ const Transaksi = ({ user } = {}) => {
 
       const saved = await getOrderByIdQuery(newId);
 
-      setShowPaymentDrawer(false);
       playSuccessChime();
 
       setSuccessOrder({
@@ -457,7 +442,7 @@ const Transaksi = ({ user } = {}) => {
         style={{
           borderRadius: '20px',
           maxWidth: '580px',
-          marginBottom: DRAWER_FOLLOW_CONTENT ? 0 : (showPaymentDrawer ? '0px' : `${BOTTOM_MENU_HEIGHT + 56}px`),
+          marginBottom: 0,
         }}
       >
         <div className="card-body p-3">
@@ -844,12 +829,12 @@ const Transaksi = ({ user } = {}) => {
           </div>
 
           {/* Spacer setinggi drawer pembayaran (dikurangi DRAWER_GAP_TRIM agar rapat) supaya form paling bawah tetap bisa di-scroll sampai terlihat */}
-          {showPaymentDrawer && !DRAWER_FOLLOW_CONTENT && <div aria-hidden="true" style={{ height: `${Math.max(0, drawerHeight - DRAWER_GAP_TRIM)}px` }}></div>}
+          {!showSuccessModal && !DRAWER_FOLLOW_CONTENT && <div aria-hidden="true" style={{ height: `${Math.max(0, drawerHeight - DRAWER_GAP_TRIM)}px` }}></div>}
         </div>
       </div>
 
       {/* Floating Bottom Drawer Pembayaran (Docked Bottom) */}
-      {showPaymentDrawer ? (
+      {!showSuccessModal && (
         <div
           ref={drawerRef}
           className={DRAWER_FOLLOW_CONTENT ? 'w-100 px-2 pb-0 mx-auto' : 'position-fixed bottom-0 start-50 translate-middle-x w-100 px-2 pb-0'}
@@ -934,17 +919,6 @@ const Transaksi = ({ user } = {}) => {
                     >
                       <i className="bi bi-arrows-angle-expand" style={{ fontSize: '0.8rem' }}></i>
                     </button>
-                    {/* <button
-                      type="button"
-                      className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center text-muted"
-                      style={{ width: '32px', height: '32px' }}
-                      onClick={() => !isSubmitting && setShowPaymentDrawer(false)}
-                      disabled={isSubmitting}
-                      title="Tutup Pembayaran"
-                      aria-label="Tutup Pembayaran"
-                    >
-                      <i className="bi bi-x-lg" style={{ fontSize: '0.8rem' }}></i>
-                    </button> */}
                   </div>
                 </div>
 
@@ -1060,18 +1034,6 @@ const Transaksi = ({ user } = {}) => {
                     >
                       <i className="bi bi-arrows-angle-contract" style={{ fontSize: '0.75rem' }}></i>
                     </button>
-                    {/* Tombol Tutup Drawer */}
-                    {/* <button
-                      type="button"
-                      className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center text-muted"
-                      style={{ width: isCompactPayment ? '28px' : '32px', height: isCompactPayment ? '28px' : '32px' }}
-                      onClick={() => !isSubmitting && setShowPaymentDrawer(false)}
-                      disabled={isSubmitting}
-                      title="Tutup Pembayaran"
-                      aria-label="Tutup Pembayaran"
-                    >
-                      <i className="bi bi-x-lg" style={{ fontSize: isCompactPayment ? '0.75rem' : '0.85rem' }}></i>
-                    </button> */}
                   </div>
                 </div>
 
@@ -1314,29 +1276,6 @@ const Transaksi = ({ user } = {}) => {
             )}
           </div>
         </div>
-      ) : !showSuccessModal && (
-        <div
-          className={DRAWER_FOLLOW_CONTENT ? 'w-100 text-center mx-auto' : 'position-fixed start-50 translate-middle-x text-center'}
-          style={DRAWER_FOLLOW_CONTENT ? {
-            position: 'sticky',
-            bottom: `${BOTTOM_MENU_HEIGHT + 4}px`,
-            marginTop: '8px',
-            maxWidth: '580px',
-            zIndex: 1050,
-            animation: 'fadeIn 0.2s ease-out',
-            pointerEvents: 'none'
-          } : { bottom: `${BOTTOM_MENU_HEIGHT + 4}px`, zIndex: 1050, animation: 'fadeIn 0.2s ease-out' }}
-        >
-          <button
-            type="button"
-            className="btn btn-primary shadow-lg rounded-pill px-4 py-2 fw-bold d-inline-flex align-items-center gap-2 border-2 border-white"
-            onClick={() => setShowPaymentDrawer(true)}
-            style={{ fontSize: '0.9rem', backgroundColor: '#0134d4', borderColor: '#0134d4', pointerEvents: 'auto' }}
-          >
-            <i className="bi bi-wallet2 fs-6"></i>
-            <span>Bayar</span>
-          </button>
-        </div>
       )}
 
       {/* Sukses Transaksi: floating bottom sheet menggantikan drawer pembayaran (tinggi sama, tanpa backdrop/blur) */}
@@ -1440,7 +1379,6 @@ const Transaksi = ({ user } = {}) => {
                 onClick={() => {
                   setShowSuccessModal(false);
                   setSuccessOrder(null);
-                  setShowPaymentDrawer(true);
                 }}
               >
                 <i className="bi bi-plus-circle me-1"></i> Transaksi Baru
