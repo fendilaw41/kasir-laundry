@@ -1032,7 +1032,7 @@ const Transaksi = ({ user } = {}) => {
               <div className="d-flex align-items-center gap-1 overflow-x-auto no-scrollbar py-1">
                 <button
                   type="button"
-                  className={`btn btn-sm ${nominalBayar === total.toString() ? 'btn-primary text-white' : 'btn-outline-primary'} fw-bold py-0 px-2 rounded-2 text-nowrap`}
+                  className={`btn btn-sm ${nominalBayar === total.toString() ? 'btn-primary text-white' : 'btn-outline-secondary'} fw-bold py-0 px-2 rounded-2 text-nowrap`}
                   style={{ fontSize: '0.68rem', height: '26px', lineHeight: '24px' }}
                   onClick={() => handleQuickNominal('pas')}
                 >

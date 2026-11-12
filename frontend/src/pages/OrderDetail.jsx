@@ -206,7 +206,7 @@ const OrderDetail = ({ user }) => {
         setGateModal({ open: true, type: 'SUBSCRIPTION_EXPIRED', data: { plan: sub?.plan, isTrial: false } });
         return;
       }
-    } catch (e) {}
+    } catch (e) { }
 
     try {
       await updateOrder(order.id, { status });
@@ -230,7 +230,7 @@ const OrderDetail = ({ user }) => {
         });
         return;
       }
-    } catch (e) {}
+    } catch (e) { }
     if (isCustomerNoteLocked) {
       toast.error('Catatan pelanggan tidak dapat diedit karena cucian sudah selesai/diambil');
       setShowNoteModal(false);
@@ -257,7 +257,7 @@ const OrderDetail = ({ user }) => {
         });
         return;
       }
-    } catch (e) {}
+    } catch (e) { }
     if (isCashierNoteLocked) {
       toast.error('Catatan kasir tidak dapat diedit karena pesanan sudah diambil pelanggan');
       setShowCashierNoteModal(false);
@@ -283,7 +283,7 @@ const OrderDetail = ({ user }) => {
         });
         return;
       }
-    } catch (e) {}
+    } catch (e) { }
     try {
       await updateOrder(order.id, { isPriority: !order.isPriority });
       toast.success(TOAST_MESSAGES.SUCCESS);
@@ -407,7 +407,7 @@ const OrderDetail = ({ user }) => {
         });
         return;
       }
-    } catch (e) {}
+    } catch (e) { }
     try {
       let updatedPelanggan = { ...pelanggan, hp: newHp };
       if (pelanggan && pelanggan.id) {
@@ -737,7 +737,7 @@ const OrderDetail = ({ user }) => {
             {/* Catatan Kasir (Internal) */}
             <div
               className={`d-flex justify-content-between mt-2 pt-2 border-top align-items-start ${isCashierNoteLocked ? 'opacity-75' : ''}`}
-             >
+            >
               <div>
                 <span className="fw-semibold text-warning-emphasis d-flex align-items-center gap-1">
                   <i className="bi bi-shield-lock-fill text-warning"></i> Catatan Kasir :
@@ -894,17 +894,11 @@ const OrderDetail = ({ user }) => {
               {/* Header Drawer: Info Pelanggan & Toggle Ukuran */}
               <div className={`d-flex justify-content-between align-items-center ${isCompactDrawer ? 'mb-1' : 'mb-2'}`}>
                 <div className="d-flex align-items-center gap-2 overflow-hidden me-2">
-                 
+
                   <div className="overflow-hidden">
                     <div className="d-flex align-items-center gap-1">
                       <span className="fw-bold text-dark text-truncate" style={{ fontSize: '0.7rem' }}>
                         {pelanggan?.nama || order.pelangganNama || 'Pelanggan Umum'}
-                      </span>
-                      <span
-                        className={`badge rounded-pill px-2 py-2 ${isStatusLunas(order.statusBayar) ? 'bg-success' : 'bg-warning text-dark'}`}
-                        style={{ fontSize: '0.65rem' }}
-                      >
-                        {order.statusBayar}
                       </span>
                     </div>
                     {!isCompactDrawer && (pelanggan?.hp || order.pelangganHp) && (
@@ -917,6 +911,16 @@ const OrderDetail = ({ user }) => {
 
                 <div className="d-flex align-items-center gap-1 flex-shrink-0">
                   {/* Tombol Toggle Mode Kecil / Fullscreen */}
+                  {order.status !== 'Ambil' && isStatusLunas(order.statusBayar) && (
+                    <button
+                      type="button"
+                      className="btn btn-primary rounded-pill px-3 py-1 fw-bold d-flex align-items-center justify-content-center gap-1 shadow-xs flex-fill text-nowrap"
+                      style={{ fontSize: '0.72rem' }}
+                      onClick={toggleLunas}
+                    >
+                      Set Belum Lunas
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center text-muted border shadow-xs"
@@ -1059,23 +1063,7 @@ const OrderDetail = ({ user }) => {
                       )}
                     </div>
                   ) : (
-                    <div className="d-flex align-items-center justify-content-between px-2 py-1 rounded-3 bg-success-subtle text-dark border border-success-subtle">
-                      <span className="fw-semibold small d-flex align-items-center gap-1" style={{ fontSize: '0.78rem' }}>
-                        <i className="bi bi-check-circle-fill fs-6"></i>
-                        <span>Lunas ({order.metodeBayar || 'Cash'})</span>
-                      </span>
-                      {order.status !== 'Ambil' && (
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-link text-primary p-0 text-decoration-none fw-semibold"
-                          style={{ fontSize: '0.72rem' }}
-                          onClick={toggleLunas}
-                        >
-                          Jadikan Belum Lunas
-                        </button>
-                        
-                      )}
-                    </div>
+                    ''
                   )}
 
                   {/* Grid Tombol Cetak (Semua Button Cetak Dikeluarkan Rapi) */}
@@ -1233,7 +1221,7 @@ const OrderDetail = ({ user }) => {
                     <button type="button" className="btn-close" onClick={() => setShowCashierNoteModal(false)}></button>
                   </div>
                   <div className="modal-body p-4">
-                   <textarea
+                    <textarea
                       className="form-control border-0 bg-light rounded-4 p-3 mb-3"
                       value={catatanKasir}
                       onChange={(e) => setCatatanKasir(e.target.value)}
@@ -1530,7 +1518,7 @@ const OrderDetail = ({ user }) => {
                   borderRadius: '20px 20px 0 0',
                   maxHeight: '90vh',
                   overflowY: 'auto',
-                  padding: '12px 14px 14px',
+                  padding: '10px 14px 14px',
                   boxShadow: '0 -10px 35px rgba(0,0,0,0.22)',
                 }}
               >
@@ -1542,7 +1530,7 @@ const OrderDetail = ({ user }) => {
                     height: '4px',
                     backgroundColor: '#cbd5e1',
                     borderRadius: '10px',
-                    marginBottom: '8px',
+                    marginBottom: '6px',
                     cursor: 'pointer',
                   }}
                   onClick={() => setShowPayModal(false)}
@@ -1596,9 +1584,6 @@ const OrderDetail = ({ user }) => {
 
                 {/* Status Pembayaran Toggle: Lunas vs Belum Lunas */}
                 <div className="mb-2">
-                  <label className="form-label small fw-bold text-muted text-uppercase mb-1" style={{ fontSize: '0.68rem', letterSpacing: '0.3px' }}>
-                    Status Pembayaran
-                  </label>
                   <div className="d-flex p-1 rounded-3 bg-light border gap-1">
                     <button
                       type="button"
@@ -1621,9 +1606,6 @@ const OrderDetail = ({ user }) => {
 
                 {/* Pilihan Metode Bayar */}
                 <div className="mb-2">
-                  <label className="form-label small fw-bold text-muted text-uppercase mb-1" style={{ fontSize: '0.68rem', letterSpacing: '0.3px' }}>
-                    Metode Pembayaran
-                  </label>
                   <div className="row g-1">
                     {[
                       { key: 'Cash', label: 'Cash', icon: 'bi-cash-stack' },
@@ -1646,16 +1628,16 @@ const OrderDetail = ({ user }) => {
                 </div>
 
                 {/* Pilihan Nominal Cepat */}
-                <div className="mb-2">
-                  <div className="d-flex justify-content-between align-items-center mb-1">
-                    <label className="form-label small fw-bold text-muted text-uppercase mb-0" style={{ fontSize: '0.68rem', letterSpacing: '0.3px' }}>
+                <div className="mb-1">
+                  <div className="d-flex justify-content-between align-items-center">
+                    <label className="form-label small fw-bold text-muted text-uppercase mb-0" style={{ fontSize: '0.5rem', letterSpacing: '0.3px' }}>
                       {payIsLunas ? 'Pilihan Uang Diterima' : 'Nominal Uang Muka (DP)'}
                     </label>
                   </div>
-                  <div className="d-flex align-items-center gap-1 overflow-x-auto no-scrollbar py-0">
+                  <div className="d-flex align-items-center gap-0 overflow-x-auto no-scrollbar py-0">
                     <button
                       type="button"
-                      className={`btn btn-sm ${payNominal === tagihanToPay.toString() ? 'btn-primary text-white' : 'btn-outline-primary'} fw-bold py-0 px-2 rounded-2 text-nowrap`}
+                      className={`btn btn-sm ${payNominal === tagihanToPay.toString() ? 'btn-primary text-white' : 'btn-outline-secondary'} fw-bold py-0 px-2 rounded-2 text-nowrap`}
                       style={{ fontSize: '0.68rem', height: '26px', lineHeight: '24px' }}
                       onClick={() => handleQuickNominal('pas')}
                     >
@@ -1686,7 +1668,7 @@ const OrderDetail = ({ user }) => {
                 </div>
 
                 {/* Input Nominal Pembayaran (Rp di Kiri) */}
-                <div className="mb-2">
+                <div className="mb-1">
                   <div className="input-group rounded-2 overflow-hidden border bg-white" style={{ height: '38px' }}>
                     <span className="input-group-text bg-white border-0 text-muted fw-bold ps-2 pe-1" style={{ fontSize: '0.88rem' }}>
                       Rp
@@ -1721,11 +1703,11 @@ const OrderDetail = ({ user }) => {
                 </div>
 
                 {/* Rincian Kembalian / Sisa Tagihan (Satu Baris Padat Sesuai Mockup) */}
-                <div className="bg-light px-3 py-2 rounded-3 mb-2 border d-flex justify-content-between align-items-center">
+                <div className="bg-light px-2 py-1 rounded-3 mb-1 border d-flex justify-content-between align-items-center">
                   <span className="fw-semibold text-secondary" style={{ fontSize: '0.82rem' }}>
                     {payIsLunas ? 'Kembalian:' : 'Sisa Tagihan:'}
                   </span>
-                  <span className={`fw-bolder ${payIsLunas ? 'text-success' : 'text-danger'}`} style={{ fontSize: '1.1rem' }}>
+                  <span className={`fw-bolder ${payIsLunas ? 'text-success' : 'text-danger'}`} style={{ fontSize: '0.96rem' }}>
                     Rp {(payIsLunas ? payKembalian : paySisaTagihan).toLocaleString('id-ID')}
                   </span>
                 </div>
@@ -1733,8 +1715,8 @@ const OrderDetail = ({ user }) => {
                 {/* Tombol Konfirmasi Selesai Pembayaran */}
                 <button
                   type="button"
-                  className="btn btn-primary w-100 py-2 rounded-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-1"
-                  style={{ fontSize: '0.96rem', backgroundColor: '#0134d4', borderColor: '#0134d4', height: '42px' }}
+                  className="btn btn-primary w-100 py-1 rounded-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-0"
+                  style={{ fontSize: '0.8rem', backgroundColor: '#0134d4', borderColor: '#0134d4', height: '42px' }}
                   onClick={handleConfirmPayment}
                   disabled={isSubmittingPay}
                 >
