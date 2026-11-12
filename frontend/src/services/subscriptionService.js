@@ -520,7 +520,7 @@ export function getTopupWhatsAppUrl(type, amount, storeName, price) {
   const finalPrice = price || defaultPrice;
 
   const text = encodeURIComponent(
-    `Halo Admin Kasir Laundry,\n\nSaya ingin membeli TOP-UP KUOTA tambahan:\nNama Toko: ${cleanName}\nJenis Kuota: +${label}\nBiaya: ${finalPrice}\n\nMohon info nomor rekening pembayarannya. Terima kasih!`
+    `Halo Admin TokoPlus,\n\nSaya ingin membeli TOP-UP KUOTA tambahan:\nNama Toko: ${cleanName}\nJenis Kuota: +${label}\nBiaya: ${finalPrice}\n\nMohon info nomor rekening pembayarannya. Terima kasih!`
   );
 
   return `https://wa.me/${BILLING_WA}?text=${text}`;

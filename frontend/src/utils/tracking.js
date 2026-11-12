@@ -136,7 +136,7 @@ export const fetchPublicOrder = async (code) => {
           alamat: localPelanggan?.alamat || '',
         },
         store: {
-          name: localSettings?.namaLaundry || 'Kasir Laundry',
+          name: localSettings?.namaLaundry || 'TokoPlus',
           motto: localSettings?.motto || 'Solusi Laundry Bersih & Cepat',
           address: localSettings?.alamat || '',
           city: localSettings?.kota || '',

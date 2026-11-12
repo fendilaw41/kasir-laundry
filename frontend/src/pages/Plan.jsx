@@ -735,7 +735,7 @@ export default function Plan({ user }) {
                         ? 'Gratis'
                         : `Rp ${selectedPaymentPlan.price.toLocaleString('id-ID')}`;
                       const message =
-                        `Halo Admin Kasir Laundry,\n\n` +
+                        `Halo Admin TokoPlus,\n\n` +
                         `Saya ingin mengajukan upgrade paket:\n` +
                         `• Nama Toko: ${storeName}\n` +
                         `• Username: @${user?.username || 'owner'}\n` +

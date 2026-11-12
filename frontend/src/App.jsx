@@ -234,12 +234,12 @@ function LoginRouteWrapper({ user, onLogin }) {
   return <Login onLogin={onLogin} />;
 }
 
-// Wrapper Register: arahkan ke halaman login (login dan register mengarah ke /login)
+// Wrapper Register: jika user sudah login arahkan ke dashboard, jika belum tampilkan halaman Register
 function RegisterRouteWrapper({ user }) {
   if (user) {
     return <Navigate to="/" replace />;
   }
-  return <Navigate to="/login" replace />;
+  return <Register />;
 }
 
 // Wrapper RegisterStore: jika user sudah login tapi membuka /daftar-toko, arahkan ke Home / Dashboard

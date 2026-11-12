@@ -182,7 +182,7 @@ export default function PublicTrackOrder() {
             <div className="card border-0 shadow-sm rounded-4 mb-3 bg-white text-center py-3 px-4">
               <div className="d-flex align-items-center justify-content-center gap-2 mb-1">
                 <i className="bi bi-shop text-primary fs-5"></i>
-                <h5 className="fw-bold text-dark mb-0">{order.store?.name || 'Kasir Laundry'}</h5>
+                <h5 className="fw-bold text-dark mb-0">{order.store?.name || 'TokoPlus'}</h5>
               </div>
               <p className="text-muted small mb-0 fst-italic">
                 {order.store?.motto || 'Solusi Laundry Bersih & Cepat'}
@@ -476,7 +476,7 @@ export default function PublicTrackOrder() {
                     <i className="bi bi-shop fs-4"></i>
                   </div>
                   <div className="flex-grow-1 overflow-hidden">
-                    <h6 className="fw-bold text-dark mb-1">{order.store?.name || 'Kasir Laundry'}</h6>
+                    <h6 className="fw-bold text-dark mb-1">{order.store?.name || 'TokoPlus'}</h6>
                     <p className="text-muted small mb-1 fst-italic">{order.store?.motto || 'Solusi Laundry Bersih & Cepat'}</p>
                     {order.store?.address && (
                       <small className="text-muted d-block mb-1">
@@ -522,12 +522,10 @@ export default function PublicTrackOrder() {
                 <div style={{ fontSize: '0.74rem' }} className="text-muted opacity-85">
                   Powered By{' '}
                   <a
-                    href="https://kasir-laundry-frontend.onrender.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href="/"
                     className="text-primary fw-semibold text-decoration-none"
                   >
-                    Kasir Laundry
+                    TokoPlus
                   </a>
                 </div>
               )}

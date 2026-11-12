@@ -116,7 +116,7 @@ const Register = () => {
       localStorage.setItem('saved_store_code', finalCode);
 
       // Template pesan WhatsApp dengan kode toko BOLD
-      const waMessage = `Halo *${finalName}*,\n\nSelamat! Pendaftaran Toko Laundry dan Akun Owner Anda berhasil didaftarkan di sistem Kasir Laundry:\n\n *Nama Toko*: ${finalName}\n *Kode Toko*: *${finalCode}*\n *Username*: ${username.trim()}\n\nSilakan klik tautan resmi aktivasi & login berikut untuk langsung membuka toko Anda:\n ${activationUrl}\n\n Simpan Kode Toko Anda untuk login di perangkat lain atau menambahkan kasir. Terima kasih! 🙏`;
+      const waMessage = `Halo *${finalName}*,\n\nSelamat! Pendaftaran Toko Laundry dan Akun Owner Anda berhasil didaftarkan di sistem TokoPlus:\n\n *Nama Toko*: ${finalName}\n *Kode Toko*: *${finalCode}*\n *Username*: ${username.trim()}\n\nSilakan klik tautan resmi aktivasi & login berikut untuk langsung membuka toko Anda:\n ${activationUrl}\n\n Simpan Kode Toko Anda untuk login di perangkat lain atau menambahkan kasir. Terima kasih! 🙏`;
       const waUrl = `https://wa.me/${cleanWa}?text=${encodeURIComponent(waMessage)}`;
 
       setSuccessData({
@@ -148,15 +148,20 @@ const Register = () => {
           <div className="col-12 col-sm-10 col-md-8 col-lg-5">
             {/* Logo / Header Branding */}
             <div className="text-center px-4 mb-3">
-              <div
-                className="d-inline-flex align-items-center justify-content-center rounded-circle shadow-sm mb-2"
-                style={{ width: '56px', height: '56px', backgroundColor: '#0134d4', color: '#fff' }}
-              >
-                <i className="bi bi-shop fs-3"></i>
-              </div>
-              <h4 className="fw-bold text-dark mb-0" style={{ letterSpacing: '-0.3px' }}>
-                {successData ? 'Pendaftaran Berhasil!' : 'Daftar Akun'}
-              </h4>
+              <Link to="/" className="text-decoration-none d-inline-block">
+                <div
+                  className="d-inline-flex align-items-center justify-content-center rounded-3 shadow-xs mb-2"
+                  style={{ width: '48px', height: '48px', backgroundColor: '#0134d4', color: '#fff' }}
+                >
+                  <i className="bi bi-shop fs-4"></i>
+                </div>
+                <h4 className="fw-bold text-dark mb-0" style={{ letterSpacing: '-0.3px' }}>
+                  TOKOPLUS
+                </h4>
+              </Link>
+              <h5 className="fw-bold text-dark mt-2 mb-1" style={{ letterSpacing: '-0.3px', fontSize: '16px' }}>
+                {successData ? 'Pendaftaran Berhasil!' : 'Daftar Akun Owner'}
+              </h5>
               <p className="text-muted small mb-0" style={{ fontSize: '13px' }}>
                 {successData ? 'Akun dan Toko Anda siap digunakan' : 'Satu akun owner untuk kelola cucian, kasir & nota otomatis'}
               </p>
@@ -195,13 +200,21 @@ const Register = () => {
                       href={successData.waUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="btn btn-success fw-bold py-2.5 rounded-3 d-flex align-items-center justify-content-center gap-2 shadow-sm text-decoration-none"
+                      className="btn btn-success fw-bold py-2 rounded-3 d-flex align-items-center justify-content-center gap-2 shadow-sm text-decoration-none"
                       style={{ fontSize: '14px' }}
                     >
                       <i className="bi bi-whatsapp fs-5"></i>
                       <span>Buka WhatsApp Owner</span>
                     </a>
                   )}
+                  <Link
+                    to={`/login?code=${encodeURIComponent(successData.storeCode)}`}
+                    className="btn btn-primary fw-bold py-2 rounded-3 d-flex align-items-center justify-content-center gap-2 shadow-sm text-decoration-none"
+                    style={{ fontSize: '14px', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
+                  >
+                    <i className="bi bi-box-arrow-in-right fs-5"></i>
+                    <span>Lanjut ke Halaman Login</span>
+                  </Link>
                 </div>
               </div>
             ) : (
@@ -230,7 +243,7 @@ const Register = () => {
                     {/* KHUSUS PENDAFTARAN TOKO BARU (TANPA KODE TOKO DI URL) */}
                     {!storeCodeInput && (
                       <>
-                        <div className="form-group mb-2.5">
+                        <div className="form-group mb-3">
                           <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
                             Nama Toko / Laundry <span className="text-danger">*</span>
                           </label>
@@ -251,7 +264,7 @@ const Register = () => {
                           />
                         </div>
 
-                        <div className="form-group mb-2.5">
+                        <div className="form-group mb-3">
                           <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
                             No. WhatsApp Owner <span className="text-danger">*</span>
                           </label>
@@ -284,7 +297,7 @@ const Register = () => {
                     )}
 
                     {/* Nama Lengkap Owner */}
-                    <div className="form-group mb-2.5">
+                    <div className="form-group mb-3">
                       <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
                         Nama Lengkap Owner <span className="text-danger">*</span>
                       </label>
@@ -306,7 +319,7 @@ const Register = () => {
                     </div>
 
                     {/* Username */}
-                    <div className="form-group mb-2.5">
+                    <div className="form-group mb-3">
                       <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
                         Username <span className="text-danger">*</span>
                       </label>
@@ -359,7 +372,7 @@ const Register = () => {
                     </div>
 
                     {/* Konfirmasi Password */}
-                    <div className="form-group mb-2.5">
+                    <div className="form-group mb-3">
                       <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
                         Konfirmasi Password <span className="text-danger">*</span>
                       </label>

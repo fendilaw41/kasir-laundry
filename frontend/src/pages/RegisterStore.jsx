@@ -52,7 +52,7 @@ const RegisterStore = () => {
     const origin = (APP_URL || (typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '')).replace(/\/+$/, '');
     const registerUrl = `${origin}/register?code=${encodeURIComponent(storeCode)}`;
 
-    return `Halo *${storeName}*,\n\nToko Anda telah berhasil didaftarkan di sistem Kasir Laundry dengan detail:\n🏪 *Nama Toko*: ${storeName}\n🔑 *Kode Toko*: ${storeCode}\n📍 *Alamat*: ${storeAddress || '-'}${storeCity ? ` (${storeCity})` : ''}\n\nSilakan segera selesaikan pendaftaran akun Owner Anda melalui tautan resmi berikut:\n👉 ${registerUrl}\n\nSetelah mendaftar, Anda dapat langsung login dan mengelola kasir serta operasional laundry Anda.\n\nTerima kasih! 🙏`;
+    return `Halo *${storeName}*,\n\nToko Anda telah berhasil didaftarkan di sistem TokoPlus dengan detail:\n🏪 *Nama Toko*: ${storeName}\n🔑 *Kode Toko*: ${storeCode}\n📍 *Alamat*: ${storeAddress || '-'}${storeCity ? ` (${storeCity})` : ''}\n\nSilakan segera selesaikan pendaftaran akun Owner Anda melalui tautan resmi berikut:\n👉 ${registerUrl}\n\nSetelah mendaftar, Anda dapat langsung login dan mengelola kasir serta operasional laundry Anda.\n\nTerima kasih! 🙏`;
   };
 
   // Pengecekan otomatis apakah Kode Toko sudah terdaftar dan telah memiliki Owner

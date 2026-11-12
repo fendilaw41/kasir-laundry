@@ -93,8 +93,8 @@ async function bootstrap() {
 
   // Swagger Documentation Setup
   const config = new DocumentBuilder()
-    .setTitle('Kasir Laundry API')
-    .setDescription('Dokumentasi REST API & Sinkronisasi Data Kasir Laundry (Offline-First)')
+    .setTitle('TokoPlus API')
+    .setDescription('Dokumentasi REST API & Sinkronisasi Data TokoPlus (Offline-First)')
     .setVersion('1.0.0')
     .addBearerAuth(
       {

@@ -557,7 +557,7 @@ export class OrdersService {
         name:
           order.store?.settings?.namaLaundry ||
           order.store?.name ||
-          'Kasir Laundry',
+          'TokoPlus',
         motto:
           order.store?.settings?.motto || order.store?.settings?.headerStruk || 'Solusi Laundry Bersih & Cepat',
         address:

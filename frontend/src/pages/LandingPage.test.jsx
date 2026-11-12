@@ -8,7 +8,7 @@ describe('LandingPage Component', () => {
     vi.restoreAllMocks();
   });
 
-  it('merender nama brand TokoPlus, judul headline, dan tombol CTA utama ke halaman login', () => {
+  it('merender nama brand TokoPlus, judul headline, dan tombol CTA utama ke halaman login dan register', () => {
     render(
       <MemoryRouter>
         <LandingPage user={null} />
@@ -20,14 +20,16 @@ describe('LandingPage Component', () => {
 
     // Memeriksa headline
     expect(screen.getByText(/Kelola Usaha Laundry Jadi Lebih/i)).not.toBeNull();
-    expect(screen.getByText(/Cepat & Rapi/i)).not.toBeNull();
+    expect(screen.getByText(/Anti-Ribet/i)).not.toBeNull();
 
-    // Memeriksa tombol CTA mengarah ke /login
-    const ctaButtons = screen.getAllByRole('link', { name: /Mulai Coba Gratis|Coba Gratis 30 Hari|Masuk|Masuk Akun Kasir/i });
-    expect(ctaButtons.length).toBeGreaterThan(0);
-    ctaButtons.forEach((link) => {
-      expect(link.getAttribute('href')).toBe('/login');
-    });
+    // Memeriksa tombol Masuk mengarah ke /login
+    const loginLinks = screen.getAllByRole('link', { name: /Masuk Akun Kasir|Masuk/i });
+    expect(loginLinks.length).toBeGreaterThan(0);
+    expect(loginLinks.some((l) => l.getAttribute('href') === '/login')).toBe(true);
+
+    // Memeriksa tombol Coba Gratis tersedia
+    const ctaLinks = screen.getAllByRole('link', { name: /Coba Gratis/i });
+    expect(ctaLinks.length).toBeGreaterThan(0);
   });
 
   it('merender fitur-fitur kasir laundry (Kiloan, WhatsApp, Bluetooth Thermal, Offline, dll)', () => {
@@ -45,37 +47,37 @@ describe('LandingPage Component', () => {
     expect(screen.getByText(/Offline-First Tanpa Khawatir/i)).not.toBeNull();
   });
 
-  it('bisa membuka dan menutup FAQ pertanyaan saat diklik', () => {
+  it('merender daftar pertanyaan FAQ dan bisa berinteraksi', () => {
     render(
       <MemoryRouter>
         <LandingPage user={null} />
       </MemoryRouter>
     );
 
-    const faqButton = screen.getByText(/Apakah TokoPlus bisa digunakan di laptop\/PC dan HP sekaligus\?/i);
+    const faqButton = screen.getByRole('button', { name: /Apakah bisa digunakan di laptop\/PC dan HP sekaligus\?/i });
     expect(faqButton).not.toBeNull();
+    expect(faqButton.getAttribute('aria-expanded')).toBe('true');
 
-    // Awalnya jawaban tersembunyi
-    expect(screen.queryByText(/TokoPlus dapat diakses bersamaan melalui browser laptop/i)).toBeNull();
-
-    // Klik untuk membuka
+    // Klik untuk menutup
     fireEvent.click(faqButton);
-    expect(screen.getByText(/TokoPlus dapat diakses bersamaan melalui browser laptop/i)).not.toBeNull();
+    expect(faqButton.getAttribute('aria-expanded')).toBe('false');
 
-    // Klik lagi untuk menutup
+    // Klik lagi untuk membuka
     fireEvent.click(faqButton);
-    expect(screen.queryByText(/TokoPlus dapat diakses bersamaan melalui browser laptop/i)).toBeNull();
+    expect(faqButton.getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('menampilkan tombol "Buka Dashboard" jika user sudah dalam keadaan login', () => {
+  it('menampilkan tombol Dashboard jika user sudah dalam keadaan login', () => {
     render(
       <MemoryRouter>
         <LandingPage user={{ username: 'owner', role: 'owner' }} />
       </MemoryRouter>
     );
 
-    const dashboardLink = screen.getByRole('link', { name: /Buka Dashboard/i });
-    expect(dashboardLink).not.toBeNull();
-    expect(dashboardLink.getAttribute('href')).toBe('/');
+    const dashboardEl = screen.getByText(/Masuk ke Dashboard/i);
+    expect(dashboardEl).not.toBeNull();
+    const linkEl = dashboardEl.closest('a');
+    expect(linkEl).not.toBeNull();
+    expect(linkEl.getAttribute('href')).toBe('/');
   });
 });

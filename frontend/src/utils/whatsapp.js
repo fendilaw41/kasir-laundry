@@ -13,7 +13,7 @@ export const formatWhatsAppMessage = (order, pelanggan, settings = null) => {
     itemsText += `${item.name} (Rp${item.price.toLocaleString()} x ${item.quantity})\nRp${(item.price * item.quantity).toLocaleString()}\n`;
   });
 
-  const laundryName = settings?.namaLaundry || 'Kasir Laundry';
+  const laundryName = settings?.namaLaundry || 'TokoPlus';
   const motto = settings?.motto || 'Solusi Laundry Bersih & Cepat';
   const trackingLink = getTrackingUrl(order.invoiceId);
 
