@@ -609,7 +609,7 @@ const Setting = ({ user, onLogout }) => {
                             Manajemen Kasir
                           </h6>
                           <small className="text-muted" style={{ fontSize: '0.74rem' }}>
-                            Daftar akun pegawai kasir & hak akses toko
+                            Daftar akun pegawai kasir
                           </small>
                         </div>
                       </div>
