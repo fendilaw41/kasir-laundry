@@ -454,24 +454,6 @@ const Setting = ({ user, onLogout }) => {
                         </span>
                       )}
                     </div>
-                    {/* Tombol Upgrade Akun di sebelah kanan nama toko */}
-                    {isSubscriptionEnabled() && (
-                      <button
-                        type="button"
-                        className="btn btn-sm rounded-pill fw-bold d-inline-flex align-items-center gap-1 shadow-xs px-2.5 py-1 flex-shrink-0"
-                        style={{
-                          fontSize: '0.72rem',
-                          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                          color: '#fff',
-                          border: 'none',
-                          boxShadow: '0 2px 6px rgba(217, 119, 6, 0.25)',
-                        }}
-                        onClick={() => navigate('/plan')}
-                      >
-                        <i className="bi bi-gem"></i>
-                        <span>Upgrade Akun</span>
-                      </button>
-                    )}
                   </div>
                   <div className="d-flex align-items-center text-muted small text-truncate mb-1.5" style={{ fontSize: '0.78rem' }}>
                     <i className="bi bi-geo-alt-fill text-danger me-1 flex-shrink-0" style={{ fontSize: '0.75rem' }}></i>
@@ -678,7 +660,7 @@ const Setting = ({ user, onLogout }) => {
               <div className="card border-0 shadow-sm rounded-4 bg-white overflow-hidden">
                 <div className="list-group list-group-flush">
                   {/* PLAN / PAKET (JIKA SUBSCRIPTION DIAKTIFKAN) */}
-                  {isSubscriptionEnabled() && isOwner && (
+                  {isOwner && (
                     <div
                       role="button"
                       className="list-group-item list-group-item-action p-3 d-flex align-items-center justify-content-between border-0 border-bottom"
