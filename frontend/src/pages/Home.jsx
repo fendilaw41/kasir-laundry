@@ -18,6 +18,10 @@ const Home = ({ user }) => {
   }, []);
 
   const settings = useLiveQuery(getSettingsQuery);
+  const [showConverter, setShowConverter] = useState(false);
+  const [convertTotal, setConvertTotal] = useState('');
+  const [convertPerDose, setConvertPerDose] = useState('');
+  const [stokVal, setStokVal] = useState('');
   const {
     showPelangganModal, setShowPelangganModal,
     showInventoryModal, setShowInventoryModal,
@@ -42,7 +46,7 @@ const Home = ({ user }) => {
       {/* Modal Konfirmasi Bawaan */}
       {confirmModal.show && (
         <>
-          <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1075 }}></div>
+          <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(0,0,0,0)', zIndex: 1075 }}></div>
           <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1080 }}>
             <div className="modal-dialog modal-dialog-centered mx-auto" style={{ maxWidth: '320px' }}>
               <div className="modal-content border-0 shadow-lg text-center p-4" style={{ borderRadius: '24px' }}>
@@ -97,12 +101,12 @@ const Home = ({ user }) => {
             </div>
             <div className="mt-1">
               <span
-                className="badge rounded-pill px-2 py-0.5 fw-semibold font-monospace"
+                className="badge rounded-pill px-2 py-0 fw-semibold font-monospace"
                 style={{
                   backgroundColor: 'rgba(255, 255, 255, 0.22)',
                   backdropFilter: 'blur(4px)',
                   fontSize: '0.68rem',
-                  letterSpacing: '0.5px',
+                  letterSpacing: '0px',
                   color: '#ffffff'
                 }}
               >
@@ -130,7 +134,7 @@ const Home = ({ user }) => {
                     <i className="bi bi-wallet2 text-success me-2"></i>
                     <small className="text-muted fw-bold" style={{ fontSize: '0.7rem' }}>Omzet</small>
                   </div>
-                  <h6 className="fw-bold mb-0 text-dark mt-2" style={{ letterSpacing: '-0.5px' }}>
+                  <h6 className="fw-bold mb-0 text-dark mt-2" style={{ letterSpacing: '-0px' }}>
                     {stats === undefined ? (
                       <Skeleton width="90px" height="18px" />
                     ) : showOmzet ? (
@@ -290,7 +294,7 @@ const Home = ({ user }) => {
               </p>
             </div>
           </div>
-          <span className="badge bg-warning text-dark rounded-pill px-2.5 py-1">Upgrade</span>
+          <span className="badge bg-warning text-dark rounded-pill px-2 py-1">Upgrade</span>
         </div>
       )}
 
@@ -310,7 +314,7 @@ const Home = ({ user }) => {
               </p>
             </div>
           </div>
-          <span className="badge bg-white text-danger rounded-pill px-2.5 py-1">Top-up</span>
+          <span className="badge bg-white text-danger rounded-pill px-2 py-1">Top-up</span>
         </div>
       )}
 
@@ -519,7 +523,7 @@ const Home = ({ user }) => {
       {
         editPelanggan.show && (
           <>
-            <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1065 }}></div>
+            <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(0,0,0,0)', zIndex: 1065 }}></div>
             <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1070 }}>
               <div
                 className="modal-dialog modal-dialog-centered w-100 px-2 px-sm-3 my-2"
@@ -682,6 +686,7 @@ const Home = ({ user }) => {
                             try {
                               await addInventoryManual(nama, stok, { isPending: isKasir, user });
                               form.reset();
+                              setStokVal('');
                               toast.success(TOAST_MESSAGES.SUCCESS);
                               setConfirmModal({ show: false, message: '', onConfirm: null });
                             } catch (error) {
@@ -690,18 +695,94 @@ const Home = ({ user }) => {
                           }
                         });
                       }}>
-                        <label className="small fw-bold text-muted mb-2 px-1">
-                          {user?.role === 'kasir' ? 'Ajukan Tambah Stok Barang' : 'Tambah Stok'}
-                        </label>
+                        <div className="d-flex justify-content-between align-items-center mb-2 px-1">
+                          <label className="small fw-bold text-muted mb-0">
+                            {user?.role === 'kasir' ? 'Ajukan Tambah Stok Barang' : 'Tambah Stok'}
+                          </label>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-primary p- fw-semibold"
+                            style={{ fontSize: '0.74rem' }}
+                            onClick={() => setShowConverter(!showConverter)}
+                          >
+                            {showConverter ? 'Tutup' : 'Hitung Kali Pakai (ml/gr)'}
+                          </button>
+                        </div>
+
+                        {showConverter && (
+                          <div className="p-2 mb-2 rounded-3 bg-white border shadow-xs" style={{ fontSize: '0.75rem' }}>
+                            <div className="fw-bold text-dark mb-1 d-flex align-items-center gap-1">
+                              <i className="bi bi-arrow-repeat text-primary"></i>
+                              <span>Konversi Kemasan ke Kali Pakai</span>
+                            </div>
+                            <div className="row g-2 align-items-end">
+                              <div className="col-5">
+                                <label className="text-muted d-block mb-1" style={{ fontSize: '0.68rem' }}>Total Isi (ml/gr)</label>
+                                <input
+                                  type="number"
+                                  className="form-control form-control-sm border shadow-xs rounded-2"
+                                  placeholder="Contoh: 700"
+                                  value={convertTotal}
+                                  onChange={(e) => setConvertTotal(e.target.value)}
+                                />
+                              </div>
+                              <div className="col-5">
+                                <label className="text-muted d-block mb-1" style={{ fontSize: '0.68rem' }}>1x Pakai (ml/gr)</label>
+                                <input
+                                  type="number"
+                                  className="form-control form-control-sm border shadow-xs rounded-2"
+                                  placeholder="Contoh: 60"
+                                  value={convertPerDose}
+                                  onChange={(e) => setConvertPerDose(e.target.value)}
+                                />
+                              </div>
+                              <div className="col-2">
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-primary w-100 py-1 rounded-2 fw-bold"
+                                  disabled={!(Number(convertTotal) > 0 && Number(convertPerDose) > 0)}
+                                  onClick={() => {
+                                    const res = Math.floor(Number(convertTotal) / Number(convertPerDose));
+                                    if (res > 0) {
+                                      setStokVal(String(res));
+                                      setShowConverter(false);
+                                      toast.success(`Dikonversi: ${res} kali pakai`);
+                                    }
+                                  }}
+                                  title="Gunakan hasil konversi"
+                                >
+                                  Set
+                                </button>
+                              </div>
+                            </div>
+                            {Number(convertTotal) > 0 && Number(convertPerDose) > 0 && (
+                              <div className="mt-2 text-success fw-bold d-flex align-items-center gap-1" style={{ fontSize: '0.72rem' }}>
+                                <i className="bi bi-check-circle-fill"></i>
+                                <span>Hasil: {Math.floor(Number(convertTotal) / Number(convertPerDose))} kali pakai</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         <div className="row g-2">
                           <div className="col-8">
+                            <label style={{fontSize: '12px'}}>Nama Item</label>
                             <input type="text" name="nama" className="form-control border-0 py-2 rounded-3 shadow-sm" placeholder="Nama item..." required />
                           </div>
                           <div className="col-4">
+                               <label style={{fontSize: '12px'}}>Stock (Qty)</label>
                             <div className="input-group shadow-sm rounded-3 overflow-hidden">
-                              <input type="number" name="stok" className="form-control border-0 py-2 px-2 text-center" placeholder="Qty" required />
-                              <button className="btn btn-outline-primary border-0 px-2" type="submit" title={BUTTON_TITLE.ADD}>
-                                <i className="bi bi-plus-lg"></i>
+                              <input
+                                type="number"
+                                name="stok"
+                                className="form-control border-0 py-2 px-2 text-center"
+                                placeholder="Qty"
+                                value={stokVal}
+                                onChange={(e) => setStokVal(e.target.value)}
+                                required
+                              />
+                              <button className="btn btn-sm btn-primary rounded-2 fw-bold" type="submit" title={BUTTON_TITLE.ADD}>
+                                Save
                               </button>
                             </div>
                           </div>

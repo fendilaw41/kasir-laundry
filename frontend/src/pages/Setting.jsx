@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useParams, useNavigate, Link } from 'react-router-dom';
 import { getSettingsQuery, updateSettings } from '../db/repositories/settings';
 import { getKasirUsersQuery, addUser, updateUser, deleteUser as deleteUserRepo } from '../db/repositories/users';
-import { getProductsQuery, addProduct, updateProduct, deleteProduct as deleteProductRepo } from '../db/repositories/products';
+import { getProductsQuery, addProduct, updateProduct, deleteProduct as deleteProductRepo, bulkUpdateProducts, bulkDeleteProducts } from '../db/repositories/products';
 import { useLiveQuery } from 'dexie-react-hooks';
 import toast from 'react-hot-toast';
 import UbahPassword from './UbahPassword';
-import { getSubscriptionReport, isTrialExpired, isSubscriptionEnabled } from '../services/subscriptionService';
+import { getSubscriptionReport, getCachedSubscriptionReportSync, isTrialExpired, isSubscriptionEnabled } from '../services/subscriptionService';
 import PlanGateModal from '../components/PlanGateModal';
 import {
   TOAST_MESSAGES,
@@ -30,6 +30,79 @@ import {
   formatReceiptFooterText,
   getReceiptTrackingUrl,
 } from '../utils/receiptFooter';
+
+/* Gaya halaman Layanan (prefix .ly-) */
+const LY_CSS = `
+.ly-page { padding-bottom: 12px; }
+.ly-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.ly-head h6 { margin: 0; font-size: 1.08rem; font-weight: 800; letter-spacing: -.02em; color: #1f0757; }
+.ly-head small { display: block; margin-top: 2px; font-size: .72rem; color: #8480ae; }
+.ly-head-btns { display: flex; align-items: center; gap: 6px; flex: none; }
+.ly-pill {
+  height: 34px; padding: 0 13px; border-radius: 999px; border: 1px solid #e1e6fa; background: #fff; color: #1f0757;
+  font-size: .76rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; line-height: 1; white-space: nowrap;
+}
+.ly-pill.on { background: #0134d4; border-color: #0134d4; color: #fff; }
+.ly-pill.pri { background: linear-gradient(135deg, #0134d4, #0d5afd); border-color: transparent; color: #fff; box-shadow: 0 8px 16px -8px rgba(13, 90, 253, .8); }
+.ly-tools { display: flex; gap: 8px; margin-bottom: 8px; }
+.ly-search { position: relative; flex: 1; min-width: 0; }
+.ly-search > i { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: #a3a9c9; font-size: .85rem; pointer-events: none; }
+.ly-search input {
+  width: 100%; height: 40px; padding: 0 34px 0 36px; border-radius: 12px; border: 1px solid #e1e6fa; background: #fff; color: #1f0757; font-size: .82rem; outline: none;
+}
+.ly-search input:focus, .ly-sel:focus { border-color: #0d5afd; box-shadow: 0 0 0 3px rgba(13, 90, 253, .12); }
+.ly-search button { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 26px; height: 26px; border: 0; border-radius: 50%; background: #f1f2fb; color: #8480ae; font-size: .7rem; }
+.ly-sel {
+  width: 128px; flex: none; height: 40px; padding: 0 24px 0 11px; border: 1px solid #e1e6fa; border-radius: 12px; color: #1f0757; font-size: .74rem; font-weight: 500; outline: none;
+  appearance: none; -webkit-appearance: none; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%238480ae' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 9px center;
+}
+.ly-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 3px; margin-bottom: 10px; background: #fff; border: 1px solid #e8ebfa; border-radius: 13px; }
+.ly-seg button { height: 30px; border: 0; border-radius: 10px; background: transparent; color: #8480ae; font-size: .74rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.ly-seg button em { font-style: normal; min-width: 20px; padding: 1px 6px; border-radius: 999px; background: #f1f2fb; color: #5f5a86; font-size: .64rem; }
+.ly-seg button.on { background: #0d5afd; color: #fff; box-shadow: 0 6px 12px -6px rgba(13, 90, 253, .7); }
+.ly-seg button.on em { background: rgba(255, 255, 255, .25); color: #fff; }
+.ly-selall { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 11px; margin-bottom: 8px; background: #fff; border: 1px solid #e1e6fa; border-radius: 12px; font-size: .74rem; }
+.ly-selall label { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-weight: 700; color: #1f0757; }
+.ly-selall button { border: 0; background: none; color: #8480ae; font-size: .72rem; padding: 0; }
+.ly-chk { width: 18px; height: 18px; accent-color: #0d5afd; flex: none; margin: 0; }
+.ly-list { display: flex; flex-direction: column; gap: 7px; }
+.ly-card { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: #fff; border: 1px solid #e8ebfa; border-radius: 16px; box-shadow: 0 6px 14px -12px rgba(31, 7, 87, .35); transition: border-color .15s ease, background-color .15s ease; }
+.ly-card.sel { border-color: #0d5afd; background: #f5f8ff; }
+.ly-card.off .ly-name, .ly-card.off .ly-price { opacity: .55; }
+.ly-tile { width: 42px; height: 42px; border-radius: 14px; flex: none; display: inline-flex; align-items: center; justify-content: center; font-size: 1.05rem; }
+.ly-tile.wash { background: #e9f0ff; color: #0d5afd; }
+.ly-tile.iron { background: #fff0e2; color: #ea580c; }
+.ly-card.off .ly-tile { background: #eef0f6; color: #9aa0b8; }
+.ly-info { flex: 1; min-width: 0; }
+.ly-name { font-size: .86rem; font-weight: 700; color: #1f0757; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ly-meta { display: flex; align-items: center; gap: 5px; margin-top: 3px; min-width: 0; }
+.ly-cat { font-size: .58rem; font-weight: 700; letter-spacing: .02em; padding: 2px 7px; border-radius: 6px; background: #f1f2fb; color: #5f5a86; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ly-code { font-size: .6rem; font-weight: 600; padding: 1px 6px; border-radius: 6px; border: 1px solid #e1e6fa; color: #8480ae; flex: none; }
+.ly-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+.ly-price { font-size: .88rem; font-weight: 800; color: #0d5afd; white-space: nowrap; line-height: 1.1; }
+.ly-swrap { display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; padding: 0; font-size: .6rem; font-weight: 700; color: #8480ae; }
+.ly-swrap.on { color: #0e8f55; }
+.ly-sw { position: relative; width: 30px; height: 18px; border-radius: 999px; background: #cfd3e6; transition: background-color .2s ease; flex: none; }
+.ly-sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: transform .2s ease; }
+.ly-swrap.on .ly-sw { background: #12b76a; }
+.ly-swrap.on .ly-sw::after { transform: translateX(12px); }
+.ly-acts { display: flex; flex-direction: column; gap: 4px; flex: none; }
+.ly-ib { width: 28px; height: 26px; border-radius: 9px; border: 0; background: #f1f4ff; color: #0d5afd; display: inline-flex; align-items: center; justify-content: center; font-size: .72rem; }
+.ly-ib.d { background: #fff1f1; color: #e5484d; }
+.ly-empty { text-align: center; padding: 34px 20px; background: #fff; border: 1px solid #e8ebfa; border-radius: 18px; }
+.ly-empty .ic { width: 58px; height: 58px; border-radius: 18px; margin: 0 auto 10px; background: #e9f0ff; color: #0d5afd; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; }
+.ly-empty h6 { margin: 0; font-size: .95rem; font-weight: 700; color: #1f0757; }
+.ly-empty p { margin: 4px 0 12px; font-size: .78rem; color: #8480ae; }
+.ly-more { display: flex; justify-content: center; margin-top: 10px; }
+.ly-bulk { position: sticky; bottom: 70px; z-index: 1040; margin-top: 10px; }
+.ly-bulk-in { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: #fff; border: 1px solid #e1e6fa; border-radius: 18px; box-shadow: 0 16px 30px -12px rgba(31, 7, 87, .35); }
+.ly-bulk-in b { font-size: .74rem; color: #1f0757; padding-left: 4px; white-space: nowrap; }
+.ly-bulk-in .g { display: flex; gap: 5px; }
+.ly-bulk-in .ly-pill { height: 32px; padding: 0 11px; font-size: .72rem; }
+.ly-pill.ok { background: #12b76a; border-color: #12b76a; color: #fff; }
+.ly-pill.mute { background: #eef0f6; border-color: #eef0f6; color: #5f5a86; }
+.ly-pill.del { border-color: #f3b4b6; color: #e5484d; }
+`;
 
 const Setting = ({ user, onLogout }) => {
   const settings = useLiveQuery(getSettingsQuery);
@@ -312,9 +385,12 @@ const Setting = ({ user, onLogout }) => {
     setShowUserModal(true);
   };
 
-  const openProductModal = async (selectedProduct = null) => {
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const [isBulkProductMode, setIsBulkProductMode] = useState(false);
+
+  const openProductModal = (selectedProduct = null) => {
     try {
-      const sub = await getSubscriptionReport().catch(() => null);
+      const sub = getCachedSubscriptionReportSync();
       if (sub?.isExpired) {
         triggerExpiredModal(sub);
         return;
@@ -331,6 +407,7 @@ const Setting = ({ user, onLogout }) => {
         category: selectedProduct.category || DEFAULT_CATEGORY,
         code: selectedProduct.code || '',
         price: selectedProduct.price || '',
+        isActive: selectedProduct.isActive !== false,
       });
     } else {
       setEditingProduct(null);
@@ -339,13 +416,64 @@ const Setting = ({ user, onLogout }) => {
         category: DEFAULT_CATEGORY,
         code: '',
         price: '',
+        isActive: true,
       });
     }
     setShowProductModal(true);
   };
 
+  const handleToggleProductActive = async (p) => {
+    try {
+      const nextActive = p.isActive === false ? true : false;
+      await updateProduct(p.id, { isActive: nextActive });
+      toast.success(`Layanan "${p.name}" ${nextActive ? 'diaktifkan' : 'dinonaktifkan'}`);
+    } catch (err) {
+      toast.error(TOAST_MESSAGES.ERROR);
+    }
+  };
+
+  const handleBulkToggleActive = async (newActiveState) => {
+    if (selectedProductIds.length === 0) return;
+    const count = await bulkUpdateProducts(selectedProductIds, { isActive: newActiveState });
+    toast.success(`${count} layanan berhasil ${newActiveState ? 'diaktifkan' : 'dinonaktifkan'}`);
+    setSelectedProductIds([]);
+    setIsBulkProductMode(false);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedProductIds.length === 0) return;
+    if (!window.confirm(`Yakin ingin menghapus ${selectedProductIds.length} layanan yang dipilih?`)) return;
+    const count = await bulkDeleteProducts(selectedProductIds);
+    toast.success(`${count} layanan berhasil dihapus`);
+    setSelectedProductIds([]);
+    setIsBulkProductMode(false);
+  };
+
   const [deleteProductConfirm, setDeleteProductConfirm] = useState({ show: false, product: null });
   const [visibleProductCount, setVisibleProductCount] = useState(10);
+
+  // Filter & turunan data untuk halaman Layanan
+  const [layananQuery, setLayananQuery] = useState('');
+  const [layananCategory, setLayananCategory] = useState('Semua');
+  const [layananStatus, setLayananStatus] = useState('Semua');
+
+  const productList = products || [];
+  const productCategories = Array.from(new Set(productList.map((p) => p.category || FALLBACK_CATEGORY))).sort();
+  const activeProductCount = productList.filter((p) => p.isActive !== false).length;
+  const inactiveProductCount = productList.length - activeProductCount;
+  const isFilteringProducts = Boolean(layananQuery.trim()) || layananCategory !== 'Semua' || layananStatus !== 'Semua';
+  const filteredProducts = productList.filter((p) => {
+    const q = layananQuery.trim().toLowerCase();
+    const isActive = p.isActive !== false;
+    const matchQ = !q || `${p.name || ''} ${p.code || ''} ${p.category || ''}`.toLowerCase().includes(q);
+    const matchCat = layananCategory === 'Semua' || (p.category || FALLBACK_CATEGORY) === layananCategory;
+    const matchStatus = layananStatus === 'Semua' || (layananStatus === 'Aktif' ? isActive : !isActive);
+    return matchQ && matchCat && matchStatus;
+  });
+  const shownProducts = isFilteringProducts ? filteredProducts : filteredProducts.slice(0, visibleProductCount);
+  const toggleProductSelect = (id) => {
+    setSelectedProductIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
 
   const confirmDeleteProduct = (product) => {
     setDeleteProductConfirm({ show: true, product });
@@ -374,7 +502,7 @@ const Setting = ({ user, onLogout }) => {
   const handleProductSave = async (e) => {
     e.preventDefault();
     try {
-      const sub = await getSubscriptionReport().catch(() => null);
+      const sub = getCachedSubscriptionReportSync();
       if (sub?.isExpired) {
         triggerExpiredModal(sub);
         return;
@@ -417,83 +545,98 @@ const Setting = ({ user, onLogout }) => {
         {/* ======================================================== */}
         {!activeTab && (
           <div>
-            {/* PROFILE & STORE HEADER CARD */}
-            <div className="card border-0 shadow-sm rounded-4 mb-3 bg-white overflow-hidden p-3" style={{ border: '1px solid #eef2f6' }}>
-              <div className="d-flex align-items-center gap-3">
+            {/* PROFILE & STORE HEADER CARD (MATCHING image.png) */}
+            <div
+              className="card border-0 shadow-md mb-3 text-white overflow-hidden p-3"
+              style={{
+                borderRadius: '24px',
+                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 70%, #1e40af 100%)',
+                boxShadow: '0 8px 24px rgba(29, 78, 216, 0.25)',
+              }}
+            >
+              {/* Baris Atas: Avatar + Nama Toko + Alamat */}
+              <div className="d-flex align-items-center gap-3 mb-3">
                 <div
-                  className="rounded-4 d-flex align-items-center justify-content-center text-white fw-bold flex-shrink-0"
+                  className="bg-white d-flex align-items-center justify-content-center fw-bold flex-shrink-0 shadow-sm"
                   style={{
-                    width: '52px',
-                    height: '52px',
-                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                    fontSize: '1.35rem',
-                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.22)',
+                    width: '58px',
+                    height: '58px',
+                    borderRadius: '20px',
+                    color: '#1d4ed8',
+                    fontSize: '1.85rem',
+                    fontWeight: '800',
                   }}
                 >
                   {settings.namaLaundry ? settings.namaLaundry.charAt(0).toUpperCase() : 'L'}
                 </div>
                 <div className="overflow-hidden flex-grow-1">
-                  <div className="d-flex align-items-center justify-content-between gap-2 mb-1 flex-wrap">
-                    <div className="d-flex align-items-center gap-2 overflow-hidden flex-wrap">
-                      <h5 className="fw-bold text-dark text-truncate mb-0" style={{ fontSize: '1.05rem', letterSpacing: '-0.2px' }}>
-                        {settings.namaLaundry || 'TokoPlus'}
-                      </h5>
-                      {settings.storeCode && (
-                        <span
-                          className="badge rounded-pill fw-semibold"
-                          style={{
-                            backgroundColor: '#eff6ff',
-                            color: '#1d4ed8',
-                            border: '1px solid #bfdbfe',
-                            fontSize: '0.68rem',
-                            padding: '2px 8px',
-                            letterSpacing: '0.3px',
-                          }}
-                        >
-                          {settings.storeCode}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="d-flex align-items-center text-muted small text-truncate mb-1.5" style={{ fontSize: '0.78rem' }}>
-                    <i className="bi bi-geo-alt-fill text-danger me-1 flex-shrink-0" style={{ fontSize: '0.75rem' }}></i>
+                  <h4 className="fw-bold text-white text-truncate mb-1" style={{ fontSize: '1.2rem', letterSpacing: '-0.2px' }}>
+                    {settings.namaLaundry || 'TokoPlus'}
+                  </h4>
+                  <div className="d-flex align-items-center text-white text-truncate" style={{ fontSize: '0.82rem', opacity: 0.9 }}>
+                    <i className="bi bi-geo-alt-fill me-1 flex-shrink-0" style={{ fontSize: '0.85rem' }}></i>
                     <span className="text-truncate">{settings.alamat || 'Alamat toko belum diatur'}</span>
                   </div>
-                  <div className="d-flex align-items-center gap-1.5 flex-wrap">
-                    <span
-                      className="badge rounded-pill fw-normal d-inline-flex align-items-center gap-1"
-                      style={{
-                        backgroundColor: '#f1f5f9',
-                        color: '#475569',
-                        border: '1px solid #e2e8f0',
-                        fontSize: '0.68rem',
-                        padding: '2.5px 8px',
-                      }}
-                    >
-                      <i className="bi bi-person-fill text-muted" style={{ fontSize: '0.7rem' }}></i>
-                      @{user?.username || 'user'}
-                    </span>
-                    <span
-                      className="badge rounded-pill fw-medium d-inline-flex align-items-center gap-1"
-                      style={{
-                        backgroundColor: isOwner ? '#eff6ff' : '#f0fdf4',
-                        color: isOwner ? '#2563eb' : '#16a34a',
-                        border: `1px solid ${isOwner ? '#bfdbfe' : '#bbf7d0'}`,
-                        fontSize: '0.68rem',
-                        padding: '2.5px 8px',
-                      }}
-                    >
-                      <i className={`bi bi-${isOwner ? 'shield-fill-check' : 'person-badge'}`} style={{ fontSize: '0.7rem' }}></i>
-                      {isOwner ? 'Owner' : 'Kasir'}
-                    </span>
-                  </div>
                 </div>
+              </div>
+
+              {/* Baris Bawah: User Pill, Role Pill, dan Kode Toko Button/Pill */}
+              <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap pt-1">
+                <div className="d-flex align-items-center gap-2 flex-wrap">
+                  <span
+                    className="badge rounded-pill fw-semibold d-inline-flex align-items-center gap-1"
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.16)',
+                      color: '#ffffff',
+                      border: '1px solid rgba(255, 255, 255, 0.28)',
+                      fontSize: '0.78rem',
+                      padding: '5px 12px',
+                    }}
+                  >
+                    <i className="bi bi-person-fill" style={{ fontSize: '0.8rem' }}></i>
+                    @{user?.username || 'user'}
+                  </span>
+                  <span
+                    className="badge rounded-pill fw-semibold d-inline-flex align-items-center gap-1"
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.16)',
+                      color: '#ffffff',
+                      border: '1px solid rgba(255, 255, 255, 0.28)',
+                      fontSize: '0.78rem',
+                      padding: '5px 12px',
+                    }}
+                  >
+                    <i className="bi bi-patch-check-fill" style={{ fontSize: '0.8rem' }}></i>
+                    {isOwner ? 'Owner' : 'Kasir'}
+                  </span>
+                </div>
+
+                {settings.storeCode && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigator.clipboard.writeText(settings.storeCode);
+                      toast.success(TOAST_MESSAGES.SUCCESS);
+                    }}
+                    className="btn bg-white border-0 rounded-pill px-3 py-1 fw-bold d-inline-flex align-items-center gap-1 shadow-sm"
+                    style={{
+                      color: '#1d4ed8',
+                      fontSize: '0.8rem',
+                      letterSpacing: '0.4px',
+                    }}
+                    title="Klik untuk copy kode toko"
+                  >
+                    <span>{settings.storeCode}</span>
+                    <i className="bi bi-copy" style={{ fontSize: '0.75rem' }}></i>
+                  </button>
+                )}
               </div>
             </div>
 
             {/* SECTION 1: PENGATURAN USAHA */}
             <div className="mb-3">
-              <div className="text-muted small fw-bold px-1 mb-2 text-uppercase" style={{ fontSize: '0.72rem', letterSpacing: '0.5px' }}>
+              <div className="text-muted small fw-bold px-1 mb-2 text-uppercase" style={{ fontSize: '0.72rem', letterSpacing: '0px' }}>
                 Pengaturan Usaha
               </div>
               <div className="card border-0 shadow-sm rounded-4 bg-white overflow-hidden">
@@ -512,7 +655,7 @@ const Setting = ({ user, onLogout }) => {
                         <i className="bi bi-shop fs-5"></i>
                       </div>
                       <div>
-                        <h6 className="fw-bold mb-0.5 text-dark" style={{ fontSize: '0.9rem' }}>
+                        <h6 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.9rem' }}>
                           Pengaturan Toko
                         </h6>
                         <small className="text-muted" style={{ fontSize: '0.74rem' }}>
@@ -537,7 +680,7 @@ const Setting = ({ user, onLogout }) => {
                         <i className="bi bi-grid-fill fs-5"></i>
                       </div>
                       <div>
-                        <h6 className="fw-bold mb-0.5 text-dark" style={{ fontSize: '0.9rem' }}>
+                        <h6 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.9rem' }}>
                           Layanan
                         </h6>
                         <small className="text-muted" style={{ fontSize: '0.74rem' }}>
@@ -547,7 +690,7 @@ const Setting = ({ user, onLogout }) => {
                     </div>
                     <div className="d-flex align-items-center gap-2">
                       {products && products.length > 0 && (
-                        <span className="badge bg-primary-subtle text-primary rounded-pill px-2.5 py-1" style={{ fontSize: '0.72rem' }}>
+                        <span className="badge bg-primary-subtle text-primary rounded-pill px-2 py-1" style={{ fontSize: '0.72rem' }}>
                           {products.length} Layanan
                         </span>
                       )}
@@ -569,7 +712,7 @@ const Setting = ({ user, onLogout }) => {
                         <i className="bi bi-receipt fs-5"></i>
                       </div>
                       <div>
-                        <h6 className="fw-bold mb-0.5 text-dark" style={{ fontSize: '0.9rem' }}>
+                        <h6 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.9rem' }}>
                           Format Nota & Struk
                         </h6>
                         <small className="text-muted" style={{ fontSize: '0.74rem' }}>
@@ -585,7 +728,7 @@ const Setting = ({ user, onLogout }) => {
 
             {/* SECTION 2: PENGGUNA & KEAMANAN */}
             <div className="mb-3">
-              <div className="text-muted small fw-bold px-1 mb-2 text-uppercase" style={{ fontSize: '0.72rem', letterSpacing: '0.5px' }}>
+              <div className="text-muted small fw-bold px-1 mb-2 text-uppercase" style={{ fontSize: '0.72rem', letterSpacing: '0px' }}>
                 Pengguna & Keamanan
               </div>
               <div className="card border-0 shadow-sm rounded-4 bg-white overflow-hidden">
@@ -605,7 +748,7 @@ const Setting = ({ user, onLogout }) => {
                           <i className="bi bi-people-fill fs-5"></i>
                         </div>
                         <div>
-                          <h6 className="fw-bold mb-0.5 text-dark" style={{ fontSize: '0.9rem' }}>
+                          <h6 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.9rem' }}>
                             Manajemen Kasir
                           </h6>
                           <small className="text-muted" style={{ fontSize: '0.74rem' }}>
@@ -615,7 +758,7 @@ const Setting = ({ user, onLogout }) => {
                       </div>
                       <div className="d-flex align-items-center gap-2">
                         {users && users.length > 0 && (
-                          <span className="badge bg-warning-subtle text-dark rounded-pill px-2.5 py-1" style={{ fontSize: '0.72rem' }}>
+                          <span className="badge bg-warning-subtle text-dark rounded-pill px-2 py-1" style={{ fontSize: '0.72rem' }}>
                             {users.length} Kasir
                           </span>
                         )}
@@ -638,7 +781,7 @@ const Setting = ({ user, onLogout }) => {
                         <i className="bi bi-shield-lock-fill fs-5"></i>
                       </div>
                       <div>
-                        <h6 className="fw-bold mb-0.5 text-dark" style={{ fontSize: '0.9rem' }}>
+                        <h6 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.9rem' }}>
                           Ubah Password
                         </h6>
                         <small className="text-muted" style={{ fontSize: '0.74rem' }}>
@@ -654,7 +797,7 @@ const Setting = ({ user, onLogout }) => {
 
             {/* SECTION 3: LANGGANAN & LOGOUT */}
             <div className="mb-4">
-              <div className="text-muted small fw-bold px-1 mb-2 text-uppercase" style={{ fontSize: '0.72rem', letterSpacing: '0.5px' }}>
+              <div className="text-muted small fw-bold px-1 mb-2 text-uppercase" style={{ fontSize: '0.72rem', letterSpacing: '0px' }}>
                 Lainnya
               </div>
               <div className="card border-0 shadow-sm rounded-4 bg-white overflow-hidden">
@@ -674,7 +817,7 @@ const Setting = ({ user, onLogout }) => {
                           <i className="bi bi-gem fs-5"></i>
                         </div>
                         <div>
-                          <h6 className="fw-bold mb-0.5 text-dark" style={{ fontSize: '0.9rem' }}>
+                          <h6 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.9rem' }}>
                             Paket Langganan
                           </h6>
                           <small className="text-muted" style={{ fontSize: '0.74rem' }}>
@@ -700,7 +843,7 @@ const Setting = ({ user, onLogout }) => {
                         <i className="bi bi-arrow-repeat fs-5"></i>
                       </div>
                       <div>
-                        <h6 className="fw-bold mb-0.5 text-dark" style={{ fontSize: '0.9rem' }}>
+                        <h6 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.9rem' }}>
                           Reset Data
                         </h6>
                         <small className="text-muted" style={{ fontSize: '0.74rem' }}>
@@ -725,7 +868,7 @@ const Setting = ({ user, onLogout }) => {
                         <i className="bi bi-phone fs-5"></i>
                       </div>
                       <div>
-                        <h6 className="fw-bold mb-0.5 text-dark" style={{ fontSize: '0.9rem' }}>
+                        <h6 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.9rem' }}>
                           Install Aplikasi
                         </h6>
                         <small className="text-muted" style={{ fontSize: '0.74rem' }}>
@@ -735,7 +878,7 @@ const Setting = ({ user, onLogout }) => {
                     </div>
                     <button
                       type="button"
-                      className="btn btn-sm rounded-pill px-2.5 py-1 fw-bold flex-shrink-0 d-flex align-items-center gap-1 shadow-xs"
+                      className="btn btn-sm rounded-pill px-2 py-1 fw-bold flex-shrink-0 d-flex align-items-center gap-1 shadow-xs"
                       style={{ fontSize: '11px', backgroundColor: '#0134d4', color: '#fff', border: 'none' }}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -761,7 +904,7 @@ const Setting = ({ user, onLogout }) => {
                         <i className="bi bi-box-arrow-right fs-5"></i>
                       </div>
                       <div>
-                        <h6 className="fw-bold mb-0.5 text-danger" style={{ fontSize: '0.9rem' }}>
+                        <h6 className="fw-bold mb-0 text-danger" style={{ fontSize: '0.9rem' }}>
                           Keluar Akun
                         </h6>
                         <small className="text-muted" style={{ fontSize: '0.74rem' }}>
@@ -994,14 +1137,14 @@ const Setting = ({ user, onLogout }) => {
                   }}
                 >
                   <div className="pe-2">
-                    <div className="d-flex align-items-center gap-1.5 mb-0.5">
+                    <div className="d-flex align-items-center gap-1 mb-0">
                       <h6 className="mb-0 fw-bold text-dark" style={{ fontSize: '0.88rem' }}>Toko Tutup</h6>
                       {formData.isTokoTutup ? (
-                        <span className="badge bg-danger text-white rounded-pill px-2 py-0.5" style={{ fontSize: '0.65rem' }}>
+                        <span className="badge bg-danger text-white rounded-pill px-2 py-0" style={{ fontSize: '0.65rem' }}>
                           🔴 Tutup
                         </span>
                       ) : (
-                        <span className="badge bg-success-subtle text-success rounded-pill px-2 py-0.5" style={{ fontSize: '0.65rem' }}>
+                        <span className="badge bg-success-subtle text-success rounded-pill px-2 py-0" style={{ fontSize: '0.65rem' }}>
                           🟢 Buka
                         </span>
                       )}
@@ -1275,7 +1418,7 @@ const Setting = ({ user, onLogout }) => {
                 className="btn btn-outline-primary btn-sm rounded-pill px-3 py-2 fw-semibold d-flex align-items-center gap-1 shadow-sm"
                 onClick={() => openUserModal()}
                 title={BUTTON_TITLE.ADD_USER}
-                style={{ fontSize: '0.5rem' }}
+                style={{ fontSize: '0rem' }}
               >
                 <i className="bi bi-plus-lg" style={{ fontSize: '0.8rem' }}></i>
               </button>
@@ -1369,134 +1512,235 @@ const Setting = ({ user, onLogout }) => {
         {/* BAGIAN 4: MASTER LAYANAN (OWNER & KASIR BISA KELOLA)      */}
         {/* ======================================================== */}
         {activeTab === 'product' && (
-          <div>
-            {/* ACTION HEADER */}
-            <div className="d-flex justify-content-between align-items-center mb-3 px-1">
+          <div className="ly-page">
+            <style>{LY_CSS}</style>
+
+            {/* HEADER */}
+            <div className="ly-head">
               <div>
-                <h6 className="fw-bold mb-0 text-dark">Layanan</h6>
-                <small className="text-muted" style={{ fontSize: '0.74rem' }}>
-                  Total {products?.length || 0} layanan terdaftar di toko ini
-                </small>
+                <h6>Layanan</h6>
+                <small>Total {productList.length} layanan terdaftar di toko ini</small>
               </div>
-              <button
-                type="button"
-                className="btn btn-outline-primary btn-sm rounded-pill px-3 py-2 fw-semibold d-flex align-items-center gap-1 shadow-sm"
-                onClick={() => openProductModal()}
-                title={BUTTON_TITLE.ADD_PRODUCT}
-                style={{ fontSize: '0.8rem' }}
-              >
-                <i className="bi bi-plus-lg"></i>
-              </button>
+              <div className="ly-head-btns">
+                {productList.length > 0 && (
+                  <button
+                    type="button"
+                    className={`ly-pill ${isBulkProductMode ? 'on' : ''}`}
+                    onClick={() => {
+                      setIsBulkProductMode(!isBulkProductMode);
+                      if (isBulkProductMode) setSelectedProductIds([]);
+                    }}
+                  >
+                    <i className="bi bi-check2-square"></i>
+                    <span>{isBulkProductMode ? 'Batal Pilih' : 'Bulk Edit'}</span>
+                  </button>
+                )}
+                <button type="button" className="ly-pill pri" onClick={() => openProductModal()} title={BUTTON_TITLE.ADD_PRODUCT}>
+                  <i className="bi bi-plus-lg"></i>
+                  <span>Tambah</span>
+                </button>
+              </div>
             </div>
 
-            {/* LIST PRODUK (GAYA SIMPLE SEPERTI MANAJEMEN KASIR) */}
-            <div className="d-flex flex-column gap-2 mb-4">
+            {/* CARI + KATEGORI + STATUS */}
+            {productList.length > 0 && (
+              <>
+                <div className="ly-tools">
+                  <div className="ly-search">
+                    <i className="bi bi-search"></i>
+                    <input
+                      type="search"
+                      placeholder="Cari layanan / kode"
+                      value={layananQuery}
+                      onChange={(e) => setLayananQuery(e.target.value)}
+                      aria-label="Cari layanan"
+                    />
+                    {layananQuery && (
+                      <button type="button" onClick={() => setLayananQuery('')} aria-label="Hapus pencarian">
+                        <i className="bi bi-x-lg"></i>
+                      </button>
+                    )}
+                  </div>
+                  <select className="ly-sel" value={layananCategory} onChange={(e) => setLayananCategory(e.target.value)} aria-label="Filter kategori">
+                    <option value="Semua">Semua kategori</option>
+                    {productCategories.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="ly-seg" role="tablist" aria-label="Filter status">
+                  {[['Semua', productList.length], ['Aktif', activeProductCount], ['Nonaktif', inactiveProductCount]].map(([key, n]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      role="tab"
+                      aria-selected={layananStatus === key}
+                      className={layananStatus === key ? 'on' : ''}
+                      onClick={() => setLayananStatus(key)}
+                    >
+                      {key}
+                      <em>{n}</em>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Pilih semua saat mode bulk */}
+            {isBulkProductMode && filteredProducts.length > 0 && (
+              <div className="ly-selall">
+                <label htmlFor="selectAllProducts">
+                  <input
+                    type="checkbox"
+                    className="ly-chk"
+                    id="selectAllProducts"
+                    checked={filteredProducts.length > 0 && filteredProducts.every((p) => selectedProductIds.includes(p.id))}
+                    onChange={(e) => setSelectedProductIds(e.target.checked ? filteredProducts.map((p) => p.id) : [])}
+                  />
+                  Pilih Semua ({selectedProductIds.length}/{filteredProducts.length})
+                </label>
+                {selectedProductIds.length > 0 && (
+                  <button type="button" onClick={() => setSelectedProductIds([])}>Hapus Pilihan</button>
+                )}
+              </div>
+            )}
+
+            {/* DAFTAR LAYANAN */}
+            <div className="ly-list">
               {products === undefined ? (
                 <ProductListSkeleton count={4} />
-              ) : products.length === 0 ? (
-                <div className="card border-0 shadow-sm rounded-4 p-5 text-center bg-white my-2">
-                  <div
-                    className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
-                    style={{ width: '64px', height: '64px', backgroundColor: '#eaf1ff', color: '#0d5afd' }}
+              ) : productList.length === 0 ? (
+                <div className="ly-empty">
+                  <div className="ic"><i className="bi bi-tag"></i></div>
+                  <h6>Belum Ada Layanan</h6>
+                  <p>Tambahkan layanan laundry yang ditawarkan oleh toko Anda.</p>
+                  <button type="button" className="ly-pill pri" onClick={() => openProductModal()} title={BUTTON_TITLE.ADD_PRODUCT} style={{ margin: '0 auto' }}>
+                    <i className="bi bi-plus-lg"></i>
+                    <span>Tambah Layanan</span>
+                  </button>
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="ly-empty">
+                  <div className="ic"><i className="bi bi-search"></i></div>
+                  <h6>Layanan tidak ditemukan</h6>
+                  <p>Coba ubah kata kunci atau filter yang dipakai.</p>
+                  <button
+                    type="button"
+                    className="ly-pill"
+                    style={{ margin: '0 auto' }}
+                    onClick={() => {
+                      setLayananQuery('');
+                      setLayananCategory('Semua');
+                      setLayananStatus('Semua');
+                    }}
                   >
-                    <i className="bi bi-tag fs-2"></i>
-                  </div>
-                  <h6 className="fw-bold text-dark mb-1">Belum Ada Layanan</h6>
-                  <p className="text-muted small mb-3">
-                    Tambahkan layanan laundry yang ditawarkan oleh toko Anda.
-                  </p>
-                  <div>
-                    <button
-                      type="button"
-                      className="btn btn-outline-primary btn-sm rounded-pill px-4"
-                      onClick={() => openProductModal()}
-                      title={BUTTON_TITLE.ADD_PRODUCT}
-                    >
-                      <i className="bi bi-plus-lg fs-4"></i>
-                    </button>
-                  </div>
+                    Reset filter
+                  </button>
                 </div>
               ) : (
-                products.slice(0, visibleProductCount).map((p) => {
+                shownProducts.map((p) => {
                   const isSetrika = p.category?.includes('SETRIKA');
+                  const isSelected = selectedProductIds.includes(p.id);
+                  const isActive = p.isActive !== false;
+
                   return (
                     <div
                       key={p.id}
-                      className="p-3 bg-white rounded-4 shadow-sm border d-flex align-items-center justify-content-between gap-2"
-                      style={{ borderColor: '#f1f5f9' }}
+                      className={`ly-card ${isSelected ? 'sel' : ''} ${isActive ? '' : 'off'}`}
+                      onClick={() => {
+                        if (isBulkProductMode) toggleProductSelect(p.id);
+                      }}
                     >
-                      <div className="d-flex align-items-center gap-3 overflow-hidden flex-grow-1 min-w-0">
-                        <div
-                          className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-xs flex-shrink-0"
-                          style={{
-                            width: '42px',
-                            height: '42px',
-                            background: isSetrika
-                              ? 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)'
-                              : 'linear-gradient(135deg, #0d5afd 0%, #1e40af 100%)',
-                            fontSize: '1rem',
-                          }}
-                        >
-                          <i className={`bi ${isSetrika ? 'bi-fire' : 'bi-water'}`}></i>
-                        </div>
-                        <div className="overflow-hidden flex-grow-1 min-w-0">
-                          <h6 className="mb-1 fw-bold text-dark text-truncate" style={{ fontSize: '0.7rem' }}>
-                            {p.name}
-                          </h6>
-                          <div className="d-flex align-items-center gap-1.5 flex-wrap">
-                            <span className="badge bg-primary-subtle text-dark border border-primary-subtle rounded-pill px-2 py-0.5" style={{ fontSize: '0.6rem' }}>
-                              {p.category || FALLBACK_CATEGORY} ({p.code})
-                            </span>
-                            <span className="fw-bold text-primary ms-1" style={{ fontSize: '0.8rem' }}>
-                              Rp {Number(p.price || 0).toLocaleString('id-ID')}
-                            </span>
-                          </div>
+                      {isBulkProductMode && (
+                        <input
+                          type="checkbox"
+                          className="ly-chk"
+                          checked={isSelected}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={() => toggleProductSelect(p.id)}
+                          aria-label={`Pilih ${p.name}`}
+                        />
+                      )}
+
+                      <span className={`ly-tile ${isSetrika ? 'iron' : 'wash'}`}>
+                        <i className={`bi ${isSetrika ? 'bi-fire' : 'bi-water'}`}></i>
+                      </span>
+
+                      <div className="ly-info">
+                        <div className="ly-name">{p.name}</div>
+                        <div className="ly-meta">
+                          <span className="ly-cat">{p.category || FALLBACK_CATEGORY}</span>
+                          {p.code && <span className="ly-code">{p.code}</span>}
                         </div>
                       </div>
 
-                      <div className="d-flex align-items-center gap-1 flex-shrink-0 ms-1">
+                      <div className="ly-side">
+                        <span className="ly-price">Rp {Number(p.price || 0).toLocaleString('id-ID')}</span>
                         <button
                           type="button"
-                          className="btn btn-sm btn-light rounded-circle text-primary border shadow-xs d-flex align-items-center justify-content-center"
-                          style={{ width: '34px', height: '34px' }}
-                          onClick={() => openProductModal(p)}
-                          title={BUTTON_TITLE.EDIT}
+                          role="switch"
+                          aria-checked={isActive}
+                          className={`ly-swrap ${isActive ? 'on' : ''}`}
+                          title="Ketuk untuk ubah status aktif/nonaktif"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleProductActive(p);
+                          }}
                         >
-                          <i className="bi bi-pencil-fill" style={{ fontSize: '0.8rem' }}></i>
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-light rounded-circle text-danger border shadow-xs d-flex align-items-center justify-content-center"
-                          style={{ width: '34px', height: '34px' }}
-                          onClick={() => confirmDeleteProduct(p)}
-                          title={BUTTON_TITLE.DELETE}
-                        >
-                          <i className="bi bi-trash-fill" style={{ fontSize: '0.8rem' }}></i>
+                          <span>{isActive ? 'Aktif' : 'Nonaktif'}</span>
+                          <span className="ly-sw"></span>
                         </button>
                       </div>
+
+                      {!isBulkProductMode && (
+                        <div className="ly-acts" onClick={(e) => e.stopPropagation()}>
+                          <button type="button" className="ly-ib" onClick={() => openProductModal(p)} title={BUTTON_TITLE.EDIT} aria-label="Edit layanan">
+                            <i className="bi bi-pencil-fill"></i>
+                          </button>
+                          <button type="button" className="ly-ib d" onClick={() => confirmDeleteProduct(p)} title={BUTTON_TITLE.DELETE} aria-label="Hapus layanan">
+                            <i className="bi bi-trash-fill"></i>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })
               )}
-
-              {/* Button View More untuk Layanan jika data lebih dari 10 */}
-              {products && products.length > visibleProductCount && (
-                <div className="text-center my-3">
-                  <button
-                    type="button"
-                    className="btn btn-outline-primary rounded-pill px-4 py-2 fw-semibold shadow-xs d-inline-flex align-items-center gap-2"
-                    style={{ fontSize: '0.84rem' }}
-                    onClick={() => setVisibleProductCount((prev) => prev + 10)}
-                  >
-                    <span>View More</span>
-                    <span className="badge bg-primary text-white rounded-pill px-2 py-0.5" style={{ fontSize: '0.68rem' }}>
-                      +{products.length - visibleProductCount}
-                    </span>
-                    <i className="bi bi-chevron-down"></i>
-                  </button>
-                </div>
-              )}
             </div>
+
+            {/* Lihat lebih banyak (hanya saat tanpa filter) */}
+            {!isFilteringProducts && filteredProducts.length > visibleProductCount && (
+              <div className="ly-more">
+                <button type="button" className="ly-pill" onClick={() => setVisibleProductCount((prev) => prev + 10)}>
+                  <span>View More</span>
+                  <span style={{ background: '#0d5afd', color: '#fff', borderRadius: 999, padding: '1px 7px', fontSize: '.64rem' }}>
+                    +{filteredProducts.length - visibleProductCount}
+                  </span>
+                  <i className="bi bi-chevron-down"></i>
+                </button>
+              </div>
+            )}
+
+            {/* Bar bulk (ikut di bawah daftar; menempel di atas menu bawah saat daftar panjang) */}
+            {isBulkProductMode && selectedProductIds.length > 0 && (
+              <div className="ly-bulk">
+                <div className="ly-bulk-in">
+                  <b>{selectedProductIds.length} dipilih</b>
+                  <div className="g">
+                    <button type="button" className="ly-pill ok" onClick={() => handleBulkToggleActive(true)}>
+                      <i className="bi bi-check-circle"></i> Aktifkan
+                    </button>
+                    <button type="button" className="ly-pill mute" onClick={() => handleBulkToggleActive(false)}>
+                      <i className="bi bi-dash-circle"></i> Nonaktif
+                    </button>
+                    <button type="button" className="ly-pill del" onClick={handleBulkDelete} aria-label="Hapus terpilih">
+                      <i className="bi bi-trash"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1516,7 +1760,7 @@ const Setting = ({ user, onLogout }) => {
         <>
           <div
             className="modal-backdrop fade show"
-            style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}
+            style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(0,0,0,0)', zIndex: 1060 }}
             onClick={() => setShowProductModal(false)}
           ></div>
           <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1065 }}>
@@ -1628,6 +1872,26 @@ const Setting = ({ user, onLogout }) => {
                         </div>
                       </div>
                     </div>
+
+                    {/* Status Aktif Switch */}
+                    <div className="d-flex align-items-center justify-content-between p-2 rounded-3 bg-light border">
+                      <div>
+                        <span className="small fw-bold text-dark d-block" style={{ fontSize: '0.78rem' }}>Status Layanan</span>
+                        <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                          {productFormData.isActive !== false ? 'Layanan aktif & muncul di kasir' : 'Layanan dinonaktifkan sementara'}
+                        </small>
+                      </div>
+                      <div className="form-check form-switch m-0">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          style={{ cursor: 'pointer' }}
+                          checked={productFormData.isActive !== false}
+                          onChange={(e) => setProductFormData({ ...productFormData, isActive: e.target.checked })}
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <div className="modal-footer border-0 px-4 pb-4 pt-0">
@@ -1654,7 +1918,7 @@ const Setting = ({ user, onLogout }) => {
         <>
           <div
             className="modal-backdrop fade show"
-            style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}
+            style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(0,0,0,0)', zIndex: 1060 }}
             onClick={() => setShowUserModal(false)}
           ></div>
           <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1065 }}>
@@ -1798,7 +2062,7 @@ const Setting = ({ user, onLogout }) => {
         <>
           <div
             className="modal-backdrop fade show"
-            style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}
+            style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(0,0,0,0)', zIndex: 1060 }}
             onClick={() => setShowLogoutModal(false)}
           />
           <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1065 }}>
@@ -1817,14 +2081,14 @@ const Setting = ({ user, onLogout }) => {
                 <div className="d-flex gap-2">
                   <button
                     type="button"
-                    className="btn btn-light rounded-pill flex-fill py-2.5 fw-semibold border text-secondary"
+                    className="btn btn-light rounded-pill flex-fill py-2 fw-semibold border text-secondary"
                     onClick={() => setShowLogoutModal(false)}
                   >
                     Batal
                   </button>
                   <button
                     type="button"
-                    className="btn btn-danger rounded-pill flex-fill py-2.5 fw-semibold shadow-xs"
+                    className="btn btn-danger rounded-pill flex-fill py-2 fw-semibold shadow-xs"
                     onClick={() => {
                       setShowLogoutModal(false);
                       if (onLogout) onLogout();
@@ -1844,7 +2108,7 @@ const Setting = ({ user, onLogout }) => {
         <>
           <div
             className="modal-backdrop fade show"
-            style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(15, 23, 42, 0.55)', zIndex: 1075 }}
+            style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(15, 23, 42, 05)', zIndex: 1075 }}
             onClick={() => setDeleteProductConfirm({ show: false, product: null })}
           ></div>
           <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1080 }}>
@@ -1871,7 +2135,7 @@ const Setting = ({ user, onLogout }) => {
                   </button>
                   <button
                     type="button"
-                    className="btn btn-danger rounded-pill flex-fill fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-1.5"
+                    className="btn btn-danger rounded-pill flex-fill fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-1"
                     style={{ fontSize: '0.85rem' }}
                     onClick={handleConfirmDeleteProduct}
                   >
@@ -1890,7 +2154,7 @@ const Setting = ({ user, onLogout }) => {
         <>
           <div
             className="modal-backdrop fade show"
-            style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(15, 23, 42, 0.55)', zIndex: 1070 }}
+            style={{ backdropFilter: 'blur(5px)', backgroundColor: 'rgba(15, 23, 42, 05)', zIndex: 1070 }}
             onClick={handleCloseInstallPopup}
           ></div>
           <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1075 }}>
@@ -1916,7 +2180,7 @@ const Setting = ({ user, onLogout }) => {
                 <h5 className="fw-bold mb-1 text-dark" style={{ letterSpacing: '-0.3px' }}>
                   Install Aplikasi {settings?.namaLaundry || 'TokoPlus'}
                 </h5>
-                <p className="text-muted small mb-3" style={{ fontSize: '12px', lineHeight: '1.5' }}>
+                <p className="text-muted small mb-3" style={{ fontSize: '12px', lineHeight: '1' }}>
                   Pasang aplikasi kasir <strong>{settings?.namaLaundry || 'TokoPlus'}</strong> langsung di layar utama smartphone Android Anda untuk akses cepat &amp; fitur offline.
                 </p>
 
@@ -1930,7 +2194,7 @@ const Setting = ({ user, onLogout }) => {
                     {settings.storeCode && (
                       <div className="d-flex justify-content-between mb-1">
                         <span className="text-muted">Kode Toko:</span>
-                        <span className="badge bg-secondary-subtle text-dark border px-2 py-0.5">{settings.storeCode}</span>
+                        <span className="badge bg-secondary-subtle text-dark border px-2 py-0">{settings.storeCode}</span>
                       </div>
                     )}
                     {settings.alamat && (

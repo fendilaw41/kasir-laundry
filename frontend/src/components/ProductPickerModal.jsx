@@ -21,6 +21,7 @@ const ProductPickerModal = ({ isOpen, onClose }) => {
     if (!Array.isArray(products)) return [];
     const q = searchTerm.toLowerCase().trim();
     return products.filter((p) => {
+      if (p.isActive === false) return false;
       const matchesSearch =
         !q ||
         p.name?.toLowerCase().includes(q) ||

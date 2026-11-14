@@ -10,7 +10,7 @@ import { TOAST_MESSAGES } from '../../constants/appConstants';
 import { calculateOrderEstimatedDays } from '../../utils/estimateCalculator';
 import { getActiveStoreIdSync } from '../../db/repositories/storeHelper';
 import { validateAuthSession, getStoredUser } from '../../utils/authSession';
-import { getSubscriptionReport } from '../../services/subscriptionService';
+import { getSubscriptionReport, getCachedSubscriptionReportSync } from '../../services/subscriptionService';
 
 export const useTransaksi = () => {
   const cartItems = useLiveQuery(getCartQuery);
@@ -127,7 +127,13 @@ export const useTransaksi = () => {
 
     // Validasi kuota & masa aktif paket sebelum checkout
     try {
-      const sub = await getSubscriptionReport();
+      // Gunakan cached subscription report cepat (atau timeout maks 2.5 detik) agar kasir tidak terblokir muter-muter
+      const cachedSub = getCachedSubscriptionReportSync();
+      const sub = cachedSub || await Promise.race([
+        getSubscriptionReport(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500))
+      ]).catch(() => cachedSub);
+
       const isExpired =
         sub?.status === 'EXPIRED' ||
         (sub?.currentPeriodEnd && new Date() > new Date(sub.currentPeriodEnd));

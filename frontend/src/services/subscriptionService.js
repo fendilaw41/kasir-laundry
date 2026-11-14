@@ -251,12 +251,17 @@ export async function getSubscriptionReport(options = {}) {
           // Sinkronkan update master plan dari DB ke Dexie di background hanya jika belum tersinkron
           syncPlansFromBackend(false).catch(() => { });
 
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 6000);
+
           const res = await fetch(`${API_URL}/subscription/usage`, {
+            signal: controller.signal,
             headers: {
               Authorization: `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
           });
+          clearTimeout(timeoutId);
           if (res.status === 401) {
             triggerUnauthorized('Sesi login telah berakhir.');
             const offline = await calculateOfflineUsage(storeId);

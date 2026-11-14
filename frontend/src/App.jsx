@@ -140,6 +140,9 @@ function App() {
       try {
         await db.settings.update(1, { token: null, authToken: null });
       } catch (e) {}
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     };
 
     window.addEventListener('auth:unauthorized', handleUnauthorized);

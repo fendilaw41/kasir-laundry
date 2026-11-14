@@ -79,6 +79,81 @@ const AnimatedCounter = ({ target, duration = 1100 }) => {
   return <span>Rp {val.toLocaleString('id-ID')}</span>;
 };
 
+/* Gaya konten Order Detail (prefix .od-) */
+const OD_CSS = `
+.od-content { padding: 10px 12px 0; }
+.od-hero { position: relative; overflow: hidden; border-radius: 20px; padding: 14px 16px 15px; color: #fff; margin-bottom: 8px;
+  background: radial-gradient(260px 160px at 100% 0%, rgba(255,255,255,.24), rgba(255,255,255,0) 70%), linear-gradient(135deg, #0134d4 0%, #0d5afd 100%);
+  box-shadow: 0 16px 28px -18px rgba(13, 90, 253, .8); }
+.od-hero.prio { background: radial-gradient(260px 160px at 100% 0%, rgba(255,255,255,.22), rgba(255,255,255,0) 70%), linear-gradient(135deg, #c81e3a 0%, #ef4444 100%); box-shadow: 0 16px 28px -18px rgba(239, 68, 68, .8); }
+.od-hero::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+  background-image: radial-gradient(rgba(255,255,255,.25) 1px, transparent 1.2px); background-size: 18px 18px;
+  -webkit-mask-image: linear-gradient(135deg, #000, transparent 65%); mask-image: linear-gradient(135deg, #000, transparent 65%); }
+.od-hero > * { position: relative; }
+.od-shop { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.od-shop b { display: block; font-size: .95rem; font-weight: 700; letter-spacing: -.01em; line-height: 1.2; }
+.od-shop small { display: block; margin-top: 1px; font-size: .68rem; opacity: .8; }
+.od-kasir { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.35); font-size: .66rem; font-weight: 600; white-space: nowrap; }
+.od-prio { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; padding: 3px 9px; border-radius: 999px; background: #fff; color: #c81e3a; font-size: .62rem; font-weight: 800; }
+.od-inv { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; margin-top: 12px; }
+.od-inv > div > span { display: block; font-size: .62rem; font-weight: 600; letter-spacing: .08em; opacity: .75; }
+.od-inv strong { display: block; font-size: 1.2rem; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; }
+.od-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; border-radius: 999px; font-size: .66rem; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
+.od-chip.ok { background: #d9f6e6; color: #0b7a47; }
+.od-chip.wait { background: #fff1cf; color: #8a5a00; }
+.od-card { background: #fff; border: 1px solid #e8ebfa; border-radius: 18px; padding: 12px 14px; margin-bottom: 8px; box-shadow: 0 6px 14px -12px rgba(31, 7, 87, .35); }
+.od-cust { display: flex; align-items: center; gap: 11px; }
+.od-av { width: 42px; height: 42px; border-radius: 14px; flex: none; display: inline-flex; align-items: center; justify-content: center; background: #e9f0ff; color: #0d5afd; font-size: 1.05rem; font-weight: 800; }
+.od-cust .n { flex: 1; min-width: 0; }
+.od-cust .n b { display: block; font-size: .95rem; font-weight: 700; color: #1f0757; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.od-cust .n span { display: flex; align-items: center; gap: 5px; margin-top: 1px; font-size: .74rem; color: #8480ae; }
+.od-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 11px; }
+.od-tile { padding: 8px 11px; border-radius: 12px; background: #f4f6ff; }
+.od-tile small { display: block; font-size: .6rem; font-weight: 700; letter-spacing: .06em; color: #8480ae; text-transform: uppercase; }
+.od-tile b { display: block; margin-top: 2px; font-size: .78rem; font-weight: 700; color: #1f0757; line-height: 1.3; }
+.od-note { display: flex; align-items: center; gap: 10px; }
+.od-note + .od-note { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e4e8fb; }
+.od-note.lock { opacity: .75; }
+.od-note .ic { width: 30px; height: 30px; border-radius: 10px; flex: none; display: inline-flex; align-items: center; justify-content: center; font-size: .85rem; }
+.od-note .ic.b { background: #e9f0ff; color: #0d5afd; }
+.od-note .ic.y { background: #fff3d6; color: #d98f00; }
+.od-note .t { flex: 1; min-width: 0; }
+.od-note .t small { display: block; font-size: .62rem; font-weight: 700; letter-spacing: .05em; color: #8480ae; text-transform: uppercase; }
+.od-note .t b { display: block; margin-top: 1px; font-size: .82rem; font-weight: 600; color: #1f0757; word-break: break-word; }
+.od-note .t b.empty { color: #b4b0d0; font-weight: 500; }
+.od-edit { height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid #d4e1ff; background: #f4f8ff; color: #0d5afd; font-size: .68rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; flex: none; cursor: pointer; line-height: 1; }
+.od-edit.y { border-color: #f6dca0; background: #fffaf0; color: #b77900; }
+.od-title { font-size: .64rem; font-weight: 800; letter-spacing: .09em; color: #8480ae; text-transform: uppercase; }
+.od-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.od-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 9px; }
+.od-step { border: 1px solid #e4e8fb; border-radius: 14px; background: #f4f6ff; color: #8480ae; padding: 9px 4px 8px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: .64rem; font-weight: 800; letter-spacing: .03em; cursor: pointer; transition: all .2s ease; }
+.od-step i { font-size: 1.25rem; line-height: 1; }
+.od-step.proses i { color: #0d5afd; opacity: .55; }
+.od-step.selesai i { color: #12b76a; opacity: .6; }
+.od-step.ambil i { color: #1f0757; opacity: .45; }
+.od-step.on { border-color: transparent; color: #fff; box-shadow: 0 10px 18px -10px rgba(31, 7, 87, .5); }
+.od-step.on i { color: #fff; opacity: 1; }
+.od-step.proses.on { background: linear-gradient(135deg, #0134d4, #0d5afd); }
+.od-step.selesai.on { background: linear-gradient(135deg, #0e9f5a, #12b76a); }
+.od-step.ambil.on { background: linear-gradient(135deg, #1f0757, #3b2a8c); }
+.od-line { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; font-size: .78rem; }
+.od-line .q { flex: none; min-width: 26px; padding: 1px 6px; border-radius: 6px; background: #e9f0ff; color: #0134d4; font-size: .68rem; font-weight: 800; text-align: center; }
+.od-line .nm { flex: 1; min-width: 0; color: #1f0757; font-weight: 500; }
+.od-line .nm em { font-style: normal; display: block; font-size: .62rem; font-weight: 600; letter-spacing: .02em; color: #8480ae; text-transform: uppercase; }
+.od-line .pr { flex: none; font-weight: 700; color: #1f0757; }
+.od-sep { height: 0; border-top: 1px dashed #e4e8fb; margin: 8px 0; }
+.od-inv-row { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; font-size: .76rem; color: #5f5a86; }
+.od-inv-empty { font-size: .74rem; color: #b4b0d0; font-style: italic; }
+.od-sum { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 3px 0; font-size: .8rem; color: #5f5a86; }
+.od-sum.red { color: #e5484d; }
+.od-total { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 8px 0 6px; padding: 11px 13px; border-radius: 14px; background: linear-gradient(135deg, #eaf1ff, #f3f0ff); }
+.od-total span { font-size: .7rem; font-weight: 800; letter-spacing: .08em; color: #1f0757; }
+.od-total b { font-size: 1.2rem; font-weight: 800; letter-spacing: -.02em; color: #0d5afd; }
+.od-pay { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; font-size: .78rem; color: #5f5a86; }
+.od-pay b { color: #1f0757; font-weight: 700; }
+.od-pay.g, .od-pay.g b { color: #0e8f55; font-weight: 700; }
+`;
+
 const OrderDetail = ({ user }) => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -631,217 +706,207 @@ const OrderDetail = ({ user }) => {
           </div>
         )}
 
-        <div
-          className="card shadow-sm border-0 mb-0 overflow-hidden d-flex flex-column"
-          style={{ minHeight: 'calc(100vh - 140px)' }}
-        >
-          {/* Banner */}
-          <div className={`p-4 text-center text-white position-relative ${order.isPriority ? 'bg-danger' : 'bg-primary'}`}>
-            {order.isPriority && (
-              <div className="position-absolute top-0 start-0 p-2">
-                <span className="badge bg-white text-danger fw-bold shadow-sm"><i className="bi bi-star-fill me-1"></i> PRIORITAS</span>
-              </div>
-            )}
-            {settings === undefined ? (
-              <Skeleton
-                width="150px"
-                height="22px"
-                borderRadius="6px"
-                className="my-1"
-                style={{
-                  background: 'linear-gradient(90deg, rgba(255,255,255,0.2) 25%, rgba(255,255,255,0.4) 37%, rgba(255,255,255,0.2) 63%)',
-                  backgroundSize: '200% 100%'
-                }}
-              />
-            ) : (
-              <h5 className="text-white fw-bold mb-0">{settings?.namaLaundry || 'TokoPlus'}</h5>
-            )}
-            <small className="opacity-75">{settings?.motto || 'Solusi Laundry Bersih & Cepat'}</small>
+        {/* ===== KONTEN ORDER DETAIL ===== */}
+        <div className="od-content">
+          <style>{OD_CSS}</style>
 
-            {/* Operator / Kasir / Owner pembuat transaksi di pojok kanan bawah kotak biru (Khusus Owner) */}
-            {isOwner && (
-              <div className="position-absolute bottom-0 end-0 p-2">
-                <span
-                  className="badge rounded-pill px-2 py-1 text-white shadow-sm d-inline-flex align-items-center gap-1"
-                  style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.22)',
-                    backdropFilter: 'blur(6px)',
-                    border: '1px solid rgba(255, 255, 255, 0.35)',
-                    fontSize: '0.68rem',
-                    fontWeight: '500',
-                    letterSpacing: '0.3px',
-                  }}
-                  title="Petugas yang melakukan transaksi"
-                >
+          {/* Banner toko + nomor order */}
+          <div className={`od-hero ${order.isPriority ? 'prio' : ''}`}>
+            <div className="od-shop">
+              <div>
+                {settings === undefined ? (
+                  <Skeleton
+                    width="130px"
+                    height="18px"
+                    borderRadius="6px"
+                    style={{
+                      background: 'linear-gradient(90deg, rgba(255,255,255,0.2) 25%, rgba(255,255,255,0.4) 37%, rgba(255,255,255,0.2) 63%)',
+                      backgroundSize: '200% 100%'
+                    }}
+                  />
+                ) : (
+                  <b>{settings?.namaLaundry || 'TokoPlus'}</b>
+                )}
+                <small>{settings?.motto || 'Solusi Laundry Bersih & Cepat'}</small>
+                {order.isPriority && (
+                  <span className="od-prio"><i className="bi bi-star-fill"></i> PRIORITAS</span>
+                )}
+              </div>
+
+              {/* Operator / Kasir pembuat transaksi (khusus Owner) */}
+              {isOwner && (
+                <span className="od-kasir" title="Petugas yang melakukan transaksi">
                   <i className="bi bi-person-circle"></i>
                   <span>{getKasirUsername()}</span>
                 </span>
-              </div>
-            )}
-          </div>
-
-          {/* Info Ringkas */}
-          <div className="card-body p-3 small border-bottom">
-            <div className="d-flex justify-content-between mb-1 align-items-center">
-              <span className="text-primary fw-bold">ID: {order.invoiceId || 'KL'}</span>
-              <span className="text-muted">{new Date(order.createdAt).toLocaleString('id-ID')}</span>
-            </div>
-            <div className="d-flex justify-content-between mb-1">
-              <h6 className="mb-0 fw-bold">{pelanggan?.nama || order.pelangganNama || 'Pelanggan Umum'}</h6>
-              <div className="text-muted mb-1"><i className="bi bi-telephone me-1"></i> {pelanggan?.hp || order.pelangganHp || '-'}</div>
-            </div>
-            <div className="d-flex justify-content-between">
-              <span>Estimasi Selesai :</span>
-              <span className="fw-bold">({order.estimasi} Hari) {new Date(new Date(order.createdAt).getTime() + (order.estimasi * 86400000)).toLocaleDateString('id-ID')}</span>
-            </div>
-            <div className="d-flex justify-content-between mt-1 align-items-center">
-              <span>Metode Bayar :</span>
-              <span className={`badge ${isStatusLunas(order.statusBayar) ? 'bg-success' : 'bg-warning'} text-uppercase`}>
-                {order.statusBayar}
-              </span>
-            </div>
-
-            {/* Catatan Pelanggan */}
-            <div
-              className={`d-flex justify-content-between mt-2 pt-2 border-top align-items-start ${isCustomerNoteLocked ? 'opacity-75' : ''}`}
-            >
-              <div>
-                <span className="fw-semibold text-secondary d-flex align-items-center gap-1">
-                  <i className="bi bi-tag-fill text-primary"></i> Catatan Pelanggan :
-                </span>
-              </div>
-              <div className="text-end ps-2">
-                <span className="fw-bold text-primary small d-block">{order.catatan || '-'}</span>
-                {!isCustomerNoteLocked && (
-                  <small
-                    className="text-primary fw-semibold cursor-pointer"
-                    style={{ fontSize: '0.65rem', cursor: 'pointer' }}
-                    onClick={() => {
-                      setCatatan(order.catatan || '');
-                      setShowNoteModal(true);
-                    }}
-                  >
-                    <i className="bi bi-pencil-square me-1"></i>Edit
-                  </small>
-                )}
-              </div>
-            </div>
-
-            {/* Catatan Kasir (Internal) */}
-            <div
-              className={`d-flex justify-content-between mt-2 pt-2 border-top align-items-start ${isCashierNoteLocked ? 'opacity-75' : ''}`}
-            >
-              <div>
-                <span className="fw-semibold text-warning-emphasis d-flex align-items-center gap-1">
-                  <i className="bi bi-shield-lock-fill text-warning"></i> Catatan Kasir :
-                </span>
-              </div>
-              <div className="text-end ps-2">
-                <span className="fw-bold text-dark small d-block">{order.catatanKasir || '-'}</span>
-                {!isCashierNoteLocked && (
-                  <small
-                    className="text-warning fw-semibold cursor-pointer"
-                    style={{ fontSize: '0.65rem', cursor: 'pointer' }}
-                    onClick={() => {
-                      setCatatanKasir(order.catatanKasir || '');
-                      setShowCashierNoteModal(true);
-                    }}
-                  >
-                    <i className="bi bi-pencil-square me-1"></i>Edit
-                  </small>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Status Tracker */}
-          <div className="p-3 border-bottom">
-            <div className="small fw-bold text-muted text-uppercase mb-3 text-center" style={{ letterSpacing: '1px', fontSize: '0.7rem' }}>Status Pengerjaan</div>
-            <div className="row g-2 text-center">
-              <div className="col-4" onClick={() => handleStatusClick('Proses')}>
-                <div className={`py-3 px-1 border rounded-4 ${order.status === 'Proses' || !order.status ? 'bg-primary text-white shadow-sm' : 'bg-light text-muted'}`} style={{ transition: 'all 0.3s' }}>
-                  <i className={`bi bi-gear-wide-connected fs-3 d-block mb-1 ${order.status === 'Proses' || !order.status ? 'text-white' : 'text-primary opacity-50'}`}></i>
-                  <span className="fw-bold" style={{ fontSize: '0.65rem' }}>PROSES</span>
-                </div>
-              </div>
-              <div className="col-4" onClick={() => handleStatusClick('Selesai')}>
-                <div className={`py-3 px-1 border rounded-4 ${order.status === 'Selesai' ? 'bg-success text-white shadow-sm' : 'bg-light text-muted'}`} style={{ transition: 'all 0.3s' }}>
-                  <i className={`bi bi-check2-circle fs-3 d-block mb-1 ${order.status === 'Selesai' ? 'text-white' : 'text-success opacity-50'}`}></i>
-                  <span className="fw-bold" style={{ fontSize: '0.65rem' }}>SELESAI</span>
-                </div>
-              </div>
-              <div className="col-4" onClick={() => handleStatusClick('Ambil')}>
-                <div className={`py-3 px-1 border rounded-4 ${order.status === 'Ambil' ? 'bg-dark text-white shadow-sm' : 'bg-light text-muted'}`} style={{ transition: 'all 0.3s' }}>
-                  <i className={`bi bi-box-seam fs-3 d-block mb-1 ${order.status === 'Ambil' ? 'text-white' : 'text-dark opacity-50'}`}></i>
-                  <span className="fw-bold" style={{ fontSize: '0.65rem' }}>AMBIL</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Rincian Harga */}
-          <div className="p-3 bg-light small">
-            {order.items && order.items.length > 0 && (
-              <div className="mb-2 pb-2 border-bottom">
-                <div className="fw-bold text-muted mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0px' }}>LAYANAN / PRODUK</div>
-                {order.items.map((item, idx) => (
-                  <div key={idx} className="d-flex justify-content-between mb-1" style={{ fontSize: '0.75rem' }}>
-                    <span>{item.quantity}x <span className="text-dark text-capitalize">{(item.category || '').toLowerCase()} <span className="d-inline-block">{item.name}</span></span></span>
-                    <span className="text-dark fw-bold">Rp {(item.price * item.quantity).toLocaleString()}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="mb-2 pb-2 border-bottom">
-              <div className="d-flex justify-content-between align-items-center mb-1">
-                <div className="fw-bold text-muted" style={{ fontSize: '0.7rem', letterSpacing: '0px' }}>INVENTORY TERPAKAI</div>
-                {order.status === 'Proses' && (
-                  <small
-                    className="text-primary"
-                    style={{ fontSize: '0.7rem', cursor: 'pointer' }}
-                    onClick={() => {
-                      setSelectedInventory(order.inventoryUsed || displayedInventory || []);
-                      setShowInventoryModal(true);
-                    }}
-                  >
-                    <i className="bi bi-pencil-square me-1"></i>Edit
-                  </small>
-                )}
-              </div>
-              {displayedInventory && displayedInventory.length > 0 ? (
-                displayedInventory.map((inv, idx) => (
-                  <div key={idx} className="d-flex justify-content-between mb-1 text-muted" style={{ fontSize: '0.75rem' }}>
-                    <span>{inv.nama}</span>
-                    <span>{inv.quantity ?? inv.qty ?? 1}x</span>
-                  </div>
-                ))
-              ) : (
-                <div className="text-muted fst-italic" style={{ fontSize: '0.75rem' }}>Belum ada inventory yang ditambahkan</div>
               )}
             </div>
 
-            <div className="d-flex justify-content-between mb-1 text-muted">
+            <div className="od-inv">
+              <div>
+                <span>NO. ORDER</span>
+                <strong>{order.invoiceId || 'KL'}</strong>
+              </div>
+              <span className={`od-chip ${isStatusLunas(order.statusBayar) ? 'ok' : 'wait'}`}>
+                <i className={`bi ${isStatusLunas(order.statusBayar) ? 'bi-check-circle-fill' : 'bi-hourglass-split'}`}></i>
+                {order.statusBayar}
+              </span>
+            </div>
+          </div>
+
+          {/* Pelanggan + waktu */}
+          <div className="od-card">
+            <div className="od-cust">
+              <span className="od-av">{(pelanggan?.nama || order.pelangganNama || 'U').trim().charAt(0).toUpperCase()}</span>
+              <div className="n">
+                <b>{pelanggan?.nama || order.pelangganNama || 'Pelanggan Umum'}</b>
+                <span><i className="bi bi-telephone"></i> {pelanggan?.hp || order.pelangganHp || '-'}</span>
+              </div>
+            </div>
+            <div className="od-tiles">
+              <div className="od-tile">
+                <small>Tanggal Masuk</small>
+                <b>{new Date(order.createdAt).toLocaleString('id-ID')}</b>
+              </div>
+              <div className="od-tile">
+                <small>Estimasi Selesai</small>
+                <b>({order.estimasi} Hari) {new Date(new Date(order.createdAt).getTime() + (order.estimasi * 86400000)).toLocaleDateString('id-ID')}</b>
+              </div>
+            </div>
+          </div>
+
+          {/* Catatan */}
+          <div className="od-card">
+            <div className={`od-note ${isCustomerNoteLocked ? 'lock' : ''}`}>
+              <span className="ic b"><i className="bi bi-tag-fill"></i></span>
+              <div className="t">
+                <small>Catatan Pelanggan</small>
+                <b className={order.catatan ? '' : 'empty'}>{order.catatan || '-'}</b>
+              </div>
+              {!isCustomerNoteLocked && (
+                <button
+                  type="button"
+                  className="od-edit"
+                  onClick={() => {
+                    setCatatan(order.catatan || '');
+                    setShowNoteModal(true);
+                  }}
+                >
+                  <i className="bi bi-pencil-square"></i>Edit
+                </button>
+              )}
+            </div>
+
+            <div className={`od-note ${isCashierNoteLocked ? 'lock' : ''}`}>
+              <span className="ic y"><i className="bi bi-shield-lock-fill"></i></span>
+              <div className="t">
+                <small>Catatan Kasir (internal)</small>
+                <b className={order.catatanKasir ? '' : 'empty'}>{order.catatanKasir || '-'}</b>
+              </div>
+              {!isCashierNoteLocked && (
+                <button
+                  type="button"
+                  className="od-edit y"
+                  onClick={() => {
+                    setCatatanKasir(order.catatanKasir || '');
+                    setShowCashierNoteModal(true);
+                  }}
+                >
+                  <i className="bi bi-pencil-square"></i>Edit
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Status pengerjaan */}
+          <div className="od-card">
+            <div className="od-title">Status Pengerjaan</div>
+            <div className="od-steps">
+              <button type="button" className={`od-step proses ${order.status === 'Proses' || !order.status ? 'on' : ''}`} onClick={() => handleStatusClick('Proses')}>
+                <i className="bi bi-gear-wide-connected"></i>
+                <span>PROSES</span>
+              </button>
+              <button type="button" className={`od-step selesai ${order.status === 'Selesai' ? 'on' : ''}`} onClick={() => handleStatusClick('Selesai')}>
+                <i className="bi bi-check2-circle"></i>
+                <span>SELESAI</span>
+              </button>
+              <button type="button" className={`od-step ambil ${order.status === 'Ambil' ? 'on' : ''}`} onClick={() => handleStatusClick('Ambil')}>
+                <i className="bi bi-box-seam"></i>
+                <span>AMBIL</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Rincian layanan, inventory, harga */}
+          <div className="od-card">
+            {order.items && order.items.length > 0 && (
+              <>
+                <div className="od-title-row"><span className="od-title">Layanan / Produk</span></div>
+                {order.items.map((item, idx) => (
+                  <div key={idx} className="od-line">
+                    <span className="q">{item.quantity}x</span>
+                    <span className="nm">
+                      {item.category ? <em>{(item.category || '').toLowerCase()}</em> : null}
+                      {item.name}
+                    </span>
+                    <span className="pr">Rp {(item.price * item.quantity).toLocaleString()}</span>
+                  </div>
+                ))}
+                <div className="od-sep"></div>
+              </>
+            )}
+
+            <div className="od-title-row">
+              <span className="od-title">Inventory Terpakai</span>
+              {order.status === 'Proses' && (
+                <button
+                  type="button"
+                  className="od-edit"
+                  onClick={() => {
+                    setSelectedInventory(order.inventoryUsed || displayedInventory || []);
+                    setShowInventoryModal(true);
+                  }}
+                >
+                  <i className="bi bi-pencil-square"></i>Edit
+                </button>
+              )}
+            </div>
+            {displayedInventory && displayedInventory.length > 0 ? (
+              displayedInventory.map((inv, idx) => (
+                <div key={idx} className="od-inv-row">
+                  <span>{inv.nama}</span>
+                  <span>{inv.quantity ?? inv.qty ?? 1}x</span>
+                </div>
+              ))
+            ) : (
+              <div className="od-inv-empty">Belum ada inventory yang ditambahkan</div>
+            )}
+
+            <div className="od-sep"></div>
+
+            <div className="od-sum">
               <span>Sub-total</span>
               <span>Rp {order.subtotal?.toLocaleString()}</span>
             </div>
             {order.diskon > 0 && (
-              <div className="d-flex justify-content-between mb-1 text-danger">
+              <div className="od-sum red">
                 <span>Diskon</span>
                 <span>- Rp {order.diskon.toLocaleString()}</span>
               </div>
             )}
-            <div className="d-flex justify-content-between fw-bold border-top pt-2 mt-1">
-              <span className="text-dark">TOTAL AKHIR</span>
-              <span className="text-primary fs-5">Rp {order.total.toLocaleString()}</span>
+
+            <div className="od-total">
+              <span>TOTAL AKHIR</span>
+              <b>Rp {order.total.toLocaleString()}</b>
             </div>
-            <div className="d-flex justify-content-between mt-2 pt-2 border-top text-muted">
+
+            <div className="od-pay">
               <span>Bayar</span>
-              <span className="fw-bold text-dark">Rp {order.bayar?.toLocaleString() || 0}</span>
+              <b>Rp {order.bayar?.toLocaleString() || 0}</b>
             </div>
-            <div className="d-flex justify-content-between mt-1 text-success">
-              <span className="fw-bold">Kembalian</span>
-              <span className="fw-bold">Rp {order.kembalian?.toLocaleString() || 0}</span>
+            <div className="od-pay g">
+              <span>Kembalian</span>
+              <b>Rp {order.kembalian?.toLocaleString() || 0}</b>
             </div>
           </div>
         </div>
@@ -1152,7 +1217,7 @@ const OrderDetail = ({ user }) => {
           <>
             <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(0,0,0,0.4)' }}></div>
             <div className="modal fade show d-block" tabIndex="-1">
-              <div className="modal-dialog modal-dialog-centered mx-3">
+              <div className="modal-dialog modal-dialog-centered mx-auto px-3" style={{ maxWidth: '420px', width: '100%' }}>
                 <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '24px' }}>
                   <div className="modal-header border-0 pb-0 pt-4 px-4">
                     <h5 className="fw-bold mb-0">Catatan</h5>
@@ -1180,9 +1245,9 @@ const OrderDetail = ({ user }) => {
           <>
             <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(0,0,0,0.4)' }}></div>
             <div className="modal fade show d-block" tabIndex="-1">
-              <div className="modal-dialog modal-dialog-centered mx-3">
+              <div className="modal-dialog modal-dialog-centered mx-auto px-3" style={{ maxWidth: '420px', width: '100%' }}>
                 <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '24px' }}>
-                  <div className="modal-header border-0 pb-0 pt-4 px-4">
+                  <div className="modal-header border-0 pb-0 pt-4 px-4 justify-content-between align-items-center">
                     <div className="d-flex align-items-center gap-2">
                       <i className="bi bi-shield-lock-fill text-warning fs-4"></i>
                       <h5 className="fw-bold mb-0">Catatan Kasir</h5>
@@ -1212,7 +1277,7 @@ const OrderDetail = ({ user }) => {
           <>
             <div className="modal-backdrop fade show" style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(0,0,0,0.4)' }}></div>
             <div className="modal fade show d-block" tabIndex="-1">
-              <div className="modal-dialog modal-dialog-centered mx-3">
+              <div className="modal-dialog modal-dialog-centered mx-auto px-3" style={{ maxWidth: '480px', width: '100%' }}>
                 <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '24px' }}>
                   <div className="modal-header border-0 pb-0 pt-4 px-4">
                     <h5 className="fw-bold mb-0">Edit Inventory</h5>
@@ -1813,7 +1878,7 @@ const OrderDetail = ({ user }) => {
           <>
             <div className="modal-backdrop fade show"></div>
             <div className="modal fade show d-block" tabIndex="-1">
-              <div className="modal-dialog modal-dialog-centered mx-3">
+              <div className="modal-dialog modal-dialog-centered mx-auto px-3" style={{ maxWidth: '400px', width: '100%' }}>
                 <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px' }}>
                   <div className="modal-body text-center p-4">
                     <div className="icon-wrapper mb-3 mx-auto bg-warning-light d-flex align-items-center justify-content-center" style={{ width: '60px', height: '60px', backgroundColor: '#fff9c4', borderRadius: '50%' }}>

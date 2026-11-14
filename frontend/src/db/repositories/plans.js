@@ -6,15 +6,32 @@ export { DEFAULT_PLANS } from './plans.constants';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 /**
- * Query function untuk useLiveQuery di React component
+ * Query function untuk useLiveQuery di React component.
+ * Membaca dari Dexie dan otomatis seed data default jika tabel plans di Dexie masih kosong.
  */
 export const getPlansQuery = async () => {
   if (!db.plans) return DEFAULT_PLANS;
-  const list = await db.plans.orderBy('sortOrder').toArray();
-  if (list && list.length > 0) {
-    return list.filter((p) => p.isActive !== false);
+  try {
+    const list = await db.plans.orderBy('sortOrder').toArray();
+    if (list && list.length > 0) {
+      return list.filter((p) => p.isActive !== false);
+    }
+    // Seed default plans ke Dexie jika tabel plans kosong
+    await db.transaction('rw', db.plans, async () => {
+      for (const p of DEFAULT_PLANS) {
+        await db.plans.put({
+          ...p,
+          key: p.key.toUpperCase(),
+          updatedAt: new Date(),
+        });
+      }
+    });
+    const seeded = await db.plans.orderBy('sortOrder').toArray();
+    return seeded.filter((p) => p.isActive !== false);
+  } catch (err) {
+    console.warn('[Plans] Error membaca/seed plans dari Dexie:', err);
+    return DEFAULT_PLANS;
   }
-  return DEFAULT_PLANS;
 };
 
 /**
@@ -72,8 +89,11 @@ export const syncPlansFromBackend = async (force = false) => {
   }
 
   inFlightPlansPromise = (async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
     try {
-      const res = await fetch(`${API_URL}/subscription/plans`);
+      const res = await fetch(`${API_URL}/subscription/plans`, { signal: controller.signal });
+      clearTimeout(timeoutId);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (json.success && Array.isArray(json.plans) && json.plans.length > 0) {

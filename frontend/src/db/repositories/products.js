@@ -27,6 +27,7 @@ export const addProduct = async (productData) => {
     category: (productData.category || '').trim().toUpperCase() || 'LAINNYA',
     name: productData.name.trim(),
     price: price,
+    isActive: typeof productData.isActive === 'boolean' ? productData.isActive : true,
   });
 
   const newId = await db.products.add(payload);
@@ -36,11 +37,11 @@ export const addProduct = async (productData) => {
 
 export const updateProduct = async (id, productData) => {
   if (!id) throw new Error('ID layanan tidak valid.');
-  if (!productData?.name?.trim()) {
+  if (productData.name !== undefined && !productData?.name?.trim()) {
     throw new Error('Nama layanan wajib diisi.');
   }
-  const price = Number(productData.price);
-  if (isNaN(price) || price < 0) {
+  const price = productData.price !== undefined ? Number(productData.price) : undefined;
+  if (price !== undefined && (isNaN(price) || price < 0)) {
     throw new Error('Harga layanan harus berupa angka valid (minimal 0).');
   }
 
@@ -51,15 +52,44 @@ export const updateProduct = async (id, productData) => {
   const storeId = await getActiveStoreId();
   const updatePayload = withUpdatedSyncMeta({
     ...(storeId && !target.storeId ? { storeId } : {}),
-    code: (productData.code || '').trim().toUpperCase() || null,
-    category: (productData.category || '').trim().toUpperCase() || 'LAINNYA',
-    name: productData.name.trim(),
-    price: price,
+    ...(productData.code !== undefined ? { code: (productData.code || '').trim().toUpperCase() || null } : {}),
+    ...(productData.category !== undefined ? { category: (productData.category || '').trim().toUpperCase() || 'LAINNYA' } : {}),
+    ...(productData.name !== undefined ? { name: productData.name.trim() } : {}),
+    ...(price !== undefined ? { price } : {}),
+    ...(typeof productData.isActive === 'boolean' ? { isActive: productData.isActive } : {}),
   });
 
   await db.products.update(target.id, updatePayload);
   syncProductsToBackend(false).catch(err => console.warn('[Sync] Sync product error:', err));
   return target.id;
+};
+
+export const bulkUpdateProducts = async (ids, updateData) => {
+  if (!Array.isArray(ids) || ids.length === 0) return 0;
+  let count = 0;
+  for (const id of ids) {
+    try {
+      await updateProduct(id, updateData);
+      count++;
+    } catch (err) {
+      console.warn(`[Products] Gagal update product ${id}:`, err);
+    }
+  }
+  return count;
+};
+
+export const bulkDeleteProducts = async (ids) => {
+  if (!Array.isArray(ids) || ids.length === 0) return 0;
+  let count = 0;
+  for (const id of ids) {
+    try {
+      await deleteProduct(id);
+      count++;
+    } catch (err) {
+      console.warn(`[Products] Gagal delete product ${id}:`, err);
+    }
+  }
+  return count;
 };
 
 export const deleteProduct = async (id) => {

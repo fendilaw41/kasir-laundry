@@ -104,6 +104,7 @@ const Product = () => {
   };
 
   const filteredProducts = products?.filter((p) => {
+    if (p.isActive === false) return false;
     const q = searchTerm.toLowerCase().trim();
     const matchesSearch =
       !q ||

@@ -3,13 +3,100 @@ import { getOrdersSortedByDateQuery, updateOrder, deleteOrder } from '../db/repo
 import { pullOrdersFromBackend, syncTwoWay } from '../services/syncService';
 import { isStatusLunas } from '../utils/paymentStatus';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { TOAST_MESSAGES, CONFIRM_MESSAGES, BUTTON_TITLE } from '../constants/appConstants';
 import { OrderListSkeleton } from '../components/common/Skeleton';
 import { db } from '../db';
 import PlanGateModal from '../components/PlanGateModal';
 import { getSubscriptionReport, getCachedSubscriptionReportSync, isTrialExpired, isPaidExpired } from '../services/subscriptionService';
+
+/* Gaya khusus halaman Data Order (prefix .do-). Dibuat sendiri karena kelas seperti
+   gap-1.5 / p-2.5 / mb-1.5 TIDAK ada di Bootstrap 5, jadi spasi sebelumnya tidak terkontrol. */
+const DO_CSS = `
+.do-wrap { padding: 10px 12px 24px; }
+.do-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.do-count { display: inline-flex; align-items: center; gap: 5px; font-size: .74rem; font-weight: 600; color: #5f5a86; }
+.do-count i { color: #0d5afd; }
+.do-tools { display: flex; align-items: center; gap: 6px; }
+.do-pill {
+  height: 28px; padding: 0 11px; border-radius: 999px; border: 1px solid #e1e6fa; background: #fff; color: #1f0757;
+  font-size: .72rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; line-height: 1;
+}
+.do-pill.on { background: #0134d4; border-color: #0134d4; color: #fff; }
+.do-pill.sq { width: 28px; padding: 0; justify-content: center; color: #0d5afd; }
+.do-pill:disabled { opacity: .6; }
+.do-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 3px; margin-bottom: 6px; background: #fff; border: 1px solid #e8ebfa; border-radius: 13px; }
+.do-tab {
+  height: 28px; border: 0; border-radius: 10px; background: transparent; color: #8480ae; font-size: .66rem; font-weight: 700;
+  letter-spacing: .03em; display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.do-tab.on { background: #0d5afd; color: #fff; box-shadow: 0 6px 12px -6px rgba(13, 90, 253, .7); }
+.do-filters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 8px; }
+.do-sel {
+  width: 100%; height: 30px; padding: 0 20px 0 8px; border: 1px solid #e1e6fa; border-radius: 10px; color: #1f0757; font-size: .66rem; font-weight: 500;
+  appearance: none; -webkit-appearance: none; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%238480ae' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 8px center;
+}
+.do-selall { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; margin-bottom: 6px; background: #fff; border: 1px solid #e1e6fa; border-radius: 12px; font-size: .72rem; }
+.do-selall label { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-weight: 700; color: #1f0757; }
+.do-selall button { border: 0; background: none; color: #8480ae; font-size: .7rem; padding: 0; }
+.do-chk { width: 17px; height: 17px; accent-color: #0d5afd; flex: none; margin: 0; }
+.do-list { display: flex; flex-direction: column; gap: 6px; }
+.do-card { position: relative; overflow: hidden; border-radius: 14px; border: 1px solid #e8ebfa; background: #fff; touch-action: pan-y; }
+.do-card.sel { border-color: #0d5afd; }
+.do-swipe { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; gap: 6px; padding-left: 14px; background: #ef4444; color: #fff; font-size: .72rem; font-weight: 700; }
+.do-fg { position: relative; z-index: 2; background: #fff; padding: 7px 10px 8px; }
+.do-card.sel .do-fg { background: #f5f8ff; }
+.do-r1 { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 20px; }
+.do-r1 .l { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.do-inv { font-size: .76rem; font-weight: 700; color: #0d5afd; white-space: nowrap; }
+.do-copy { font-size: .72rem; color: #a3a9c9; cursor: pointer; padding: 2px; }
+.do-prio { font-size: .5rem; font-weight: 800; letter-spacing: .03em; padding: 2px 5px; border-radius: 5px; background: #ef4444; color: #fff; }
+.do-icw { position: relative; display: inline-flex; }
+button.do-ic { border: 0; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.do-tip {
+  position: absolute; top: 25px; left: 50%; transform: translateX(-50%); z-index: 6; padding: 5px 10px; border-radius: 9px;
+  background: #1f0757; color: #fff; font-size: .68rem; font-weight: 600; line-height: 1.2; white-space: nowrap; pointer-events: none;
+  box-shadow: 0 10px 20px -8px rgba(31, 7, 87, .5); animation: do-pop .15s ease-out;
+}
+.do-tip::before { content: ''; position: absolute; top: -4px; left: 50%; width: 8px; height: 8px; background: #1f0757; transform: translateX(-50%) rotate(45deg); border-radius: 2px; }
+@keyframes do-pop { from { opacity: 0; transform: translate(-50%, -4px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.do-ic { width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: .66rem; flex: none; }
+.do-ic.kasir { background: #eef2ff; color: #4338ca; }
+.do-ic.ok { background: #d9f6e6; color: #0e8f55; }
+.do-ic.wait { background: #fff1cf; color: #a76a00; }
+.do-ic.srv { background: #e9f0ff; color: #0134d4; }
+.do-date { font-size: .64rem; color: #8480ae; white-space: nowrap; }
+.do-r2 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 1px; }
+.do-name { font-size: .8rem; font-weight: 700; color: #1f0757; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.do-total { font-size: .84rem; font-weight: 700; color: #0d5afd; white-space: nowrap; }
+.do-notes { display: flex; gap: 6px; margin-top: 3px; }
+.do-note { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 7px; font-size: .64rem; color: #1f0757; background: #eef7ff; border-left: 2px solid #38bdf8; }
+.do-note.k { background: #fff9e6; border-left-color: #f5b301; }
+.do-note span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.do-note i { font-size: .66rem; color: #0284c7; flex: none; }
+.do-note.k i { color: #b78103; }
+.do-r3 { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+.do-est { font-size: .62rem; color: #8480ae; white-space: nowrap; line-height: 1.15; }
+.do-est b { display: block; font-size: .66rem; color: #5f5a86; font-weight: 600; }
+.do-btns { flex: 1; display: grid; gap: 5px; }
+.do-b {
+  height: 26px; border-radius: 999px; border: 1px solid #0d5afd; background: #fff; color: #0d5afd; font-size: .7rem; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer; padding: 0; line-height: 1;
+}
+.do-b.p { background: #0d5afd; color: #fff; }
+.do-b.d { border-color: #f3b4b6; color: #e5484d; }
+.do-empty { text-align: center; padding: 36px 0; color: #8480ae; background: #fff; border-radius: 14px; border: 1px solid #e8ebfa; }
+.do-empty i { display: block; font-size: 1.8rem; opacity: .5; margin-bottom: 4px; }
+.do-empty p { margin: 0; font-size: .8rem; }
+/* Bar ikut di bawah daftar (tidak ada gap); saat daftar panjang menempel di atas menu bawah */
+.do-bulk { position: sticky; bottom: 70px; z-index: 1050; margin-top: 8px; animation: do-up .2s ease-out; }
+.do-bulk-in { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: #fff; border: 1px solid #e1e6fa; border-radius: 18px; box-shadow: 0 16px 30px -12px rgba(31, 7, 87, .35); }
+.do-bulk-in b { font-size: .76rem; color: #1f0757; padding-left: 4px; white-space: nowrap; }
+.do-bulk-in .g { display: flex; gap: 6px; }
+.do-bulk-in .do-b { height: 32px; padding: 0 12px; }
+@keyframes do-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+`;
 
 const DataOrder = ({ user }) => {
   const navigate = useNavigate();
@@ -58,6 +145,101 @@ const DataOrder = ({ user }) => {
   // State Modal Konfirmasi
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmData, setConfirmData] = useState({ id: null, type: '', message: '' });
+
+  // State Bulk Status
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [selectedOrderIds, setSelectedOrderIds] = useState([]);
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+
+  // State Touch Swipe Right to Delete
+  const touchStartRef = useRef({});
+  const [swipeOffset, setSwipeOffset] = useState({});
+
+  // Tooltip badge ikon (tap di Android/HP): { id, key } -> hilang otomatis / tap di luar
+  const [tip, setTip] = useState(null);
+  useEffect(() => {
+    if (!tip) return undefined;
+    const timer = setTimeout(() => setTip(null), 2600);
+    const close = () => setTip(null);
+    document.addEventListener('click', close);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', close);
+    };
+  }, [tip]);
+  const showTip = (e, id, key) => {
+    e.stopPropagation();
+    setTip((prev) => (prev && prev.id === id && prev.key === key ? null : { id, key }));
+  };
+
+  const handleTouchStart = (e, orderId) => {
+    if (isBulkMode) return;
+    touchStartRef.current[orderId] = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e, orderId) => {
+    if (isBulkMode) return;
+    const startX = touchStartRef.current[orderId];
+    if (startX === undefined) return;
+    const currentX = e.touches[0].clientX;
+    const diffX = currentX - startX;
+    if (diffX > 0 && diffX < 120) {
+      setSwipeOffset((prev) => ({ ...prev, [orderId]: diffX }));
+    }
+  };
+
+  const handleTouchEnd = (order) => {
+    if (isBulkMode) return;
+    const offset = swipeOffset[order.id] || 0;
+    setSwipeOffset((prev) => ({ ...prev, [order.id]: 0 }));
+    delete touchStartRef.current[order.id];
+
+    if (offset > 65) {
+      const isProses = order.status === 'Proses' || (!order.status && activeTab === 'Proses') || order.status === 'Baru';
+      if (isProses) {
+        if (isOwner) {
+          hardDelete(order.id);
+        } else {
+          requestDelete(order.id);
+        }
+      } else {
+        toast('Geser hapus hanya berlaku untuk order yang masih status Proses', { icon: 'ℹ️' });
+      }
+    }
+  };
+
+  const handleBulkChangeStatus = async (targetStatus) => {
+    if (selectedOrderIds.length === 0 || isBulkProcessing) return;
+    const sub = getCachedSubscriptionReportSync();
+    if (isPaidExpired(sub)) {
+      setGateModalConfig({
+        open: true,
+        type: 'SUBSCRIPTION_EXPIRED',
+        plan: sub?.plan,
+        isTrial: false,
+      });
+      return;
+    }
+    setIsBulkProcessing(true);
+    try {
+      let count = 0;
+      for (const id of selectedOrderIds) {
+        try {
+          await updateOrder(id, { status: targetStatus });
+          count++;
+        } catch (err) {
+          console.warn(`[BulkStatus] Gagal update order ${id}:`, err);
+        }
+      }
+      toast.success(`${count} order berhasil diubah ke status ${targetStatus}`);
+      setSelectedOrderIds([]);
+      setIsBulkMode(false);
+    } catch (e) {
+      toast.error(TOAST_MESSAGES.ERROR);
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
 
   // Query Data dengan Filter
   const orders = useLiveQuery(async () => {
@@ -159,207 +341,315 @@ const DataOrder = ({ user }) => {
     }
   };
 
+
+  // Ikon status untuk badge ringkas (hanya ikon; detail ada di atribut title)
+  const payMeta = (order) => {
+    const s = (order.statusBayar || '').toLowerCase();
+    if (isStatusLunas(order.statusBayar)) return { cls: 'ok', icon: 'bi-check-circle-fill', label: s || 'lunas' };
+    if (s === 'dp') return { cls: 'wait', icon: 'bi-circle-half', label: 'dp' };
+    return { cls: 'wait', icon: 'bi-hourglass-split', label: s || 'belum bayar' };
+  };
+  const serviceMeta = (order) => {
+    const t = (order.tipeLayanan || 'Datang Langsung');
+    return /jemput|antar/i.test(t)
+      ? { icon: 'bi-truck', label: t.toLowerCase() }
+      : { icon: 'bi-shop', label: t.toLowerCase() };
+  };
+  const formatEst = (order) => {
+    if (!order.createdAt || order.estimasi === undefined || order.estimasi === null || isNaN(order.estimasi)) return '-';
+    return new Date(new Date(order.createdAt).getTime() + order.estimasi * 86400000)
+      .toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+  };
+  const toggleSelect = (id) => {
+    setSelectedOrderIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
   return (
-    <div className="data-order-wrapper pb-5">
-      <div className="d-flex justify-content-between align-items-center mb-2.5 pt-1">
-        <small className="text-muted fw-semibold" style={{ fontSize: '0.78rem' }}>
-          <i className="bi bi-list-check me-1 mb-2 text-primary"></i>
+    <div className="data-order-wrapper do-wrap">
+      <style>{DO_CSS}</style>
+
+      {/* Bar ringkas: jumlah order + pilih banyak + sinkron */}
+      <div className="do-top">
+        <span className="do-count">
+          <i className="bi bi-list-check"></i>
           {orders?.length || 0} order terdaftar
-        </small>
-        <button
-          type="button"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="btn btn-sm btn-light border rounded-pill px-2.5 mb-3 py-1 shadow-xs d-flex align-items-center gap-1.5 text-primary fw-semibold"
-          style={{ fontSize: '0.78rem' }}
-          title="Sinkronisasi Data"
-        >
-          <i className="bi bi-arrow-clockwise"></i>
-        </button>
-      </div>
-
-      {/* Tabs */}
-      <div className="card shadow-sm border-0 mb-3">
-        <div className="card-body p-0">
-          <ul className="nav nav-tabs nav-fill border-0">
-            {['Proses', 'Selesai', 'Ambil', 'Dibatalkan'].map(tab => (
-              <li className="nav-item" key={tab}>
-                <button
-                  className={`nav-link border-0 fw-bold py-3 ${activeTab === tab ? 'active border-bottom border-primary text-primary' : 'text-muted'}`}
-                  onClick={() => setActiveTab(tab)}
-                  style={{ fontSize: '0.75rem' }}
-                >
-                  {tab.toUpperCase()}
-                </button>
-              </li>
-            ))}
-          </ul>
+        </span>
+        <div className="do-tools">
+          {orders && orders.length > 0 && (
+            <button
+              type="button"
+              className={`do-pill ${isBulkMode ? 'on' : ''}`}
+              onClick={() => {
+                setIsBulkMode(!isBulkMode);
+                if (isBulkMode) setSelectedOrderIds([]);
+              }}
+            >
+              <i className="bi bi-check2-square"></i>
+              <span>{isBulkMode ? 'Batal' : 'Pilih Banyak'}</span>
+            </button>
+          )}
+          <button
+            type="button"
+            className="do-pill sq"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            title="Sinkronisasi Data"
+            aria-label="Sinkronisasi Data"
+          >
+            <i className={`bi bi-arrow-clockwise ${isRefreshing ? 'spin' : ''}`}></i>
+          </button>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="row g-2 mb-4">
-        <div className="col-4 text-center">
-          <label className="small fw-bold text-muted mb-1 d-block" style={{ fontSize: '0.65rem' }}>Layanan</label>
-          <select className="form-select form-select-sm border-0 shadow-sm rounded-3" style={{ fontSize: '0.7rem' }} value={filterAntar} onChange={e => setFilterAntar(e.target.value)}>
-            <option value="Semua">Semua</option>
-            <option value="Datang Langsung">Datang</option>
-            <option value="Jemput/Antar">Antar</option>
-          </select>
-        </div>
-        <div className="col-4 text-center">
-          <label className="small fw-bold text-muted mb-1 d-block" style={{ fontSize: '0.65rem' }}>Bayar</label>
-          <select className="form-select form-select-sm border-0 shadow-sm rounded-3" style={{ fontSize: '0.7rem' }} value={filterBayar} onChange={e => setFilterBayar(e.target.value)}>
-            <option value="Semua">Semua</option>
-            <option value="Lunas">Lunas</option>
-            <option value="DP">DP</option>
-            <option value="Belum Bayar">Belum</option>
-          </select>
-        </div>
-        <div className="col-4 text-center">
-          <label className="small fw-bold text-muted mb-1 d-block" style={{ fontSize: '0.65rem' }}>Prioritas</label>
-          <select className="form-select form-select-sm border-0 shadow-sm rounded-3" style={{ fontSize: '0.7rem' }} value={filterPrioritas} onChange={e => setFilterPrioritas(e.target.value)}>
-            <option value="Semua">Semua</option>
-            <option value="Ya">Ya</option>
-            <option value="Tidak">Tidak</option>
-          </select>
-        </div>
+      {/* Tab status */}
+      <div className="do-tabs" role="tablist">
+        {['Proses', 'Selesai', 'Ambil', 'Dibatalkan'].map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab}
+            className={`do-tab ${activeTab === tab ? 'on' : ''}`}
+            onClick={() => {
+              setActiveTab(tab);
+              setSelectedOrderIds([]);
+            }}
+          >
+            {tab.toUpperCase()}
+          </button>
+        ))}
       </div>
 
-      {/* Order List */}
-      <div className="order-list">
+      {/* Filter */}
+      <div className="do-filters">
+        <select className="do-sel" value={filterAntar} onChange={(e) => setFilterAntar(e.target.value)} aria-label="Filter layanan">
+          <option value="Semua">Semua Layanan</option>
+          <option value="Datang Langsung">Datang Langsung</option>
+          <option value="Jemput/Antar">Jemput/Antar</option>
+        </select>
+        <select className="do-sel" value={filterBayar} onChange={(e) => setFilterBayar(e.target.value)} aria-label="Filter pembayaran">
+          <option value="Semua">Semua Bayar</option>
+          <option value="Lunas">Lunas</option>
+          <option value="DP">DP</option>
+          <option value="Belum Bayar">Belum Bayar</option>
+        </select>
+        <select className="do-sel" value={filterPrioritas} onChange={(e) => setFilterPrioritas(e.target.value)} aria-label="Filter prioritas">
+          <option value="Semua">Semua Prioritas</option>
+          <option value="Ya">Prioritas: Ya</option>
+          <option value="Tidak">Prioritas: Tidak</option>
+        </select>
+      </div>
+
+      {/* Pilih semua saat mode bulk */}
+      {isBulkMode && orders && orders.length > 0 && (
+        <div className="do-selall">
+          <label htmlFor="selectAllOrders">
+            <input
+              type="checkbox"
+              className="do-chk"
+              id="selectAllOrders"
+              checked={selectedOrderIds.length === orders.length && orders.length > 0}
+              onChange={(e) => setSelectedOrderIds(e.target.checked ? orders.map((o) => o.id) : [])}
+            />
+            Pilih Semua ({selectedOrderIds.length}/{orders.length})
+          </label>
+          {selectedOrderIds.length > 0 && (
+            <button type="button" onClick={() => setSelectedOrderIds([])}>Bersihkan</button>
+          )}
+        </div>
+      )}
+
+      {/* Daftar order */}
+      <div className="do-list">
         {orders === undefined ? (
-          <OrderListSkeleton count={3} />
+          <OrderListSkeleton count={4} />
         ) : orders.length === 0 ? (
-          <div className="text-center py-5 text-muted">
-            <i className="bi bi-inbox fs-1 d-block mb-2"></i>
+          <div className="do-empty">
+            <i className="bi bi-inbox"></i>
             <p>Tidak ada data order</p>
           </div>
         ) : (
-          orders.map(order => (
-            <div className="card shadow-sm border-0 mb-3" key={order.id}>
-              <div className="card-body p-3">
-                <div className="d-flex justify-content-between mb-1">
-                  <div className="d-flex align-items-center flex-wrap gap-1">
-                    <span className="text-primary fw-bold small">{order.invoiceId}</span>
-                    <i className="bi bi-clipboard ms-1 text-muted" style={{ cursor: 'pointer', fontSize: '0.8rem' }} onClick={(e) => handleCopy(e, `${order.invoiceId}/${order.id}`)}></i>
-                    {order.isPriority && <span className="badge bg-danger ms-1" style={{ fontSize: '0.55rem' }}>PRIORITAS</span>}
-                  
+          orders.map((order) => {
+            const isSelected = selectedOrderIds.includes(order.id);
+            const isProses = order.status === 'Proses' || (!order.status && activeTab === 'Proses') || order.status === 'Baru';
+            const pay = payMeta(order);
+            const srv = serviceMeta(order);
+
+            // Aksi yang tampil (urutan: Detail, aksi utama, Hapus)
+            const canDelete = activeTab === 'Proses' || (isOwner && (activeTab === 'Selesai' || activeTab === 'Dibatalkan'));
+            const actionCount = 1 + (activeTab === 'Proses' || activeTab === 'Selesai' ? 1 : 0) + (canDelete ? 1 : 0);
+
+            return (
+              <div
+                key={order.id}
+                className={`do-card ${isSelected ? 'sel' : ''}`}
+                onTouchStart={(e) => handleTouchStart(e, order.id)}
+                onTouchMove={(e) => handleTouchMove(e, order.id)}
+                onTouchEnd={() => handleTouchEnd(order)}
+              >
+                {/* Latar merah: geser kanan untuk hapus (hanya status Proses) */}
+                {isProses && !isBulkMode && (
+                  <div className="do-swipe">
+                    <i className="bi bi-trash-fill"></i>
+                    <span>Geser untuk Hapus</span>
                   </div>
-                  <span className="text-muted small">{new Date(order.createdAt).toLocaleString('id-ID')}</span>
-                </div>
-                <div className="d-flex justify-content-between mb-1">
-                  <span className="fw-bold">{order.pelangganNama || 'Umum'}</span>
-                  <span className="fw-bold">Rp {order.total.toLocaleString()}</span>
-                </div>
-                <div className="d-flex justify-content-between mb-2">
-                  <span className="small text-muted">Est Selesai :</span>
-                  <span className="small text-muted">{new Date(new Date(order.createdAt).getTime() + (order.estimasi * 86400000)).toLocaleDateString('id-ID')}</span>
-                </div>
-                <div className="d-flex justify-content-between mb-2">
-                  {isOwner && (
-                      <span
-                        className="badge rounded-pill d-inline-flex align-items-center gap-1"
-                        style={{
-                          backgroundColor: '#eef2ff',
-                          color: '#4338ca',
-                          fontSize: '0.65rem',
-                          fontWeight: '600',
-                          border: '1px solid #c7d2fe'
-                        }}
-                        title="Kasir yang memproses order ini"
-                      >
-                        <i className="bi bi-person-fill"></i>
-                        <span>Kasir: {getKasirUsername(order)}</span>
+                )}
+
+                <div
+                  className="do-fg"
+                  style={{
+                    transform: `translateX(${swipeOffset[order.id] || 0}px)`,
+                    transition: swipeOffset[order.id] ? 'none' : 'transform 0.2s ease',
+                  }}
+                  onClick={() => {
+                    if (isBulkMode) toggleSelect(order.id);
+                  }}
+                >
+                  {/* Baris 1: invoice + badge ikon (kasir, bayar, layanan) + tanggal */}
+                  <div className="do-r1">
+                    <div className="l">
+                      {isBulkMode && (
+                        <input
+                          type="checkbox"
+                          className="do-chk"
+                          checked={isSelected}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={() => toggleSelect(order.id)}
+                          aria-label={`Pilih order ${order.invoiceId}`}
+                        />
+                      )}
+                      <span className="do-inv">{order.invoiceId}</span>
+                      <i
+                        className="bi bi-clipboard do-copy"
+                        onClick={(e) => handleCopy(e, `${order.invoiceId}/${order.id}`)}
+                        title="Salin No. Order"
+                      ></i>
+                      {order.isPriority && <span className="do-prio">PRIORITAS</span>}
+                      {isOwner && (
+                        <span className="do-icw">
+                          <button type="button" className="do-ic kasir" aria-label={`Kasir ${getKasirUsername(order)}`} onClick={(e) => showTip(e, order.id, 'kasir')}>
+                            <i className="bi bi-person-fill"></i>
+                          </button>
+                          {tip?.id === order.id && tip.key === 'kasir' && <span className="do-tip" role="status">Kasir: {getKasirUsername(order)}</span>}
+                        </span>
+                      )}
+                      <span className="do-icw">
+                        <button type="button" className={`do-ic ${pay.cls}`} aria-label={`Pembayaran ${pay.label}`} onClick={(e) => showTip(e, order.id, 'pay')}>
+                          <i className={`bi ${pay.icon}`}></i>
+                        </button>
+                        {tip?.id === order.id && tip.key === 'pay' && <span className="do-tip" role="status">Bayar: {pay.label}</span>}
                       </span>
-                    )}
-                </div>
-
-                {order.catatan && (
-                  <div className="mb-2 p-2 rounded-3 border-start border-3 border-info" style={{ fontSize: '0.7rem', backgroundColor: '#f0faff' }}>
-                    <div className="d-flex align-items-center gap-1 text-info fw-bold mb-0.5">
-                      <i className="bi bi-tag-fill"></i>
-                      <span>Catatan Pelanggan:</span>
+                      <span className="do-icw">
+                        <button type="button" className="do-ic srv" aria-label={`Layanan ${srv.label}`} onClick={(e) => showTip(e, order.id, 'srv')}>
+                          <i className={`bi ${srv.icon}`}></i>
+                        </button>
+                        {tip?.id === order.id && tip.key === 'srv' && <span className="do-tip" role="status">Layanan: {srv.label}</span>}
+                      </span>
                     </div>
-                    <span className="text-dark">{order.catatan}</span>
-                  </div>
-                )}
-
-                {order.catatanKasir && (
-                  <div className="mb-2 p-2 rounded-3 border-start border-3 border-warning" style={{ fontSize: '0.7rem', backgroundColor: '#fffdf0' }}>
-                    <div className="d-flex align-items-center gap-1 text-warning-emphasis fw-bold mb-0.5">
-                      <i className="bi bi-shield-lock-fill text-warning"></i>
-                      <span>Note Kasir:</span>
-                    </div>
-                    <span className="text-dark">{order.catatanKasir}</span>
-                  </div>
-                )}
-
-                <div className="d-flex gap-1 mb-3">
-                  <span
-                    className={`badge rounded-pill ${isStatusLunas(order.statusBayar) ? 'bg-success-light text-success' : 'bg-warning-light text-warning'}`}
-                    style={{
-                      backgroundColor: isStatusLunas(order.statusBayar) ? '#d1f7e0' : '#fff3cd',
-                      color: isStatusLunas(order.statusBayar) ? '#00a854' : '#856404',
-                      fontSize: '0.65rem'
-                    }}
-                  >
-                    {order.statusBayar?.toLowerCase() || 'belum bayar'}
-                  </span>
-                  <span className="badge rounded-pill bg-warning-light text-warning" style={{ backgroundColor: '#fff9c4', color: '#fbc02d', fontSize: '0.65rem' }}>
-                    {order.tipeLayanan?.toLowerCase()}
-                  </span>
-                </div>
-
-                <div className="row g-2 mt-2">
-                  <div className={
-                    activeTab === 'Proses'
-                      ? 'col-4'
-                      : activeTab === 'Selesai'
-                        ? (user?.role === 'owner' ? 'col-4' : 'col-6')
-                        : (user?.role === 'owner' ? 'col-6' : 'col-12')
-                  }>
-                    <button className="btn btn-outline-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => navigate(`/order/${order.id}`)}>Detail</button>
+                    <span className="do-date">
+                      {new Date(order.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}{' '}
+                      {new Date(order.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
                   </div>
 
-                  {activeTab === 'Proses' && (
-                    <div className="col-4">
-                      <button className="btn btn-outline-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => confirmSelesai(order.id)}>Selesai</button>
+                  {/* Baris 2: nama + total */}
+                  <div className="do-r2">
+                    <span className="do-name">{order.pelangganNama || 'Umum'}</span>
+                    <span className="do-total">Rp {order.total.toLocaleString('id-ID')}</span>
+                  </div>
+
+                  {/* Catatan (satu baris, hanya jika ada) */}
+                  {(order.catatan || order.catatanKasir) && (
+                    <div className="do-notes">
+                      {order.catatan && (
+                        <div className="do-note" title={order.catatan}>
+                          <i className="bi bi-chat-left-text-fill"></i>
+                          <span>{order.catatan}</span>
+                        </div>
+                      )}
+                      {order.catatanKasir && (
+                        <div className="do-note k" title={order.catatanKasir}>
+                          <i className="bi bi-person-lines-fill"></i>
+                          <span>{order.catatanKasir}</span>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {activeTab === 'Selesai' && (
-                    <div className={user?.role === 'owner' ? 'col-4' : 'col-6'}>
-                      <button className="btn btn-outline-primary btn-sm w-100 fw-bold shadow-sm" onClick={() => confirmAmbil(order.id)}>Ambil</button>
-                    </div>
-                  )}
-
-                  {activeTab === 'Dibatalkan' && user?.role === 'owner' && (
-                    <div className="col-6">
-                      <button className="btn btn-outline-danger btn-sm w-100 fw-bold shadow-sm" onClick={() => hardDelete(order.id)} title={BUTTON_TITLE.DELETE}>
-                        Hapus
+                  {/* Baris 3: estimasi + tombol aksi */}
+                  <div className="do-r3" onClick={(e) => e.stopPropagation()}>
+                    <span className="do-est">
+                      Est
+                      <b>{formatEst(order)}</b>
+                    </span>
+                    <div className="do-btns" style={{ gridTemplateColumns: `repeat(${actionCount}, 1fr)` }}>
+                      <button type="button" className="do-b" onClick={() => navigate(`/order/${order.id}`)}>
+                        Detail
                       </button>
-                    </div>
-                  )}
 
-                  {/* Kasir boleh delete jika masih proses (hanya request delete). Owner boleh langsung hapus di Proses dan Selesai */}
-                  {((activeTab === 'Proses') || (activeTab === 'Selesai' && user?.role === 'owner')) && (
-                    <div className="col-4 text-end">
-                      <button
-                        className="btn btn-outline-danger btn-sm w-100 fw-bold shadow-sm"
-                        onClick={() => (user?.role === 'owner' ? hardDelete(order.id) : requestDelete(order.id))}
-                        title={BUTTON_TITLE.DELETE}
-                      >
-                        Hapus
-                      </button>
+                      {activeTab === 'Proses' && (
+                        <button type="button" className="do-b p" onClick={() => confirmSelesai(order.id)}>
+                          Selesai
+                        </button>
+                      )}
+
+                      {activeTab === 'Selesai' && (
+                        <button type="button" className="do-b p" onClick={() => confirmAmbil(order.id)}>
+                          Ambil
+                        </button>
+                      )}
+
+                      {/* Kasir boleh ajukan hapus jika masih Proses; owner langsung hapus */}
+                      {canDelete && (
+                        <button
+                          type="button"
+                          className="do-b d"
+                          title={BUTTON_TITLE.DELETE}
+                          onClick={() => (isOwner ? hardDelete(order.id) : requestDelete(order.id))}
+                        >
+                          Hapus
+                        </button>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
+
+      {/* Bar bulk pindah status (di atas menu bawah) */}
+      {isBulkMode && selectedOrderIds.length > 0 && (
+        <div className="do-bulk">
+          <div className="do-bulk-in">
+            <b>{selectedOrderIds.length} dipilih</b>
+            <div className="g">
+              {activeTab !== 'Selesai' && (
+                <button type="button" className="do-b p" disabled={isBulkProcessing} onClick={() => handleBulkChangeStatus('Selesai')}>
+                  <i className="bi bi-check-all"></i> Selesai
+                </button>
+              )}
+              {activeTab !== 'Ambil' && (
+                <button type="button" className="do-b" disabled={isBulkProcessing} onClick={() => handleBulkChangeStatus('Ambil')}>
+                  <i className="bi bi-bag-check"></i> Ambil
+                </button>
+              )}
+              <button
+                type="button"
+                className="do-b"
+                style={{ borderColor: '#e1e6fa', color: '#8480ae' }}
+                onClick={() => {
+                  setSelectedOrderIds([]);
+                  setIsBulkMode(false);
+                }}
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Konfirmasi Kustom */}
       {showConfirmModal && (
@@ -376,9 +666,9 @@ const DataOrder = ({ user }) => {
                   <p className="text-muted small mb-4">{confirmData.message}</p>
 
                   <div className="d-flex gap-2">
-                    <button className="btn btn-outline-primary w-100 rounded-pill fw-bold py-2" onClick={() => setShowConfirmModal(false)}>Batal</button>
+                    <button className="btn btn-outline-secondary w-100 rounded-pill fw-bold py-2" onClick={() => setShowConfirmModal(false)}>Batal</button>
                     <button
-                      className="btn btn-outline-primary w-100 rounded-pill fw-bold py-2 shadow-sm"
+                      className={`btn w-100 rounded-pill fw-bold py-2 shadow-sm ${confirmData.type === 'hard' ? 'btn-danger' : 'btn-primary'}`}
                       onClick={handleExecuteAction}
                     >
                       {confirmData.type === 'hard' ? 'Hapus' : confirmData.type === 'selesai' ? 'Ya, Selesai' : confirmData.type === 'ambil' ? 'Ya, Ambil' : 'Ya, Ajukan'}
