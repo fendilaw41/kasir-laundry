@@ -6,6 +6,7 @@ import { getPlansQuery, syncPlansFromBackend, DEFAULT_PLANS } from '../db/reposi
 import {
   PLAN_CONFIGS,
   getSubscriptionReport,
+  getCachedSubscriptionReportSync,
   applyPlan,
   getUpgradeWhatsAppUrl,
   getTopupWhatsAppUrl,
@@ -17,9 +18,10 @@ export default function Plan({ user }) {
   const rawPlans = useLiveQuery(getPlansQuery, [], []);
   const plans = rawPlans && rawPlans.length > 0 ? rawPlans : DEFAULT_PLANS;
 
-  const [loading, setLoading] = useState(true);
+  const cachedInit = getCachedSubscriptionReportSync();
+  const [loading, setLoading] = useState(!cachedInit);
   const [submitting, setSubmitting] = useState(false);
-  const [report, setReport] = useState(null);
+  const [report, setReport] = useState(cachedInit);
   const [topupModalOpen, setTopupModalOpen] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [selectedPaymentPlan, setSelectedPaymentPlan] = useState(null);
@@ -37,7 +39,7 @@ export default function Plan({ user }) {
   };
 
   const fetchStatus = async () => {
-    setLoading(true);
+    if (!report) setLoading(true);
     try {
       const data = await getSubscriptionReport({ force: true });
       setReport(data);
@@ -109,6 +111,59 @@ export default function Plan({ user }) {
     return '#10b981';
   };
 
+  const getPeriodInfo = () => {
+    if (report?.enabled === false || report?.plan === 'UNLIMITED') {
+      return {
+        rangeText: 'Tanpa Batas Waktu (Unlimited)',
+        remainingText: 'Aktif Selamanya',
+        daysLeft: null,
+        isExpired: false,
+      };
+    }
+
+    const start = report?.currentPeriodStart ? new Date(report.currentPeriodStart) : null;
+    const end = report?.currentPeriodEnd ? new Date(report.currentPeriodEnd) : null;
+    const isValidStart = start && !isNaN(start.getTime());
+    const isValidEnd = end && !isNaN(end.getTime());
+    const fmt = (d) => d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+
+    if (!isValidEnd) {
+      return {
+        rangeText: 'Periode berjalan bulan ini',
+        remainingText: 'Aktif',
+        daysLeft: null,
+        isExpired: false,
+      };
+    }
+
+    const now = new Date();
+    const diffMs = end.getTime() - now.getTime();
+    const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    const isExp = report?.status === 'EXPIRED' || report?.isExpired || diffMs < 0;
+
+    const rangeText = isValidStart
+      ? `${fmt(start)} – ${fmt(end)}`
+      : `Berlaku s/d ${fmt(end)}`;
+
+    let remainingText = '';
+    if (isExp) {
+      remainingText = 'Masa aktif berakhir';
+    } else if (daysLeft === 0) {
+      remainingText = 'Berakhir hari ini';
+    } else {
+      remainingText = `Sisa ${daysLeft} hari`;
+    }
+
+    return {
+      rangeText,
+      remainingText,
+      daysLeft,
+      isExpired: isExp,
+    };
+  };
+
+  const periodInfo = getPeriodInfo();
+
   return (
     <div className="plan-page pb-5" style={{ backgroundColor: '#f4f6fa', minHeight: '100vh' }}>
       <div className="container px-3 pt-3" style={{ maxWidth: '780px' }}>
@@ -162,6 +217,37 @@ export default function Plan({ user }) {
                       {currentPlan.name}
                     </h3>
 
+                    {/* KETERANGAN MASA WAKTU / PERIODE AKTIF PAKET */}
+                    <div className="d-flex flex-wrap align-items-center gap-2 mt-2">
+                      <span
+                        className="d-inline-flex align-items-center gap-1.5 text-white"
+                        style={{
+                          fontSize: '0.75rem',
+                          opacity: 0.92,
+                        }}
+                      >
+                        <i className="bi bi-calendar3 text-warning"></i>
+                        <span>{periodInfo.rangeText}</span>
+                      </span>
+                      {periodInfo.remainingText && (
+                        <span
+                          className="badge rounded-pill fw-semibold d-inline-flex align-items-center gap-1"
+                          style={{
+                            backgroundColor: periodInfo.isExpired
+                              ? 'rgba(239, 68, 68, 0.85)'
+                              : periodInfo.daysLeft !== null && periodInfo.daysLeft <= 5
+                                ? 'rgba(245, 158, 11, 0.85)'
+                                : 'rgba(255, 255, 255, 0.2)',
+                            color: '#ffffff',
+                            fontSize: '0.68rem',
+                            padding: '3.5px 9px',
+                          }}
+                        >
+                          <i className="bi bi-clock-history"></i>
+                          <span>{periodInfo.remainingText}</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="text-end d-flex flex-column align-items-end">

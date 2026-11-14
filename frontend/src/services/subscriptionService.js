@@ -422,11 +422,15 @@ async function calculateOfflineUsage(storeId) {
   const trxPercent = totalTrx === -1 ? 0 : Math.min(100, Math.round((trxCount / totalTrx) * 100));
 
   let subStatus = 'ACTIVE';
+  let currentPeriodStart = startOfMonth;
   let currentPeriodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   if (db.storeSubscriptions && storeId) {
     try {
       const existingSub = await db.storeSubscriptions.where('storeId').equals(storeId).first();
       if (existingSub) {
+        if (existingSub.currentPeriodStart) {
+          currentPeriodStart = new Date(existingSub.currentPeriodStart);
+        }
         if (existingSub.currentPeriodEnd) {
           currentPeriodEnd = new Date(existingSub.currentPeriodEnd);
         }
@@ -446,7 +450,7 @@ async function calculateOfflineUsage(storeId) {
     status: isExpired ? 'EXPIRED' : subStatus,
     isExpired,
     isTrialExpired: isTrialExp,
-    currentPeriodStart: startOfMonth,
+    currentPeriodStart,
     currentPeriodEnd,
     isEnforced: isSubscriptionEnabled(),
     limits,

@@ -32,11 +32,26 @@ const DO_CSS = `
   letter-spacing: .03em; display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
 .do-tab.on { background: #0d5afd; color: #fff; box-shadow: 0 6px 12px -6px rgba(13, 90, 253, .7); }
-.do-filters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 8px; }
+.do-filters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 6px; }
 .do-sel {
-  width: 100%; height: 30px; padding: 0 20px 0 8px; border: 1px solid #e1e6fa; border-radius: 10px; color: #1f0757; font-size: .66rem; font-weight: 500;
-  appearance: none; -webkit-appearance: none; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%238480ae' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 8px center;
+  width: 100%; height: 30px; padding: 0 18px 0 7px; border: 1px solid #e1e6fa; border-radius: 10px; color: #1f0757; font-size: .64rem; font-weight: 500;
+  text-overflow: ellipsis; white-space: nowrap; overflow: hidden;
+  appearance: none; -webkit-appearance: none; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%238480ae' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 6px center;
 }
+.do-dates { display: flex; align-items: center; gap: 6px; padding: 5px 8px; margin-bottom: 6px; background: #fff; border: 1px solid #e1e6fa; border-radius: 11px; }
+.do-date-field { flex: 1; display: flex; align-items: center; gap: 5px; min-width: 0; }
+.do-date-field span { font-size: .62rem; font-weight: 700; color: #8480ae; white-space: nowrap; }
+.do-date-in { width: 100%; height: 26px; padding: 0 6px; border: 1px solid #e1e6fa; border-radius: 8px; font-size: .66rem; font-weight: 600; color: #1f0757; background: #f8faff; min-width: 0; }
+.do-date-sep { font-size: .7rem; color: #8480ae; font-weight: 700; }
+.do-date-clr { width: 24px; height: 24px; border-radius: 50%; border: 0; background: #fee2e2; color: #ef4444; font-size: .65rem; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
+.do-more-wrap { display: flex; gap: 6px; margin-top: 6px; }
+.do-more {
+  flex: 1; height: 34px; border-radius: 12px; border: 1px dashed #b9c8fe; background: #f5f8ff; color: #0d5afd;
+  font-size: .72rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;
+  transition: all .15s ease;
+}
+.do-more:active { transform: scale(.99); background: #e8efff; }
+.do-more.sub { flex: 0 0 auto; padding: 0 12px; border-style: solid; border-color: #e1e6fa; background: #fff; color: #8480ae; }
 .do-selall { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; margin-bottom: 6px; background: #fff; border: 1px solid #e1e6fa; border-radius: 12px; font-size: .72rem; }
 .do-selall label { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-weight: 700; color: #1f0757; }
 .do-selall button { border: 0; background: none; color: #8480ae; font-size: .7rem; padding: 0; }
@@ -137,10 +152,20 @@ const DataOrder = ({ user }) => {
     }
   };
 
-  // State Filter
+  // State Filter & Pagination (Show More)
+  const PAGE_SIZE = 5;
   const [filterAntar, setFilterAntar] = useState('Semua');
   const [filterBayar, setFilterBayar] = useState('Semua');
   const [filterPrioritas, setFilterPrioritas] = useState('Semua');
+  const [filterTanggal, setFilterTanggal] = useState('Semua');
+  const [tanggalMulai, setTanggalMulai] = useState('');
+  const [tanggalAkhir, setTanggalAkhir] = useState('');
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  // Reset jumlah tampil saat tab atau filter berubah
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [activeTab, filterAntar, filterBayar, filterPrioritas, filterTanggal, tanggalMulai, tanggalAkhir]);
 
   // State Modal Konfirmasi
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -251,9 +276,57 @@ const DataOrder = ({ user }) => {
       const matchBayar = filterBayar === 'Semua' || (filterBayar === 'Lunas' ? isStatusLunas(order.statusBayar) : (filterBayar === 'DP' ? order.statusBayar === 'DP' : !isStatusLunas(order.statusBayar)));
       const matchPrioritas = filterPrioritas === 'Semua' || (filterPrioritas === 'Ya' ? order.isPriority : !order.isPriority);
 
-      return matchTab && matchAntar && matchBayar && matchPrioritas;
+      let matchTanggal = true;
+      if (filterTanggal !== 'Semua') {
+        if (!order.createdAt) {
+          matchTanggal = false;
+        } else {
+          const d = new Date(order.createdAt);
+          if (isNaN(d.getTime())) {
+            matchTanggal = false;
+          } else {
+            const now = new Date();
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+            const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+            if (filterTanggal === 'Hari Ini') {
+              matchTanggal = d >= todayStart && d <= todayEnd;
+            } else if (filterTanggal === 'Kemarin') {
+              const yStart = new Date(todayStart);
+              yStart.setDate(yStart.getDate() - 1);
+              const yEnd = new Date(todayEnd);
+              yEnd.setDate(yEnd.getDate() - 1);
+              matchTanggal = d >= yStart && d <= yEnd;
+            } else if (filterTanggal === '7 Hari') {
+              const start7 = new Date(todayStart);
+              start7.setDate(start7.getDate() - 6);
+              matchTanggal = d >= start7 && d <= todayEnd;
+            } else if (filterTanggal === 'Bulan Ini') {
+              const mStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+              const mEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+              matchTanggal = d >= mStart && d <= mEnd;
+            } else if (filterTanggal === 'Custom') {
+              if (tanggalMulai) {
+                const [y, m, day] = tanggalMulai.split('-').map(Number);
+                const startCustom = new Date(y, m - 1, day, 0, 0, 0, 0);
+                if (d < startCustom) matchTanggal = false;
+              }
+              if (matchTanggal && tanggalAkhir) {
+                const [y, m, day] = tanggalAkhir.split('-').map(Number);
+                const endCustom = new Date(y, m - 1, day, 23, 59, 59, 999);
+                if (d > endCustom) matchTanggal = false;
+              }
+            }
+          }
+        }
+      }
+
+      return matchTab && matchAntar && matchBayar && matchPrioritas && matchTanggal;
     });
-  }, [activeTab, filterAntar, filterBayar, filterPrioritas]);
+  }, [activeTab, filterAntar, filterBayar, filterPrioritas, filterTanggal, tanggalMulai, tanggalAkhir]);
+
+  const visibleOrders = orders ? orders.slice(0, visibleCount) : undefined;
+  const remainingOrdersCount = orders ? Math.max(0, orders.length - visibleCount) : 0;
 
 
   const handleCopy = (e, text) => {
@@ -372,7 +445,9 @@ const DataOrder = ({ user }) => {
       <div className="do-top">
         <span className="do-count">
           <i className="bi bi-list-check"></i>
-          {orders?.length || 0} order terdaftar
+          {orders && orders.length > PAGE_SIZE
+            ? `${visibleOrders?.length || 0} dari ${orders.length} order`
+            : `${orders?.length || 0} order terdaftar`}
         </span>
         <div className="do-tools">
           {orders && orders.length > 0 && (
@@ -438,7 +513,70 @@ const DataOrder = ({ user }) => {
           <option value="Ya">Prioritas: Ya</option>
           <option value="Tidak">Prioritas: Tidak</option>
         </select>
+        <select
+          className="do-sel"
+          value={filterTanggal}
+          onChange={(e) => {
+            const val = e.target.value;
+            setFilterTanggal(val);
+            if (val === 'Custom' && !tanggalMulai && !tanggalAkhir) {
+              const todayStr = new Date().toISOString().slice(0, 10);
+              setTanggalMulai(todayStr);
+              setTanggalAkhir(todayStr);
+            }
+          }}
+          aria-label="Filter tanggal"
+        >
+          <option value="Semua">Semua Tanggal</option>
+          <option value="Hari Ini">Hari Ini</option>
+          <option value="Kemarin">Kemarin</option>
+          <option value="7 Hari">7 Hari Terakhir</option>
+          <option value="Bulan Ini">Bulan Ini</option>
+          <option value="Custom">Pilih Tanggal...</option>
+        </select>
       </div>
+
+      {/* Input rentang tanggal kustom (tampil saat pilih Custom) */}
+      {filterTanggal === 'Custom' && (
+        <div className="do-dates">
+          <div className="do-date-field">
+            <span>Dari</span>
+            <input
+              type="date"
+              className="do-date-in"
+              value={tanggalMulai}
+              onChange={(e) => setTanggalMulai(e.target.value)}
+              aria-label="Dari tanggal"
+            />
+          </div>
+          <span className="do-date-sep">–</span>
+          <div className="do-date-field">
+            <span>S/d</span>
+            <input
+              type="date"
+              className="do-date-in"
+              value={tanggalAkhir}
+              min={tanggalMulai || undefined}
+              onChange={(e) => setTanggalAkhir(e.target.value)}
+              aria-label="Sampai tanggal"
+            />
+          </div>
+          {(tanggalMulai || tanggalAkhir) && (
+            <button
+              type="button"
+              className="do-date-clr"
+              onClick={() => {
+                setTanggalMulai('');
+                setTanggalAkhir('');
+              }}
+              title="Reset tanggal"
+              aria-label="Reset tanggal"
+            >
+              <i className="bi bi-x-lg"></i>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Pilih semua saat mode bulk */}
       {isBulkMode && orders && orders.length > 0 && (
@@ -469,7 +607,7 @@ const DataOrder = ({ user }) => {
             <p>Tidak ada data order</p>
           </div>
         ) : (
-          orders.map((order) => {
+          visibleOrders.map((order) => {
             const isSelected = selectedOrderIds.includes(order.id);
             const isProses = order.status === 'Proses' || (!order.status && activeTab === 'Proses') || order.status === 'Baru';
             const pay = payMeta(order);
@@ -618,6 +756,33 @@ const DataOrder = ({ user }) => {
           })
         )}
       </div>
+
+      {/* Tombol Show More / Ringkas */}
+      {orders && orders.length > PAGE_SIZE && (
+        <div className="do-more-wrap">
+          {remainingOrdersCount > 0 && (
+            <button
+              type="button"
+              className="do-more"
+              onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+            >
+              <i className="bi bi-chevron-down"></i>
+              <span>Show More ({remainingOrdersCount} order lagi)</span>
+            </button>
+          )}
+          {visibleCount > PAGE_SIZE && (
+            <button
+              type="button"
+              className="do-more sub"
+              onClick={() => setVisibleCount(PAGE_SIZE)}
+              title="Kembali tampilkan 5 order teratas"
+            >
+              <i className="bi bi-chevron-up"></i>
+              <span>Ringkas</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Bar bulk pindah status (di atas menu bawah) */}
       {isBulkMode && selectedOrderIds.length > 0 && (
