@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { registerUser } from '../db/repositories/users';
 import { fetchStoreInfoByCode } from '../utils/pwaHelper';
+import AuthShell from '../components/auth/AuthShell';
 
 const formatWhatsAppNumber = (rawPhone) => {
   let clean = (rawPhone || '').replace(/\D/g, '');
@@ -141,329 +142,260 @@ const Register = () => {
     }
   };
 
+  const strength = [hasMinLen, hasLower && hasUpper, hasSpecial].filter(Boolean).length;
+  const displayStoreName = existingStoreInfo?.name || storeName || 'Laundry';
+
   return (
-    <div className="login-wrapper d-flex align-items-center justify-content-center py-4" style={{ backgroundColor: '#f0f4fd', minHeight: '100vh' }}>
-      <div className="container">
-        <div className="row justify-content-center">
-          <div className="col-12 col-sm-10 col-md-8 col-lg-5">
-            {/* Logo / Header Branding */}
-            <div className="text-center px-4 mb-3">
-              <Link to="/" className="text-decoration-none d-inline-block">
-                <div
-                  className="d-inline-flex align-items-center justify-content-center rounded-3 shadow-xs mb-2"
-                  style={{ width: '48px', height: '48px', backgroundColor: '#0134d4', color: '#fff' }}
-                >
-                  <i className="bi bi-shop fs-4"></i>
+    <AuthShell
+      headline="Daftar sekali, kelola seluruh toko dari satu akun owner."
+      lead="Buat akun owner, dapatkan kode toko, lalu undang kasir Anda kapan saja."
+    >
+      {/* Header kartu */}
+      <div className="au-head">
+        <div className="au-logo"><i className={`bi ${successData ? 'bi-check2-circle' : 'bi-person-plus-fill'}`}></i></div>
+        <h1 className="au-title">{successData ? 'Pendaftaran Berhasil!' : 'Daftar Akun Owner'}</h1>
+        <p className="au-sub">
+          {successData ? 'Akun dan Toko Anda siap digunakan' : 'Satu akun owner untuk kelola cucian, kasir & nota otomatis'}
+        </p>
+      </div>
+
+      {/* KARTU SUKSES & AKTIVASI VIA WHATSAPP */}
+      {successData ? (
+        <div className="text-center">
+          <div className="au-ok-ico"><i className="bi bi-check-lg"></i></div>
+          <h2 style={{ fontSize: '1.15rem', fontWeight: 800 }}>{successData.storeName}</h2>
+          <p style={{ marginTop: 4 }}>Toko dan akun Owner berhasil didaftarkan.</p>
+
+          <div className="au-summary">
+            <div><span>Kode Toko</span><b className="code">{successData.storeCode}</b></div>
+            <div><span>Username</span><b>{successData.username}</b></div>
+          </div>
+
+          <div className="au-wa-box">
+            <i className="bi bi-whatsapp"></i>
+            <div>
+              <b>Undangan Aktivasi Terkirim ke WhatsApp</b>
+              <p>Silahkan buka WhatsApp dan klik tautan untuk langsung mengaktifkan toko.</p>
+            </div>
+          </div>
+
+          <div className="au-stack">
+            {successData.phone && (
+              <a href={successData.waUrl} target="_blank" rel="noopener noreferrer" className="au-btn au-btn-wa">
+                <i className="bi bi-whatsapp"></i>
+                <span>Buka WhatsApp Owner</span>
+              </a>
+            )}
+            <Link to={`/login?code=${encodeURIComponent(successData.storeCode)}`} className="au-btn au-btn-primary">
+              <i className="bi bi-box-arrow-in-right"></i>
+              <span>Lanjut ke Halaman Login</span>
+            </Link>
+          </div>
+        </div>
+      ) : (
+        /* FORM REGISTRASI OWNER */
+        <>
+          {message && (
+            <div className="au-alert err" role="alert">
+              <i className="bi bi-exclamation-circle-fill"></i>
+              <span>{message}</span>
+            </div>
+          )}
+
+          {/* Info Toko Terdaftar jika kode toko disertakan */}
+          {storeCodeInput && (
+            <div className="au-alert info">
+              <i className="bi bi-info-circle-fill"></i>
+              <div>
+                <strong>Mendaftarkan Akun Owner</strong> untuk toko <strong>{displayStoreName}</strong>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            {/* KHUSUS PENDAFTARAN TOKO BARU (TANPA KODE TOKO DI URL) */}
+            {!storeCodeInput && (
+              <>
+                <div className="au-sec">Data Toko</div>
+
+                <div className="au-field">
+                  <label className="au-label" htmlFor="reg-store">
+                    <span>Nama Toko / Laundry <span className="req">*</span></span>
+                  </label>
+                  <div className="au-ctl">
+                    <i className="au-ico bi bi-shop"></i>
+                    <input
+                      id="reg-store"
+                      className="au-input"
+                      type="text"
+                      placeholder="Contoh: Berkah Laundry"
+                      value={storeName}
+                      onChange={(e) => setStoreName(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
-                <h4 className="fw-bold text-dark mb-0" style={{ letterSpacing: '-0.3px' }}>
-                  TOKOPLUS
-                </h4>
-              </Link>
-              <h5 className="fw-bold text-dark mt-2 mb-1" style={{ letterSpacing: '-0.3px', fontSize: '16px' }}>
-                {successData ? 'Pendaftaran Berhasil!' : 'Daftar Akun Owner'}
-              </h5>
-              <p className="text-muted small mb-0" style={{ fontSize: '13px' }}>
-                {successData ? 'Akun dan Toko Anda siap digunakan' : 'Satu akun owner untuk kelola cucian, kasir & nota otomatis'}
-              </p>
+
+                <div className="au-field">
+                  <label className="au-label" htmlFor="reg-phone">
+                    <span>No. WhatsApp Owner <span className="req">*</span></span>
+                  </label>
+                  <div className="au-ctl with-prefix">
+                    <span className="au-prefix">+62</span>
+                    <input
+                      id="reg-phone"
+                      className="au-input"
+                      type="tel"
+                      placeholder="81234567890"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <p className="au-hint">
+                    <i className="bi bi-whatsapp"></i>
+                    <span>Tautan undangan dan aktivasi toko akan otomatis dikirim ke nomor ini.</span>
+                  </p>
+                </div>
+
+                <div className="au-sec" style={{ marginTop: 22 }}>Akun Owner</div>
+              </>
+            )}
+
+            {/* Nama Lengkap Owner */}
+            <div className="au-field">
+              <label className="au-label" htmlFor="reg-fullname">
+                <span>Nama Lengkap Owner <span className="req">*</span></span>
+              </label>
+              <div className="au-ctl">
+                <i className="au-ico bi bi-person"></i>
+                <input
+                  id="reg-fullname"
+                  className="au-input"
+                  type="text"
+                  placeholder="Contoh: John Pratama"
+                  value={fullname}
+                  onChange={(e) => setFullname(e.target.value)}
+                  required
+                />
+              </div>
             </div>
 
-            {/* KARTU SUKSES & AKTIVASI VIA WHATSAPP */}
-            {successData ? (
-              <div className="card shadow-sm border-0 rounded-4 overflow-hidden bg-white p-4 text-center">
-                <div
-                  className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
-                  style={{ width: '64px', height: '64px', backgroundColor: '#dcfce7', color: '#16a34a' }}
-                >
-                  <i className="bi bi-check-circle-fill fs-1"></i>
-                </div>
-
-                <h5 className="fw-bold text-dark mb-1">{successData.storeName}</h5>
-                <p className="text-muted small mb-3" style={{ fontSize: '13px' }}>
-                  Toko dan akun Owner berhasil didaftarkan.
-                </p>
-
-                {/* Konfirmasi Undangan & Aktivasi WhatsApp */}
-                <div className="p-3 rounded-3 mb-3 text-center" style={{ backgroundColor: '#f0fdf4', border: '1.5px solid #bbf7d0' }}>
-                  <i className="bi bi-whatsapp text-success fs-2 d-block mb-1"></i>
-                  <h6 className="fw-bold text-success mb-1" style={{ fontSize: '14px' }}>
-                    Undangan Aktivasi Terkirim ke WhatsApp
-                  </h6>
-                  <p className="text-muted small mb-0" style={{ fontSize: '12px' }}>
-                    Silahkan buka WhatsApp dan klik tautan untuk langsung mengaktifkan toko.
-                  </p>
-                </div>
-
-                {/* Tombol Kirim WA & Login */}
-                <div className="d-grid gap-2 mb-2">
-                  {successData.phone && (
-                    <a
-                      href={successData.waUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-success fw-bold py-2 rounded-3 d-flex align-items-center justify-content-center gap-2 shadow-sm text-decoration-none"
-                      style={{ fontSize: '14px' }}
-                    >
-                      <i className="bi bi-whatsapp fs-5"></i>
-                      <span>Buka WhatsApp Owner</span>
-                    </a>
-                  )}
-                  <Link
-                    to={`/login?code=${encodeURIComponent(successData.storeCode)}`}
-                    className="btn btn-primary fw-bold py-2 rounded-3 d-flex align-items-center justify-content-center gap-2 shadow-sm text-decoration-none"
-                    style={{ fontSize: '14px', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
-                  >
-                    <i className="bi bi-box-arrow-in-right fs-5"></i>
-                    <span>Lanjut ke Halaman Login</span>
-                  </Link>
-                </div>
+            {/* Username */}
+            <div className="au-field">
+              <label className="au-label" htmlFor="reg-username">
+                <span>Username <span className="req">*</span></span>
+              </label>
+              <div className="au-ctl">
+                <i className="au-ico bi bi-at"></i>
+                <input
+                  id="reg-username"
+                  className="au-input"
+                  type="text"
+                  placeholder="Contoh: john"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+                  required
+                />
               </div>
-            ) : (
-              /* FORM REGISTRASI OWNER */
-              <div className="card shadow-sm border-0 rounded-4 overflow-hidden bg-white">
-                <div className="card-body p-4">
-                  {message && (
-                    <div className="alert alert-danger border-0 rounded-3 py-2 px-3 small d-flex align-items-center gap-2 mb-3">
-                      <i className="bi bi-exclamation-circle-fill fs-5 flex-shrink-0"></i>
-                      <span>{message}</span>
-                    </div>
-                  )}
+            </div>
 
-                  {/* Info Toko Terdaftar jika kode toko disertakan */}
-                  {storeCodeInput && (
-                    <div className="alert alert-primary border-0 rounded-3 py-2 px-3 small d-flex align-items-center gap-2 mb-3">
-                      <i className="bi bi-info-circle-fill fs-5 flex-shrink-0 text-primary"></i>
-                      <div>
-                        <strong>Mendaftarkan Akun Owner</strong> untuk toko{' '}
-                        <strong>{existingStoreInfo?.name || storeName || 'Laundry'}</strong>
-                      </div>
-                    </div>
-                  )}
+            {/* Password */}
+            <div className="au-field">
+              <label className="au-label" htmlFor="reg-pass">
+                <span>Password <span className="req">*</span></span>
+              </label>
+              <div className="au-ctl">
+                <i className="au-ico bi bi-lock"></i>
+                <input
+                  id="reg-pass"
+                  className="au-input has-eye"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Minimal 6 karakter"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button type="button" className="au-eye" aria-label="Tampilkan password" onClick={() => setShowPassword(!showPassword)}>
+                  <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                </button>
+              </div>
+            </div>
 
-                  <form onSubmit={handleSubmit}>
-                    {/* KHUSUS PENDAFTARAN TOKO BARU (TANPA KODE TOKO DI URL) */}
-                    {!storeCodeInput && (
-                      <>
-                        <div className="form-group mb-3">
-                          <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
-                            Nama Toko / Laundry <span className="text-danger">*</span>
-                          </label>
-                          <input
-                            className="form-control"
-                            style={{
-                              height: '42px',
-                              backgroundColor: '#f8fafc',
-                              border: '1.5px solid #cbd5e1',
-                              borderRadius: '10px',
-                              fontSize: '14px',
-                            }}
-                            type="text"
-                            placeholder="Contoh: Berkah Laundry"
-                            value={storeName}
-                            onChange={(e) => setStoreName(e.target.value)}
-                            required
-                          />
-                        </div>
+            {/* Konfirmasi Password */}
+            <div className="au-field">
+              <label className="au-label" htmlFor="reg-pass2">
+                <span>Konfirmasi Password <span className="req">*</span></span>
+              </label>
+              <div className="au-ctl">
+                <i className="au-ico bi bi-shield-lock"></i>
+                <input
+                  id="reg-pass2"
+                  className="au-input has-eye"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="Ulangi password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+                <button type="button" className="au-eye" aria-label="Tampilkan konfirmasi password" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                  <i className={`bi ${showConfirmPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                </button>
+              </div>
+            </div>
 
-                        <div className="form-group mb-3">
-                          <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
-                            No. WhatsApp Owner <span className="text-danger">*</span>
-                          </label>
-                          <div className="input-group">
-                            <span className="input-group-text bg-light text-muted fw-bold" style={{ border: '1.5px solid #cbd5e1', borderRight: 'none', borderRadius: '10px 0 0 10px', fontSize: '13px' }}>
-                              +62
-                            </span>
-                            <input
-                              className="form-control"
-                              style={{
-                                height: '42px',
-                                backgroundColor: '#f8fafc',
-                                border: '1.5px solid #cbd5e1',
-                                borderLeft: 'none',
-                                borderRadius: '0 10px 10px 0',
-                                fontSize: '14px',
-                              }}
-                              type="tel"
-                              placeholder="81234567890"
-                              value={phone}
-                              onChange={(e) => setPhone(e.target.value)}
-                              required
-                            />
-                          </div>
-                          <div className="form-text text-muted" style={{ fontSize: '11px' }}>
-                            Tautan undangan dan aktivasi toko akan otomatis dikirim ke nomor ini.
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {/* Nama Lengkap Owner */}
-                    <div className="form-group mb-3">
-                      <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
-                        Nama Lengkap Owner <span className="text-danger">*</span>
-                      </label>
-                      <input
-                        className="form-control"
-                        style={{
-                          height: '42px',
-                          backgroundColor: '#f8fafc',
-                          border: '1.5px solid #cbd5e1',
-                          borderRadius: '10px',
-                          fontSize: '14px',
-                        }}
-                        type="text"
-                        placeholder="Contoh: John Pratama"
-                        value={fullname}
-                        onChange={(e) => setFullname(e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    {/* Username */}
-                    <div className="form-group mb-3">
-                      <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
-                        Username <span className="text-danger">*</span>
-                      </label>
-                      <input
-                        className="form-control"
-                        style={{
-                          height: '42px',
-                          backgroundColor: '#f8fafc',
-                          border: '1.5px solid #cbd5e1',
-                          borderRadius: '10px',
-                          fontSize: '14px',
-                        }}
-                        type="text"
-                        placeholder="Contoh: john"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
-                        required
-                      />
-                    </div>
-
-                    {/* Password */}
-                    <div className="form-group mb-2">
-                      <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
-                        Password <span className="text-danger">*</span>
-                      </label>
-                      <div className="position-relative">
-                        <input
-                          className="form-control pe-5"
-                          style={{
-                            height: '42px',
-                            backgroundColor: '#f8fafc',
-                            border: '1.5px solid #cbd5e1',
-                            borderRadius: '10px',
-                            fontSize: '14px',
-                          }}
-                          type={showPassword ? 'text' : 'password'}
-                          placeholder="Minimal 6 karakter"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          required
-                        />
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-link position-absolute end-0 top-50 translate-middle-y text-muted text-decoration-none me-1"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Konfirmasi Password */}
-                    <div className="form-group mb-3">
-                      <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '12px' }}>
-                        Konfirmasi Password <span className="text-danger">*</span>
-                      </label>
-                      <div className="position-relative">
-                        <input
-                          className="form-control pe-5"
-                          style={{
-                            height: '42px',
-                            backgroundColor: '#f8fafc',
-                            border: '1.5px solid #cbd5e1',
-                            borderRadius: '10px',
-                            fontSize: '14px',
-                          }}
-                          type={showConfirmPassword ? 'text' : 'password'}
-                          placeholder="Ulangi password"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          required
-                        />
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-link position-absolute end-0 top-50 translate-middle-y text-muted text-decoration-none me-1"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        >
-                          <i className={`bi ${showConfirmPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Indikator Validasi Password Ringkas */}
-                    {password && (
-                      <div className="p-3 rounded-3 mb-3 bg-light" style={{ fontSize: '11px', border: '1px solid #e2e8f0' }}>
-                        <div className="fw-semibold text-muted mb-1">Ketentuan Keamanan Password:</div>
-                        <div className="d-flex flex-wrap gap-x-3 gap-y-1">
-                          <span className={hasMinLen ? 'text-success fw-bold' : 'text-muted'}>
-                            {hasMinLen ? '✓' : '•'} Min 6 karakter
-                          </span>
-                          <span className={hasUpper && hasLower ? 'text-success fw-bold' : 'text-muted'}>
-                            {hasUpper && hasLower ? '✓' : '•'} Huruf besar & kecil
-                          </span>
-                          <span className={hasSpecial ? 'text-success fw-bold' : 'text-muted'}>
-                            {hasSpecial ? '✓' : '•'} Karakter spesial (!@#$)
-                          </span>
-                          {confirmPassword && (
-                            <span className={isPassMatching ? 'text-success fw-bold' : 'text-danger'}>
-                              {isPassMatching ? '✓ Password cocok' : '✗ Password belum cocok'}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Submit Button */}
-                    <button
-                      className="btn btn-primary w-100 fw-bold shadow-sm mt-2"
-                      style={{
-                        height: '46px',
-                        borderRadius: '12px',
-                        fontSize: '15px',
-                        backgroundColor: '#0134d4',
-                        borderColor: '#0134d4',
-                        boxShadow: '0 4px 12px rgba(1, 52, 212, 0.25)',
-                      }}
-                      type="submit"
-                      disabled={loading}
-                    >
-                      {loading ? (
-                        <div className="d-flex align-items-center justify-content-center gap-2">
-                          <div className="spinner-border spinner-border-sm" role="status"></div>
-                          <span>Membuat Akun Owner...</span>
-                        </div>
-                      ) : ('Daftar')}
-                    </button>
-                  </form>
+            {/* Indikator Validasi Password Ringkas */}
+            {password && (
+              <div className="au-rules">
+                <div className="au-rules-t">Ketentuan Keamanan Password</div>
+                <div className="au-bar" aria-hidden="true">
+                  <i className={strength >= 1 ? 'on' : ''}></i>
+                  <i className={strength >= 2 ? 'on' : ''}></i>
+                  <i className={strength >= 3 ? 'on' : ''}></i>
                 </div>
-
-                {/* Footer */}
-                <div className="login-meta-data text-center pb-3 pt-1">
-                  <p className="mb-0 text-muted" style={{ fontSize: '13px' }}>
-                    Sudah punya akun?{' '}
-                    <Link to="/login" className="fw-bold text-decoration-none" style={{ color: '#0134d4' }}>
-                      Login di sini
-                    </Link>
-                  </p>
+                <div className="au-rule-list">
+                  <span className={`au-rule ${hasMinLen ? 'ok' : ''}`}>
+                    <i className={`bi ${hasMinLen ? 'bi-check-circle-fill' : 'bi-circle'}`}></i> Min 6 karakter
+                  </span>
+                  <span className={`au-rule ${hasUpper && hasLower ? 'ok' : ''}`}>
+                    <i className={`bi ${hasUpper && hasLower ? 'bi-check-circle-fill' : 'bi-circle'}`}></i> Huruf besar &amp; kecil
+                  </span>
+                  <span className={`au-rule ${hasSpecial ? 'ok' : ''}`}>
+                    <i className={`bi ${hasSpecial ? 'bi-check-circle-fill' : 'bi-circle'}`}></i> Karakter spesial (!@#$)
+                  </span>
+                  {confirmPassword && (
+                    <span className={`au-rule ${isPassMatching ? 'ok' : 'bad'}`}>
+                      <i className={`bi ${isPassMatching ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`}></i>
+                      {isPassMatching ? 'Password cocok' : 'Password belum cocok'}
+                    </span>
+                  )}
                 </div>
               </div>
             )}
-          </div>
-        </div>
-      </div>
-    </div>
+
+            {/* Submit Button */}
+            <button className="au-btn au-btn-primary" type="submit" disabled={loading} style={{ marginTop: 6 }}>
+              {loading ? (
+                <>
+                  <span className="au-spin" role="status"></span>
+                  <span>Membuat Akun Owner...</span>
+                </>
+              ) : (
+                <>
+                  <span>Daftar</span>
+                  <i className="bi bi-arrow-right"></i>
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Footer */}
+          <p className="au-foot">
+            Sudah punya akun? <Link to="/login">Login di sini</Link>
+          </p>
+        </>
+      )}
+    </AuthShell>
   );
 };
 

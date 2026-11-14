@@ -101,7 +101,7 @@ const Home = ({ user }) => {
             </div>
             <div className="mt-1">
               <span
-                className="badge rounded-pill px-2 py-0 fw-semibold font-monospace"
+                className="badge rounded-pill px-2 py-1 fw-semibold font-monospace"
                 style={{
                   backgroundColor: 'rgba(255, 255, 255, 0.22)',
                   backdropFilter: 'blur(4px)',
