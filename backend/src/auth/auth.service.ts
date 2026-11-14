@@ -749,6 +749,11 @@ export class AuthService {
       },
       include: {
         settings: true,
+        users: {
+          where: { role: 'owner', deletedAt: null },
+          select: { id: true, role: true },
+        },
+        subscription: true,
       },
     });
 
@@ -757,13 +762,20 @@ export class AuthService {
     }
 
     const storeName = store.settings?.namaLaundry || store.name;
+    const hasOwner = Array.isArray(store.users) && store.users.length > 0;
 
     return {
+      id: store.id,
       code: store.code,
       name: storeName,
       address: store.settings?.alamat || store.address || '',
       city: store.settings?.kota || store.city || '',
       phone: store.settings?.telepon || store.phone || '',
+      featureSubscriptionEnabled: store.featureSubscriptionEnabled ?? true,
+      showUpgradeBanner: store.showUpgradeBanner ?? true,
+      hasOwner,
+      currentPlan: store.subscription?.plan || 'TRIAL',
+      exists: true,
     };
   }
 

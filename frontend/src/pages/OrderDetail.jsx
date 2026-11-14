@@ -93,7 +93,7 @@ const OD_CSS = `
 .od-shop { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .od-shop b { display: block; font-size: .95rem; font-weight: 700; letter-spacing: -.01em; line-height: 1.2; }
 .od-shop small { display: block; margin-top: 1px; font-size: .68rem; opacity: .8; }
-.od-kasir { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.35); font-size: .66rem; font-weight: 600; white-space: nowrap; }
+.od-kasir { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.35); font-size: .66rem; font-weight: 600; white-space: nowrap; }
 .od-prio { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; padding: 3px 9px; border-radius: 999px; background: #fff; color: #c81e3a; font-size: .62rem; font-weight: 800; }
 .od-inv { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; margin-top: 12px; }
 .od-inv > div > span { display: block; font-size: .62rem; font-weight: 600; letter-spacing: .08em; opacity: .75; }

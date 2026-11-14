@@ -59,6 +59,10 @@ describe('AuthService - getStoreInfo', () => {
       address: 'Jl. Merdeka No. 1',
       city: 'Jakarta',
       phone: '081234567890',
+      featureSubscriptionEnabled: true,
+      showUpgradeBanner: true,
+      users: [{ id: 'user-1', role: 'owner' }],
+      subscription: { plan: 'BASIC' },
       settings: {
         namaLaundry: 'Klinik Laundry Bersih',
         alamat: 'Jl. Melati No. 2',
@@ -69,16 +73,18 @@ describe('AuthService - getStoreInfo', () => {
 
     const result = await service.getStoreInfo('store01');
     expect(result).toEqual({
+      id: 'store-1',
       code: 'STORE01',
       name: 'Klinik Laundry Bersih',
       address: 'Jl. Melati No. 2',
       city: 'Bandung',
       phone: '0811111111',
+      featureSubscriptionEnabled: true,
+      showUpgradeBanner: true,
+      hasOwner: true,
+      currentPlan: 'BASIC',
+      exists: true,
     });
-    // Pastikan field internal tidak bocor
-    expect((result as any).id).toBeUndefined();
-    expect((result as any).currentPlan).toBeUndefined();
-    expect((result as any).hasOwner).toBeUndefined();
   });
 
   it('harus mengembalikan info toko dengan nama default dari store jika settings belum ada', async () => {
@@ -89,19 +95,27 @@ describe('AuthService - getStoreInfo', () => {
       address: 'Jl. Sudirman',
       city: 'Surabaya',
       phone: '0822222222',
+      featureSubscriptionEnabled: true,
+      showUpgradeBanner: true,
+      users: [],
+      subscription: null,
       settings: null,
     });
 
     const result = await service.getStoreInfo('STORE02');
     expect(result).toEqual({
+      id: 'store-2',
       code: 'STORE02',
       name: 'Laundry Express Official',
       address: 'Jl. Sudirman',
       city: 'Surabaya',
       phone: '0822222222',
+      featureSubscriptionEnabled: true,
+      showUpgradeBanner: true,
+      hasOwner: false,
+      currentPlan: 'TRIAL',
+      exists: true,
     });
-    expect((result as any).id).toBeUndefined();
-    expect((result as any).currentPlan).toBeUndefined();
   });
 
   describe('normalizePhoneNumber', () => {

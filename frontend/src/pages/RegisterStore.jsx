@@ -71,7 +71,7 @@ const RegisterStore = () => {
         if (response.ok) {
           const result = await response.json();
           const info = result.data || result;
-          if (info && info.hasOwner) {
+          if (info && (info.hasOwner || info.exists || info.id || info.code)) {
             setIsExistingOwnerStore(true);
             setExistingStoreInfo(info);
             setName(info.name || '');
