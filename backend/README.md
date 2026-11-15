@@ -39,16 +39,16 @@ PORT=3000
 
 ### 1. Model / Entitas Utama
 
-| Model                   | Keterangan                                                                                                                |
-| :---------------------- | :------------------------------------------------------------------------------------------------------------------------ |
-| **`Store`**     | Data outlet/toko laundry (Multi-tenant root).                                                                             |
-| **`User`**      | Akun pengguna (Owner / Kasir).                                                                                            |
-| **`Product`**   | Katalog layanan cuci, setrika, satuan, dll.                                                                               |
-| **`Pelanggan`** | Data kontak dan alamat pelanggan laundry.                                                                                 |
-| **`Inventory`** | Data stok bahan habis pakai (deterjen, parfum, plastik).                                                                  |
-| **`Order`**     | Transaksi nota laundry (Total, Diskon, Bayar, Status, Tipe Antar).                                                        |
-| **`OrderItem`** | Rincian item / layanan per pesanan (`orderId`, `price`, `qty`, `subtotal`).                                       |
-| **`Settings`**  | Pengaturan profil outlet dan format struk cetak.                                                                          |
+| Model           | Keterangan                                                                                                    |
+| :-------------- | :------------------------------------------------------------------------------------------------------------ |
+| **`Store`**     | Data outlet/toko laundry (Multi-tenant root).                                                                 |
+| **`User`**      | Akun pengguna (Owner / Kasir).                                                                                |
+| **`Product`**   | Katalog layanan cuci, setrika, satuan, dll.                                                                   |
+| **`Pelanggan`** | Data kontak dan alamat pelanggan laundry.                                                                     |
+| **`Inventory`** | Data stok bahan habis pakai (deterjen, parfum, plastik).                                                      |
+| **`Order`**     | Transaksi nota laundry (Total, Diskon, Bayar, Status, Tipe Antar).                                            |
+| **`OrderItem`** | Rincian item / layanan per pesanan (`orderId`, `price`, `qty`, `subtotal`).                                   |
+| **`Settings`**  | Pengaturan profil outlet dan format struk cetak.                                                              |
 | **`SyncLog`**   | Catatan riwayat audit sinkronisasi (`beforeData`, `afterData`, `tableName`, `action`, `username`, `storeId`). |
 
 ### 2. Perintah Migrasi Database
@@ -78,7 +78,7 @@ Dokumentasi interaktif dapat diakses saat server berjalan pada:
 
 📍 **URL Swagger**: `http://localhost:3000/api/docs`
 
-Melalui antarmuka Swagger, Anda dapat melihat seluruh skema DTO, mencoba request langsung (*Try it out*), dan melihat contoh response.
+Melalui antarmuka Swagger, Anda dapat melihat seluruh skema DTO, mencoba request langsung (_Try it out_), dan melihat contoh response.
 
 ---
 
@@ -117,9 +117,7 @@ Prefix global API: `/api`
   "statusBayar": "Lunas",
   "status": "Proses",
   "catatan": "Pakaian putih dipisah",
-  "inventoryUsed": [
-    { "id": 1, "nama": "Deterjen", "quantity": 1 }
-  ],
+  "inventoryUsed": [{ "id": 1, "nama": "Deterjen", "quantity": 1 }],
   "items": [
     {
       "productId": "prod-uuid-001",
@@ -209,3 +207,18 @@ npm run build
 # 4. Jalankan production build
 npm run start:prod
 ```
+
+### Jika Anda Ingin Menjalankannya di Server Dev:
+
+Anda hanya perlu menjalankannya secara **manual** lewat terminal di server `dev` (atau dari lokal dengan mengarahkan `DATABASE_URL` ke DB `dev`):
+
+- **Insert data load test & cek benchmark**:
+  ```bash
+  npm --prefix backend run db:load-test
+  ```
+- **Hapus kembali seluruh data load test sampai bersih**:
+  ```bash
+  npm --prefix backend run db:load-test:clean
+  ```
+- **Atau via DBeaver / pgAdmin / `psql`**:
+  Tinggal jalankan isi file [seed-load-test.sql](file:///c:/work/product/kasir-laundry/backend/prisma/seed-load-test.sql) secara manual.
