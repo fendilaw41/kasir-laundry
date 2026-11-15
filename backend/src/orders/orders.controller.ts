@@ -73,10 +73,11 @@ export class OrdersController {
   ) {
     const isIncludeDeleted = includeDeleted === 'true' || includeDeleted === '1';
     const sinceDate = since ? new Date(since) : undefined;
-    const data = await this.ordersService.findAll(storeId, isIncludeDeleted, sinceDate);
-    // Hanya ambil inventory & products saat initial sync (tanpa filter since) agar tidak memboroskan bandwidth
-    const inventory = storeId && !since ? await this.ordersService.findInventory(storeId) : [];
-    const products = storeId && !since ? await this.ordersService.findProducts(storeId) : [];
+    const [data, inventory, products] = await Promise.all([
+      this.ordersService.findAll(storeId, isIncludeDeleted, sinceDate),
+      storeId && !since ? this.ordersService.findInventory(storeId) : Promise.resolve([]),
+      storeId && !since ? this.ordersService.findProducts(storeId) : Promise.resolve([]),
+    ]);
     return {
       success: true,
       data,

@@ -874,7 +874,7 @@ export default function Plan({ user }) {
                       className="p-3 rounded-3 text-start d-flex justify-content-between align-items-center border transition-all"
                       style={{ backgroundColor: '#f8fafc', cursor: 'pointer' }}
                       onClick={() => {
-                        window.open(getTopupWhatsAppUrl('TRANSACTIONS', 50, storeName, 'Rp 20.000'), '_blank');
+                        window.open(getTopupWhatsAppUrl('TRANSACTIONS', 50, storeName, 'Rp 20.000', user?.username), '_blank');
                         setTopupModalOpen(false);
                       }}
                     >
@@ -894,7 +894,7 @@ export default function Plan({ user }) {
                       className="p-3 rounded-3 text-start d-flex justify-content-between align-items-center border transition-all"
                       style={{ backgroundColor: '#f8fafc', cursor: 'pointer' }}
                       onClick={() => {
-                        window.open(getTopupWhatsAppUrl('TRANSACTIONS', 100, storeName, 'Rp 25.000'), '_blank');
+                        window.open(getTopupWhatsAppUrl('TRANSACTIONS', 100, storeName, 'Rp 25.000', user?.username), '_blank');
                         setTopupModalOpen(false);
                       }}
                     >
@@ -914,7 +914,7 @@ export default function Plan({ user }) {
                       className="p-3 rounded-3 text-start d-flex justify-content-between align-items-center border transition-all"
                       style={{ backgroundColor: '#f8fafc', cursor: 'pointer' }}
                       onClick={() => {
-                        window.open(getTopupWhatsAppUrl('PHOTOS', 200, storeName, 'Rp 50.000'), '_blank');
+                        window.open(getTopupWhatsAppUrl('PHOTOS', 200, storeName, 'Rp 50.000', user?.username), '_blank');
                         setTopupModalOpen(false);
                       }}
                     >

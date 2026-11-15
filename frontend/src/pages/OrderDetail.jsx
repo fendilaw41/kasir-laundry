@@ -174,6 +174,11 @@ const OrderDetail = ({ user }) => {
   const [showCashierNoteModal, setShowCashierNoteModal] = useState(false);
   const [showHpModal, setShowHpModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
+  const INV_MODAL_PAGE_SIZE = 10;
+  const [visibleInvModalCount, setVisibleInvModalCount] = useState(INV_MODAL_PAGE_SIZE);
+  useEffect(() => {
+    if (showInventoryModal) setVisibleInvModalCount(INV_MODAL_PAGE_SIZE);
+  }, [showInventoryModal]);
   const [showQrModal, setShowQrModal] = useState(false);
   const [selectedInventory, setSelectedInventory] = useState([]);
   const [localInventoryUsed, setLocalInventoryUsed] = useState(null);
@@ -1294,62 +1299,99 @@ const OrderDetail = ({ user }) => {
                   </div>
                   <div className="modal-body p-4">
                     <label className="small fw-bold text-muted text-uppercase mb-3">Pilih Inventori & Jumlahnya</label>
-                    <div className="d-flex flex-column gap-2 mb-4 max-h-50 overflow-auto">
-                      {allInventory?.filter(inv => !(inv.status === 'pending' && inv.stok === 0)).map(inv => {
-                        const activeItem = selectedInventory.find(s => isSameInventory(s, inv));
-                        const isActive = !!activeItem;
-                        const oldInv = order?.inventoryUsed || [];
-                        const oldItem = oldInv.find(i => isSameInventory(i, inv));
-                        const oldQty = oldItem ? Number(oldItem.quantity ?? oldItem.qty ?? 1) : 0;
-                        const availableStock = (Number(inv.stok) || 0) + oldQty;
-                        const isOutOfStock = availableStock <= 0;
+                    <div className="d-flex flex-column gap-2 mb-4" style={{ maxHeight: '55vh', overflowY: 'auto' }}>
+                      {(() => {
+                        const filteredModalInv = (allInventory || []).filter(inv => !(inv.status === 'pending' && inv.stok === 0));
+                        if (filteredModalInv.length === 0) {
+                          return <div className="w-100 text-center text-muted small p-3 bg-light rounded-4">Belum ada data inventory</div>;
+                        }
+                        const visibleModalInv = filteredModalInv.slice(0, visibleInvModalCount);
+                        const remainingInv = Math.max(0, filteredModalInv.length - visibleInvModalCount);
 
                         return (
-                          <div
-                            key={inv.id}
-                            className={`d-flex align-items-center justify-content-between p-3 rounded-4 border transition-all ${isActive
-                              ? 'bg-outline-primary text-dark border-primary shadow-sm'
-                              : isOutOfStock
-                                ? 'bg-light text-muted opacity-50'
-                                : 'bg-white text-dark shadow-sm'
-                              }`}
-                          >
-                            <div
-                              className="d-flex align-items-center gap-3 flex-grow-1"
-                              style={{ cursor: isOutOfStock && !isActive ? 'not-allowed' : 'pointer' }}
-                              onClick={() => {
-                                if (isOutOfStock && !isActive) {
-                                  toast.error(TOAST_MESSAGES.ERROR);
-                                  return;
-                                }
-                                toggleInventory(inv);
-                              }}
-                            >
-                              <i className={`bi ${isActive ? 'bi-check-circle-fill text-primary' : 'bi-box-seam'} fs-4`}></i>
-                              <div>
-                                <div className="fw-bold">{inv.nama}</div>
-                                <small className={isOutOfStock && !isActive ? 'text-danger fw-bold' : isActive ? 'text-primary-50' : 'text-muted'}>
-                                  {isOutOfStock && !isActive ? 'Stok Habis (0)' : `Sisa Stok: ${inv.stok}`}
-                                </small>
-                              </div>
-                            </div>
-                            {isActive && (
-                              <div className="d-flex align-items-center gap-2 bg-white rounded-pill p-1 shadow-sm" onClick={e => e.stopPropagation()}>
-                                <button className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center" style={{ width: '16px', height: '16px' }} onClick={() => updateInventoryQty(inv, -1)}>
-                                  <i className="bi bi-dash text-primary"></i>
-                                </button>
-                                <span className="fw-bold text-primary px-1" style={{ fontSize: '0.9rem', minWidth: '20px', textAlign: 'center' }}>{activeItem.quantity ?? activeItem.qty ?? 1}</span>
-                                <button className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center" style={{ width: '16px', height: '16px' }} onClick={() => updateInventoryQty(inv, 1)}>
-                                  <i className="bi bi-plus text-primary"></i>
-                                </button>
+                          <>
+                            {visibleModalInv.map(inv => {
+                              const activeItem = selectedInventory.find(s => isSameInventory(s, inv));
+                              const isActive = !!activeItem;
+                              const oldInv = order?.inventoryUsed || [];
+                              const oldItem = oldInv.find(i => isSameInventory(i, inv));
+                              const oldQty = oldItem ? Number(oldItem.quantity ?? oldItem.qty ?? 1) : 0;
+                              const availableStock = (Number(inv.stok) || 0) + oldQty;
+                              const isOutOfStock = availableStock <= 0;
+
+                              return (
+                                <div
+                                  key={inv.id}
+                                  className={`d-flex align-items-center justify-content-between p-3 rounded-4 border transition-all ${isActive
+                                    ? 'bg-outline-primary text-dark border-primary shadow-sm'
+                                    : isOutOfStock
+                                      ? 'bg-light text-muted opacity-50'
+                                      : 'bg-white text-dark shadow-sm'
+                                    }`}
+                                >
+                                  <div
+                                    className="d-flex align-items-center gap-3 flex-grow-1"
+                                    style={{ cursor: isOutOfStock && !isActive ? 'not-allowed' : 'pointer' }}
+                                    onClick={() => {
+                                      if (isOutOfStock && !isActive) {
+                                        toast.error(TOAST_MESSAGES.ERROR);
+                                        return;
+                                      }
+                                      toggleInventory(inv);
+                                    }}
+                                  >
+                                    <i className={`bi ${isActive ? 'bi-check-circle-fill text-primary' : 'bi-box-seam'} fs-4`}></i>
+                                    <div>
+                                      <div className="fw-bold">{inv.nama}</div>
+                                      <small className={isOutOfStock && !isActive ? 'text-danger fw-bold' : isActive ? 'text-primary-50' : 'text-muted'}>
+                                        {isOutOfStock && !isActive ? 'Stok Habis (0)' : `Sisa Stok: ${inv.stok}`}
+                                      </small>
+                                    </div>
+                                  </div>
+                                  {isActive && (
+                                    <div className="d-flex align-items-center gap-2 bg-white rounded-pill p-1 shadow-sm" onClick={e => e.stopPropagation()}>
+                                      <button className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center" style={{ width: '16px', height: '16px' }} onClick={() => updateInventoryQty(inv, -1)}>
+                                        <i className="bi bi-dash text-primary"></i>
+                                      </button>
+                                      <span className="fw-bold text-primary px-1" style={{ fontSize: '0.9rem', minWidth: '20px', textAlign: 'center' }}>{activeItem.quantity ?? activeItem.qty ?? 1}</span>
+                                      <button className="btn btn-sm btn-light rounded-circle p-0 d-flex align-items-center justify-content-center" style={{ width: '16px', height: '16px' }} onClick={() => updateInventoryQty(inv, 1)}>
+                                        <i className="bi bi-plus text-primary"></i>
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+
+                            {filteredModalInv.length > INV_MODAL_PAGE_SIZE && (
+                              <div className="d-flex justify-content-center gap-2 mt-2 mb-1">
+                                {remainingInv > 0 && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-white border rounded-pill px-3 py-1 fw-bold text-primary shadow-xs d-inline-flex align-items-center gap-1"
+                                    style={{ fontSize: '0.76rem', backgroundColor: '#fff' }}
+                                    onClick={() => setVisibleInvModalCount(prev => prev + INV_MODAL_PAGE_SIZE)}
+                                  >
+                                    <i className="bi bi-chevron-down"></i>
+                                    <span>{remainingInv} Item lagi</span>
+                                  </button>
+                                )}
+                                {visibleInvModalCount > INV_MODAL_PAGE_SIZE && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-light border rounded-pill px-3 py-1 fw-semibold text-secondary d-inline-flex align-items-center gap-1"
+                                    style={{ fontSize: '0.76rem' }}
+                                    onClick={() => setVisibleInvModalCount(INV_MODAL_PAGE_SIZE)}
+                                  >
+                                    <i className="bi bi-chevron-up"></i>
+                                    <span>Ringkas</span>
+                                  </button>
+                                )}
                               </div>
                             )}
-                          </div>
+                          </>
                         );
-                      })}
-                      {(!allInventory || allInventory.length === 0) && (
-                        <div className="w-100 text-center text-muted small p-3 bg-light rounded-4">Belum ada data inventory</div>
-                      )}
+                      })()}
                     </div>
                     <button className="btn btn-outline-primary w-100 rounded-pill fw-bold py-3" onClick={saveInventory}>{BUTTON_TEXT.SAVE}</button>
                   </div>

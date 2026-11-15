@@ -100,6 +100,37 @@ export const BotChatRoom = ({ user, onBack }) => {
     setShowQuickCommands(false);
   };
 
+  // Kunci tanggal lokal (YYYY-MM-DD) untuk pengelompokan badge pemisah hari
+  const getDateKey = (isoString) => {
+    const d = isoString ? new Date(isoString) : new Date();
+    if (isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  // Label badge tanggal: "Hari Ini", "Kemarin", atau "13 Nov 2026"
+  const formatChatDateBadge = (isoString) => {
+    const d = isoString ? new Date(isoString) : new Date();
+    if (isNaN(d.getTime())) return 'Hari Ini';
+
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const msgStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const diffDays = Math.round((todayStart - msgStart) / 86400000);
+
+    if (diffDays === 0) return 'Hari Ini';
+    if (diffDays === 1) return 'Kemarin';
+
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  };
+
+  const formatTime = (isoString) => {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+
   return (
     <div className="d-flex flex-column h-100 bg-white" style={{ position: 'relative' }}>
       {/* Konten Chat Bot */}
@@ -122,35 +153,66 @@ export const BotChatRoom = ({ user, onBack }) => {
         )}
 
         {messages &&
-          messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`d-flex mb-3 ${!msg.isBot ? 'justify-content-end' : 'justify-content-start'}`}
-            >
-              <div
-                className={`p-3 shadow-sm ${!msg.isBot ? 'text-white' : 'text-dark'}`}
-                style={{
-                  maxWidth: !msg.isBot ? '85%' : '95%',
-                  width: 'fit-content',
-                  backgroundColor: !msg.isBot ? '#155dfc' : '#f8f9fa',
-                  border: '1px solid #eef0f2',
-                  borderRadius: !msg.isBot ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                }}
-              >
-                <p
-                  className="mb-0"
-                  style={{
-                    whiteSpace: 'pre-wrap',
-                    lineHeight: '1.5',
-                    fontSize: '13px',
-                    color: !msg.isBot ? '#ffffff' : '#333333',
-                  }}
+          messages.map((msg, index) => {
+            const msgDate = msg.timestamp || msg.createdAt;
+            const prevMsgDate = index > 0 ? (messages[index - 1]?.timestamp || messages[index - 1]?.createdAt) : null;
+            const showDateBadge = index === 0 || getDateKey(msgDate) !== getDateKey(prevMsgDate);
+
+            return (
+              <React.Fragment key={msg.id || index}>
+                {showDateBadge && (
+                  <div className="d-flex justify-content-center my-2">
+                    <span
+                      className="badge rounded-pill px-3 py-1 fw-semibold shadow-xs"
+                      style={{
+                        backgroundColor: '#e2e8f0',
+                        color: '#475569',
+                        fontSize: '0.72rem',
+                        letterSpacing: '0.2px',
+                        border: '1px solid #cbd5e1',
+                      }}
+                    >
+                      {formatChatDateBadge(msgDate)}
+                    </span>
+                  </div>
+                )}
+                <div
+                  className={`d-flex mb-3 ${!msg.isBot ? 'justify-content-end' : 'justify-content-start'}`}
                 >
-                  {msg.pesan}
-                </p>
-              </div>
-            </div>
-          ))}
+                  <div
+                    className={`p-3 shadow-sm ${!msg.isBot ? 'text-white' : 'text-dark'}`}
+                    style={{
+                      maxWidth: !msg.isBot ? '85%' : '95%',
+                      width: 'fit-content',
+                      backgroundColor: !msg.isBot ? '#155dfc' : '#f8f9fa',
+                      border: '1px solid #eef0f2',
+                      borderRadius: !msg.isBot ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                    }}
+                  >
+                    <p
+                      className="mb-0"
+                      style={{
+                        whiteSpace: 'pre-wrap',
+                        lineHeight: '1.5',
+                        fontSize: '13px',
+                        color: !msg.isBot ? '#ffffff' : '#333333',
+                      }}
+                    >
+                      {msg.pesan}
+                    </p>
+                    {msgDate && (
+                      <div
+                        className={`text-end mt-1 ${!msg.isBot ? 'text-white-50' : 'text-muted'}`}
+                        style={{ fontSize: '0.68rem', lineHeight: 1 }}
+                      >
+                        {formatTime(msgDate)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </React.Fragment>
+            );
+          })}
 
         {isProcessing && (
           <div className="d-flex mb-3 justify-content-start">

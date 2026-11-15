@@ -22,6 +22,9 @@ const Home = ({ user }) => {
   const [convertTotal, setConvertTotal] = useState('');
   const [convertPerDose, setConvertPerDose] = useState('');
   const [stokVal, setStokVal] = useState('');
+  const MODAL_PAGE_SIZE = 10;
+  const [visiblePelangganCount, setVisiblePelangganCount] = useState(MODAL_PAGE_SIZE);
+  const [visibleInventoryCount, setVisibleInventoryCount] = useState(MODAL_PAGE_SIZE);
   const {
     showPelangganModal, setShowPelangganModal,
     showInventoryModal, setShowInventoryModal,
@@ -40,6 +43,14 @@ const Home = ({ user }) => {
     stats, handleSelectPelanggan, handleAddPelanggan, handleDeletePelanggan,
     updatePelanggan, addInventoryManual
   } = useHome();
+
+  useEffect(() => {
+    setVisiblePelangganCount(MODAL_PAGE_SIZE);
+  }, [searchPelanggan, showPelangganModal]);
+
+  useEffect(() => {
+    setVisibleInventoryCount(MODAL_PAGE_SIZE);
+  }, [searchInventory, inventoryTab, showInventoryModal]);
 
   return (
     <div className="home-wrapper pb-5">
@@ -425,91 +436,130 @@ const Home = ({ user }) => {
                     <div className="pelanggan-list">
                       {pelangganList === undefined ? (
                         <CustomerListSkeleton count={4} />
-                      ) : pelangganList.filter(p =>
-                        p.nama.toLowerCase().includes(searchPelanggan.toLowerCase()) ||
-                        p.hp.includes(searchPelanggan)
-                      ).length === 0 ? (
-                        <div className="text-center py-5">
-                          <i className="bi bi-people text-muted opacity-25" style={{ fontSize: '3rem' }}></i>
-                          <p className="text-muted small mt-2">Tidak ada pelanggan ditemukan</p>
-                        </div>
-                      ) : (
-                        pelangganList?.filter(p =>
-                          p.nama.toLowerCase().includes(searchPelanggan.toLowerCase()) ||
-                          p.hp.includes(searchPelanggan)
-                        ).sort((a, b) => b.id - a.id).map(p => (
-                          <div
-                            key={p.id}
-                            className="card border-0 mb-3 rounded-4 shadow-sm customer-card-clickable"
-                            style={{ background: '#fff', cursor: 'pointer', transition: 'all 0.2s ease' }}
-                            onClick={() => handleSelectPelanggan(p)}
-                          >
-                            <div className="card-body p-3 d-flex align-items-center">
-                              <div className="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white me-3"
-                                style={{ width: '48px', height: '48px', background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)', fontSize: '1.2rem', boxShadow: '0 4px 10px rgba(1, 52, 212, 0.2)' }}>
-                                {p.nama.charAt(0).toUpperCase()}
-                              </div>
-                              <div className="flex-grow-1 overflow-hidden" onClick={() => handleSelectPelanggan(p)}>
-                                <h6 className="mb-0 fw-bold text-dark text-truncate">{p.nama}</h6>
-                                <div className="text-muted d-flex align-items-center gap-1" style={{ fontSize: '0.75rem' }}>
-                                  <i className="bi bi-whatsapp text-success flex-shrink-0"></i>
-                                  <span className="text-truncate">{p.hp}</span>
+                      ) : (() => {
+                        const filteredPelanggan = (pelangganList || [])
+                          .filter(p =>
+                            p.nama?.toLowerCase().includes(searchPelanggan.toLowerCase()) ||
+                            p.hp?.includes(searchPelanggan)
+                          )
+                          .sort((a, b) => b.id - a.id);
+
+                        if (filteredPelanggan.length === 0) {
+                          return (
+                            <div className="text-center py-5">
+                              <i className="bi bi-people text-muted opacity-25" style={{ fontSize: '3rem' }}></i>
+                              <p className="text-muted small mt-2">Tidak ada pelanggan ditemukan</p>
+                            </div>
+                          );
+                        }
+
+                        const visiblePelanggan = filteredPelanggan.slice(0, visiblePelangganCount);
+                        const remainingPelanggan = Math.max(0, filteredPelanggan.length - visiblePelangganCount);
+
+                        return (
+                          <>
+                            {visiblePelanggan.map(p => (
+                              <div
+                                key={p.id}
+                                className="card border-0 mb-3 rounded-4 shadow-sm customer-card-clickable"
+                                style={{ background: '#fff', cursor: 'pointer', transition: 'all 0.2s ease' }}
+                                onClick={() => handleSelectPelanggan(p)}
+                              >
+                                <div className="card-body p-3 d-flex align-items-center">
+                                  <div className="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white me-3"
+                                    style={{ width: '48px', height: '48px', background: 'linear-gradient(135deg, #0134d4 0%, #2855e1 100%)', fontSize: '1.2rem', boxShadow: '0 4px 10px rgba(1, 52, 212, 0.2)' }}>
+                                    {p.nama.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div className="flex-grow-1 overflow-hidden" onClick={() => handleSelectPelanggan(p)}>
+                                    <h6 className="mb-0 fw-bold text-dark text-truncate">{p.nama}</h6>
+                                    <div className="text-muted d-flex align-items-center gap-1" style={{ fontSize: '0.75rem' }}>
+                                      <i className="bi bi-whatsapp text-success flex-shrink-0"></i>
+                                      <span className="text-truncate">{p.hp}</span>
+                                    </div>
+                                  </div>
+                                  <div className="ms-1 d-flex gap-1 flex-shrink-0">
+                                    <button
+                                      type="button"
+                                      className="btn btn-sm btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center"
+                                      style={{ width: '32px', height: '32px' }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (isSubscriptionEnabled() && subReport?.isExpired) {
+                                          setGateModal({
+                                            open: true,
+                                            type: isTrialExpired(subReport) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
+                                            data: { plan: subReport?.plan, isTrial: isTrialExpired(subReport) },
+                                          });
+                                          return;
+                                        }
+                                        setEditPelanggan({ show: true, data: { ...p } });
+                                      }}
+                                      title={BUTTON_TITLE.EDIT}
+                                    >
+                                      <i className="bi bi-pencil-fill text-primary"></i>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn btn-sm btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center"
+                                      style={{ width: '32px', height: '32px' }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (isSubscriptionEnabled() && subReport?.isExpired) {
+                                          setGateModal({
+                                            open: true,
+                                            type: isTrialExpired(subReport) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
+                                            data: { plan: subReport?.plan, isTrial: isTrialExpired(subReport) },
+                                          });
+                                          return;
+                                        }
+                                        handleDeletePelanggan(p);
+                                      }}
+                                      title={BUTTON_TITLE.DELETE}
+                                    >
+                                      <i className="bi bi-trash-fill text-danger"></i>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn btn-sm btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center"
+                                      style={{ width: '32px', height: '32px' }}
+                                      onClick={(e) => { e.stopPropagation(); handleSelectPelanggan(p); }}
+                                    >
+                                      <i className="bi bi-arrow-right text-success"></i>
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
-                              <div className="ms-1 d-flex gap-1 flex-shrink-0">
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center"
-                                  style={{ width: '32px', height: '32px' }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (isSubscriptionEnabled() && subReport?.isExpired) {
-                                      setGateModal({
-                                        open: true,
-                                        type: isTrialExpired(subReport) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
-                                        data: { plan: subReport?.plan, isTrial: isTrialExpired(subReport) },
-                                      });
-                                      return;
-                                    }
-                                    setEditPelanggan({ show: true, data: { ...p } });
-                                  }}
-                                  title={BUTTON_TITLE.EDIT}
-                                >
-                                  <i className="bi bi-pencil-fill text-primary"></i>
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center"
-                                  style={{ width: '32px', height: '32px' }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (isSubscriptionEnabled() && subReport?.isExpired) {
-                                      setGateModal({
-                                        open: true,
-                                        type: isTrialExpired(subReport) ? 'TRIAL_EXPIRED' : 'SUBSCRIPTION_EXPIRED',
-                                        data: { plan: subReport?.plan, isTrial: isTrialExpired(subReport) },
-                                      });
-                                      return;
-                                    }
-                                    handleDeletePelanggan(p);
-                                  }}
-                                  title={BUTTON_TITLE.DELETE}
-                                >
-                                  <i className="bi bi-trash-fill text-danger"></i>
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center"
-                                  style={{ width: '32px', height: '32px' }}
-                                  onClick={(e) => { e.stopPropagation(); handleSelectPelanggan(p); }}
-                                >
-                                  <i className="bi bi-arrow-right text-success"></i>
-                                </button>
+                            ))}
+
+                            {filteredPelanggan.length > MODAL_PAGE_SIZE && (
+                              <div className="d-flex justify-content-center gap-2 mt-2 mb-3">
+                                {remainingPelanggan > 0 && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-white border rounded-pill px-3 py-2 fw-bold text-primary shadow-xs d-inline-flex align-items-center gap-1"
+                                    style={{ fontSize: '0.78rem', backgroundColor: '#fff' }}
+                                    onClick={() => setVisiblePelangganCount(prev => prev + MODAL_PAGE_SIZE)}
+                                  >
+                                    <i className="bi bi-chevron-down"></i>
+                                    <span>{remainingPelanggan} Pelanggan lagi</span>
+                                  </button>
+                                )}
+                                {visiblePelangganCount > MODAL_PAGE_SIZE && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-light border rounded-pill px-3 py-2 fw-semibold text-secondary d-inline-flex align-items-center gap-1"
+                                    style={{ fontSize: '0.78rem' }}
+                                    onClick={() => setVisiblePelangganCount(MODAL_PAGE_SIZE)}
+                                  >
+                                    <i className="bi bi-chevron-up"></i>
+                                    <span>Ringkas</span>
+                                  </button>
+                                )}
                               </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -822,108 +872,146 @@ const Home = ({ user }) => {
                     <div className="inventory-list">
                       {inventory === undefined ? (
                         <InventoryListSkeleton count={4} />
-                      ) : inventory.filter(item => {
-                        const matchSearch = item.nama.toLowerCase().includes(searchInventory.toLowerCase());
-                        const matchTab = inventoryTab === 'pending' ? item.status === 'pending' : (item.status !== 'rejected' && !(item.status === 'pending' && item.stok === 0));
-                        return matchSearch && matchTab;
-                      }).map(item => (
-                        <div key={item.id} className="card border-0 mb-3 rounded-4 shadow-sm overflow-hidden" style={{ background: '#fff' }}>
-                          <div className="card-body p-3 d-flex justify-content-between align-items-center">
-                            <div className="d-flex align-items-center">
-                              <div className="rounded-4 bg-light d-flex align-items-center justify-content-center me-3" style={{ width: '45px', height: '45px' }}>
-                                <i className={`bi ${item.nama.toLowerCase().includes('plastik') ? 'bi-box' : 'bi-archive'} text-success fs-4`}></i>
-                              </div>
-                              <div>
-                                <div className="d-flex align-items-center mb-1">
-                                  <h6 className="fw-bold mb-0 text-dark" style={{ maxWidth: '100%', fontSize: '13px', wordWrap: 'break-word' }}>{item.nama}</h6>
-                                  <i
-                                    className="bi bi-copy text-muted ms-2"
-                                    style={{ cursor: 'pointer', fontSize: '0.8rem' }}
-                                    onClick={() => {
-                                      navigator.clipboard.writeText(item.nama);
-                                      toast.success(TOAST_MESSAGES.SUCCESS);
-                                    }}
-                                    title="Copy nama stok"
-                                  ></i>
-                                </div>
-                                <div className="d-flex flex-wrap gap-1 align-items-center">
-                                  <span className={`badge rounded-pill ${item.stok < 5 ? 'bg-danger bg-opacity-10' : 'bg-success bg-opacity-10'}`} style={{ fontSize: '0.65rem' }}>
-                                    Stok: {item.stok}
-                                  </span>
-                                  {item.status === 'pending' && (
-                                    <>
-                                      <span className="badge bg-warning text-dark rounded-pill" style={{ fontSize: '0.65rem' }}>
-                                        +{item.qty} {item.unit || 'pcs'}
-                                      </span>
-                                      {user?.role === 'owner' && (
-                                        <span
-                                          className="badge rounded-pill d-inline-flex align-items-center gap-1"
-                                          style={{
-                                            backgroundColor: '#eef2ff',
-                                            color: '#4338ca',
-                                            fontSize: '0.65rem',
-                                            fontWeight: '600',
-                                            border: '1px solid #c7d2fe'
+                      ) : (() => {
+                        const filteredInventory = (inventory || []).filter(item => {
+                          const matchSearch = item.nama?.toLowerCase().includes(searchInventory.toLowerCase());
+                          const matchTab = inventoryTab === 'pending' ? item.status === 'pending' : (item.status !== 'rejected' && !(item.status === 'pending' && item.stok === 0));
+                          return matchSearch && matchTab;
+                        });
+
+                        const visibleInvList = filteredInventory.slice(0, visibleInventoryCount);
+                        const remainingInvCount = Math.max(0, filteredInventory.length - visibleInventoryCount);
+
+                        return (
+                          <>
+                            {visibleInvList.map(item => (
+                              <div key={item.id} className="card border-0 mb-3 rounded-4 shadow-sm overflow-hidden" style={{ background: '#fff' }}>
+                                <div className="card-body p-3 d-flex justify-content-between align-items-center">
+                                  <div className="d-flex align-items-center">
+                                    <div className="rounded-4 bg-light d-flex align-items-center justify-content-center me-3" style={{ width: '45px', height: '45px' }}>
+                                      <i className={`bi ${item.nama.toLowerCase().includes('plastik') ? 'bi-box' : 'bi-archive'} text-success fs-4`}></i>
+                                    </div>
+                                    <div>
+                                      <div className="d-flex align-items-center mb-1">
+                                        <h6 className="fw-bold mb-0 text-dark" style={{ maxWidth: '100%', fontSize: '13px', wordWrap: 'break-word' }}>{item.nama}</h6>
+                                        <i
+                                          className="bi bi-copy text-muted ms-2"
+                                          style={{ cursor: 'pointer', fontSize: '0.8rem' }}
+                                          onClick={() => {
+                                            navigator.clipboard.writeText(item.nama);
+                                            toast.success(TOAST_MESSAGES.SUCCESS);
                                           }}
-                                          title="Kasir yang mengajukan stok"
-                                        >
-                                          <i className="bi bi-person-fill"></i>
-                                          <span>Kasir: {item.createdBy || 'Kasir'}</span>
+                                          title="Copy nama stok"
+                                        ></i>
+                                      </div>
+                                      <div className="d-flex flex-wrap gap-1 align-items-center">
+                                        <span className={`badge rounded-pill ${item.stok < 5 ? 'bg-danger bg-opacity-10' : 'bg-success bg-opacity-10'}`} style={{ fontSize: '0.65rem' }}>
+                                          Stok: {item.stok}
                                         </span>
-                                      )}
-                                    </>
+                                        {item.status === 'pending' && (
+                                          <>
+                                            <span className="badge bg-warning text-dark rounded-pill" style={{ fontSize: '0.65rem' }}>
+                                              +{item.qty} {item.unit || 'pcs'}
+                                            </span>
+                                            {user?.role === 'owner' && (
+                                              <span
+                                                className="badge rounded-pill d-inline-flex align-items-center gap-1"
+                                                style={{
+                                                  backgroundColor: '#eef2ff',
+                                                  color: '#4338ca',
+                                                  fontSize: '0.65rem',
+                                                  fontWeight: '600',
+                                                  border: '1px solid #c7d2fe'
+                                                }}
+                                                title="Kasir yang mengajukan stok"
+                                              >
+                                                <i className="bi bi-person-fill"></i>
+                                                <span>Kasir: {item.createdBy || 'Kasir'}</span>
+                                              </span>
+                                            )}
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {inventoryTab === 'pending' ? (
+                                    user.role !== 'kasir' && (
+                                      <div className="d-flex gap-2">
+                                        <button
+                                          className="btn btn-sm btn-danger rounded-circle shadow-sm d-flex align-items-center justify-content-center"
+                                          style={{ width: '32px', height: '32px' }}
+                                          onClick={() => handleRejectInventory(item)}
+                                          title="Tolak"
+                                        >
+                                          <i className="bi bi-x fs-6"></i>
+                                        </button>
+                                        <button
+                                          className="btn btn-sm btn-success rounded-circle shadow-sm d-flex align-items-center justify-content-center"
+                                          style={{ width: '32px', height: '32px' }}
+                                          onClick={() => handleApproveInventory(item)}
+                                          title="Setujui"
+                                        >
+                                          <i className="bi bi-check2 fs-6"></i>
+                                        </button>
+                                      </div>
+                                    )
+                                  ) : (
+                                    user.role !== 'kasir' && (
+                                      <div className="d-flex align-items-center gap-2 bg-light rounded-pill p-1">
+                                        <button
+                                          className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
+                                          style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
+                                          onClick={() => handleUpdateStok(item, -1)}
+                                        >
+                                          <i className="bi bi-dash text-dark"></i>
+                                        </button>
+                                        <span className="fw-bold text-dark px-1" style={{ fontSize: '0.9rem', minWidth: '20px', textAlign: 'center' }}>{item.stok}</span>
+                                        <button
+                                          className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
+                                          style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
+                                          onClick={() => handleUpdateStok(item, 1)}
+                                        >
+                                          <i className="bi bi-plus text-dark"></i>
+                                        </button>
+                                      </div>
+                                    )
                                   )}
                                 </div>
+                                {/* Danger Indicator Line */}
+                                {item.stok < 5 && <div style={{ height: '3px', backgroundColor: '#ff5252', width: '100%' }}></div>}
                               </div>
-                            </div>
+                            ))}
 
-                            {inventoryTab === 'pending' ? (
-                              user.role !== 'kasir' && (
-                                <div className="d-flex gap-2">
+                            {filteredInventory.length > MODAL_PAGE_SIZE && (
+                              <div className="d-flex justify-content-center gap-2 mt-2 mb-3">
+                                {remainingInvCount > 0 && (
                                   <button
-                                    className="btn btn-sm btn-danger rounded-circle shadow-sm d-flex align-items-center justify-content-center"
-                                    style={{ width: '32px', height: '32px' }}
-                                    onClick={() => handleRejectInventory(item)}
-                                    title="Tolak"
+                                    type="button"
+                                    className="btn btn-sm btn-white border rounded-pill px-3 py-2 fw-bold text-primary shadow-xs d-inline-flex align-items-center gap-1"
+                                    style={{ fontSize: '0.78rem', backgroundColor: '#fff' }}
+                                    onClick={() => setVisibleInventoryCount(prev => prev + MODAL_PAGE_SIZE)}
                                   >
-                                    <i className="bi bi-x fs-6"></i>
+                                    <i className="bi bi-chevron-down"></i>
+                                    <span>{remainingInvCount} Item lagi</span>
                                   </button>
+                                )}
+                                {visibleInventoryCount > MODAL_PAGE_SIZE && (
                                   <button
-                                    className="btn btn-sm btn-success rounded-circle shadow-sm d-flex align-items-center justify-content-center"
-                                    style={{ width: '32px', height: '32px' }}
-                                    onClick={() => handleApproveInventory(item)}
-                                    title="Setujui"
+                                    type="button"
+                                    className="btn btn-sm btn-light border rounded-pill px-3 py-2 fw-semibold text-secondary d-inline-flex align-items-center gap-1"
+                                    style={{ fontSize: '0.78rem' }}
+                                    onClick={() => setVisibleInventoryCount(MODAL_PAGE_SIZE)}
                                   >
-                                    <i className="bi bi-check2 fs-6"></i>
+                                    <i className="bi bi-chevron-up"></i>
+                                    <span>Ringkas</span>
                                   </button>
-                                </div>
-                              )
-                            ) : (
-                              user.role !== 'kasir' && (
-                                <div className="d-flex align-items-center gap-2 bg-light rounded-pill p-1">
-                                  <button
-                                    className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
-                                    style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
-                                    onClick={() => handleUpdateStok(item, -1)}
-                                  >
-                                    <i className="bi bi-dash text-dark"></i>
-                                  </button>
-                                  <span className="fw-bold text-dark px-1" style={{ fontSize: '0.9rem', minWidth: '20px', textAlign: 'center' }}>{item.stok}</span>
-                                  <button
-                                    className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
-                                    style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
-                                    onClick={() => handleUpdateStok(item, 1)}
-                                  >
-                                    <i className="bi bi-plus text-dark"></i>
-                                  </button>
-                                </div>
-                              )
+                                )}
+                              </div>
                             )}
-                          </div>
-                          {/* Danger Indicator Line */}
-                          {item.stok < 5 && <div style={{ height: '3px', backgroundColor: '#ff5252', width: '100%' }}></div>}
-                        </div>
-                      ))}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

@@ -601,6 +601,7 @@ export class SyncService {
     return await this.prisma.inventory.findMany({
       where: { storeId, deletedAt: null },
       orderBy: { nama: 'asc' },
+      take: 1000,
     });
   }
 
@@ -612,6 +613,7 @@ export class SyncService {
     return await this.prisma.product.findMany({
       where: { storeId },
       orderBy: { createdAt: 'asc' },
+      take: 500,
     });
   }
 
@@ -622,7 +624,8 @@ export class SyncService {
     if (!storeId) return [];
     return await this.prisma.pelanggan.findMany({
       where: { storeId },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
+      take: 1000,
     });
   }
 

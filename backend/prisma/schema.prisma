@@ -49,6 +49,8 @@ model User {
   sentMessages         Message[]
 
   @@unique([storeId, username])
+  @@index([username])
+  @@index([storeId, role])
   @@index([storeId, updatedAt])
 }
 
@@ -83,6 +85,9 @@ model Pelanggan {
   orders Order[]
 
   @@index([storeId, updatedAt])
+  @@index([storeId, createdAt])
+  @@index([storeId, hp])
+  @@index([storeId, nama])
 }
 
 model Inventory {
@@ -151,6 +156,10 @@ model Order {
   items OrderItem[]
 
   @@unique([storeId, invoiceId])
+  @@index([invoiceId])
+  @@index([userId])
+  @@index([pelangganId])
+  @@index([storeId, createdAt(sort: Desc)])
   @@index([storeId, updatedAt])
 }
 
@@ -168,6 +177,7 @@ model OrderItem {
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@index([orderId])
+  @@index([productId])
 }
 
 model Settings {
@@ -238,6 +248,7 @@ model Conversation {
   messages Message[]
 
   @@index([storeId, updatedAt])
+  @@index([createdById])
 }
 
 model ConversationMember {
@@ -274,6 +285,7 @@ model Message {
   deletedAt      DateTime?     @db.Timestamptz(3)
 
   @@index([conversationId, createdAt])
+  @@index([senderId])
 }
 
 enum SubscriptionPlan {

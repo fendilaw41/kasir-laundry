@@ -79,9 +79,10 @@ export class ChatService {
         },
       },
       orderBy: [
-        { store: { name: 'asc' } },
+        { role: 'desc' },
         { fullname: 'asc' },
       ],
+      take: 200,
     });
 
     return users;
@@ -144,6 +145,7 @@ export class ChatService {
         },
       },
       orderBy: { updatedAt: 'desc' },
+      take: 100,
     });
 
     // Hitung unread messages per percakapan untuk currentUser

@@ -522,13 +522,25 @@ export class AuthService {
 
     const currentStoreId = matchedUser.storeId;
 
-    // Ambil data pendukung toko untuk hidrasi Dexie di browser/device baru
+    // Ambil data pendukung toko untuk hidrasi Dexie di browser/device baru (dibatasi agar tetap ringan pada dataset 100rb+ baris)
     let [settings, products, storeUsers, pelanggan, inventory] = await Promise.all([
       this.prisma.settings.findUnique({ where: { storeId: currentStoreId } }),
-      this.prisma.product.findMany({ where: { storeId: currentStoreId, deletedAt: null } }),
-      this.prisma.user.findMany({ where: { storeId: currentStoreId, deletedAt: null } }),
-      this.prisma.pelanggan.findMany({ where: { storeId: currentStoreId, deletedAt: null } }),
-      this.prisma.inventory.findMany({ where: { storeId: currentStoreId, deletedAt: null } }),
+      this.prisma.product.findMany({ where: { storeId: currentStoreId, deletedAt: null }, take: 500 }),
+      this.prisma.user.findMany({
+        where: { storeId: currentStoreId, deletedAt: null },
+        orderBy: [{ role: 'desc' }, { createdAt: 'asc' }],
+        take: 200,
+      }),
+      this.prisma.pelanggan.findMany({
+        where: { storeId: currentStoreId, deletedAt: null },
+        orderBy: { updatedAt: 'desc' },
+        take: 1000,
+      }),
+      this.prisma.inventory.findMany({
+        where: { storeId: currentStoreId, deletedAt: null },
+        orderBy: { updatedAt: 'desc' },
+        take: 1000,
+      }),
     ]);
 
     // Jika store di server belum memiliki produk (misal store baru atau baru di-reset),

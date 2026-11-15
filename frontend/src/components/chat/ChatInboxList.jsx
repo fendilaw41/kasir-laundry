@@ -10,20 +10,24 @@ export const ChatInboxList = ({
   const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'store' | 'cross'
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Format waktu pesan terakhir (HH:mm atau DD/MM)
+  // Format waktu pesan terakhir (HH:mm untuk Hari Ini, "Kemarin", atau "13 Nov 2026")
   const formatTime = (isoString) => {
     if (!isoString) return '';
     const date = new Date(isoString);
+    if (isNaN(date.getTime())) return '';
     const now = new Date();
-    const isToday =
-      date.getDate() === now.getDate() &&
-      date.getMonth() === now.getMonth() &&
-      date.getFullYear() === now.getFullYear();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const msgStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffDays = Math.round((todayStart - msgStart) / 86400000);
 
-    if (isToday) {
+    if (diffDays === 0) {
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
     }
-    return `${date.getDate()}/${date.getMonth() + 1}`;
+    if (diffDays === 1) {
+      return 'Kemarin';
+    }
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
   };
 
   const myIds = [currentUser?.uuid, currentUser?.id, currentUser?.userId].filter(Boolean).map(String);

@@ -331,66 +331,78 @@ export class SubscriptionService {
     const periodStart = sub.currentPeriodStart;
     const warningPercentage = parseInt(process.env.SUBSCRIPTION_WARNING_PERCENTAGE || '80', 10);
 
-    // 1. Hitung transaksi order bulan ini
-    const usedTransactions = await this.prisma.order.count({
-      where: {
-        storeId,
-        createdAt: { gte: periodStart },
-        deletedAt: null,
-      },
-    });
-
-    // 2. Hitung foto chat bulan ini
-    const usedPhotos = await this.prisma.message.count({
-      where: {
-        conversation: { storeId },
-        type: 'IMAGE',
-        createdAt: { gte: periodStart },
-        deletedAt: null,
-      },
-    });
-
-    // 3. Hitung foto yang akan segera dibersihkan (7 hari menjelang batas retensi)
+    // Hitung batas retensi foto
     const retentionDays = limits.photoRetentionDays || 30;
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() - retentionDays);
     const warningExpiryDate = new Date(expiryDate);
     warningExpiryDate.setDate(warningExpiryDate.getDate() + 7);
 
-    const expiringSoonCount = await this.prisma.message.count({
-      where: {
-        conversation: { storeId },
-        type: 'IMAGE',
-        createdAt: { gte: expiryDate, lte: warningExpiryDate },
-        deletedAt: null,
-      },
-    });
-
-    // 4. Hitung kasir / user aktif
-    const usedUsers = await this.prisma.user.count({
-      where: {
-        storeId,
-        deletedAt: null,
-      },
-    });
-
-    // 5. Hitung item inventori aktif
-    const usedInventory = await this.prisma.inventory.count({
-      where: {
-        storeId,
-        deletedAt: null,
-      },
-    });
-
-    // 6. Hitung item produk / layanan aktif
-    const usedProducts = this.prisma.product
-      ? await this.prisma.product.count({
+    // Jalankan seluruh query perhitungan kuota secara paralel (Promise.all) agar latensi minimal
+    const [
+      usedTransactions,
+      usedPhotos,
+      expiringSoonCount,
+      usedUsers,
+      usedInventory,
+      usedProducts,
+      store,
+    ] = await Promise.all([
+      // 1. Hitung transaksi order bulan ini
+      this.prisma.order.count({
+        where: {
+          storeId,
+          createdAt: { gte: periodStart },
+          deletedAt: null,
+        },
+      }),
+      // 2. Hitung foto chat bulan ini
+      this.prisma.message.count({
+        where: {
+          conversation: { storeId },
+          type: 'IMAGE',
+          createdAt: { gte: periodStart },
+          deletedAt: null,
+        },
+      }),
+      // 3. Hitung foto yang akan segera dibersihkan (7 hari menjelang batas retensi)
+      this.prisma.message.count({
+        where: {
+          conversation: { storeId },
+          type: 'IMAGE',
+          createdAt: { gte: expiryDate, lte: warningExpiryDate },
+          deletedAt: null,
+        },
+      }),
+      // 4. Hitung kasir / user aktif
+      this.prisma.user.count({
         where: {
           storeId,
           deletedAt: null,
         },
-      })
-      : 0;
+      }),
+      // 5. Hitung item inventori aktif
+      this.prisma.inventory.count({
+        where: {
+          storeId,
+          deletedAt: null,
+        },
+      }),
+      // 6. Hitung item produk / layanan aktif
+      this.prisma.product
+        ? this.prisma.product.count({
+          where: {
+            storeId,
+            deletedAt: null,
+          },
+        })
+        : Promise.resolve(0),
+      // 7. Ambil flag konfigurasi store
+      this.prisma.store.findUnique({
+        where: { id: storeId },
+        select: { featureSubscriptionEnabled: true, showUpgradeBanner: true },
+      }),
+    ]);
 
     const productLimit = limits.maxProducts === -1 ? 999999 : (limits.maxProducts ?? 50);
     const productRemaining = limits.maxProducts === -1 ? 999999 : Math.max(0, productLimit - usedProducts);
@@ -408,10 +420,6 @@ export class SubscriptionService {
     const userLimit = limits.maxUsers === -1 ? 999999 : limits.maxUsers;
     const inventoryLimit = limits.maxStockItems === -1 ? 999999 : limits.maxStockItems;
 
-    const store = await this.prisma.store.findUnique({
-      where: { id: storeId },
-      select: { featureSubscriptionEnabled: true, showUpgradeBanner: true },
-    });
     const featureSubscriptionEnabled = store?.featureSubscriptionEnabled ?? true;
     const showUpgradeBanner = store?.showUpgradeBanner ?? true;
 

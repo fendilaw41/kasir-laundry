@@ -504,13 +504,35 @@ async function calculateOfflineUsage(storeId) {
 /**
  * Membuat tautan WhatsApp untuk upgrade paket
  */
-export function getUpgradeWhatsAppUrl(planKey, storeName) {
+export function getUpgradeWhatsAppUrl(planKey, storeName, username) {
   const plan = PLAN_CONFIGS[planKey];
   const targetName = plan?.name || planKey;
+  const priceText =
+    plan?.price === 0
+      ? 'Gratis'
+      : plan?.price
+        ? `Rp ${plan.price.toLocaleString('id-ID')}`
+        : plan?.priceLabel || '-';
   const cleanName = storeName || 'Toko Laundry';
 
+  let activeUsername = username;
+  if (!activeUsername && typeof window !== 'undefined') {
+    try {
+      const storedUser = JSON.parse(
+        window.sessionStorage?.getItem('user') || window.localStorage?.getItem('user') || '{}'
+      );
+      activeUsername = storedUser?.username;
+    } catch { }
+  }
+
   const text = encodeURIComponent(
-    `Halo Admin, saya ingin mengajukan paket ${targetName} untuk toko ${cleanName}.`
+    `Halo Admin TokoPlus,\n\n` +
+    `Saya ingin mengajukan upgrade paket:\n` +
+    `• Nama Toko: ${cleanName}\n` +
+    `• Username: @${activeUsername || 'owner'}\n` +
+    `• Paket Dipilih: ${targetName} (${priceText})\n` +
+    `• Rekening Pembayaran: BCA 7425485709 a/n Muhamad Efendy Ray\n\n` +
+    `Mohon bantuannya untuk diproses aktivasi. Terima kasih!`
   );
 
   return `https://wa.me/${BILLING_WA}?text=${text}`;
@@ -519,7 +541,7 @@ export function getUpgradeWhatsAppUrl(planKey, storeName) {
 /**
  * Membuat tautan WhatsApp untuk top-up kuota
  */
-export function getTopupWhatsAppUrl(type, amount, storeName, price) {
+export function getTopupWhatsAppUrl(type, amount, storeName, price, username) {
   const cleanName = storeName || 'Toko Laundry';
   const label = type === 'TRANSACTIONS' ? `${amount} Transaksi` : `${amount} Foto Chat`;
   const defaultPrice =
@@ -528,8 +550,24 @@ export function getTopupWhatsAppUrl(type, amount, storeName, price) {
       : 'Rp 50.000';
   const finalPrice = price || defaultPrice;
 
+  let activeUsername = username;
+  if (!activeUsername && typeof window !== 'undefined') {
+    try {
+      const storedUser = JSON.parse(
+        window.sessionStorage?.getItem('user') || window.localStorage?.getItem('user') || '{}'
+      );
+      activeUsername = storedUser?.username;
+    } catch { }
+  }
+
   const text = encodeURIComponent(
-    `Halo Admin TokoPlus,\n\nSaya ingin membeli TOP-UP KUOTA tambahan:\nNama Toko: ${cleanName}\nJenis Kuota: +${label}\nBiaya: ${finalPrice}\n\nMohon info nomor rekening pembayarannya. Terima kasih!`
+    `Halo Admin TokoPlus,\n\n` +
+    `Saya ingin mengajukan top-up kuota tambahan:\n` +
+    `• Nama Toko: ${cleanName}\n` +
+    `• Username: @${activeUsername || 'owner'}\n` +
+    `• Kuota Dipilih: +${label} (${finalPrice})\n` +
+    `• Rekening Pembayaran: BCA 7425485709 a/n Muhamad Efendy Ray\n\n` +
+    `Mohon bantuannya untuk diproses aktivasi. Terima kasih!`
   );
 
   return `https://wa.me/${BILLING_WA}?text=${text}`;

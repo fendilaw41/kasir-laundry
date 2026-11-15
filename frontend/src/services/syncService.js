@@ -991,14 +991,21 @@ export const pullOrdersFromBackend = async (force = false) => {
     // 6. Tarik dan Sinkronkan Inventory dari Response GET /orders?storeId=...
     const serverInventory = result.inventory || [];
     if (Array.isArray(serverInventory) && serverInventory.length > 0) {
+      const existingInv = await db.inventory.toArray();
+      const invByUuid = new Map();
+      const invByNama = new Map();
+      for (const li of existingInv) {
+        if (li.uuid) invByUuid.set(li.uuid, li);
+        if (li.nama) invByNama.set(li.nama.toLowerCase().trim(), li);
+      }
+
+      const invToAdd = [];
+      const invToPut = [];
+
       for (const sinv of serverInventory) {
-        let localInv = null;
-        if (sinv.id) {
-          localInv = await db.inventory.where('uuid').equals(sinv.id).first();
-        }
-        if (!localInv && sinv.nama) {
-          localInv = await db.inventory.filter(i => i.nama && i.nama.toLowerCase() === sinv.nama.toLowerCase()).first();
-        }
+        const localInv = (sinv.id && invByUuid.get(sinv.id)) ||
+          (sinv.nama && invByNama.get(sinv.nama.toLowerCase().trim())) ||
+          null;
 
         const invPayload = {
           uuid: sinv.id,
@@ -1016,14 +1023,16 @@ export const pullOrdersFromBackend = async (force = false) => {
         };
 
         if (localInv) {
-          // Jangan timpa jika item lokal masih memiliki perubahan lokal yang belum di-sync
           if (localInv.isDirty !== 1) {
-            await db.inventory.update(localInv.id, invPayload);
+            invToPut.push({ ...localInv, ...invPayload, id: localInv.id });
           }
         } else {
-          await db.inventory.add(invPayload);
+          invToAdd.push(invPayload);
         }
       }
+
+      if (invToAdd.length > 0) await db.inventory.bulkAdd(invToAdd);
+      if (invToPut.length > 0) await db.inventory.bulkPut(invToPut);
     }
 
     // 7. Tarik dan Sinkronkan Products dari Response GET /orders?storeId=...
@@ -1190,17 +1199,24 @@ export const pullPelangganFromBackend = async (force = false) => {
     const serverPelanggan = result.data || result || [];
 
     if (Array.isArray(serverPelanggan) && serverPelanggan.length > 0) {
+      const existingAll = await db.pelanggan.toArray();
+      const byUuid = new Map();
+      const byHp = new Map();
+      const byNama = new Map();
+      for (const lp of existingAll) {
+        if (lp.uuid) byUuid.set(lp.uuid, lp);
+        if (lp.hp && lp.hp !== '-') byHp.set(lp.hp, lp);
+        if (lp.nama) byNama.set(lp.nama.toLowerCase().trim(), lp);
+      }
+
+      const toAdd = [];
+      const toPut = [];
+
       for (const sp of serverPelanggan) {
-        let localPel = null;
-        if (sp.id) {
-          localPel = await db.pelanggan.where('uuid').equals(sp.id).first();
-        }
-        if (!localPel && sp.hp && sp.hp !== '-') {
-          localPel = await db.pelanggan.where('hp').equals(sp.hp).first();
-        }
-        if (!localPel && sp.nama) {
-          localPel = await db.pelanggan.filter(p => p.nama && p.nama.toLowerCase().trim() === sp.nama.toLowerCase().trim()).first();
-        }
+        let localPel = (sp.id && byUuid.get(sp.id)) ||
+          (sp.hp && sp.hp !== '-' && byHp.get(sp.hp)) ||
+          (sp.nama && byNama.get(sp.nama.toLowerCase().trim())) ||
+          null;
 
         const pelPayload = {
           uuid: sp.id,
@@ -1215,17 +1231,19 @@ export const pullPelangganFromBackend = async (force = false) => {
         };
 
         if (localPel) {
-          // Jangan timpa jika pelanggan lokal berstatus dirty (isDirty: 1) sementara data server belum mencatat deletedAt
           if (localPel.isDirty === 1 && !sp.deletedAt) {
             continue;
           }
           if (localPel.isDirty !== 1 || force) {
-            await db.pelanggan.update(localPel.id, pelPayload);
+            toPut.push({ ...localPel, ...pelPayload, id: localPel.id });
           }
         } else {
-          await db.pelanggan.add(pelPayload);
+          toAdd.push(pelPayload);
         }
       }
+
+      if (toAdd.length > 0) await db.pelanggan.bulkAdd(toAdd);
+      if (toPut.length > 0) await db.pelanggan.bulkPut(toPut);
     }
     return true;
   } catch (err) {

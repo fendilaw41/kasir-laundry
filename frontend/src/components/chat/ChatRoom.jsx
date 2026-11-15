@@ -337,7 +337,32 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
   const formatTime = (isoString) => {
     if (!isoString) return '';
     const date = new Date(isoString);
+    if (isNaN(date.getTime())) return '';
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+
+  // Kunci tanggal lokal (YYYY-MM-DD) untuk pengelompokan badge pemisah hari
+  const getDateKey = (isoString) => {
+    const d = isoString ? new Date(isoString) : new Date();
+    if (isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  // Label badge tanggal: "Hari Ini", "Kemarin", atau "13 Nov 2026"
+  const formatChatDateBadge = (isoString) => {
+    const d = isoString ? new Date(isoString) : new Date();
+    if (isNaN(d.getTime())) return 'Hari Ini';
+
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const msgStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const diffDays = Math.round((todayStart - msgStart) / 86400000);
+
+    if (diffDays === 0) return 'Hari Ini';
+    if (diffDays === 1) return 'Kemarin';
+
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
   };
 
   // Resolve URL gambar untuk rendering
@@ -411,12 +436,31 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
             const isMe = checkIsMe(msg);
             const imageUrl = getRenderImageUrl(msg);
             const isOwnerSender = msg.sender?.role?.toLowerCase() === 'owner';
+            const currentDateKey = getDateKey(msg.createdAt);
+            const prevDateKey = index > 0 ? getDateKey(messages[index - 1]?.createdAt) : null;
+            const showDateBadge = index === 0 || currentDateKey !== prevDateKey;
 
             return (
-              <div
-                key={msg.uuid || msg.id || index}
-                className={`d-flex mb-2 ${isMe ? 'justify-content-end' : 'justify-content-start'}`}
-              >
+              <React.Fragment key={msg.uuid || msg.id || index}>
+                {showDateBadge && (
+                  <div className="d-flex justify-content-center my-2">
+                    <span
+                      className="badge rounded-pill px-3 py-1 fw-semibold shadow-xs"
+                      style={{
+                        backgroundColor: '#fff',
+                        color: '#475569',
+                        fontSize: '0.72rem',
+                        letterSpacing: '0.2px',
+                        border: '1px solid #cbd5e1',
+                      }}
+                    >
+                      {formatChatDateBadge(msg.createdAt)}
+                    </span>
+                  </div>
+                )}
+                <div
+                  className={`d-flex mb-2 ${isMe ? 'justify-content-end' : 'justify-content-start'}`}
+                >
                 <div
                   className="p-2 shadow-sm"
                   style={{
@@ -535,6 +579,7 @@ export const ChatRoom = ({ conversation, currentUser, onBack, onUpdateSubtitle }
                   </div>
                 </div>
               </div>
+              </React.Fragment>
             );
           })
         )}

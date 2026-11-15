@@ -158,6 +158,14 @@ const Transaksi = ({ user } = {}) => {
 
   // Draft input untuk angka desimal jumlah laundry (kg) agar bisa diketik seperti 1.2 atau 1,5
   const [qtyDrafts, setQtyDrafts] = useState({});
+  // State untuk Search Pelanggan
+  const [pelangganSearchTerm, setPelangganSearchTerm] = useState('');
+  const PELANGGAN_MODAL_PAGE_SIZE = 10;
+  const [visiblePelangganModalCount, setVisiblePelangganModalCount] = useState(PELANGGAN_MODAL_PAGE_SIZE);
+
+  useEffect(() => {
+    setVisiblePelangganModalCount(PELANGGAN_MODAL_PAGE_SIZE);
+  }, [pelangganSearchTerm, showModal]);
 
   // Query Daftar Produk untuk ditampilkan langsung di halaman Transaksi
   const products = useLiveQuery(getProductsQuery);
@@ -193,9 +201,6 @@ const Transaksi = ({ user } = {}) => {
   const drawerRef = useRef(null);
   const lastDrawerHeightRef = useRef(0);
   const [drawerHeight, setDrawerHeight] = useState(0);
-
-  // State untuk Search Pelanggan
-  const [pelangganSearchTerm, setPelangganSearchTerm] = useState('');
 
   // State untuk Modal Sukses Transaksi (Animasi Angka & Suara)
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -719,7 +724,7 @@ const Transaksi = ({ user } = {}) => {
                 paddingBottom: '4px',
               }}
             >
-              {inventory?.filter(inv => !(inv.status === 'pending' && inv.stok === 0)).map(inv => {
+              {inventory?.filter(inv => !(inv.status === 'pending' && inv.stok === 0)).slice(0, 50).map(inv => {
                 const activeItem = selectedInventory.find(s => s.id === inv.id);
                 const isActive = !!activeItem;
                 const isOutOfStock = Number(inv.stok || 0) <= 0;
@@ -1662,15 +1667,23 @@ const Transaksi = ({ user } = {}) => {
                       <CustomerListSkeleton count={3} />
                     ) : (daftarPelanggan || []).length === 0 ? (
                       <p className="text-center text-muted py-3 small mb-0">Belum ada data pelanggan</p>
-                    ) : (
-                      <div className="d-grid gap-1">
-                        {(daftarPelanggan || [])
-                          .filter(p => {
-                            if (!pelangganSearchTerm) return true;
-                            const q = pelangganSearchTerm.toLowerCase();
-                            return (p.nama && p.nama.toLowerCase().includes(q)) || (p.hp && p.hp.toLowerCase().includes(q));
-                          })
-                          .map(p => (
+                    ) : (() => {
+                      const filteredModalPelanggan = (daftarPelanggan || []).filter(p => {
+                        if (!pelangganSearchTerm) return true;
+                        const q = pelangganSearchTerm.toLowerCase();
+                        return (p.nama && p.nama.toLowerCase().includes(q)) || (p.hp && p.hp.toLowerCase().includes(q));
+                      });
+
+                      if (filteredModalPelanggan.length === 0) {
+                        return <p className="text-center text-muted py-3 small mb-0">Tidak ada pelanggan ditemukan</p>;
+                      }
+
+                      const visibleList = filteredModalPelanggan.slice(0, visiblePelangganModalCount);
+                      const remainingCount = Math.max(0, filteredModalPelanggan.length - visiblePelangganModalCount);
+
+                      return (
+                        <div className="d-grid gap-1">
+                          {visibleList.map(p => (
                             <div
                               key={p.id}
                               className="p-2 rounded-3 border d-flex justify-content-between align-items-center transition-all bg-white"
@@ -1702,8 +1715,36 @@ const Transaksi = ({ user } = {}) => {
                               </span>
                             </div>
                           ))}
-                      </div>
-                    )}
+
+                          {filteredModalPelanggan.length > PELANGGAN_MODAL_PAGE_SIZE && (
+                            <div className="d-flex justify-content-center gap-2 mt-2 mb-1">
+                              {remainingCount > 0 && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-white border rounded-pill px-3 py-1 fw-bold text-primary shadow-xs d-inline-flex align-items-center gap-1"
+                                  style={{ fontSize: '0.74rem', backgroundColor: '#fff' }}
+                                  onClick={() => setVisiblePelangganModalCount(prev => prev + PELANGGAN_MODAL_PAGE_SIZE)}
+                                >
+                                  <i className="bi bi-chevron-down"></i>
+                                  <span>{remainingCount} lagi</span>
+                                </button>
+                              )}
+                              {visiblePelangganModalCount > PELANGGAN_MODAL_PAGE_SIZE && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-light border rounded-pill px-3 py-1 fw-semibold text-secondary d-inline-flex align-items-center gap-1"
+                                  style={{ fontSize: '0.74rem' }}
+                                  onClick={() => setVisiblePelangganModalCount(PELANGGAN_MODAL_PAGE_SIZE)}
+                                >
+                                  <i className="bi bi-chevron-up"></i>
+                                  <span>Ringkas</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </>
               )}

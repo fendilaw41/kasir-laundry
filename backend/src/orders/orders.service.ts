@@ -374,6 +374,7 @@ export class OrdersService {
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: 500,
     };
     if (since && !isNaN(since.getTime())) {
       where.updatedAt = { gte: since };

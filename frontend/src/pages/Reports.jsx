@@ -73,6 +73,12 @@ const Reports = ({ user }) => {
   const [filterMonth, setFilterMonth] = useState('All');
   const [filterBayar, setFilterBayar] = useState('Semua');
   const [showBalance, setShowBalance] = useState(false);
+  const REPORTS_PAGE_SIZE = 20;
+  const [visibleCount, setVisibleCount] = useState(REPORTS_PAGE_SIZE);
+
+  useEffect(() => {
+    setVisibleCount(REPORTS_PAGE_SIZE);
+  }, [searchTerm, isTodayOnly, filterMonth, filterBayar]);
 
   useEffect(() => {
     if (filterMonth !== 'All' && !allowedMonthValues.includes(filterMonth)) {
@@ -139,8 +145,15 @@ const Reports = ({ user }) => {
     });
   }, [searchTerm, isTodayOnly, filterMonth, filterBayar, isKasir, allowedMonthValues]);
 
-  // Grouping by Date for BCA style
-  const groupedData = data?.reduce((acc, order) => {
+  const visibleData = useMemo(() => {
+    if (!data) return undefined;
+    return data.slice(0, visibleCount);
+  }, [data, visibleCount]);
+
+  const remainingReportsCount = data ? Math.max(0, data.length - visibleCount) : 0;
+
+  // Grouping by Date for BCA style (dibatasi sesuai visibleData agar render ringan)
+  const groupedData = visibleData?.reduce((acc, order) => {
     const date = new Date(order.createdAt);
     const day = date.getDate();
     const month = date.toLocaleString('id-ID', { month: 'short' });
@@ -460,6 +473,34 @@ const Reports = ({ user }) => {
               <i className="bi bi-receipt-cutoff text-muted" style={{ fontSize: '2rem' }}></i>
             </div>
             <p className="text-muted">Tidak ada transaksi ditemukan</p>
+          </div>
+        )}
+
+        {/* Tombol Show More / Sembunyikan (Mirip Halaman Data Order) */}
+        {data && data.length > REPORTS_PAGE_SIZE && (
+          <div className="d-flex justify-content-center gap-2 mt-2 mb-4">
+            {remainingReportsCount > 0 && (
+              <button
+                type="button"
+                className="btn btn-sm btn-white border rounded-pill px-3 py-2 fw-bold text-primary shadow-xs d-inline-flex align-items-center gap-1"
+                style={{ fontSize: '0.78rem', backgroundColor: '#fff' }}
+                onClick={() => setVisibleCount((prev) => prev + REPORTS_PAGE_SIZE)}
+              >
+                <i className="bi bi-chevron-down"></i>
+                <span>{remainingReportsCount} Transaksi lagi</span>
+              </button>
+            )}
+            {visibleCount > REPORTS_PAGE_SIZE && (
+              <button
+                type="button"
+                className="btn btn-sm btn-light border rounded-pill px-3 py-2 fw-semibold text-secondary d-inline-flex align-items-center gap-1"
+                style={{ fontSize: '0.78rem' }}
+                onClick={() => setVisibleCount(REPORTS_PAGE_SIZE)}
+              >
+                <i className="bi bi-chevron-up"></i>
+                <span>Ringkas</span>
+              </button>
+            )}
           </div>
         )}
       </div>
