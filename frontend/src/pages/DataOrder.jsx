@@ -14,7 +14,7 @@ import { getSubscriptionReport, getCachedSubscriptionReportSync, isTrialExpired,
 /* Gaya khusus halaman Data Order (prefix .do-). Dibuat sendiri karena kelas seperti
    gap-1.5 / p-2.5 / mb-1.5 TIDAK ada di Bootstrap 5, jadi spasi sebelumnya tidak terkontrol. */
 const DO_CSS = `
-.do-wrap { padding: 10px 12px 24px; }
+.do-wrap { padding: 22px 12px 24px; }
 .do-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
 .do-count { display: inline-flex; align-items: center; gap: 5px; font-size: .74rem; font-weight: 600; color: #5f5a86; }
 .do-count i { color: #0d5afd; }
@@ -32,18 +32,36 @@ const DO_CSS = `
   letter-spacing: .03em; display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
 .do-tab.on { background: #0d5afd; color: #fff; box-shadow: 0 6px 12px -6px rgba(13, 90, 253, .7); }
-.do-filters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 6px; }
-.do-sel {
-  width: 100%; height: 30px; padding: 0 18px 0 7px; border: 1px solid #e1e6fa; border-radius: 10px; color: #1f0757; font-size: .64rem; font-weight: 500;
-  text-overflow: ellipsis; white-space: nowrap; overflow: hidden;
-  appearance: none; -webkit-appearance: none; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%238480ae' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 6px center;
-}
-.do-dates { display: flex; align-items: center; gap: 6px; padding: 5px 8px; margin-bottom: 6px; background: #fff; border: 1px solid #e1e6fa; border-radius: 11px; }
-.do-date-field { flex: 1; display: flex; align-items: center; gap: 5px; min-width: 0; }
-.do-date-field span { font-size: .62rem; font-weight: 700; color: #8480ae; white-space: nowrap; }
-.do-date-in { width: 100%; height: 26px; padding: 0 6px; border: 1px solid #e1e6fa; border-radius: 8px; font-size: .66rem; font-weight: 600; color: #1f0757; background: #f8faff; min-width: 0; }
-.do-date-sep { font-size: .7rem; color: #8480ae; font-weight: 700; }
-.do-date-clr { width: 24px; height: 24px; border-radius: 50%; border: 0; background: #fee2e2; color: #ef4444; font-size: .65rem; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
+.do-search { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.do-sbox { flex: 1; min-width: 0; position: relative; }
+.do-sbox i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: .8rem; color: #8480ae; pointer-events: none; }
+.do-sin { width: 100%; height: 36px; padding: 0 30px 0 32px; border: 1px solid #e1e6fa; border-radius: 12px; background: #fff; font-size: .78rem; color: #1f0757; outline: none; }
+.do-sin:focus { border-color: #0d5afd; box-shadow: 0 0 0 3px rgba(13, 90, 253, .12); }
+.do-sclr { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 26px; height: 26px; border: 0; background: none; color: #a3a9c9; font-size: .7rem; }
+.do-fbtn { position: relative; height: 36px; padding: 0 13px; border-radius: 12px; border: 1px solid #e1e6fa; background: #fff; color: #1f0757; font-size: .74rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.do-fbtn.on { border-color: #0d5afd; color: #0d5afd; background: #f1f5ff; }
+.do-fbtn em { font-style: normal; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: #0d5afd; color: #fff; font-size: .62rem; display: inline-flex; align-items: center; justify-content: center; }
+.do-act { display: flex; flex-wrap: wrap; gap: 5px; margin: -2px 0 8px; }
+.do-ach { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 5px 0 10px; border-radius: 999px; background: #e8efff; color: #0134d4; font-size: .68rem; font-weight: 600; border: 0; }
+.do-ach i { width: 16px; height: 16px; border-radius: 50%; background: rgba(13, 90, 253, .15); display: inline-flex; align-items: center; justify-content: center; font-size: .55rem; }
+.do-ach.rst { background: none; color: #8480ae; padding: 0 4px; }
+.do-sbg { position: fixed; inset: 0; z-index: 1190; background: rgba(31, 7, 87, .4); animation: do-fade .18s ease-out; }
+.do-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1200; max-width: 560px; margin: 0 auto; max-height: 86vh; overflow-y: auto; padding: 8px 16px 18px; background: #fff; border-radius: 24px 24px 0 0; box-shadow: 0 -20px 40px -20px rgba(31, 7, 87, .35); animation: do-slide .22s ease-out; }
+.do-grab { width: 38px; height: 4px; border-radius: 4px; background: #dfe3f6; margin: 0 auto 10px; }
+.do-sh-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.do-sh-h b { font-size: 1rem; color: #1f0757; }
+.do-sh-h button { border: 0; background: none; color: #0d5afd; font-size: .78rem; font-weight: 700; padding: 4px 0; }
+.do-fl { margin: 12px 0 6px; font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #8480ae; }
+.do-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.do-chip { height: 32px; padding: 0 13px; border-radius: 999px; border: 1px solid #e1e6fa; background: #fff; color: #1f0757; font-size: .74rem; font-weight: 600; cursor: pointer; }
+.do-chip.on { background: #0d5afd; border-color: #0d5afd; color: #fff; }
+.do-dates { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.do-date-in { flex: 1; min-width: 0; height: 34px; padding: 0 8px; border: 1px solid #e1e6fa; border-radius: 10px; font-size: .74rem; font-weight: 600; color: #1f0757; background: #f8faff; }
+.do-date-sep { color: #8480ae; font-weight: 700; }
+.do-cta { width: 100%; height: 44px; margin-top: 18px; border: 0; border-radius: 14px; background: #0d5afd; color: #fff; font-size: .86rem; font-weight: 700; box-shadow: 0 12px 22px -10px rgba(13, 90, 253, .7); }
+@keyframes do-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes do-slide { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+
 .do-more-wrap { display: flex; gap: 6px; margin-top: 6px; }
 .do-more {
   flex: 1; height: 34px; border-radius: 12px; border: 1px dashed #b9c8fe; background: #f5f8ff; color: #0d5afd;
@@ -81,7 +99,6 @@ button.do-ic { border: 0; padding: 0; cursor: pointer; -webkit-tap-highlight-col
 .do-ic.ok { background: #d9f6e6; color: #0e8f55; }
 .do-ic.wait { background: #fff1cf; color: #a76a00; }
 .do-ic.srv { background: #e9f0ff; color: #0134d4; }
-.do-date { font-size: .64rem; color: #8480ae; white-space: nowrap; }
 .do-r2 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 1px; }
 .do-name { font-size: .8rem; font-weight: 700; color: #1f0757; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .do-total { font-size: .84rem; font-weight: 700; color: #0d5afd; white-space: nowrap; }
@@ -91,16 +108,24 @@ button.do-ic { border: 0; padding: 0; cursor: pointer; -webkit-tap-highlight-col
 .do-note span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .do-note i { font-size: .66rem; color: #0284c7; flex: none; }
 .do-note.k i { color: #b78103; }
-.do-r3 { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
-.do-est { font-size: .62rem; color: #8480ae; white-space: nowrap; line-height: 1.15; }
-.do-est b { display: block; font-size: .66rem; color: #5f5a86; font-weight: 600; }
-.do-btns { flex: 1; display: grid; gap: 5px; }
+.do-r3 { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.do-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; font-size: .64rem; color: #8480ae; line-height: 1.25; white-space: nowrap; }
+.do-meta span { display: inline-flex; align-items: center; gap: 4px; }
+.do-meta i { font-size: .62rem; }
+.do-meta .late { color: #e5484d; font-weight: 700; }
+.do-meta .soon { color: #b78103; font-weight: 700; }
+.do-rt { display: flex; align-items: center; gap: 4px; flex: none; }
+.do-chip-pay { height: 20px; padding: 0 8px; border-radius: 999px; border: 0; font-size: .62rem; font-weight: 700; cursor: pointer; line-height: 1; }
+.do-chip-pay.ok { background: #d9f6e6; color: #0e8f55; }
+.do-chip-pay.wait { background: #fff1cf; color: #a76a00; }
+.do-btns { display: flex; gap: 5px; flex: none; }
 .do-b {
-  height: 26px; border-radius: 999px; border: 1px solid #0d5afd; background: #fff; color: #0d5afd; font-size: .7rem; font-weight: 700;
-  display: inline-flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer; padding: 0; line-height: 1;
+  height: 30px; padding: 0 14px; border-radius: 999px; border: 1px solid #0d5afd; background: #fff; color: #0d5afd; font-size: .72rem; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer; line-height: 1;
 }
-.do-b.p { background: #0d5afd; color: #fff; }
-.do-b.d { border-color: #f3b4b6; color: #e5484d; }
+.do-b.p { background: #0d5afd; color: #fff; padding: 0 16px; }
+.do-b.sq { width: 30px; padding: 0; border-color: #f3c3c5; background: #fff5f5; color: #e5484d; }
+
 .do-empty { text-align: center; padding: 36px 0; color: #8480ae; background: #fff; border-radius: 14px; border: 1px solid #e8ebfa; }
 .do-empty i { display: block; font-size: 1.8rem; opacity: .5; margin-bottom: 4px; }
 .do-empty p { margin: 0; font-size: .8rem; }
@@ -161,11 +186,13 @@ const DataOrder = ({ user }) => {
   const [tanggalMulai, setTanggalMulai] = useState('');
   const [tanggalAkhir, setTanggalAkhir] = useState('');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilter, setShowFilter] = useState(false);
 
   // Reset jumlah tampil saat tab atau filter berubah
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [activeTab, filterAntar, filterBayar, filterPrioritas, filterTanggal, tanggalMulai, tanggalAkhir]);
+  }, [activeTab, filterAntar, filterBayar, filterPrioritas, filterTanggal, tanggalMulai, tanggalAkhir, searchQuery]);
 
   // State Modal Konfirmasi
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -321,9 +348,14 @@ const DataOrder = ({ user }) => {
         }
       }
 
-      return matchTab && matchAntar && matchBayar && matchPrioritas && matchTanggal;
+      const q = searchQuery.trim().toLowerCase();
+      const matchSearch = !q
+        || String(order.invoiceId || '').toLowerCase().includes(q)
+        || String(order.pelangganNama || 'umum').toLowerCase().includes(q);
+
+      return matchTab && matchAntar && matchBayar && matchPrioritas && matchTanggal && matchSearch;
     });
-  }, [activeTab, filterAntar, filterBayar, filterPrioritas, filterTanggal, tanggalMulai, tanggalAkhir]);
+  }, [activeTab, filterAntar, filterBayar, filterPrioritas, filterTanggal, tanggalMulai, tanggalAkhir, searchQuery]);
 
   const visibleOrders = orders ? orders.slice(0, visibleCount) : undefined;
   const remainingOrdersCount = orders ? Math.max(0, orders.length - visibleCount) : 0;
@@ -433,6 +465,59 @@ const DataOrder = ({ user }) => {
     return new Date(new Date(order.createdAt).getTime() + order.estimasi * 86400000)
       .toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
   };
+  const estDate = (order) => {
+    if (!order.createdAt || order.estimasi === undefined || order.estimasi === null || isNaN(order.estimasi)) return null;
+    return new Date(new Date(order.createdAt).getTime() + order.estimasi * 86400000);
+  };
+  const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  // "Hari ini, 18.17" / "Kemarin, 18.17" / "14 Nov, 18.17"
+  const formatCreated = (order) => {
+    const d = new Date(order.createdAt);
+    if (isNaN(d.getTime())) return '-';
+    const now = new Date();
+    const yest = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    const jam = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const hari = sameDay(d, now) ? 'Hari ini' : sameDay(d, yest) ? 'Kemarin' : d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+    return `${hari}, ${jam}`;
+  };
+  const payText = (order) => {
+    const s = (order.statusBayar || '').toLowerCase();
+    if (isStatusLunas(order.statusBayar)) return 'Lunas';
+    if (s === 'dp') return 'DP';
+    return 'Belum bayar';
+  };
+  const filterOptions = [
+    { key: 'antar', label: 'Layanan', value: filterAntar, set: setFilterAntar, opts: ['Semua', 'Datang Langsung', 'Jemput/Antar'] },
+    { key: 'bayar', label: 'Pembayaran', value: filterBayar, set: setFilterBayar, opts: ['Semua', 'Lunas', 'DP', 'Belum Bayar'] },
+    { key: 'prio', label: 'Prioritas', value: filterPrioritas, set: setFilterPrioritas, opts: ['Semua', 'Ya', 'Tidak'] },
+  ];
+  const tanggalOptions = [['Semua', 'Semua'], ['Hari Ini', 'Hari ini'], ['Kemarin', 'Kemarin'], ['7 Hari', '7 hari'], ['Bulan Ini', 'Bulan ini'], ['Custom', 'Pilih tanggal']];
+  const pickTanggal = (val) => {
+    setFilterTanggal(val);
+    if (val === 'Custom' && !tanggalMulai && !tanggalAkhir) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      setTanggalMulai(todayStr);
+      setTanggalAkhir(todayStr);
+    }
+  };
+  const activeFilters = [
+    filterAntar !== 'Semua' && { key: 'antar', text: filterAntar, clear: () => setFilterAntar('Semua') },
+    filterBayar !== 'Semua' && { key: 'bayar', text: filterBayar, clear: () => setFilterBayar('Semua') },
+    filterPrioritas !== 'Semua' && { key: 'prio', text: `Prioritas: ${filterPrioritas}`, clear: () => setFilterPrioritas('Semua') },
+    filterTanggal !== 'Semua' && {
+      key: 'tgl',
+      text: filterTanggal === 'Custom' ? `${tanggalMulai || '…'} → ${tanggalAkhir || '…'}` : (tanggalOptions.find((t) => t[0] === filterTanggal)?.[1] || filterTanggal),
+      clear: () => setFilterTanggal('Semua'),
+    },
+  ].filter(Boolean);
+  const resetFilters = () => {
+    setFilterAntar('Semua');
+    setFilterBayar('Semua');
+    setFilterPrioritas('Semua');
+    setFilterTanggal('Semua');
+    setTanggalMulai('');
+    setTanggalAkhir('');
+  };
   const toggleSelect = (id) => {
     setSelectedOrderIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
@@ -495,87 +580,86 @@ const DataOrder = ({ user }) => {
         ))}
       </div>
 
-      {/* Filter */}
-      <div className="do-filters">
-        <select className="do-sel" value={filterAntar} onChange={(e) => setFilterAntar(e.target.value)} aria-label="Filter layanan">
-          <option value="Semua">Semua Layanan</option>
-          <option value="Datang Langsung">Datang Langsung</option>
-          <option value="Jemput/Antar">Jemput/Antar</option>
-        </select>
-        <select className="do-sel" value={filterBayar} onChange={(e) => setFilterBayar(e.target.value)} aria-label="Filter pembayaran">
-          <option value="Semua">Semua Bayar</option>
-          <option value="Lunas">Lunas</option>
-          <option value="DP">DP</option>
-          <option value="Belum Bayar">Belum Bayar</option>
-        </select>
-        <select className="do-sel" value={filterPrioritas} onChange={(e) => setFilterPrioritas(e.target.value)} aria-label="Filter prioritas">
-          <option value="Semua">Semua Prioritas</option>
-          <option value="Ya">Prioritas: Ya</option>
-          <option value="Tidak">Prioritas: Tidak</option>
-        </select>
-        <select
-          className="do-sel"
-          value={filterTanggal}
-          onChange={(e) => {
-            const val = e.target.value;
-            setFilterTanggal(val);
-            if (val === 'Custom' && !tanggalMulai && !tanggalAkhir) {
-              const todayStr = new Date().toISOString().slice(0, 10);
-              setTanggalMulai(todayStr);
-              setTanggalAkhir(todayStr);
-            }
-          }}
-          aria-label="Filter tanggal"
-        >
-          <option value="Semua">Semua Tanggal</option>
-          <option value="Hari Ini">Hari Ini</option>
-          <option value="Kemarin">Kemarin</option>
-          <option value="7 Hari">7 Hari Terakhir</option>
-          <option value="Bulan Ini">Bulan Ini</option>
-          <option value="Custom">Pilih Tanggal...</option>
-        </select>
-      </div>
-
-      {/* Input rentang tanggal kustom (tampil saat pilih Custom) */}
-      {filterTanggal === 'Custom' && (
-        <div className="do-dates">
-          <div className="do-date-field">
-            <span>Dari</span>
-            <input
-              type="date"
-              className="do-date-in"
-              value={tanggalMulai}
-              onChange={(e) => setTanggalMulai(e.target.value)}
-              aria-label="Dari tanggal"
-            />
-          </div>
-          <span className="do-date-sep">–</span>
-          <div className="do-date-field">
-            <span>S/d</span>
-            <input
-              type="date"
-              className="do-date-in"
-              value={tanggalAkhir}
-              min={tanggalMulai || undefined}
-              onChange={(e) => setTanggalAkhir(e.target.value)}
-              aria-label="Sampai tanggal"
-            />
-          </div>
-          {(tanggalMulai || tanggalAkhir) && (
-            <button
-              type="button"
-              className="do-date-clr"
-              onClick={() => {
-                setTanggalMulai('');
-                setTanggalAkhir('');
-              }}
-              title="Reset tanggal"
-              aria-label="Reset tanggal"
-            >
-              <i className="bi bi-x-lg"></i>
+      {/* Cari + tombol filter */}
+      <div className="do-search">
+        <div className="do-sbox">
+          <i className="bi bi-search"></i>
+          <input
+            type="search"
+            className="do-sin"
+            placeholder="Cari nama / no. order"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Cari order"
+          />
+          {searchQuery && (
+            <button type="button" className="do-sclr" onClick={() => setSearchQuery('')} aria-label="Hapus pencarian">
+              <i className="bi bi-x-lg" style={{ position: 'static', transform: 'none', color: 'inherit' }}></i>
             </button>
           )}
         </div>
+        <button type="button" className={`do-fbtn ${activeFilters.length ? 'on' : ''}`} onClick={() => setShowFilter(true)}>
+          <i className="bi bi-sliders"></i>
+          Filter
+          {activeFilters.length > 0 && <em>{activeFilters.length}</em>}
+        </button>
+      </div>
+
+      {/* Filter aktif (ketuk untuk menghapus) */}
+      {activeFilters.length > 0 && (
+        <div className="do-act">
+          {activeFilters.map((f) => (
+            <button key={f.key} type="button" className="do-ach" onClick={f.clear}>
+              {f.text}
+              <i className="bi bi-x-lg"></i>
+            </button>
+          ))}
+          <button type="button" className="do-ach rst" onClick={resetFilters}>Reset</button>
+        </div>
+      )}
+
+      {/* Lembar filter (bottom sheet) */}
+      {showFilter && (
+        <>
+          <div className="do-sbg" onClick={() => setShowFilter(false)}></div>
+          <div className="do-sheet" role="dialog" aria-label="Filter order">
+            <div className="do-grab"></div>
+            <div className="do-sh-h">
+              <b>Filter Order</b>
+              <button type="button" onClick={resetFilters}>Reset</button>
+            </div>
+            {filterOptions.map((g) => (
+              <div key={g.key}>
+                <div className="do-fl">{g.label}</div>
+                <div className="do-chips">
+                  {g.opts.map((o) => (
+                    <button key={o} type="button" className={`do-chip ${g.value === o ? 'on' : ''}`} onClick={() => g.set(o)}>
+                      {o === 'Ya' ? 'Prioritas saja' : o === 'Tidak' ? 'Non-prioritas' : o}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div className="do-fl">Tanggal order</div>
+            <div className="do-chips">
+              {tanggalOptions.map(([val, lbl]) => (
+                <button key={val} type="button" className={`do-chip ${filterTanggal === val ? 'on' : ''}`} onClick={() => pickTanggal(val)}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+            {filterTanggal === 'Custom' && (
+              <div className="do-dates">
+                <input type="date" className="do-date-in" value={tanggalMulai} onChange={(e) => setTanggalMulai(e.target.value)} aria-label="Dari tanggal" />
+                <span className="do-date-sep">–</span>
+                <input type="date" className="do-date-in" value={tanggalAkhir} min={tanggalMulai || undefined} onChange={(e) => setTanggalAkhir(e.target.value)} aria-label="Sampai tanggal" />
+              </div>
+            )}
+            <button type="button" className="do-cta" onClick={() => setShowFilter(false)}>
+              Lihat {orders ? orders.length : 0} order
+            </button>
+          </div>
+        </>
       )}
 
       {/* Pilih semua saat mode bulk */}
@@ -615,7 +699,11 @@ const DataOrder = ({ user }) => {
 
             // Aksi yang tampil (urutan: Detail, aksi utama, Hapus)
             const canDelete = activeTab === 'Proses' || (isOwner && (activeTab === 'Selesai' || activeTab === 'Dibatalkan'));
-            const actionCount = 1 + (activeTab === 'Proses' || activeTab === 'Selesai' ? 1 : 0) + (canDelete ? 1 : 0);
+            const ed = estDate(order);
+            const now0 = new Date();
+            const today0 = new Date(now0.getFullYear(), now0.getMonth(), now0.getDate());
+            const estLate = isProses && ed && ed < today0 && !sameDay(ed, today0);
+            const estToday = isProses && ed && sameDay(ed, today0);
 
             return (
               <div
@@ -643,7 +731,7 @@ const DataOrder = ({ user }) => {
                     if (isBulkMode) toggleSelect(order.id);
                   }}
                 >
-                  {/* Baris 1: invoice + badge ikon (kasir, bayar, layanan) + tanggal */}
+                  {/* Baris 1: invoice + prioritas | kasir, layanan, status bayar */}
                   <div className="do-r1">
                     <div className="l">
                       {isBulkMode && (
@@ -663,6 +751,8 @@ const DataOrder = ({ user }) => {
                         title="Salin No. Order"
                       ></i>
                       {order.isPriority && <span className="do-prio">PRIORITAS</span>}
+                    </div>
+                    <div className="do-rt">
                       {isOwner && (
                         <span className="do-icw">
                           <button type="button" className="do-ic kasir" aria-label={`Kasir ${getKasirUsername(order)}`} onClick={(e) => showTip(e, order.id, 'kasir')}>
@@ -672,22 +762,18 @@ const DataOrder = ({ user }) => {
                         </span>
                       )}
                       <span className="do-icw">
-                        <button type="button" className={`do-ic ${pay.cls}`} aria-label={`Pembayaran ${pay.label}`} onClick={(e) => showTip(e, order.id, 'pay')}>
-                          <i className={`bi ${pay.icon}`}></i>
-                        </button>
-                        {tip?.id === order.id && tip.key === 'pay' && <span className="do-tip" role="status">Bayar: {pay.label}</span>}
-                      </span>
-                      <span className="do-icw">
                         <button type="button" className="do-ic srv" aria-label={`Layanan ${srv.label}`} onClick={(e) => showTip(e, order.id, 'srv')}>
                           <i className={`bi ${srv.icon}`}></i>
                         </button>
                         {tip?.id === order.id && tip.key === 'srv' && <span className="do-tip" role="status">Layanan: {srv.label}</span>}
                       </span>
+                      <span className="do-icw">
+                        <button type="button" className={`do-chip-pay ${pay.cls}`} aria-label={`Pembayaran ${pay.label}`} onClick={(e) => showTip(e, order.id, 'pay')}>
+                          {payText(order)}
+                        </button>
+                        {tip?.id === order.id && tip.key === 'pay' && <span className="do-tip" role="status" style={{ left: 'auto', right: 0, transform: 'none' }}>Bayar: {pay.label}</span>}
+                      </span>
                     </div>
-                    <span className="do-date">
-                      {new Date(order.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}{' '}
-                      {new Date(order.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
                   </div>
 
                   {/* Baris 2: nama + total */}
@@ -714,13 +800,16 @@ const DataOrder = ({ user }) => {
                     </div>
                   )}
 
-                  {/* Baris 3: estimasi + tombol aksi */}
+                  {/* Baris 3: tanggal + estimasi | tombol aksi */}
                   <div className="do-r3" onClick={(e) => e.stopPropagation()}>
-                    <span className="do-est">
-                      Est
-                      <b>{formatEst(order)}</b>
-                    </span>
-                    <div className="do-btns" style={{ gridTemplateColumns: `repeat(${actionCount}, 1fr)` }}>
+                    <div className="do-meta">
+                      <span><i className="bi bi-clock"></i>{formatCreated(order)}</span>
+                      <span className={estLate ? 'late' : estToday ? 'soon' : ''}>
+                        <i className="bi bi-calendar-event"></i>
+                        {estLate ? `Telat · ${formatEst(order)}` : estToday ? 'Est hari ini' : `Est ${formatEst(order)}`}
+                      </span>
+                    </div>
+                    <div className="do-btns">
                       <button type="button" className="do-b" onClick={() => navigate(`/order/${order.id}`)}>
                         Detail
                       </button>
@@ -741,11 +830,12 @@ const DataOrder = ({ user }) => {
                       {canDelete && (
                         <button
                           type="button"
-                          className="do-b d"
+                          className="do-b sq"
                           title={BUTTON_TITLE.DELETE}
+                          aria-label="Hapus"
                           onClick={() => (isOwner ? hardDelete(order.id) : requestDelete(order.id))}
                         >
-                          Hapus
+                          <i className="bi bi-trash3"></i>
                         </button>
                       )}
                     </div>
