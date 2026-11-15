@@ -10,7 +10,7 @@ export const formatWhatsAppMessage = (order, pelanggan, settings = null) => {
 
   let itemsText = '';
   order.items.forEach(item => {
-    itemsText += `${item.name} (Rp${item.price.toLocaleString()} x ${item.quantity})\nRp${(item.price * item.quantity).toLocaleString()}\n`;
+    itemsText += `${item.name} (Rp${item.price.toLocaleString()} x ${item.quantity} kg)\nRp${Math.round(item.price * item.quantity).toLocaleString()}\n`;
   });
 
   const laundryName = settings?.namaLaundry || 'TokoPlus';

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { getCartQuery, removeProductFromCart, updateCartItemQty } from '../../db/repositories/cart';
+import { getCartQuery, removeProductFromCart, updateCartItemQty, setCartItemQty } from '../../db/repositories/cart';
 import { getPelangganQuery, addPelanggan } from '../../db/repositories/pelanggan';
 import { getInventoryQuery } from '../../db/repositories/inventory';
 import { getDraftOrderQuery, updateDraftOrder } from '../../db/repositories/draftOrder';
@@ -64,14 +64,16 @@ export const useTransaksi = () => {
     }
   }, [cartItems]);
 
-  const subtotal = cartItems?.reduce((acc, item) => acc + (item.price * item.quantity), 0) || 0;
+  const subtotal = Math.round(cartItems?.reduce((acc, item) => acc + ((Number(item.price) || 0) * (Number(item.quantity) || 0)), 0) || 0);
 
   // Kalkulasi Diskon
-  const nilaiDiskon = diskonTipe === 'Persentase'
-    ? (subtotal * ((Number(diskonNilai) || 0) / 100))
-    : (Number(diskonNilai) || 0);
+  const nilaiDiskon = Math.round(
+    diskonTipe === 'Persentase'
+      ? (subtotal * ((Number(diskonNilai) || 0) / 100))
+      : (Number(diskonNilai) || 0)
+  );
 
-  const total = subtotal - nilaiDiskon;
+  const total = Math.max(0, subtotal - nilaiDiskon);
 
   // Auto-prune draft inventory jika stok barang sudah 0
   useEffect(() => {
@@ -200,6 +202,10 @@ export const useTransaksi = () => {
     await updateCartItemQty(id, delta);
   };
 
+  const setItemQty = async (id, exactQty) => {
+    await setCartItemQty(id, exactQty);
+  };
+
   const toggleInventory = async (inv) => {
     const prev = selectedInventory;
     const exists = prev.find(item => item.id === inv.id);
@@ -267,7 +273,7 @@ export const useTransaksi = () => {
     selectedInventory,
     subtotal, nilaiDiskon, total,
     prepareOrderData, handleCheckout, resetTransaksi,
-    removeItem, updateItemQty, toggleInventory, updateInventoryQty, handleAddPelanggan,
+    removeItem, updateItemQty, setItemQty, toggleInventory, updateInventoryQty, handleAddPelanggan,
     gateModal, setGateModal,
   };
 };

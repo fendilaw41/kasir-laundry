@@ -827,7 +827,7 @@ const DataOrder = ({ user }) => {
                       )}
 
                       {/* Kasir boleh ajukan hapus jika masih Proses; owner langsung hapus */}
-                      {canDelete && (
+                      {canDelete && activeTab === 'Proses' && (
                         <button
                           type="button"
                           className="do-b sq"
@@ -885,7 +885,7 @@ const DataOrder = ({ user }) => {
                   <i className="bi bi-check-all"></i> Selesai
                 </button>
               )}
-              {activeTab !== 'Ambil' && (
+              {activeTab !== 'Ambil' && activeTab === 'Selesai' && (
                 <button type="button" className="do-b" disabled={isBulkProcessing} onClick={() => handleBulkChangeStatus('Ambil')}>
                   <i className="bi bi-bag-check"></i> Ambil
                 </button>

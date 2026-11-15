@@ -83,16 +83,30 @@ const Product = () => {
   }, []);
 
   const updateQty = (id, delta) => {
+    setQuantities((prev) => {
+      const current = parseFloat(String(prev[id] ?? 1).replace(',', '.')) || 1;
+      const next = Math.round((current + delta) * 100) / 100;
+      return {
+        ...prev,
+        [id]: next > 0 ? next : 1,
+      };
+    });
+  };
+
+  const setExactQty = (id, rawVal) => {
+    const normalized = String(rawVal).replace(',', '.');
+    if (!/^\d*(\.\d{0,2})?$/.test(normalized)) return;
     setQuantities((prev) => ({
       ...prev,
-      [id]: Math.max(1, (prev[id] || 1) + delta),
+      [id]: rawVal,
     }));
   };
 
   const addToCart = async (product) => {
     try {
-      const qty = quantities[product.id] || 1;
-      await addProductToCart(product, qty);
+      const raw = quantities[product.id] ?? 1;
+      const qty = Math.round((parseFloat(String(raw).replace(',', '.')) || 1) * 100) / 100;
+      await addProductToCart(product, qty > 0 ? qty : 1);
 
       toast.success(TOAST_MESSAGES.SUCCESS);
 
@@ -408,9 +422,26 @@ const Product = () => {
                         >
                           <i className="bi bi-dash fw-bold text-dark" style={{ fontSize: '0.85rem' }}></i>
                         </button>
-                        <span className="fw-bold text-dark px-1" style={{ fontSize: '0.85rem' }}>
-                          {quantities[product.id] || 1}
-                        </span>
+                        <div className="d-flex align-items-center justify-content-center">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            aria-label={`Jumlah kg ${product.name}`}
+                            className="border-0 bg-transparent fw-bold text-dark text-center p-0"
+                            style={{ width: '42px', fontSize: '0.85rem', outline: 'none' }}
+                            value={quantities[product.id] ?? 1}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => setExactQty(product.id, e.target.value)}
+                            onBlur={() => {
+                              const parsed = parseFloat(String(quantities[product.id] ?? 1).replace(',', '.'));
+                              setQuantities((prev) => ({
+                                ...prev,
+                                [product.id]: !isNaN(parsed) && parsed > 0 ? Math.round(parsed * 100) / 100 : 1,
+                              }));
+                            }}
+                          />
+                          <span className="text-muted fw-bold" style={{ fontSize: '0.72rem' }}>kg</span>
+                        </div>
                         <button
                           type="button"
                           className="btn btn-sm btn-white rounded-circle shadow-xs border-0 d-flex align-items-center justify-content-center p-0"

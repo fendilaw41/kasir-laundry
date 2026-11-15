@@ -141,8 +141,8 @@ const formatOrderPayload = async (order) => {
     }
 
     const qty = Number(item.quantity) || 1;
-    const price = Number(item.price) || 0;
-    const subtotal = Number(item.subtotal) || (qty * price);
+    const price = Math.round(Number(item.price) || 0);
+    const subtotal = Math.round(Number(item.subtotal) || (qty * price));
 
     items.push({
       id: item.uuid || undefined,

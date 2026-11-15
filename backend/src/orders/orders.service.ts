@@ -268,14 +268,16 @@ export class OrdersService {
               }
             }
 
+            const itemQty = Number(item.quantity) || 1;
+            const itemPrice = Math.round(Number(item.price) || 0);
             return {
               id: item.id || undefined,
               orderId: order.id,
               productId: finalProductId,
               name: itemName,
-              quantity: Number(item.quantity) || 1,
-              price: Number(item.price) || 0,
-              subtotal: Number(item.subtotal) || (Number(item.quantity) || 1) * (Number(item.price) || 0),
+              quantity: itemQty,
+              price: itemPrice,
+              subtotal: Math.round(Number(item.subtotal) || itemQty * itemPrice),
             };
           }),
         });

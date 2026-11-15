@@ -169,6 +169,7 @@ const OrderDetail = ({ user }) => {
   const [catatan, setCatatan] = useState('');
   const [catatanKasir, setCatatanKasir] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmTargetStatus, setConfirmTargetStatus] = useState('Proses');
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [showCashierNoteModal, setShowCashierNoteModal] = useState(false);
   const [showHpModal, setShowHpModal] = useState(false);
@@ -266,7 +267,12 @@ const OrderDetail = ({ user }) => {
   const displayedInventory = localInventoryUsed !== null ? localInventoryUsed : (order?.inventoryUsed || []);
 
   const handleStatusClick = (newStatus) => {
+    if (order.status === newStatus) return;
     if ((order.status === 'Selesai' || order.status === 'Ambil') && newStatus === 'Proses') {
+      setConfirmTargetStatus('Proses');
+      setShowConfirmModal(true);
+    } else if (order.status === 'Ambil' && newStatus === 'Selesai') {
+      setConfirmTargetStatus('Selesai');
       setShowConfirmModal(true);
     } else {
       updateStatus(newStatus);
@@ -844,12 +850,12 @@ const OrderDetail = ({ user }) => {
                 <div className="od-title-row"><span className="od-title">Layanan / Produk</span></div>
                 {order.items.map((item, idx) => (
                   <div key={idx} className="od-line">
-                    <span className="q">{item.quantity}x</span>
+                    <span className="q">{item.quantity} kg</span>
                     <span className="nm">
                       {item.category ? <em>{(item.category || '').toLowerCase()}</em> : null}
                       {item.name}
                     </span>
-                    <span className="pr">Rp {(item.price * item.quantity).toLocaleString()}</span>
+                    <span className="pr">Rp {Math.round(item.price * item.quantity).toLocaleString()}</span>
                   </div>
                 ))}
                 <div className="od-sep"></div>
@@ -1885,10 +1891,16 @@ const OrderDetail = ({ user }) => {
                       <i className="bi bi-exclamation-triangle text-warning fs-1"></i>
                     </div>
                     <h5 className="fw-bold mb-2">Konfirmasi Status</h5>
-                    <p className="text-muted small mb-4">{CONFIRM_MESSAGES.RESET_STATUS}</p>
+                    <p className="text-muted small mb-4">
+                      {confirmTargetStatus === 'Selesai'
+                        ? (CONFIRM_MESSAGES.REVERT_TO_SELESAI || 'Pesanan sudah berstatus Diambil. Kembalikan ke status Selesai?')
+                        : CONFIRM_MESSAGES.RESET_STATUS}
+                    </p>
                     <div className="d-flex gap-2">
-                      <button className="btn btn-outline-primary w-100 fw-bold py-2" onClick={() => setShowConfirmModal(false)} style={{ borderRadius: '10px' }}>Batal</button>
-                      <button className="btn btn-outline-primary w-100 fw-bold py-2" onClick={() => updateStatus('Proses')} style={{ borderRadius: '10px' }}>Ya, Proses</button>
+                      <button className="btn btn-outline-secondary w-100 fw-bold py-2" onClick={() => setShowConfirmModal(false)} style={{ borderRadius: '10px' }}>Batal</button>
+                      <button className="btn btn-primary w-100 fw-bold py-2" onClick={() => updateStatus(confirmTargetStatus)} style={{ borderRadius: '10px' }}>
+                        Ya, {confirmTargetStatus}
+                      </button>
                     </div>
                   </div>
                 </div>

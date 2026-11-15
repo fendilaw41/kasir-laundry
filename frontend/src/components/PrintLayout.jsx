@@ -99,8 +99,8 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
             <div key={idx} style={{ fontSize: '10px', marginBottom: '5px' }}>
               <div style={{ textTransform: 'uppercase' }}>{item.name}</div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ paddingLeft: '10px' }}>{item.quantity} x {item.price.toLocaleString()}</span>
-                <span>{(item.price * item.quantity).toLocaleString()}</span>
+                <span style={{ paddingLeft: '10px' }}>{item.quantity} kg x {item.price.toLocaleString()}</span>
+                <span>{Math.round(item.price * item.quantity).toLocaleString()}</span>
               </div>
             </div>
           ))}
@@ -202,9 +202,9 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
                   <td style={{ padding: '12px', border: '1px solid #eee', fontSize: '13px' }}>
                     <div style={{ fontWeight: 'bold', color: '#333' }}>{item.name}</div>
                   </td>
-                  <td style={{ padding: '12px', border: '1px solid #eee', textAlign: 'center', fontSize: '13px' }}>{item.quantity}</td>
+                  <td style={{ padding: '12px', border: '1px solid #eee', textAlign: 'center', fontSize: '13px' }}>{item.quantity} kg</td>
                   <td style={{ padding: '12px', border: '1px solid #eee', textAlign: 'right', fontSize: '13px' }}>Rp {item.price.toLocaleString()}</td>
-                  <td style={{ padding: '12px', border: '1px solid #eee', textAlign: 'right', fontWeight: 'bold', fontSize: '13px', color: '#0134d4' }}>Rp {(item.price * item.quantity).toLocaleString()}</td>
+                  <td style={{ padding: '12px', border: '1px solid #eee', textAlign: 'right', fontWeight: 'bold', fontSize: '13px', color: '#0134d4' }}>Rp {Math.round(item.price * item.quantity).toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -277,7 +277,7 @@ const PrintLayout = ({ order, pelanggan, printType }) => {
             #{order.invoiceId}
           </div>
           <div style={{ fontSize: '9px', color: '#555', marginTop: '2px' }}>
-            {order.items?.length ? `${order.items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0)} Pcs` : ''} {order.tipeLayanan ? `• ${order.tipeLayanan}` : ''}
+            {order.items?.length ? `${Math.round(order.items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0) * 100) / 100} Kg` : ''} {order.tipeLayanan ? `• ${order.tipeLayanan}` : ''}
           </div>
           <div style={{ fontSize: '8px', color: '#777', marginTop: '4px', borderTop: '1px dashed #ccc', paddingTop: '2px' }}>
             {settings.namaLaundry}

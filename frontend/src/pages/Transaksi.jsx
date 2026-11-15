@@ -151,10 +151,13 @@ const Transaksi = ({ user } = {}) => {
     isPriority, setIsPriority,
     selectedInventory,
     subtotal, nilaiDiskon, total,
-    prepareOrderData, updateItemQty, toggleInventory, updateInventoryQty, handleAddPelanggan,
+    prepareOrderData, updateItemQty, setItemQty, toggleInventory, updateInventoryQty, handleAddPelanggan,
     resetTransaksi,
     gateModal, setGateModal,
   } = useTransaksi();
+
+  // Draft input untuk angka desimal jumlah laundry (kg) agar bisa diketik seperti 1.2 atau 1,5
+  const [qtyDrafts, setQtyDrafts] = useState({});
 
   // Query Daftar Produk untuk ditampilkan langsung di halaman Transaksi
   const products = useLiveQuery(getProductsQuery);
@@ -584,40 +587,112 @@ const Transaksi = ({ user } = {}) => {
                             </div>
                           );
                         })()}
-                        <div className="fw-bold" style={{ fontSize: '0.96rem', color: '#0134d4' }}>
-                          Rp {p.price?.toLocaleString('id-ID')}
+                        <div className="fw-bold d-flex align-items-baseline gap-1" style={{ fontSize: '0.96rem', color: '#0134d4' }}>
+                          <span>Rp {p.price?.toLocaleString('id-ID')}</span>
+                          <span className="text-muted fw-semibold" style={{ fontSize: '0.68rem' }}>/kg</span>
                         </div>
                       </div>
 
                       {/* Bottom: Stepper jika ada di Cart atau Spacer */}
                       {isInCart ? (
-                        <div className="d-flex align-items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="d-flex align-items-center justify-content-between gap-1 mt-2" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
-                            className="btn btn-sm btn-light border-0 rounded-circle p-0 d-flex align-items-center justify-content-center shadow-xs"
-                            style={{ width: '28px', height: '28px', backgroundColor: '#f1f5f9', color: '#1e293b' }}
-                            onClick={() => updateItemQty(cartItem.id, -1)}
-                            title="Kurangi kuantitas"
+                            className="btn btn-sm btn-light border-0 rounded-circle p-0 d-flex align-items-center justify-content-center shadow-xs flex-shrink-0"
+                            style={{ width: '26px', height: '26px', backgroundColor: '#f1f5f9', color: '#1e293b' }}
+                            onClick={() => {
+                              setQtyDrafts((prev) => {
+                                const next = { ...prev };
+                                delete next[cartItem.id];
+                                return next;
+                              });
+                              updateItemQty(cartItem.id, -1);
+                            }}
+                            title="Kurangi 1 kg"
                           >
                             <i className="bi bi-dash fw-bold" style={{ fontSize: '0.85rem' }}></i>
                           </button>
-                          <span className="fw-bold text-dark px-1" style={{ fontSize: '0.88rem', minWidth: '16px', textAlign: 'center' }}>
-                            {cartItem.quantity}
-                          </span>
+
+                          <div
+                            className="d-flex align-items-center justify-content-center px-1 rounded-2 border"
+                            style={{
+                              backgroundColor: '#f8fafc',
+                              borderColor: '#cbd5e1',
+                              height: '26px',
+                              minWidth: '64px',
+                            }}
+                          >
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              aria-label={`Jumlah kg ${p.name}`}
+                              className="border-0 bg-transparent fw-bold text-dark text-center p-0"
+                              style={{
+                                width: '40px',
+                                fontSize: '0.82rem',
+                                outline: 'none',
+                                boxShadow: 'none',
+                              }}
+                              value={qtyDrafts[cartItem.id] !== undefined ? qtyDrafts[cartItem.id] : String(cartItem.quantity)}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(',', '.');
+                                // Hanya izinkan angka dan satu titik desimal (maks 2 angka di belakang koma)
+                                if (!/^\d*(\.\d{0,2})?$/.test(raw)) return;
+                                setQtyDrafts((prev) => ({ ...prev, [cartItem.id]: e.target.value }));
+                                const parsed = parseFloat(raw);
+                                if (!isNaN(parsed) && parsed > 0 && !raw.endsWith('.') && !/\.0+$/.test(raw)) {
+                                  setItemQty(cartItem.id, parsed);
+                                }
+                              }}
+                              onBlur={() => {
+                                const draft = qtyDrafts[cartItem.id];
+                                if (draft !== undefined) {
+                                  const parsed = parseFloat(String(draft).replace(',', '.'));
+                                  if (!isNaN(parsed) && parsed > 0) {
+                                    setItemQty(cartItem.id, parsed);
+                                  } else if (String(draft).trim() === '0') {
+                                    setItemQty(cartItem.id, 0);
+                                  }
+                                  setQtyDrafts((prev) => {
+                                    const next = { ...prev };
+                                    delete next[cartItem.id];
+                                    return next;
+                                  });
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.currentTarget.blur();
+                                }
+                              }}
+                            />
+                            <span className="text-muted fw-bold ms-0" style={{ fontSize: '0.68rem' }}>
+                              kg
+                            </span>
+                          </div>
+
                           <button
                             type="button"
-                            className="btn btn-sm btn-primary rounded-circle p-0 d-flex align-items-center justify-content-center shadow-xs"
-                            style={{ width: '28px', height: '28px', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
-                            onClick={() => updateItemQty(cartItem.id, 1)}
-                            title="Tambah kuantitas"
+                            className="btn btn-sm btn-primary rounded-circle p-0 d-flex align-items-center justify-content-center shadow-xs flex-shrink-0"
+                            style={{ width: '26px', height: '26px', backgroundColor: '#0134d4', borderColor: '#0134d4' }}
+                            onClick={() => {
+                              setQtyDrafts((prev) => {
+                                const next = { ...prev };
+                                delete next[cartItem.id];
+                                return next;
+                              });
+                              updateItemQty(cartItem.id, 1);
+                            }}
+                            title="Tambah 1 kg"
                           >
                             <i className="bi bi-plus fw-bold text-white" style={{ fontSize: '0.85rem' }}></i>
                           </button>
                         </div>
                       ) : (
-                        <div style={{ height: '28px' }} className="d-flex align-items-center mt-2">
+                        <div style={{ height: '26px' }} className="d-flex align-items-center mt-2">
                           <small className="text-muted" style={{ fontSize: '0.68rem' }}>
-                            + Ketuk untuk tambah
+                            + Ketuk (+1 kg)
                           </small>
                         </div>
                       )}
