@@ -715,7 +715,117 @@ export const syncInventoryEventsToBackend = async (forceAll = false) => {
 };
 
 /**
- * Sinkronisasi seluruh master data (Users, Products, Pelanggan, Settings, Inventory)
+ * Sinkronisasi Buku Kas (cash_entries) yang berubah (isDirty: 1 / pending) ke Backend
+ */
+export const syncCashEntriesToBackend = async (forceAll = false) => {
+  try {
+    const token = getAuthToken();
+    if (!token || isPublicRoute()) return;
+
+    const storedUser = getStoredUser();
+    const setting = await db.settings.get(1);
+    const storeId = storedUser?.storeId || setting?.storeId;
+    if (!storeId || !db.cashEntries) return;
+
+    let dirtyEntries = [];
+    if (forceAll) {
+      dirtyEntries = await db.cashEntries.filter((e) => !e.storeId || e.storeId === storeId).toArray();
+    } else {
+      dirtyEntries = await db.cashEntries.filter((e) => (!e.storeId || e.storeId === storeId) && (e.isDirty === 1 || e.syncStatus === 'pending')).toArray();
+    }
+
+    if (dirtyEntries.length === 0) return;
+
+    const payload = {
+      entries: dirtyEntries.map((e) => ({
+        uuid: e.uuid,
+        type: e.type,
+        amount: Math.round(Number(e.amount) || 0),
+        category: e.category,
+        method: e.method || 'tunai',
+        note: e.note || undefined,
+        date: e.date || (e.createdAt ? new Date(e.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
+        createdBy: e.createdBy || undefined,
+        source: e.source || 'MANUAL',
+        orderId: e.orderId || undefined,
+        createdAt: e.createdAt ? new Date(e.createdAt).toISOString() : new Date().toISOString(),
+        updatedAt: e.updatedAt ? new Date(e.updatedAt).toISOString() : new Date().toISOString(),
+        deletedAt: e.deletedAt ? new Date(e.deletedAt).toISOString() : null,
+      })),
+    };
+
+    const response = await fetch(`${API_BASE_URL}/cash-entries/sync`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const savedUuids = data.saved || [];
+      for (const uuid of savedUuids) {
+        await db.cashEntries.update(uuid, { isDirty: 0, syncStatus: 'synced' });
+      }
+    }
+  } catch (err) {
+    console.warn(`[Sync] Gagal sync cash entries (offline): ${err.message}`);
+  }
+};
+
+/**
+ * Tarik dan Sinkronkan Buku Kas (cash_entries) terbaru dari Backend ke Dexie
+ */
+export const pullCashEntriesFromBackend = async (force = false) => {
+  try {
+    const token = getAuthToken();
+    if (!token || isPublicRoute()) return;
+
+    const storedUser = getStoredUser();
+    const setting = await db.settings.get(1);
+    const storeId = storedUser?.storeId || setting?.storeId;
+    if (!storeId || !db.cashEntries) return;
+
+    const lastSyncKey = `kasir_last_cash_sync_${storeId}`;
+    const lastSyncIso = localStorage.getItem(lastSyncKey);
+    const sinceParam = force || !lastSyncIso ? '' : `?since=${encodeURIComponent(lastSyncIso)}`;
+    const currentSyncIso = new Date().toISOString();
+
+    const response = await fetch(`${API_BASE_URL}/cash-entries${sinceParam}`, {
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) return;
+
+    const entries = await response.json();
+    if (Array.isArray(entries) && entries.length > 0) {
+      for (const item of entries) {
+        const local = await db.cashEntries.get(item.uuid);
+        if (local && (local.isDirty === 1 || local.syncStatus === 'pending')) {
+          if (new Date(item.updatedAt) > new Date(local.updatedAt)) {
+            await db.cashEntries.put({
+              ...item,
+              syncStatus: 'synced',
+              isDirty: 0,
+            });
+          }
+        } else {
+          await db.cashEntries.put({
+            ...item,
+            syncStatus: 'synced',
+            isDirty: 0,
+          });
+        }
+      }
+    }
+
+    localStorage.setItem(lastSyncKey, currentSyncIso);
+  } catch (err) {
+    console.warn(`[Sync] Gagal pull cash entries (offline): ${err.message}`);
+  }
+};
+
+/**
+ * Sinkronisasi seluruh master data (Users, Products, Pelanggan, Settings, Inventory, CashEntries)
  */
 export const syncAllDirtyMasterData = async (forceAll = false) => {
   if (isPublicRoute() || !getAuthToken()) return;
@@ -736,6 +846,7 @@ export const syncAllDirtyMasterData = async (forceAll = false) => {
     await syncPelangganToBackend(forceAll);
     await syncInventoryToBackend(forceAll);
     await syncInventoryEventsToBackend(forceAll);
+    await syncCashEntriesToBackend(forceAll);
   } finally {
     isMasterSyncing = false;
   }
@@ -1417,6 +1528,7 @@ export const syncTwoWay = async ({ forceAll = false } = {}) => {
     await pullProductsFromBackend(true);
     await pullPelangganFromBackend(true);
     await pullInventoryEventsFromBackend(true);
+    await pullCashEntriesFromBackend(true);
     await syncPlansFromBackend().catch(() => {});
     return { success: true, pullSuccess };
   } catch (error) {
@@ -1448,6 +1560,7 @@ if (typeof window !== 'undefined') {
       await pullProductsFromBackend();
       await pullPelangganFromBackend();
       await pullInventoryEventsFromBackend();
+      await pullCashEntriesFromBackend();
       await syncPlansFromBackend().catch(() => {});
     });
 
@@ -1460,6 +1573,7 @@ if (typeof window !== 'undefined') {
       await pullProductsFromBackend();
       await pullPelangganFromBackend();
       await pullInventoryEventsFromBackend();
+      await pullCashEntriesFromBackend();
       await syncPlansFromBackend().catch(() => {});
     }, 2000);
 
@@ -1472,6 +1586,7 @@ if (typeof window !== 'undefined') {
           await pullOrdersFromBackend();
           await pullProductsFromBackend();
           await pullInventoryEventsFromBackend();
+          await pullCashEntriesFromBackend();
           await syncPlansFromBackend().catch(() => {});
         }
       }, syncInterval);

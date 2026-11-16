@@ -145,6 +145,7 @@ describe('OrdersService - Public Tracking', () => {
         where: { deletedAt: null, storeId: 'store-1' },
         include: { items: true, pelanggan: true, user: { select: { id: true, username: true, fullname: true, role: true } } },
         orderBy: { createdAt: 'desc' },
+        take: 500,
       });
     });
 
@@ -155,6 +156,7 @@ describe('OrdersService - Public Tracking', () => {
         where: { storeId: 'store-1' },
         include: { items: true, pelanggan: true, user: { select: { id: true, username: true, fullname: true, role: true } } },
         orderBy: { createdAt: 'desc' },
+        take: 500,
       });
     });
   });

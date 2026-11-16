@@ -25,6 +25,7 @@ import RegisterStore from './pages/RegisterStore';
 import ResetPassword from './pages/ResetPassword';
 import PergerakanStok from './pages/PergerakanStok';
 import Plan from './pages/Plan';
+import BukuKas from './pages/BukuKas';
 import { isSubscriptionEnabled } from './services/subscriptionService';
 import { clearDraftOrder } from './db/repositories/draftOrder';
 import { clearCart } from './db/repositories/cart';
@@ -203,6 +204,8 @@ function App() {
           <Route path="/chat" element={<Chat user={user} />} />
           <Route path="/pergerakan-stok" element={<PergerakanStok user={user} />} />
           <Route path="/inventory-movement" element={<PergerakanStok user={user} />} />
+          <Route path="/buku-kas" element={<BukuKas user={user} />} />
+          <Route path="/kas" element={<BukuKas user={user} />} />
         </Route>
         <Route path="*" element={<Navigate to={user ? "/" : "/login"} replace />} />
       </Routes>

@@ -58,6 +58,11 @@ db.version(7).stores({
   notifications: '++id, &uuid, storeId, role, title, message, type, link, isRead, createdAt, isDirty',
 });
 
+// Schema versi 8: Tabel cashEntries untuk Buku Kas
+db.version(8).stores({
+  cashEntries: 'uuid, storeId, type, date, category, method, source, updatedAt, deletedAt, syncStatus, isDirty',
+});
+
 // Seed initial data if empty
 db.on('ready', async () => {
   try {

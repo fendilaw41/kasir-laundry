@@ -10,6 +10,7 @@ import { StorageModule } from './common/storage/storage.module';
 import { ChatModule } from './chat/chat.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { CashEntriesModule } from './cash-entries/cash-entries.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
@@ -23,6 +24,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     ChatModule,
     SubscriptionModule,
     NotificationsModule,
+    CashEntriesModule,
   ],
   controllers: [AppController],
   providers: [

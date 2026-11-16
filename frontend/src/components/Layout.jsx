@@ -174,6 +174,7 @@ const Layout = ({ user, onLogout }) => {
     if (path === '/chat') return 'Chat';
     if (path === '/pergerakan-stok' || path === '/inventory-movement') return 'Stock History';
     if (path === '/plan' || path === '/paket') return 'Plan';
+    if (path === '/buku-kas' || path === '/kas') return 'Buku Kas';
     return titleApp;
   };
 
