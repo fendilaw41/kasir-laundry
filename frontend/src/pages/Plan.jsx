@@ -226,7 +226,7 @@ export default function Plan({ user }) {
                           opacity: 0.92,
                         }}
                       >
-                        <i className="bi bi-calendar3 text-warning"></i>
+                        <i className="bi bi-calendar3 text-warning"></i>&nbsp;
                         <span>{periodInfo.rangeText}</span>
                       </span>
                       {periodInfo.remainingText && (
