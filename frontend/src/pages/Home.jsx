@@ -909,7 +909,7 @@ const Home = ({ user }) => {
                                           Stok: {item.stok}
                                         </span>
                                         {item.isActive === false && (
-                                          <span className="badge bg-secondary bg-opacity-15 text-secondary rounded-pill" style={{ fontSize: '0.65rem' }}>
+                                          <span className="badge bg-secondary bg-opacity-15 text-white rounded-pill" style={{ fontSize: '0.65rem' }}>
                                             Nonaktif
                                           </span>
                                         )}
