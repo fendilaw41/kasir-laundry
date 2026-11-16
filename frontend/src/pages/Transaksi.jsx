@@ -724,7 +724,7 @@ const Transaksi = ({ user } = {}) => {
                 paddingBottom: '4px',
               }}
             >
-              {inventory?.filter(inv => !(inv.status === 'pending' && inv.stok === 0)).slice(0, 50).map(inv => {
+              {inventory?.filter(inv => !(inv.status === 'pending' && inv.stok === 0) && inv.isActive !== false).slice(0, 50).map(inv => {
                 const activeItem = selectedInventory.find(s => s.id === inv.id);
                 const isActive = !!activeItem;
                 const isOutOfStock = Number(inv.stok || 0) <= 0;

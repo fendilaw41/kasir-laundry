@@ -284,6 +284,7 @@ export const addInventoryManual = async (nama, stok, options = {}) => {
           stok: qty,
           qty: 0,
           status: 'approved',
+          isActive: true,
           createdBy
         }));
         if (qty > 0) {
@@ -305,4 +306,62 @@ export const addInventoryManual = async (nama, stok, options = {}) => {
   syncInventoryToBackend().catch(err => console.warn('[Sync] Sync inventory error:', err));
   syncInventoryEventsToBackend().catch(err => console.warn('[Sync] Sync inventory events error:', err));
   return targetId;
+};
+
+export const deleteInventory = async (id) => {
+  if (!id) throw new Error('ID inventory tidak valid');
+
+  let item = null;
+  const numId = parseInt(id, 10);
+  if (!isNaN(numId) && String(numId) === String(id)) {
+    item = await db.inventory.get(numId);
+  }
+  if (!item && typeof id === 'string') {
+    item = await db.inventory.where('uuid').equals(id).first();
+  }
+  if (!item && !isNaN(numId)) {
+    item = await db.inventory.get(numId);
+  }
+  if (!item || item.deletedAt) {
+    throw new Error('Item inventory tidak ditemukan');
+  }
+
+  const orders = await db.orders.toArray();
+  const itemNameLower = (item.nama || '').trim().toLowerCase();
+  const isUsedInOrder = orders.some((o) => {
+    if (o.deletedAt || !Array.isArray(o.inventoryUsed)) return false;
+    return o.inventoryUsed.some((u) => {
+      if (u.id != null && item.id != null && String(u.id) === String(item.id)) return true;
+      if (u.uuid && item.uuid && u.uuid === item.uuid) return true;
+      if (u.nama && itemNameLower && u.nama.trim().toLowerCase() === itemNameLower) return true;
+      return false;
+    });
+  });
+
+  if (isUsedInOrder) {
+    throw new Error(`Stok "${item.nama}" tidak dapat dihapus karena sudah pernah digunakan pada order.`);
+  }
+
+  const invEvents = await db.inventoryEvents.toArray();
+  const hasOrderEvent = invEvents.some((e) => {
+    if (e.deletedAt || !e.invoiceId) return false;
+    if (item.id != null && e.inventoryId != null && String(e.inventoryId) === String(item.id)) return true;
+    if (item.uuid && e.inventoryUuid && e.inventoryUuid === item.uuid) return true;
+    if (e.nama && itemNameLower && e.nama.trim().toLowerCase() === itemNameLower) return true;
+    return false;
+  });
+
+  if (hasOrderEvent) {
+    throw new Error(`Stok "${item.nama}" tidak dapat dihapus karena sudah pernah digunakan pada order.`);
+  }
+
+  await db.inventory.update(item.id, withUpdatedSyncMeta({
+    deletedAt: new Date(),
+  }));
+  syncInventoryToBackend().catch(err => console.warn('[Sync] Sync delete inventory error:', err));
+  return item.id;
+};
+
+export const toggleInventoryActive = async (id, isActive) => {
+  return updateInventory(id, { isActive: Boolean(isActive) });
 };

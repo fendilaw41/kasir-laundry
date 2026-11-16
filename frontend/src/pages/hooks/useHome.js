@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { getActiveStoreId } from '../../db/repositories/storeHelper';
 import { getPelangganQuery, addPelanggan, updatePelanggan, deletePelanggan } from '../../db/repositories/pelanggan';
-import { getInventoryQuery, updateInventoryStok, approveInventory, rejectInventory, addInventoryManual } from '../../db/repositories/inventory';
+import { getInventoryQuery, updateInventoryStok, approveInventory, rejectInventory, addInventoryManual, deleteInventory, toggleInventoryActive } from '../../db/repositories/inventory';
 import { getOrdersQuery } from '../../db/repositories/orders';
 import { updateDraftOrder } from '../../db/repositories/draftOrder';
 import { pullOrdersFromBackend } from '../../services/syncService';
@@ -87,6 +87,34 @@ export const useHome = () => {
     }
   };
 
+  const handleDeleteInventory = (item) => {
+    setConfirmModal({
+      show: true,
+      message: `Hapus stok inventory "${item.nama}"?`,
+      onConfirm: async () => {
+        try {
+          await deleteInventory(item.id || item.uuid);
+          toast.success(TOAST_MESSAGES.SUCCESS);
+          setConfirmModal({ show: false, message: '', onConfirm: null });
+        } catch (error) {
+          toast.error(error.message || TOAST_MESSAGES.ERROR);
+          setConfirmModal({ show: false, message: '', onConfirm: null });
+        }
+      }
+    });
+  };
+
+  const handleToggleInventoryActive = async (item) => {
+    try {
+      const nextActive = item.isActive === false;
+      await toggleInventoryActive(item.id || item.uuid, nextActive);
+      toast.success(nextActive ? 'Stok diaktifkan' : 'Stok dinonaktifkan');
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || TOAST_MESSAGES.ERROR);
+    }
+  };
+
   // Ambil statistik singkat
   const stats = useLiveQuery(async () => {
     const allOrders = await getOrdersQuery();
@@ -161,7 +189,7 @@ export const useHome = () => {
     searchPelanggan, setSearchPelanggan,
     searchInventory, setSearchInventory,
     inventoryTab, setInventoryTab,
-    handleUpdateStok, handleApproveInventory, handleRejectInventory,
+    handleUpdateStok, handleApproveInventory, handleRejectInventory, handleDeleteInventory, handleToggleInventoryActive,
     stats, handleSelectPelanggan, handleAddPelanggan, handleDeletePelanggan,
     updatePelanggan, addInventoryManual
   };

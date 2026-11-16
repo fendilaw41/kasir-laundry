@@ -510,6 +510,24 @@ export class SyncService {
           this.logger.warn(`Larangan edit stok untuk store ${store.id}: ${err.message}`);
           continue;
         }
+      } else if (targetInventory && inv.deletedAt) {
+        const usedInEvent = await this.prisma.inventoryEvent.findFirst({
+          where: {
+            storeId: store.id,
+            invoiceId: { not: null },
+            deletedAt: null,
+            OR: [
+              { inventoryId: targetInventory.id },
+              { inventoryName: { equals: targetInventory.nama, mode: 'insensitive' } },
+            ],
+          },
+          select: { id: true },
+        });
+        if (usedInEvent) {
+          throw new BadRequestException(
+            `Stok "${targetInventory.nama}" tidak dapat dihapus karena sudah pernah digunakan pada transaksi order.`,
+          );
+        }
       }
 
       const beforeInventory = targetInventory;
@@ -525,6 +543,7 @@ export class SyncService {
         qty: Math.max(0, parseInt(String(inv.qty || 0), 10)),
         unit: inv.unit || null,
         status: inv.status || 'approved',
+        isActive: inv.isActive !== undefined ? Boolean(inv.isActive) : true,
         createdBy: inv.createdBy || null,
         createdAt,
         updatedAt,

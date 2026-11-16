@@ -167,6 +167,9 @@ export class SyncInventoryDto {
   @ApiPropertyOptional({ description: 'Status persetujuan (pending/approved/rejected)', example: 'approved' })
   status?: string;
 
+  @ApiPropertyOptional({ description: 'Status aktif (jika true tampil di used transaksi)', example: true, default: true })
+  isActive?: boolean;
+
   @ApiPropertyOptional({ description: 'Pembuat/Pengaju data', example: 'Owner' })
   createdBy?: string;
 

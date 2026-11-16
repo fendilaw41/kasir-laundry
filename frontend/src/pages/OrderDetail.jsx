@@ -1301,7 +1301,7 @@ const OrderDetail = ({ user }) => {
                     <label className="small fw-bold text-muted text-uppercase mb-3">Pilih Inventori & Jumlahnya</label>
                     <div className="d-flex flex-column gap-2 mb-4" style={{ maxHeight: '55vh', overflowY: 'auto' }}>
                       {(() => {
-                        const filteredModalInv = (allInventory || []).filter(inv => !(inv.status === 'pending' && inv.stok === 0));
+                        const filteredModalInv = (allInventory || []).filter(inv => !(inv.status === 'pending' && inv.stok === 0) && inv.isActive !== false);
                         if (filteredModalInv.length === 0) {
                           return <div className="w-100 text-center text-muted small p-3 bg-light rounded-4">Belum ada data inventory</div>;
                         }

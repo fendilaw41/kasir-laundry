@@ -631,6 +631,7 @@ export class AuthService {
         qty: inv.qty,
         unit: inv.unit,
         status: inv.status,
+        isActive: inv.isActive !== false,
         createdAt: inv.createdAt,
         updatedAt: inv.updatedAt,
       })),

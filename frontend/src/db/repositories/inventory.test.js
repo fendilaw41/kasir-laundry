@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getInventoryQuery, getInventoryById, addInventoryManual } from './inventory.js';
+import { getInventoryQuery, getInventoryById, addInventoryManual, deleteInventory, toggleInventoryActive } from './inventory.js';
 import { db } from '../../db.js';
 
 vi.mock('../../services/syncService.js', () => ({
@@ -16,7 +16,11 @@ vi.mock('../../db.js', () => ({
       update: vi.fn()
     },
     inventoryEvents: {
-      add: vi.fn()
+      add: vi.fn(),
+      toArray: vi.fn().mockResolvedValue([])
+    },
+    orders: {
+      toArray: vi.fn().mockResolvedValue([])
     },
     settings: {
       get: vi.fn()
@@ -112,6 +116,55 @@ describe('inventory repository - storeId scoping', () => {
         qty: 4,
         status: 'pending',
         createdBy: 'Kasir Andi'
+      }));
+    });
+  });
+
+  describe('deleteInventory', () => {
+    it('should throw error if inventory has been used in an active order', async () => {
+      db.inventory.get.mockResolvedValue({ id: 7, uuid: 'inv-7', nama: 'Deterjen Cair', stok: 5 });
+      db.orders.toArray.mockResolvedValue([
+        { id: 100, inventoryUsed: [{ id: 7, nama: 'Deterjen Cair', qty: 1 }] }
+      ]);
+
+      await expect(deleteInventory(7)).rejects.toThrow('sudah pernah digunakan pada order');
+      expect(db.inventory.update).not.toHaveBeenCalled();
+    });
+
+    it('should throw error if inventory has an order inventoryEvent', async () => {
+      db.inventory.get.mockResolvedValue({ id: 8, uuid: 'inv-8', nama: 'Pewangi Lavender', stok: 3 });
+      db.orders.toArray.mockResolvedValue([]);
+      db.inventoryEvents.toArray.mockResolvedValue([
+        { id: 200, inventoryId: 8, invoiceId: 'INV-001' }
+      ]);
+
+      await expect(deleteInventory(8)).rejects.toThrow('sudah pernah digunakan pada order');
+      expect(db.inventory.update).not.toHaveBeenCalled();
+    });
+
+    it('should soft delete inventory if never used in any order', async () => {
+      db.inventory.get.mockResolvedValue({ id: 9, uuid: 'inv-9', nama: 'Plastik Klip', stok: 20 });
+      db.orders.toArray.mockResolvedValue([
+        { id: 101, deletedAt: new Date(), inventoryUsed: [{ id: 9, nama: 'Plastik Klip', qty: 1 }] }
+      ]);
+      db.inventoryEvents.toArray.mockResolvedValue([]);
+      db.inventory.update.mockResolvedValue(1);
+
+      const deletedId = await deleteInventory(9);
+      expect(deletedId).toBe(9);
+      expect(db.inventory.update).toHaveBeenCalledWith(9, expect.objectContaining({
+        deletedAt: expect.any(Date)
+      }));
+    });
+  });
+
+  describe('toggleInventoryActive', () => {
+    it('should update isActive flag on inventory item', async () => {
+      db.inventory.get.mockResolvedValue({ id: 12, nama: 'Parfum', isActive: true });
+      db.inventory.update.mockResolvedValue(1);
+      await toggleInventoryActive(12, false);
+      expect(db.inventory.update).toHaveBeenCalledWith(12, expect.objectContaining({
+        isActive: false
       }));
     });
   });

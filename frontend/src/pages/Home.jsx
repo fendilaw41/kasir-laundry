@@ -14,7 +14,7 @@ const Home = ({ user }) => {
   const [subReport, setSubReport] = useState(null);
   const [gateModal, setGateModal] = useState({ open: false, type: 'TRANSACTION_LIMIT', data: {} });
   useEffect(() => {
-    getSubscriptionReport().then(setSubReport).catch(() => {});
+    getSubscriptionReport().then(setSubReport).catch(() => { });
   }, []);
 
   const settings = useLiveQuery(getSettingsQuery);
@@ -39,7 +39,7 @@ const Home = ({ user }) => {
     searchPelanggan, setSearchPelanggan,
     searchInventory, setSearchInventory,
     inventoryTab, setInventoryTab,
-    handleUpdateStok, handleApproveInventory, handleRejectInventory,
+    handleUpdateStok, handleApproveInventory, handleRejectInventory, handleDeleteInventory, handleToggleInventoryActive,
     stats, handleSelectPelanggan, handleAddPelanggan, handleDeletePelanggan,
     updatePelanggan, addInventoryManual
   } = useHome();
@@ -289,7 +289,7 @@ const Home = ({ user }) => {
         </div>
       </div >
 
-            {/* Peringatan Kuota 80% */}
+      {/* Peringatan Kuota 80% */}
       {isUpgradeBannerEnabled() && subReport?.usage?.transactions?.isWarning && (
         <div
           className="alert alert-warning border-0 shadow-sm d-flex align-items-center justify-content-between mx-3 mt-3"
@@ -816,11 +816,11 @@ const Home = ({ user }) => {
 
                         <div className="row g-2">
                           <div className="col-8">
-                            <label style={{fontSize: '12px'}}>Nama Item</label>
+                            <label style={{ fontSize: '12px' }}>Nama Item</label>
                             <input type="text" name="nama" className="form-control border-0 py-2 rounded-3 shadow-sm" placeholder="Nama item..." required />
                           </div>
                           <div className="col-4">
-                               <label style={{fontSize: '12px'}}>Stock (Qty)</label>
+                            <label style={{ fontSize: '12px' }}>Stock (Qty)</label>
                             <div className="input-group shadow-sm rounded-3 overflow-hidden">
                               <input
                                 type="number"
@@ -908,6 +908,11 @@ const Home = ({ user }) => {
                                         <span className={`badge rounded-pill ${item.stok < 5 ? 'bg-danger bg-opacity-10' : 'bg-success bg-opacity-10'}`} style={{ fontSize: '0.65rem' }}>
                                           Stok: {item.stok}
                                         </span>
+                                        {item.isActive === false && (
+                                          <span className="badge bg-secondary bg-opacity-15 text-secondary rounded-pill" style={{ fontSize: '0.65rem' }}>
+                                            Nonaktif
+                                          </span>
+                                        )}
                                         {item.status === 'pending' && (
                                           <>
                                             <span className="badge bg-warning text-dark rounded-pill" style={{ fontSize: '0.65rem' }}>
@@ -958,21 +963,44 @@ const Home = ({ user }) => {
                                     )
                                   ) : (
                                     user.role !== 'kasir' && (
-                                      <div className="d-flex align-items-center gap-2 bg-light rounded-pill p-1">
+                                      <div className="d-flex align-items-center gap-2">
+                                        <div className="form-check form-switch m-0 d-flex align-items-center" title={item.isActive !== false ? 'Aktif (tampil di transaksi)' : 'Nonaktif (disembunyikan di transaksi)'}>
+                                          <input
+                                            className="form-check-input"
+                                            type="checkbox"
+                                            role="switch"
+                                            checked={item.isActive !== false}
+                                            onChange={() => handleToggleInventoryActive(item)}
+                                            aria-label={`Status aktif ${item.nama}`}
+                                            style={{ cursor: 'pointer' }}
+                                          />
+                                        </div>
+                                        <div className="d-flex align-items-center gap-2 bg-light rounded-pill p-1">
+                                          <button
+                                            className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
+                                            style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
+                                            onClick={() => handleUpdateStok(item, -1)}
+                                          >
+                                            <i className="bi bi-dash text-dark"></i>
+                                          </button>
+                                          <span className="fw-bold text-dark px-1" style={{ fontSize: '0.9rem', minWidth: '20px', textAlign: 'center' }}>{item.stok}</span>
+                                          <button
+                                            className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
+                                            style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
+                                            onClick={() => handleUpdateStok(item, 1)}
+                                          >
+                                            <i className="bi bi-plus text-dark"></i>
+                                          </button>
+                                        </div>
                                         <button
-                                          className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
-                                          style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
-                                          onClick={() => handleUpdateStok(item, -1)}
+                                          type="button"
+                                          className="btn btn-sm btn-outline-danger rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                                          style={{ width: '30px', height: '30px' }}
+                                          onClick={() => handleDeleteInventory(item)}
+                                          title={BUTTON_TITLE.DELETE}
+                                          aria-label={`Hapus ${item.nama}`}
                                         >
-                                          <i className="bi bi-dash text-dark"></i>
-                                        </button>
-                                        <span className="fw-bold text-dark px-1" style={{ fontSize: '0.9rem', minWidth: '20px', textAlign: 'center' }}>{item.stok}</span>
-                                        <button
-                                          className="btn btn-sm btn-white rounded-circle shadow-sm border-0 d-flex align-items-center justify-content-center"
-                                          style={{ width: '28px', height: '28px', backgroundColor: '#fff' }}
-                                          onClick={() => handleUpdateStok(item, 1)}
-                                        >
-                                          <i className="bi bi-plus text-dark"></i>
+                                          <i className="bi bi-trash3" style={{ fontSize: '0.78rem' }}></i>
                                         </button>
                                       </div>
                                     )
