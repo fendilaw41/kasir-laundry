@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import toast from 'react-hot-toast';
 import { getOrdersSortedByDateQuery } from '../db/repositories/orders';
 import { getCashEntriesQuery, addCashEntry, updateCashEntry, deleteCashEntry } from '../db/repositories/cashEntries';
+import { getInventoryQuery, addInventoryManual } from '../db/repositories/inventory';
 import { isStatusLunas } from '../utils/paymentStatus';
 
 /* ============================================================
@@ -208,6 +209,58 @@ button.kb-row { cursor: pointer; }
 @keyframes kb-slide { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 `;
 
+/**
+ * Mencari stok inventori aktif yang namanya mirip dengan input teks catatan kas
+ */
+export const findMatchingInventoryItems = (inputNote = '', activeItems = []) => {
+    if (!inputNote || !Array.isArray(activeItems) || activeItems.length === 0) return [];
+    const cleanInput = inputNote.toLowerCase().trim();
+    if (!cleanInput) return [];
+
+    const stopWords = new Set([
+        'beli', 'membeli', 'pembelian', 'belanja', 'tambah', 'stok', 'stock',
+        'dan', 'ke', 'di', 'untuk', 'buat', 'dari', 'yang', 'pada', 'oleh',
+        'rp', 'harga', 'ongkir', 'biaya', 'uang', 'kas'
+    ]);
+
+    const tokens = cleanInput
+        .replace(/[^a-zA-Z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter((t) => t.length >= 3 && !stopWords.has(t));
+
+    if (tokens.length === 0 && cleanInput.length >= 3) {
+        tokens.push(cleanInput);
+    }
+    if (tokens.length === 0) return [];
+
+    return activeItems.filter((item) => {
+        if (!item || !item.nama) return false;
+        // Hanya stok yang aktif dan belum dihapus
+        if (item.deletedAt || item.isActive === false) return false;
+
+        const itemNama = item.nama.toLowerCase().trim();
+
+        // 1. Direct containment (misal input "deterjen", nama "Deterjen 500ml")
+        if (itemNama.includes(cleanInput) || cleanInput.includes(itemNama)) {
+            return true;
+        }
+
+        // 2. Token match
+        const itemTokens = itemNama
+            .replace(/[^a-zA-Z0-9\s]/g, ' ')
+            .split(/\s+/)
+            .filter((t) => t.length >= 3);
+
+        for (const token of tokens) {
+            if (itemNama.includes(token)) return true;
+            for (const it of itemTokens) {
+                if (it.includes(token) || token.includes(it)) return true;
+            }
+        }
+        return false;
+    });
+};
+
 // Props opsional (dipakai saat ditanam di halaman Reports):
 //   embedded        : tanpa padding atas/maks-lebar sendiri
 //   hidden / onToggleHidden : sembunyikan nominal di kartu ringkasan (dibagi dengan tab Penjualan)
@@ -239,6 +292,16 @@ export default function BukuKas({ user, embedded = false, hidden, onToggleHidden
 
     const manual = useLiveQuery(getCashEntriesQuery, []);
     const orders = useLiveQuery(getOrdersSortedByDateQuery, []);
+    const inventory = useLiveQuery(getInventoryQuery, []);
+
+    const activeInventory = useMemo(() => {
+        if (!Array.isArray(inventory)) return [];
+        return inventory.filter((item) => !item.deletedAt && item.isActive !== false);
+    }, [inventory]);
+
+    // State untuk popup auto-update stock saat simpan kas pengeluaran
+    const [stockPrompt, setStockPrompt] = useState(null); // null | { open: true, note, matchedItems: [], selectedId, qty: 1 }
+    const [updatingStock, setUpdatingStock] = useState(false);
 
     const [from, to] = periodRange(period);
 
@@ -326,7 +389,8 @@ export default function BukuKas({ user, embedded = false, hidden, onToggleHidden
             const base = new Date();
             const [y, m, d] = fDate.split('-').map(Number);
             const when = new Date(y, m - 1, d, base.getHours(), base.getMinutes(), base.getSeconds()).toISOString();
-            const payload = { type: fType, amount: amountNum, category: fCat, method: fMethod, note: fNote.trim(), date: fDate };
+            const cleanNote = fNote.trim();
+            const payload = { type: fType, amount: amountNum, category: fCat, method: fMethod, note: cleanNote, date: fDate };
             if (sheet.mode === 'edit') {
                 await updateCashEntry(sheet.entry.uuid, payload);
             } else {
@@ -334,10 +398,55 @@ export default function BukuKas({ user, embedded = false, hidden, onToggleHidden
             }
             toast.success(fType === 'IN' ? 'Uang masuk tercatat' : 'Pengeluaran tercatat');
             closeSheet();
+
+            // Cek apakah ada kemiripan nama pengeluaran dengan stok aktif
+            if (sheet.mode !== 'edit' && fType === 'OUT' && cleanNote) {
+                const matches = findMatchingInventoryItems(cleanNote, activeInventory);
+                if (matches.length > 0) {
+                    setStockPrompt({
+                        open: true,
+                        note: cleanNote,
+                        matchedItems: matches,
+                        selectedId: matches[0].id || matches[0].uuid,
+                        qty: 1,
+                    });
+                }
+            }
         } catch (err) {
             toast.error(err?.message || 'Gagal menyimpan');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleConfirmStockUpdate = async () => {
+        if (!stockPrompt || updatingStock) return;
+        const targetItem = stockPrompt.matchedItems.find(
+            (i) => String(i.id || i.uuid) === String(stockPrompt.selectedId)
+        ) || stockPrompt.matchedItems[0];
+
+        if (!targetItem) {
+            setStockPrompt(null);
+            return;
+        }
+
+        const qtyToAdd = Math.max(1, Number(stockPrompt.qty) || 1);
+        setUpdatingStock(true);
+        try {
+            await addInventoryManual(targetItem.nama, qtyToAdd, {
+                isPending: !isOwner,
+                user: { username, role }
+            });
+            if (isOwner) {
+                toast.success(`Stok "${targetItem.nama}" berhasil ditambah (+${qtyToAdd} ${targetItem.unit || 'pcs'})`);
+            } else {
+                toast.success(`Pengajuan stok "${targetItem.nama}" (+${qtyToAdd}) berhasil dikirim ke Owner`);
+            }
+            setStockPrompt(null);
+        } catch (err) {
+            toast.error(err?.message || 'Gagal mengupdate stok');
+        } finally {
+            setUpdatingStock(false);
         }
     };
 
@@ -560,7 +669,7 @@ export default function BukuKas({ user, embedded = false, hidden, onToggleHidden
                                 </div>
 
                                 <div className="kb-two" style={{ marginTop: 8 }}>
-                                    <input className="kb-in" placeholder="Catatan (opsional)" value={fNote} onChange={(e) => setFNote(e.target.value)} maxLength={120} />
+                                    <input className="kb-in" placeholder="Catatan / nama barang (contoh: Deterjen)" value={fNote} onChange={(e) => setFNote(e.target.value)} maxLength={120} />
                                     <input className="kb-in d" type="date" value={fDate} max={localDate(new Date())} onChange={(e) => setFDate(e.target.value)} aria-label="Tanggal" />
                                 </div>
 
@@ -578,6 +687,130 @@ export default function BukuKas({ user, embedded = false, hidden, onToggleHidden
                                 </div>
                             </>
                         )}
+                    </div>
+                </div>
+            )}
+            {/* Popup Dialog Update Stok Otomatis saat Pengeluaran Kas Mirip Stok Aktif */}
+            {stockPrompt && stockPrompt.open && (
+                <div className="kb-dock" style={{ zIndex: 1060, pointerEvents: 'auto' }}>
+                    <div className="kb-panel" role="dialog" aria-label="Update Stok Barang">
+                        <div className="kb-head" style={{ marginBottom: 8 }}>
+                            <div className="kb-who">
+                                <span className="av" style={{ background: '#e0f2fe', color: '#0284c7' }}>
+                                    <i className="bi bi-box-seam"></i>
+                                </span>
+                                <div>
+                                    <b style={{ fontSize: '0.92rem' }}>Update Stok Barang?</b>
+                                    <small style={{ display: 'block', fontSize: '0.68rem', color: '#64748b' }}>
+                                        Ditemukan stok aktif yang cocok dengan pengeluaran
+                                    </small>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                className="kb-circ"
+                                onClick={() => setStockPrompt(null)}
+                                aria-label="Tutup popup update stok"
+                            >
+                                <i className="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+
+                        <div style={{ background: '#f8fafc', borderRadius: 12, padding: '8px 12px', marginBottom: 12, border: '1px solid #e2e8f0', fontSize: '0.76rem', color: '#334155' }}>
+                            Catatan pengeluaran: <b style={{ color: '#0f172a' }}>"{stockPrompt.note}"</b>
+                        </div>
+
+                        <div className="kb-sec" style={{ marginTop: 4, marginBottom: 8 }}>Pilih Stok Aktif yang Ingin Diupdate</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+                            {stockPrompt.matchedItems.map((item) => {
+                                const isSelected = String(item.id || item.uuid) === String(stockPrompt.selectedId);
+                                return (
+                                    <div
+                                        key={item.id || item.uuid}
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={() => setStockPrompt({ ...stockPrompt, selectedId: item.id || item.uuid })}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                setStockPrompt({ ...stockPrompt, selectedId: item.id || item.uuid });
+                                            }
+                                        }}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            padding: '10px 12px',
+                                            borderRadius: 12,
+                                            border: `1.5px solid ${isSelected ? '#0d5afd' : '#e2e8f0'}`,
+                                            background: isSelected ? '#eff6ff' : '#ffffff',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s ease',
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                            <i className={`bi ${isSelected ? 'bi-check-circle-fill text-primary' : 'bi-circle text-muted'}`} style={{ fontSize: '1.1rem' }}></i>
+                                            <div>
+                                                <div style={{ fontWeight: 700, fontSize: '0.84rem', color: isSelected ? '#0d5afd' : '#1e293b' }}>
+                                                    {item.nama}
+                                                </div>
+                                                <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                                                    Sisa stok: <b>{item.stok ?? 0} {item.unit || 'pcs'}</b>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <span className="badge rounded-pill" style={{ background: isSelected ? '#dbeafe' : '#f1f5f9', color: isSelected ? '#1d4ed8' : '#64748b', fontSize: '0.68rem', padding: '4px 8px' }}>
+                                            Aktif
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="kb-sec" style={{ marginBottom: 8 }}>Jumlah yang Ditambahkan</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                            <button
+                                type="button"
+                                style={{ width: 38, height: 38, borderRadius: 10, border: '1px solid #cbd5e1', background: '#fff', fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                onClick={() => setStockPrompt({ ...stockPrompt, qty: Math.max(1, (Number(stockPrompt.qty) || 1) - 1) })}
+                                aria-label="Kurangi jumlah"
+                            >
+                                <i className="bi bi-dash"></i>
+                            </button>
+                            <input
+                                type="number"
+                                min="1"
+                                style={{ flex: 1, height: 38, textAlign: 'center', fontWeight: 700, fontSize: '1rem', border: '1.5px solid #cbd5e1', borderRadius: 10, outline: 'none' }}
+                                value={stockPrompt.qty}
+                                onChange={(e) => setStockPrompt({ ...stockPrompt, qty: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                                aria-label="Jumlah stok"
+                            />
+                            <button
+                                type="button"
+                                style={{ width: 38, height: 38, borderRadius: 10, border: '1px solid #cbd5e1', background: '#fff', fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                onClick={() => setStockPrompt({ ...stockPrompt, qty: (Number(stockPrompt.qty) || 1) + 1 })}
+                                aria-label="Tambah jumlah"
+                            >
+                                <i className="bi bi-plus"></i>
+                            </button>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                                type="button"
+                                style={{ flex: 1, height: 42, borderRadius: 12, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#475569', fontWeight: 700, fontSize: '0.82rem' }}
+                                onClick={() => setStockPrompt(null)}
+                            >
+                                Tidak, Lewati
+                            </button>
+                            <button
+                                type="button"
+                                style={{ flex: 1.5, height: 42, borderRadius: 12, border: 'none', background: '#0d5afd', color: '#fff', fontWeight: 700, fontSize: '0.86rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                                disabled={updatingStock}
+                                onClick={handleConfirmStockUpdate}
+                            >
+                                <i className="bi bi-plus-circle"></i> Tambah Stok (+{stockPrompt.qty})
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

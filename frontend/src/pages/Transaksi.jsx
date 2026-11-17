@@ -229,23 +229,27 @@ const Transaksi = ({ user } = {}) => {
     return () => ro.disconnect();
   }, [showSuccessModal, isMiniPayment]);
 
-  // Ekstrak kategori unik dari daftar produk
-  const categories = useMemo(() => {
+  // Filter hanya produk yang aktif (layanan yang dinonaktifkan tidak muncul di kasir)
+  const activeProducts = useMemo(() => {
     if (!Array.isArray(products)) return [];
-    return Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
+    return products.filter((p) => p.isActive !== false);
   }, [products]);
 
-  // Filter produk berdasarkan kategori yang dipilih + kata kunci pencarian (nama / kategori / kode)
+  // Ekstrak kategori unik dari daftar produk aktif
+  const categories = useMemo(() => {
+    return Array.from(new Set(activeProducts.map((p) => p.category).filter(Boolean)));
+  }, [activeProducts]);
+
+  // Filter produk aktif berdasarkan kategori yang dipilih + kata kunci pencarian (nama / kategori / kode)
   const filteredProducts = useMemo(() => {
-    if (!Array.isArray(products)) return [];
     const q = productSearchTerm.trim().toLowerCase();
-    return products.filter((p) => {
+    return activeProducts.filter((p) => {
       const matchCategory = selectedCategory === 'ALL' || p.category?.toUpperCase() === selectedCategory.toUpperCase();
       if (!matchCategory) return false;
       if (!q) return true;
       return [p.name, p.category, getProductCode(p)].some((v) => (v || '').toLowerCase().includes(q));
     });
-  }, [products, selectedCategory, productSearchTerm]);
+  }, [activeProducts, selectedCategory, productSearchTerm]);
 
   // Mencocokkan item keranjang dengan produk
   const getCartItemForProduct = (p) => {
@@ -497,9 +501,9 @@ const Transaksi = ({ user } = {}) => {
 
           {/* Card Layanan / Produk (2 Baris x 2 Kolom, geser kanan jika lebih dari 4; geser atas/bawah tetap scroll halaman) */}
           <div className="mb-3">
-            {(!products || products.length === 0) ? (
+            {(!activeProducts || activeProducts.length === 0) ? (
               <div className="p-3 text-center bg-light rounded-3 border text-muted small">
-                Belum ada produk/layanan yang tersedia.
+                Belum ada produk/layanan yang aktif.
               </div>
             ) : filteredProducts.length === 0 ? (
               <div className="p-3 text-center bg-light rounded-3 border text-muted small">

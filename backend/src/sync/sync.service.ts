@@ -210,6 +210,7 @@ export class SyncService {
         category: p.category || null,
         name: p.name,
         price: Number(p.price) || 0,
+        isActive: p.isActive !== false,
         createdAt,
         updatedAt,
         deletedAt,

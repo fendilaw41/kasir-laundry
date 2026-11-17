@@ -284,4 +284,23 @@ describe('Transaksi Page', () => {
     fireEvent.change(prioritasSelect, { target: { value: 'Ya' } });
     expect(prioritasSelect.value).toBe('Ya');
   });
+
+  it('menyembunyikan layanan yang dinonaktifkan (isActive: false) dari tampilan transaksi', async () => {
+    mockDraftOrder.mockReturnValue({ pelanggan: null, inventory: [] });
+    mockCartItems.mockReturnValue([]);
+    mockProducts.mockReturnValue([
+      { id: 1, name: 'Layanan Aktif', category: 'CUCI SETRIKA', price: 10000, code: 'LAK', isActive: true },
+      { id: 2, name: 'Layanan Nonaktif', category: 'CUCI LIPAT', price: 8000, code: 'LNK', isActive: false },
+    ]);
+
+    render(<Transaksi />);
+
+    // Layanan aktif muncul
+    expect(screen.getByText('LAK')).toBeDefined();
+    expect(screen.getByText('Layanan Aktif')).toBeDefined();
+
+    // Layanan nonaktif TIDAK boleh muncul
+    expect(screen.queryByText('LNK')).toBeNull();
+    expect(screen.queryByText('Layanan Nonaktif')).toBeNull();
+  });
 });

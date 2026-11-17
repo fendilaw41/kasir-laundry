@@ -48,6 +48,9 @@ export class SyncProductDto {
   @ApiProperty({ description: 'Harga layanan', example: 5000 })
   price: number;
 
+  @ApiPropertyOptional({ description: 'Status aktif layanan (muncul di kasir)', example: true, default: true })
+  isActive?: boolean;
+
   @ApiPropertyOptional({ description: 'Waktu pembuatan di client', example: '2026-10-09T07:20:00.000Z' })
   createdAt?: string | Date;
 
