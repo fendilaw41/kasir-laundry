@@ -198,10 +198,10 @@ const Layout = ({ user, onLogout }) => {
                     style={{
                       fontSize: '0.84rem',
                       fontWeight: 500,
-                      color: '#1e293b',
-                      backgroundColor: '#f0f5ff',
-                      border: '1.5px solid #b9d5ff',
-                      height: '38px',
+                      color: '#0f172a',
+                      backgroundColor: '#f8fafc',
+                      border: '1.5px solid #cbd5e1',
+                      height: '40px',
                       transition: 'all 0.2s ease',
                     }}
                     onFocus={(e) => {
@@ -211,8 +211,8 @@ const Layout = ({ user, onLogout }) => {
                       if (homeSearchQuery.trim()) setIsHomeSearchOpen(true);
                     }}
                     onBlur={(e) => {
-                      e.target.style.backgroundColor = '#f0f5ff';
-                      e.target.style.borderColor = '#b9d5ff';
+                      e.target.style.backgroundColor = '#f8fafc';
+                      e.target.style.borderColor = '#cbd5e1';
                       e.target.style.boxShadow = 'none';
                     }}
                     placeholder="Cari pelanggan / Nomor Order..."
@@ -226,15 +226,16 @@ const Layout = ({ user, onLogout }) => {
                   {homeSearchQuery && (
                     <button
                       type="button"
-                      className="btn btn-sm btn-link position-absolute end-0 me-2 p-0 text-muted"
+                      className="btn btn-sm btn-link position-absolute end-0 me-1 p-0 text-muted d-inline-flex align-items-center justify-content-center"
+                      style={{ zIndex: 2, minWidth: '36px', minHeight: '36px' }}
                       onClick={() => {
                         setHomeSearchQuery('');
                         setHomeSearchResults([]);
                         setIsHomeSearchOpen(false);
                       }}
-                      style={{ zIndex: 2 }}
+                      aria-label="Hapus kata kunci pencarian"
                     >
-                      <i className="bi bi-x-circle-fill" style={{ fontSize: '0.92rem', color: '#64748b' }}></i>
+                      <i className="bi bi-x-circle-fill" style={{ fontSize: '1rem', color: '#64748b' }}></i>
                     </button>
                   )}
                 </div>
@@ -251,10 +252,10 @@ const Layout = ({ user, onLogout }) => {
                     style={{
                       fontSize: '0.84rem',
                       fontWeight: 500,
-                      color: '#1e293b',
-                      backgroundColor: '#f0f5ff',
-                      border: '1.5px solid #b9d5ff',
-                      height: '38px',
+                      color: '#0f172a',
+                      backgroundColor: '#f8fafc',
+                      border: '1.5px solid #cbd5e1',
+                      height: '40px',
                       transition: 'all 0.2s ease',
                     }}
                     onFocus={(e) => {
@@ -263,8 +264,8 @@ const Layout = ({ user, onLogout }) => {
                       e.target.style.boxShadow = '0 0 0 3px rgba(13, 110, 253, 0.15)';
                     }}
                     onBlur={(e) => {
-                      e.target.style.backgroundColor = '#f0f5ff';
-                      e.target.style.borderColor = '#b9d5ff';
+                      e.target.style.backgroundColor = '#f8fafc';
+                      e.target.style.borderColor = '#cbd5e1';
                       e.target.style.boxShadow = 'none';
                     }}
                     placeholder="Cari nama layanan..."
@@ -274,11 +275,12 @@ const Layout = ({ user, onLogout }) => {
                   {productSearchTerm && (
                     <button
                       type="button"
-                      className="btn btn-sm btn-link position-absolute end-0 me-2 p-0 text-muted"
+                      className="btn btn-sm btn-link position-absolute end-0 me-1 p-0 text-muted d-inline-flex align-items-center justify-content-center"
+                      style={{ zIndex: 2, minWidth: '36px', minHeight: '36px' }}
                       onClick={() => setProductSearchTerm('')}
-                      style={{ zIndex: 2 }}
+                      aria-label="Hapus kata kunci layanan"
                     >
-                      <i className="bi bi-x-circle-fill" style={{ fontSize: '0.92rem', color: '#64748b' }}></i>
+                      <i className="bi bi-x-circle-fill" style={{ fontSize: '1rem', color: '#64748b' }}></i>
                     </button>
                   )}
                 </div>
@@ -300,18 +302,20 @@ const Layout = ({ user, onLogout }) => {
                   <div className="d-flex align-items-center overflow-hidden" style={{ minWidth: 0 }}>
                     <button
                       type="button"
-                      className="btn btn-sm p-0 text-primary me-2 flex-shrink-0"
+                      className="btn btn-sm p-0 text-primary me-2 flex-shrink-0 d-inline-flex align-items-center justify-content-center"
+                      style={{ minWidth: '40px', minHeight: '40px' }}
                       onClick={chatHeaderState.onBack}
                       title="Kembali ke Daftar Chat"
+                      aria-label="Kembali ke Daftar Chat"
                     >
-                      <i className="bi bi-arrow-left fs-4"></i>
+                      <i className="bi bi-arrow-left fs-4" aria-hidden="true"></i>
                     </button>
 
                     {/* Image / Avatar di samping nama orang / bot */}
                     {chatHeaderState.type === 'bot' ? (
                       <div
                         className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 me-2"
-                        style={{ width: '36px', height: '36px', backgroundColor: '#eaf1ff', color: '#0d5afd' }}
+                        style={{ width: '38px', height: '38px', backgroundColor: '#eaf1ff', color: '#0d5afd' }}
                       >
                         <i className="bi bi-robot fs-5"></i>
                       </div>
@@ -320,7 +324,7 @@ const Layout = ({ user, onLogout }) => {
                         src={chatHeaderState.avatarImage}
                         alt=""
                         className="rounded-circle object-fit-cover flex-shrink-0 me-2"
-                        style={{ width: '36px', height: '36px' }}
+                        style={{ width: '38px', height: '38px' }}
                       />
                     ) : (
                       <div
@@ -331,8 +335,8 @@ const Layout = ({ user, onLogout }) => {
                             : 'bg-primary'
                           }`}
                         style={{
-                          width: '36px',
-                          height: '36px',
+                          width: '38px',
+                          height: '38px',
                           backgroundColor: chatHeaderState.isCrossStore ? '#6f42c1' : undefined,
                           fontSize: '0.9rem',
                         }}
@@ -370,26 +374,28 @@ const Layout = ({ user, onLogout }) => {
                   </div>
 
                   {/* Tombol aksi kanan: Hanya untuk Chat Bot (Mode Cepat ⚡ & Reset +), new chat hilang */}
-                  <div className="d-flex align-items-center gap-1 flex-shrink-0 ms-2">
+                  <div className="d-flex align-items-center gap-2 flex-shrink-0 ms-2">
                     {chatHeaderState.type === 'bot' ? (
                       <>
                         <button
                           type="button"
                           className="btn btn-sm btn-light rounded-circle text-primary shadow-sm d-flex align-items-center justify-content-center p-0"
-                          style={{ width: '34px', height: '34px' }}
+                          style={{ width: '38px', height: '38px' }}
                           onClick={() => window.dispatchEvent(new CustomEvent('openQuickCommandsModal'))}
                           title="Pilihan Perintah Cepat (Mode Cepat)"
+                          aria-label="Pilihan Perintah Cepat (Mode Cepat)"
                         >
-                          <i className="bi bi-lightning-charge-fill fs-6"></i>
+                          <i className="bi bi-lightning-charge-fill fs-6" aria-hidden="true"></i>
                         </button>
                         <button
                           type="button"
                           className="btn btn-sm btn-light rounded-circle text-primary shadow-sm d-flex align-items-center justify-content-center p-0"
-                          style={{ width: '34px', height: '34px' }}
+                          style={{ width: '38px', height: '38px' }}
                           onClick={() => window.dispatchEvent(new CustomEvent('openResetBotChatModal'))}
                           title="Percakapan Baru"
+                          aria-label="Percakapan Baru"
                         >
-                          <i className="bi bi-plus-lg fs-6"></i>
+                          <i className="bi bi-plus-lg fs-6" aria-hidden="true"></i>
                         </button>
                       </>
                     ) : chatHeaderState.isCrossStore ? (
@@ -404,7 +410,8 @@ const Layout = ({ user, onLogout }) => {
                   {/* Tampilan Sub-Menu Default (Back Button & Title) */}
                   <div className="back-button">
                     <button
-                      className="btn btn-sm p-0 text-primary"
+                      className="btn btn-sm p-0 text-primary d-inline-flex align-items-center justify-content-center"
+                      style={{ minWidth: '44px', minHeight: '44px' }}
                       onClick={() => {
                         if (location.pathname === '/setting' && location.search.includes('tab=')) {
                           navigate('/setting');
@@ -413,8 +420,9 @@ const Layout = ({ user, onLogout }) => {
                         }
                       }}
                       title="Kembali"
+                      aria-label="Kembali"
                     >
-                      <i className="bi bi-arrow-left fs-4"></i>
+                      <i className="bi bi-arrow-left fs-4" aria-hidden="true"></i>
                     </button>
                   </div>
                   <div className="page-heading">
@@ -465,15 +473,16 @@ const Layout = ({ user, onLogout }) => {
             </span>
             <button
               type="button"
-              className="btn-close"
-              style={{ width: '8px', height: '8px' }}
+              className="btn-close d-inline-flex align-items-center justify-content-center p-2"
+              style={{ width: '32px', height: '32px', fontSize: '0.8rem' }}
               onClick={() => setIsHomeSearchOpen(false)}
+              aria-label="Tutup pencarian"
             ></button>
           </div>
 
           {homeSearchResults.length === 0 ? (
             <div className="text-center py-3 text-muted small">
-              <i className="bi bi-search d-block fs-3 text-muted opacity-50 mb-1"></i>
+              <i className="bi bi-search d-block fs-3 text-muted opacity-50 mb-1" aria-hidden="true"></i>
               Tidak ditemukan order dengan kata kunci &quot;{homeSearchQuery}&quot;
             </div>
           ) : (
@@ -490,48 +499,57 @@ const Layout = ({ user, onLogout }) => {
                 return (
                   <div
                     key={order.id || order.uuid}
-                    className="p-3 rounded-3 border bg-light d-flex justify-content-between align-items-center"
+                    role="button"
+                    tabIndex={0}
+                    className="p-3 rounded-3 border bg-light d-flex justify-content-between align-items-center text-decoration-none"
                     style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
                     onClick={() => {
                       setHomeSearchQuery('');
                       setIsHomeSearchOpen(false);
                       navigate(`/order/${order.id || order.uuid}`);
                     }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setHomeSearchQuery('');
+                        setIsHomeSearchOpen(false);
+                        navigate(`/order/${order.id || order.uuid}`);
+                      }
+                    }}
                   >
                     <div className="overflow-hidden me-2" style={{ minWidth: 0 }}>
-                      <div className="d-flex align-items-center gap-1.5">
-                        <span className="fw-bold text-primary text-truncate" style={{ fontSize: '13px' }}>
+                      <div className="d-flex align-items-center gap-2">
+                        <span className="fw-bold text-primary text-truncate" style={{ fontSize: '14px' }}>
                           {order.invoiceId || `#${order.id}`}
                         </span>
-                        &nbsp;
                         <span
-                          className={`badge rounded-pill ${
+                          className={`badge rounded-pill fw-semibold ${
                             order.status === 'Selesai'
                               ? 'bg-success'
                               : order.status === 'Diambil'
                               ? 'bg-secondary'
                               : 'bg-primary'
                           }`}
-                          style={{ fontSize: '9.5px' }}
+                          style={{ fontSize: '11px', padding: '4px 8px' }}
                         >
                           {order.status || 'Baru'}
                         </span>
                       </div>
-                      <div className="small text-dark text-truncate mt-0.5" style={{ fontSize: '12px' }}>
-                        <i className="bi bi-person me-1 text-muted"></i>
+                      <div className="small text-dark text-truncate mt-1" style={{ fontSize: '12px' }}>
+                        <i className="bi bi-person me-1 text-muted" aria-hidden="true"></i>
                         {order.pelangganNama || 'Pelanggan Umum'}
                         {dateStr && <span className="text-muted ms-1">({dateStr})</span>}
                       </div>
                     </div>
                     <div className="text-end flex-shrink-0">
-                      <div className="fw-bold text-primary" style={{ fontSize: '13px' }}>
+                      <div className="fw-bold text-primary" style={{ fontSize: '14px' }}>
                         Rp {(order.total || 0).toLocaleString('id-ID')}
                       </div>
                       <span
-                        className={`badge rounded-pill ${
+                        className={`badge rounded-pill fw-semibold ${
                           isLunas ? 'bg-success-subtle text-success border border-success' : 'bg-warning-subtle text-dark border border-warning'
                         }`}
-                        style={{ fontSize: '9px' }}
+                        style={{ fontSize: '11px', padding: '3px 8px' }}
                       >
                         {isLunas ? 'Lunas' : 'Belum Lunas'}
                       </span>
@@ -544,7 +562,7 @@ const Layout = ({ user, onLogout }) => {
         </div>
       )}
 
-      <div className="page-content-wrapper pb-3">
+      <div className="page-content-wrapper" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}>
         <OfflineAlertBanner />
         <div className="container-fluid px-0">
           <Outlet context={outletContext} />
@@ -553,16 +571,18 @@ const Layout = ({ user, onLogout }) => {
 
       {/* Footer Nav */}
       {location.pathname !== '/chat' && (
-        <div
+        <nav
           className="footer-nav-area"
           id="footerNav"
+          aria-label="Menu navigasi utama"
           style={{
             backgroundColor: '#ffffff',
-            borderTop: '1px solid #f1f5f9',
+            borderTop: '1px solid #e2e8f0',
             boxShadow: 'none',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
         >
-          <div className="container px-0" style={{ maxWidth: '640px', backgroundColor: '#ffffff' }}>
+          <div className="container px-0" style={{ maxWidth: '680px', backgroundColor: '#ffffff' }}>
             <div
               className="footer-nav position-relative"
               style={{
@@ -575,26 +595,26 @@ const Layout = ({ user, onLogout }) => {
               <ul className="h-100 d-flex align-items-center justify-content-between ps-0 mb-0">
                 <li className={location.pathname === '/' ? 'active' : ''}>
                   <Link to="/">
-                    <i className={`bi ${location.pathname === '/' ? 'bi-house-fill' : 'bi-house'}`} style={{ fontSize: '20px' }}></i>
+                    <i className={`bi ${location.pathname === '/' ? 'bi-house-fill' : 'bi-house'}`} style={{ fontSize: '20px' }} aria-hidden="true"></i>
                     <span>Home</span>
                   </Link>
                 </li>
                 <li className={location.pathname === '/orders' ? 'active' : ''}>
                   <Link to="/orders">
-                    <i className={`bi ${location.pathname === '/orders' ? 'bi-list-check' : 'bi-list'}`} style={{ fontSize: '20px' }}></i>
+                    <i className={`bi ${location.pathname === '/orders' ? 'bi-list-check' : 'bi-list'}`} style={{ fontSize: '20px' }} aria-hidden="true"></i>
                     <span>Riwayat</span>
                   </Link>
                 </li>
                 <li className={location.pathname === '/transaksi' ? 'active' : ''}>
                   <Link to="/transaksi">
-                    <i className={`bi ${location.pathname === '/transaksi' ? 'bi-cart-plus-fill' : 'bi-cart-plus'}`} style={{ fontSize: '20px' }}></i>
+                    <i className={`bi ${location.pathname === '/transaksi' ? 'bi-cart-plus-fill' : 'bi-cart-plus'}`} style={{ fontSize: '20px' }} aria-hidden="true"></i>
                     <span>Transaksi</span>
                   </Link>
                 </li>
                 <li className={location.pathname === '/chat' ? 'active' : ''}>
                   <Link to="/chat">
                     <div className="position-relative d-inline-block">
-                      <i className={`bi ${location.pathname === '/chat' ? 'bi-chat-dots-fill' : 'bi-chat-dots'}`} style={{ fontSize: '20px' }}></i>
+                      <i className={`bi ${location.pathname === '/chat' ? 'bi-chat-dots-fill' : 'bi-chat-dots'}`} style={{ fontSize: '20px' }} aria-hidden="true"></i>
                       {totalUnreadChat > 0 && (
                         <span
                           className="badge bg-success rounded-pill px-2 py-1 position-absolute top-0 start-100 translate-middle"
@@ -609,14 +629,14 @@ const Layout = ({ user, onLogout }) => {
                 </li>
                 <li className={location.pathname.startsWith('/setting') ? 'active' : ''}>
                   <Link to="/setting">
-                    <i className={`bi ${location.pathname.startsWith('/setting') ? 'bi-gear-fill' : 'bi-gear'}`} style={{ fontSize: '20px' }}></i>
+                    <i className={`bi ${location.pathname.startsWith('/setting') ? 'bi-gear-fill' : 'bi-gear'}`} style={{ fontSize: '20px' }} aria-hidden="true"></i>
                     <span>Pengaturan</span>
                   </Link>
                 </li>
               </ul>
             </div>
           </div>
-        </div>
+        </nav>
       )}
     </div>
   );
