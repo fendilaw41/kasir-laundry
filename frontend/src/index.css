@@ -121,13 +121,17 @@ body {
 
 /* Blokir semua seleksi teks dan popup (termasuk di dalam modal/popup) secara global */
 * {
-    -webkit-touch-callout: none; /* blok context menu iOS Safari */
-    -webkit-user-select: none;   /* blok select teks Safari/Chrome iOS */
+    -webkit-touch-callout: none;
+    /* blok context menu iOS Safari */
+    -webkit-user-select: none;
+    /* blok select teks Safari/Chrome iOS */
     -khtml-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
-    user-select: none;           /* blok select teks standar */
-    -webkit-tap-highlight-color: transparent; /* hilangkan highlight saat tap di Android */
+    user-select: none;
+    /* blok select teks standar */
+    -webkit-tap-highlight-color: transparent;
+    /* hilangkan highlight saat tap di Android */
 }
 
 /* Kembalikan kemampuan seleksi teks pada input dan textarea agar tetap bisa diisi */
@@ -160,6 +164,7 @@ a {
     0% {
         background-position: -200% 0;
     }
+
     100% {
         background-position: 200% 0;
     }
@@ -335,4 +340,3 @@ body:has(.landing-page-wrapper) {
 .animate-fade-in {
     animation: fadeIn 0.2s ease-out;
 }
-

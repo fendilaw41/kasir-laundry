@@ -14,7 +14,7 @@ import { getSubscriptionReport, getCachedSubscriptionReportSync, isTrialExpired,
 /* Gaya khusus halaman Data Order (prefix .do-). Dibuat sendiri karena kelas seperti
    gap-1.5 / p-2.5 / mb-1.5 TIDAK ada di Bootstrap 5, jadi spasi sebelumnya tidak terkontrol. */
 const DO_CSS = `
-.do-wrap { padding: 22px 12px 24px; }
+.do-wrap { padding: 0px 12px 24px; }
 .do-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
 .do-count { display: inline-flex; align-items: center; gap: 5px; font-size: .74rem; font-weight: 600; color: #5f5a86; }
 .do-count i { color: #0d5afd; }
