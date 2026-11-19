@@ -26,6 +26,11 @@ body {
     padding-bottom: 0;
 }
 
+.page-content-wrapper {
+    margin-bottom: 0 !important;
+    padding-bottom: 70px !important;
+}
+
 /* Global Print Settings */
 @media print {
     body * {

@@ -700,10 +700,9 @@ const OrderDetail = ({ user }) => {
           paddingBottom: DRAWER_FOLLOW_CONTENT
             ? '0px'
             : (isCompactDrawer ? '140px' : '280px'),
-          // Layout memberi jarak di bawah halaman: pb-3 (1rem) + .page-content-wrapper margin-bottom 62px.
-          // Saat drawer menempel di bawah konten, jarak itu ditarik balik agar drawer tepat rata
-          // dengan dasar layar (menutupi menu bawah, sama seperti sebelumnya) di akhir scroll.
-          marginBottom: DRAWER_FOLLOW_CONTENT ? `calc(-1rem - ${BOTTOM_MENU_HEIGHT}px)` : 0,
+          // .page-content-wrapper memiliki padding-bottom: 70px (62px tinggi Bottom Nav + 8px jarak)
+          // sehingga saat di-scroll mentok ke bawah, floating drawer naik tepat di atas Bottom Nav.
+          marginBottom: '0px',
           transition: 'padding-bottom 0.22s ease-out',
         }}
       >

@@ -926,9 +926,9 @@ const Transaksi = ({ user } = {}) => {
             position: 'sticky',
             bottom: 0,
             marginTop: '8px',
-            // Layout memberi jarak bawah: pb-3 (1rem) + .page-content-wrapper margin-bottom 62px.
-            // Ditarik balik agar drawer rata dengan dasar layar (menutupi menu bawah) di akhir scroll.
-            marginBottom: `calc(-1rem - ${BOTTOM_MENU_HEIGHT}px)`,
+            // .page-content-wrapper memiliki padding-bottom: 70px (62px tinggi Bottom Nav + 8px jarak)
+            // sehingga saat di-scroll mentok ke bawah, floating drawer naik tepat di atas Bottom Nav.
+            marginBottom: '0px',
             maxWidth: isCompactPayment ? '540px' : '580px',
             zIndex: 1055,
             animation: 'drawerRise 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
