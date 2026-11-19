@@ -54,7 +54,7 @@ export default function PergerakanStok({ user }) {
             setGateModalOpen(true);
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, []);
 
@@ -367,7 +367,7 @@ export default function PergerakanStok({ user }) {
   return (
     <div style={{ backgroundColor: '#f4f7fc' }}>
       <div className="container px-3 pt-3" style={{ maxWidth: '680px' }}>
-        
+
         {/* SUMMARY CARDS (BIRU & PUTIH THEME) */}
         <div className="row g-2.5 mb-3">
           {/* Card Stock In */}
@@ -430,11 +430,10 @@ export default function PergerakanStok({ user }) {
           <div className="d-flex gap-1">
             <button
               type="button"
-              className={`btn flex-fill rounded-pill py-2 border-0 fw-bold transition-all ${
-                activeTab === 'all'
+              className={`btn flex-fill rounded-pill py-2 border-0 fw-bold transition-all ${activeTab === 'all'
                   ? 'btn-primary shadow-xs'
                   : 'btn-light text-muted bg-transparent'
-              }`}
+                }`}
               style={{ fontSize: '0.78rem' }}
               onClick={() => setActiveTab('all')}
             >
@@ -442,11 +441,10 @@ export default function PergerakanStok({ user }) {
             </button>
             <button
               type="button"
-              className={`btn flex-fill rounded-pill py-2 border-0 fw-bold transition-all ${
-                activeTab === 'in'
+              className={`btn flex-fill rounded-pill py-2 border-0 fw-bold transition-all ${activeTab === 'in'
                   ? 'btn-success text-white shadow-xs'
                   : 'btn-light text-muted bg-transparent'
-              }`}
+                }`}
               style={{ fontSize: '0.78rem' }}
               onClick={() => setActiveTab('in')}
             >
@@ -455,11 +453,10 @@ export default function PergerakanStok({ user }) {
             </button>
             <button
               type="button"
-              className={`btn flex-fill rounded-pill py-2 border-0 fw-bold transition-all ${
-                activeTab === 'out'
+              className={`btn flex-fill rounded-pill py-2 border-0 fw-bold transition-all ${activeTab === 'out'
                   ? 'btn-primary shadow-xs'
                   : 'btn-light text-muted bg-transparent'
-              }`}
+                }`}
               style={{ fontSize: '0.78rem' }}
               onClick={() => setActiveTab('out')}
             >
@@ -505,9 +502,8 @@ export default function PergerakanStok({ user }) {
                 <div className="d-flex gap-1">
                   <button
                     type="button"
-                    className={`btn btn-sm flex-fill rounded-pill py-1 px-1 fw-semibold text-center border-0 transition-all ${
-                      !filterDate ? 'btn-primary text-white shadow-xs' : 'btn-light text-muted'
-                    }`}
+                    className={`btn btn-sm flex-fill rounded-pill py-1 px-1 fw-semibold text-center border-0 transition-all ${!filterDate ? 'btn-primary text-white shadow-xs' : 'btn-light text-muted'
+                      }`}
                     style={{ fontSize: '0.72rem' }}
                     onClick={() => setFilterDate('')}
                   >
@@ -515,9 +511,8 @@ export default function PergerakanStok({ user }) {
                   </button>
                   <button
                     type="button"
-                    className={`btn btn-sm flex-fill rounded-pill py-1 px-1 fw-semibold text-center border-0 transition-all ${
-                      filterDate === todayStr ? 'btn-primary text-white shadow-xs' : 'btn-light text-muted'
-                    }`}
+                    className={`btn btn-sm flex-fill rounded-pill py-1 px-1 fw-semibold text-center border-0 transition-all ${filterDate === todayStr ? 'btn-primary text-white shadow-xs' : 'btn-light text-muted'
+                      }`}
                     style={{ fontSize: '0.72rem' }}
                     onClick={() => setFilterDate(todayStr)}
                   >
@@ -525,9 +520,8 @@ export default function PergerakanStok({ user }) {
                   </button>
                   <button
                     type="button"
-                    className={`btn btn-sm flex-fill rounded-pill py-1 px-1 fw-semibold text-center border-0 transition-all ${
-                      filterDate === yesterdayStr ? 'btn-primary text-white shadow-xs' : 'btn-light text-muted'
-                    }`}
+                    className={`btn btn-sm flex-fill rounded-pill py-1 px-1 fw-semibold text-center border-0 transition-all ${filterDate === yesterdayStr ? 'btn-primary text-white shadow-xs' : 'btn-light text-muted'
+                      }`}
                     style={{ fontSize: '0.72rem' }}
                     onClick={() => setFilterDate(yesterdayStr)}
                   >
@@ -715,7 +709,7 @@ export default function PergerakanStok({ user }) {
 
                             {/* TOTAL QTY */}
                             <div className="text-end flex-shrink-0">
-                               <span
+                              <span
                                 className={`fw-bold d-block ${isAdd ? 'text-success' : 'text-primary'}`}
                                 style={{ fontSize: '1.1rem', letterSpacing: '-0.3px' }}
                               >

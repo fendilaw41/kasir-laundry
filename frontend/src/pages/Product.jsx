@@ -11,7 +11,7 @@ const Product = () => {
   const products = useLiveQuery(getProductsQuery);
   const outletCtx = useOutletContext();
   const searchTerm = outletCtx?.productSearchTerm ?? '';
-  const setSearchTerm = outletCtx?.setProductSearchTerm ?? (() => {});
+  const setSearchTerm = outletCtx?.setProductSearchTerm ?? (() => { });
   const [selectedCategory, setSelectedCategory] = useState('ALL');
 
   // State untuk menyimpan jumlah qty sementara per produk
