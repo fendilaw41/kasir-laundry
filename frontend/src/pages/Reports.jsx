@@ -319,7 +319,7 @@ const Reports = ({ user }) => {
   };
 
   return (
-    <div className="reports-page rp-wrap" style={{ minHeight: '100vh' }}>
+    <div className="reports-page rp-wrap">
       <style>{RP_CSS}</style>
 
       {/* Pilih tampilan: Penjualan (omzet per order) atau Kas (uang masuk & keluar) */}

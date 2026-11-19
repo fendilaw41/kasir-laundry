@@ -23,7 +23,7 @@ body {
     margin: 0;
     background-color: #f4f7ff;
     padding-top: 60px;
-    padding-bottom: 70px;
+    padding-bottom: 0;
 }
 
 /* Global Print Settings */

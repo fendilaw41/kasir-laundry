@@ -146,7 +146,7 @@ const Product = () => {
   }, [filteredProducts, visibleCount]);
 
   return (
-    <div className="product-page pb-5" style={{ backgroundColor: '#f8faff', minHeight: '100vh' }}>
+    <div className="product-page" style={{ backgroundColor: '#f8faff' }}>
       {/* Category Filter Chips - Di Body & Tidak Menyambung Langsung dengan Header */}
       {categories.length > 0 && (
         <div className="pt-2 pb-1 mb-3">

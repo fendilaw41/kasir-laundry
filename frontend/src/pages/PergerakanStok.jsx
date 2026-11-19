@@ -365,7 +365,7 @@ export default function PergerakanStok({ user }) {
   };
 
   return (
-    <div style={{ backgroundColor: '#f4f7fc', minHeight: '100vh', paddingBottom: '80px' }}>
+    <div style={{ backgroundColor: '#f4f7fc' }}>
       <div className="container px-3 pt-3" style={{ maxWidth: '680px' }}>
         
         {/* SUMMARY CARDS (BIRU & PUTIH THEME) */}

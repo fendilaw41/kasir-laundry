@@ -539,7 +539,7 @@ const Setting = ({ user, onLogout }) => {
   const isOwner = user?.role === 'owner';
 
   return (
-    <div className="setting-page pb-5" style={{ backgroundColor: '#f4f6fa', minHeight: '100vh' }}>
+    <div className="setting-page" style={{ backgroundColor: '#f4f6fa' }}>
       <div className="container px-3 pt-3" style={{ maxWidth: '640px' }}>
         {/* ======================================================== */}
         {/* MENU LIST PENGATURAN (TAMPILAN UTAMA SEBELUM KLIK SUB-MENU) */}

@@ -166,7 +166,7 @@ export default function Plan({ user }) {
   const periodInfo = getPeriodInfo();
 
   return (
-    <div className="plan-page pb-5" style={{ backgroundColor: '#f4f6fa', minHeight: '100vh' }}>
+    <div className="plan-page" style={{ backgroundColor: '#f4f6fa' }}>
       <div className="container px-3 pt-3" style={{ maxWidth: '780px' }}>
         {loading ? (
           <div className="card border-0 shadow-sm rounded-4 p-5 text-center bg-white my-3">
