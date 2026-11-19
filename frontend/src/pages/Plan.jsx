@@ -17,7 +17,7 @@ import { APP_NAME } from '../constants/appConstants';
 export default function Plan({ user }) {
   const settings = useLiveQuery(getSettingsQuery);
   const rawPlans = useLiveQuery(getPlansQuery, [], []);
-  const plans = rawPlans && rawPlans.length > 0 ? rawPlans : DEFAULT_PLANS;
+  const plans = (rawPlans && rawPlans.length > 0 ? rawPlans : DEFAULT_PLANS).filter((p) => p.isActive !== false);
 
   const cachedInit = getCachedSubscriptionReportSync();
   const [loading, setLoading] = useState(!cachedInit);

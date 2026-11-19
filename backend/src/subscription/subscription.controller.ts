@@ -5,6 +5,7 @@ import {
   Put,
   Param,
   Body,
+  Query,
   UseGuards,
   ForbiddenException,
 } from '@nestjs/common';
@@ -22,8 +23,9 @@ export class SubscriptionController {
   @Public()
   @Get('plans')
   @ApiOperation({ summary: 'Mendapatkan daftar paket dan batas limit dari database' })
-  async getPlans() {
-    const plans = await this.subscriptionService.getAllPlans();
+  async getPlans(@Query('activeOnly') activeOnly?: string) {
+    const isOnlyActive = activeOnly === 'true' || activeOnly === '1';
+    const plans = await this.subscriptionService.getAllPlans(!isOnlyActive);
     const plansMap: Record<string, any> = {};
     for (const p of plans) {
       plansMap[p.key] = p;

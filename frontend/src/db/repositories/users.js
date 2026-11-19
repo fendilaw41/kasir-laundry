@@ -219,13 +219,26 @@ const hydrateFromBackend = async (data) => {
 
   if (Array.isArray(data.plans) && data.plans.length > 0 && db.plans) {
     try {
+      const incomingMap = new Map(data.plans.map((p) => [(p.key || '').toUpperCase(), p]));
       await db.transaction('rw', db.plans, async () => {
         for (const p of data.plans) {
           await db.plans.put({
             ...p,
             key: p.key.toUpperCase(),
+            isActive: p.isActive !== false,
             updatedAt: new Date(p.updatedAt || new Date()),
           });
+        }
+        const allLocal = await db.plans.toArray();
+        for (const lp of allLocal) {
+          const cleanKey = (lp.key || '').toUpperCase();
+          if (!incomingMap.has(cleanKey)) {
+            if (typeof db.plans.update === 'function') {
+              await db.plans.update(lp.key, { isActive: false });
+            } else {
+              await db.plans.put({ ...lp, isActive: false });
+            }
+          }
         }
       });
     } catch (e) {
@@ -638,13 +651,26 @@ export const registerUser = async ({ storeCode, storeName, phone, fullname, user
 
       if (Array.isArray(plans) && plans.length > 0 && db.plans) {
         try {
+          const incomingMap = new Map(plans.map((p) => [(p.key || '').toUpperCase(), p]));
           await db.transaction('rw', db.plans, async () => {
             for (const p of plans) {
               await db.plans.put({
                 ...p,
                 key: (p.key || '').toUpperCase(),
+                isActive: p.isActive !== false,
                 updatedAt: new Date(p.updatedAt || new Date()),
               });
+            }
+            const allLocal = await db.plans.toArray();
+            for (const lp of allLocal) {
+              const cleanKey = (lp.key || '').toUpperCase();
+              if (!incomingMap.has(cleanKey)) {
+                if (typeof db.plans.update === 'function') {
+                  await db.plans.update(lp.key, { isActive: false });
+                } else {
+                  await db.plans.put({ ...lp, isActive: false });
+                }
+              }
             }
           });
         } catch (e) {

@@ -16,6 +16,11 @@ vi.mock('../../db.js', () => {
       plans: {
         get: vi.fn(async (key) => store.get(key)),
         put: vi.fn(async (item) => store.set(item.key, item)),
+        update: vi.fn(async (key, changes) => {
+          const item = store.get(key);
+          if (item) store.set(key, { ...item, ...changes });
+        }),
+        toArray: vi.fn(async () => Array.from(store.values())),
         clear: vi.fn(async () => store.clear()),
         orderBy: vi.fn(() => ({
           toArray: vi.fn(async () => Array.from(store.values())),
@@ -134,5 +139,44 @@ describe('plans repository', () => {
     // Panggilan dengan force=true memicu fetch baru
     await syncPlansFromBackend(true);
     expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('deactivates plans in Dexie when plans have isActive: false or are omitted by backend', async () => {
+    // Seed default plans into Dexie
+    for (const p of DEFAULT_PLANS) {
+      await db.plans.put({ ...p, key: p.key.toUpperCase(), isActive: true });
+    }
+
+    // Backend returns STARTER and BUSINESS as isActive: false
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        plans: [
+          { key: 'TRIAL', name: 'Trial', isActive: true, sortOrder: 1 },
+          { key: 'STARTER', name: 'Starter', isActive: false, sortOrder: 2 },
+          { key: 'BASIC', name: 'Basic', isActive: true, sortOrder: 3 },
+          { key: 'PRO', name: 'Pro', isActive: true, sortOrder: 4 },
+          { key: 'BUSINESS', name: 'Business', isActive: false, sortOrder: 5 },
+        ],
+      }),
+    });
+
+    const activeList = await syncPlansFromBackend(true);
+    expect(activeList).toHaveLength(3);
+    const keys = activeList.map((p) => p.key);
+    expect(keys).toEqual(['TRIAL', 'BASIC', 'PRO']);
+
+    // Check Dexie: STARTER and BUSINESS must have isActive: false
+    const starterInDb = await db.plans.get('STARTER');
+    expect(starterInDb.isActive).toBe(false);
+    const businessInDb = await db.plans.get('BUSINESS');
+    expect(businessInDb.isActive).toBe(false);
+
+    // getPlansQuery should only return the 3 active plans
+    const queried = await getPlansQuery();
+    expect(queried).toHaveLength(3);
+    expect(queried.map((p) => p.key)).toEqual(['TRIAL', 'BASIC', 'PRO']);
   });
 });

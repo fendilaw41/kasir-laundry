@@ -214,20 +214,25 @@ export class SubscriptionService {
   }
 
   /**
-   * Mengambil semua daftar master plan yang aktif dari database
+   * Mengambil semua daftar master plan dari database.
+   * Default menyertakan seluruh plan beserta status isActive agar sinkronisasi client akurat.
    */
-  async getAllPlans() {
+  async getAllPlans(includeInactive: boolean = true) {
     try {
+      const whereClause = includeInactive ? {} : { isActive: true };
       const plans = await this.prisma.masterPlan.findMany({
-        where: { isActive: true },
+        where: whereClause,
         orderBy: { sortOrder: 'asc' },
       });
       if (plans.length === 0) {
-        await this.seedDefaultPlans();
-        return this.prisma.masterPlan.findMany({
-          where: { isActive: true },
-          orderBy: { sortOrder: 'asc' },
-        });
+        const totalCount = await this.prisma.masterPlan.count();
+        if (totalCount === 0) {
+          await this.seedDefaultPlans();
+          return this.prisma.masterPlan.findMany({
+            where: whereClause,
+            orderBy: { sortOrder: 'asc' },
+          });
+        }
       }
       return plans;
     } catch (err) {

@@ -10,7 +10,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
  * Membaca dari Dexie dan otomatis seed data default jika tabel plans di Dexie masih kosong.
  */
 export const getPlansQuery = async () => {
-  if (!db.plans) return DEFAULT_PLANS;
+  if (!db.plans) return DEFAULT_PLANS.filter((p) => p.isActive !== false);
   try {
     const list = await db.plans.orderBy('sortOrder').toArray();
     if (list && list.length > 0) {
@@ -30,7 +30,7 @@ export const getPlansQuery = async () => {
     return seeded.filter((p) => p.isActive !== false);
   } catch (err) {
     console.warn('[Plans] Error membaca/seed plans dari Dexie:', err);
-    return DEFAULT_PLANS;
+    return DEFAULT_PLANS.filter((p) => p.isActive !== false);
   }
 };
 
@@ -48,7 +48,7 @@ export const getAllPlansLocal = async () => {
   } catch (err) {
     console.warn('Gagal membaca plans dari Dexie:', err);
   }
-  return DEFAULT_PLANS;
+  return DEFAULT_PLANS.filter((p) => p.isActive !== false);
 };
 
 /**
@@ -99,17 +99,31 @@ export const syncPlansFromBackend = async (force = false) => {
       if (json.success && Array.isArray(json.plans) && json.plans.length > 0) {
         lastPlansSyncTime = Date.now();
         if (db.plans) {
+          const incomingMap = new Map(json.plans.map((p) => [(p.key || '').toUpperCase(), p]));
           await db.transaction('rw', db.plans, async () => {
             for (const plan of json.plans) {
               await db.plans.put({
                 ...plan,
                 key: plan.key.toUpperCase(),
+                isActive: plan.isActive !== false,
                 updatedAt: new Date(plan.updatedAt || new Date()),
               });
             }
+            // Deaktivasi plan di Dexie yang tidak ada di response backend
+            const allLocal = await db.plans.toArray();
+            for (const lp of allLocal) {
+              const cleanKey = (lp.key || '').toUpperCase();
+              if (!incomingMap.has(cleanKey)) {
+                if (typeof db.plans.update === 'function') {
+                  await db.plans.update(lp.key, { isActive: false });
+                } else {
+                  await db.plans.put({ ...lp, isActive: false });
+                }
+              }
+            }
           });
         }
-        return json.plans;
+        return json.plans.filter((p) => p.isActive !== false);
       }
     } catch (err) {
       console.warn('Sync plans dari backend gagal, menggunakan data lokal Dexie:', err);
