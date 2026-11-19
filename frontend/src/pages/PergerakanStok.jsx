@@ -17,6 +17,72 @@ const getLocalDateStr = (dateVal) => {
   return `${y}-${m}-${day}`;
 };
 
+/* Gaya halaman Riwayat Stok (prefix .sh-). Kelas seperti g-2.5 / p-1.5 / gap-1.5 tidak ada di Bootstrap 5. */
+const SH_CSS = `
+.sh-root { background: #f4f7fc; min-height: 100vh; padding: 22px 12px 90px; }
+.sh-in { max-width: 680px; margin: 0 auto; }
+.sh-sum { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+.sh-tile { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 16px; background: #fff; border: 1px solid #e8ebfa; min-width: 0; }
+.sh-tile .ic { width: 36px; height: 36px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; font-size: 1.05rem; flex: none; }
+.sh-tile.in .ic { background: #d9f6e6; color: #0e8f55; }
+.sh-tile.out .ic { background: #e5edff; color: #0d5afd; }
+.sh-tile small { display: block; font-size: .66rem; font-weight: 600; color: #8480ae; line-height: 1.2; }
+.sh-tile b { display: block; font-size: 1.2rem; line-height: 1.15; letter-spacing: -.3px; color: #1f0757; }
+.sh-tile.in b { color: #0e8f55; }
+.sh-tile em { display: block; font-style: normal; font-size: .64rem; color: #8480ae; margin-top: 1px; }
+.sh-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 3px; margin-bottom: 8px; background: #fff; border: 1px solid #e8ebfa; border-radius: 13px; }
+.sh-tab { height: 32px; border: 0; border-radius: 10px; background: transparent; color: #8480ae; font-size: .74rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 5px; cursor: pointer; }
+.sh-tab.on { background: #0d5afd; color: #fff; box-shadow: 0 6px 12px -6px rgba(13, 90, 253, .7); }
+.sh-tab.on.in { background: #12b76a; box-shadow: 0 6px 12px -6px rgba(18, 183, 106, .7); }
+.sh-row2 { display: flex; gap: 6px; margin-bottom: 6px; }
+.sh-sbox { flex: 1; min-width: 0; position: relative; }
+.sh-sbox > i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: .8rem; color: #8480ae; pointer-events: none; }
+.sh-sin, .sh-sel, .sh-din { height: 36px; border: 1px solid #e1e6fa; border-radius: 12px; background: #fff; font-size: .76rem; color: #1f0757; outline: none; }
+.sh-sin { width: 100%; padding: 0 28px 0 32px; }
+.sh-sin:focus, .sh-sel:focus, .sh-din:focus { border-color: #0d5afd; box-shadow: 0 0 0 3px rgba(13, 90, 253, .12); }
+.sh-sclr { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border: 0; background: none; color: #a3a9c9; font-size: .7rem; }
+.sh-sel { flex: 0 0 42%; min-width: 0; padding: 0 24px 0 10px; font-weight: 600; text-overflow: ellipsis; appearance: none; -webkit-appearance: none; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%238480ae' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 9px center; }
+.sh-dates { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
+.sh-chips { display: flex; gap: 5px; flex: none; }
+.sh-chip { height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid #e1e6fa; background: #fff; color: #5f5a86; font-size: .72rem; font-weight: 600; cursor: pointer; }
+.sh-chip.on { background: #1f0757; border-color: #1f0757; color: #fff; }
+.sh-din { flex: 1; min-width: 0; height: 32px; padding: 0 8px; font-weight: 600; }
+.sh-ref { width: 32px; height: 32px; flex: none; border-radius: 50%; border: 1px solid #e1e6fa; background: #fff; color: #0d5afd; display: inline-flex; align-items: center; justify-content: center; font-size: .85rem; }
+.sh-ref:disabled { opacity: .6; }
+.sh-grp { margin-bottom: 14px; }
+.sh-gh { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 4px 6px; }
+.sh-gh h6 { margin: 0; font-size: .78rem; font-weight: 700; color: #1f0757; }
+.sh-gh h6 span { font-weight: 500; color: #8480ae; }
+.sh-net { display: flex; gap: 5px; flex: none; }
+.sh-net span { font-size: .64rem; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
+.sh-net .i { background: #d9f6e6; color: #0e8f55; }
+.sh-net .o { background: #e5edff; color: #0134d4; }
+.sh-card { background: #fff; border: 1px solid #e8ebfa; border-radius: 16px; overflow: hidden; }
+.sh-item + .sh-item { border-top: 1px solid #f0f2fc; }
+.sh-line { display: flex; align-items: center; gap: 10px; padding: 10px 12px; width: 100%; border: 0; background: none; text-align: left; }
+button.sh-line { cursor: pointer; }
+.sh-ic { width: 34px; height: 34px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; font-size: .95rem; flex: none; }
+.sh-ic.in { background: #d9f6e6; color: #0e8f55; }
+.sh-ic.out { background: #e5edff; color: #0d5afd; }
+.sh-mid { flex: 1; min-width: 0; }
+.sh-name { display: block; font-size: .84rem; font-weight: 700; color: #1f0757; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-sub { display: flex; align-items: center; gap: 6px; font-size: .68rem; color: #8480ae; margin-top: 1px; white-space: nowrap; overflow: hidden; }
+.sh-sub a { color: #0d5afd; font-weight: 700; text-decoration: none; cursor: pointer; overflow: hidden; text-overflow: ellipsis; }
+.sh-qty { font-size: 1rem; font-weight: 800; letter-spacing: -.3px; flex: none; }
+.sh-qty.in { color: #0e8f55; }
+.sh-qty.out { color: #1f0757; }
+.sh-chev { color: #a3a9c9; font-size: .7rem; flex: none; }
+.sh-notas { padding: 0 12px 10px 56px; display: flex; flex-direction: column; gap: 4px; }
+.sh-nota { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: 9px; background: #f6f8ff; font-size: .7rem; color: #5f5a86; }
+.sh-nota a { color: #0d5afd; font-weight: 700; cursor: pointer; text-decoration: none; }
+.sh-nota .r { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.sh-nota b { color: #1f0757; }
+.sh-empty { text-align: center; padding: 38px 16px; background: #fff; border: 1px solid #e8ebfa; border-radius: 16px; color: #8480ae; }
+.sh-empty i { display: block; font-size: 1.9rem; color: #0d5afd; opacity: .45; margin-bottom: 4px; }
+.sh-empty b { display: block; color: #1f0757; font-size: .86rem; margin-bottom: 2px; }
+.sh-empty p { margin: 0; font-size: .74rem; }
+`;
+
 export default function PergerakanStok({ user }) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'in' | 'out'
@@ -364,412 +430,191 @@ export default function PergerakanStok({ user }) {
     return formattedDate;
   };
 
+  const itemLabel = (n) => `${n.toLocaleString('id-ID')}`;
+  const isTodayKey = filterDate === todayStr;
+  const isYesterdayKey = filterDate === yesterdayStr;
+
   return (
-    <div style={{ backgroundColor: '#f4f7fc' }}>
-      <div className="container px-3 pt-3" style={{ maxWidth: '680px' }}>
+    <div className="sh-root">
+      <style>{SH_CSS}</style>
+      <div className="sh-in">
 
-        {/* SUMMARY CARDS (BIRU & PUTIH THEME) */}
-        <div className="row g-2.5 mb-3">
-          {/* Card Stock In */}
-          <div className="col-6">
-            <div
-              className="card border-0 rounded-4 shadow-sm p-3 h-100 position-relative overflow-hidden"
-              style={{
-                backgroundColor: '#ffffff',
-                borderLeft: '4px solid #10b981',
-              }}
-            >
-              <div className="d-flex align-items-center justify-content-between mb-2">
-                <span className="text-muted fw-semibold small" style={{ fontSize: '0.75rem' }}>
-                  Stok Masuk (In)
-                </span>
-                <div
-                  className="rounded-circle d-flex align-items-center justify-content-center text-success"
-                  style={{ width: '32px', height: '32px', backgroundColor: '#ecfdf5' }}
-                >
-                  <i className="bi bi-box-arrow-in-down fs-5"></i>
-                </div>
-              </div>
-              <h4 className="fw-bold text-success mb-0">+{totals.totalIn.toLocaleString()}</h4>
-              <small className="text-muted" style={{ fontSize: '0.7rem' }}>
-                {totals.inCount}x Penambahan
-              </small>
+        {/* Ringkasan (ikut filter tanggal / barang / cari) */}
+        <div className="sh-sum">
+          <div className="sh-tile in">
+            <span className="ic"><i className="bi bi-box-arrow-in-down"></i></span>
+            <div>
+              <small>Stok Masuk</small>
+              <b>+{itemLabel(totals.totalIn)}</b>
+              <em>{totals.inCount}x penambahan</em>
             </div>
           </div>
-
-          {/* Card Stock Out */}
-          <div className="col-6">
-            <div
-              className="card border-0 rounded-4 shadow-sm p-3 h-100 position-relative overflow-hidden"
-              style={{
-                backgroundColor: '#ffffff',
-                borderLeft: '4px solid #0d5afd',
-              }}
-            >
-              <div className="d-flex align-items-center justify-content-between mb-2">
-                <span className="text-muted fw-semibold small" style={{ fontSize: '0.75rem' }}>
-                  Stok Keluar (Out)
-                </span>
-                <div
-                  className="rounded-circle d-flex align-items-center justify-content-center text-primary"
-                  style={{ width: '32px', height: '32px', backgroundColor: '#eff6ff' }}
-                >
-                  <i className="bi bi-box-arrow-up fs-5"></i>
-                </div>
-              </div>
-              <h4 className="fw-bold text-primary mb-0">{totals.outCount}x Use</h4>
-              <small className="text-muted" style={{ fontSize: '0.7rem' }}>
-                Total -{totals.totalOut.toLocaleString()} Item
-              </small>
+          <div className="sh-tile out">
+            <span className="ic"><i className="bi bi-box-arrow-up"></i></span>
+            <div>
+              <small>Stok Keluar</small>
+              <b>−{itemLabel(totals.totalOut)}</b>
+              <em>{totals.outCount}x pemakaian</em>
             </div>
           </div>
         </div>
 
-        {/* TABS (SEMUA / STOCK IN / STOCK OUT) */}
-        <div className="card border-0 shadow-sm rounded-4 mb-3 bg-white p-1.5">
-          <div className="d-flex gap-1">
+        {/* Tab */}
+        <div className="sh-tabs" role="tablist">
+          {[
+            ['all', 'Semua', null],
+            ['in', 'Masuk', 'bi-arrow-down-left'],
+            ['out', 'Keluar', 'bi-arrow-up-right'],
+          ].map(([key, label, icon]) => (
             <button
+              key={key}
               type="button"
-              className={`btn flex-fill rounded-pill py-2 border-0 fw-bold transition-all ${activeTab === 'all'
-                  ? 'btn-primary shadow-xs'
-                  : 'btn-light text-muted bg-transparent'
-                }`}
-              style={{ fontSize: '0.78rem' }}
-              onClick={() => setActiveTab('all')}
+              role="tab"
+              aria-selected={activeTab === key}
+              className={`sh-tab ${activeTab === key ? 'on' : ''} ${key === 'in' ? 'in' : ''}`}
+              onClick={() => setActiveTab(key)}
             >
-              Semua
+              {icon && <i className={`bi ${icon}`}></i>}
+              {label}
             </button>
-            <button
-              type="button"
-              className={`btn flex-fill rounded-pill py-2 border-0 fw-bold transition-all ${activeTab === 'in'
-                  ? 'btn-success text-white shadow-xs'
-                  : 'btn-light text-muted bg-transparent'
-                }`}
-              style={{ fontSize: '0.78rem' }}
-              onClick={() => setActiveTab('in')}
-            >
-              <i className="bi bi-arrow-down-left me-1"></i>
-              Stock In
-            </button>
-            <button
-              type="button"
-              className={`btn flex-fill rounded-pill py-2 border-0 fw-bold transition-all ${activeTab === 'out'
-                  ? 'btn-primary shadow-xs'
-                  : 'btn-light text-muted bg-transparent'
-                }`}
-              style={{ fontSize: '0.78rem' }}
-              onClick={() => setActiveTab('out')}
-            >
-              <i className="bi bi-arrow-up-right me-1"></i>
-              Stock Out
-            </button>
-          </div>
+          ))}
         </div>
 
-        {/* FILTER BAR (TANGGAL, ITEM BARANG, PENCARIAN) */}
-        <div className="card border-0 shadow-sm rounded-4 mb-3 bg-white p-3">
-          {/* Baris 1: Filter Tanggal (Rapi, Terstruktur, Tanpa Tumpang Tindih & Tanpa Icon Kalender) */}
-          <div className="mb-2.5 pb-2.5 border-bottom">
-            <div className="d-flex align-items-center justify-content-between mb-2">
-              <span className="small fw-bold text-muted" style={{ fontSize: '0.72rem' }}>
-                Filter Tanggal
-              </span>
-              <div className="d-flex align-items-center gap-2">
-                {filterDate && (
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-link p-0 text-decoration-none text-primary fw-semibold"
-                    style={{ fontSize: '0.72rem' }}
-                    onClick={() => setFilterDate('')}
-                  >
-                    Reset Filter
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="btn btn-sm btn-outline-primary rounded-pill px-2 py-0 fw-semibold d-inline-flex align-items-center gap-1 border-0"
-                  style={{ fontSize: '0.7rem', backgroundColor: '#f0f5ff' }}
-                  onClick={fetchFromDB}
-                  disabled={isRefreshing}
-                >
-                  <i className={`bi bi-arrow-clockwise ${isRefreshing ? 'spin' : ''}`}></i>
-                </button>
-              </div>
-            </div>
-            <div className="row g-1.5 align-items-center">
-              {/* Presets: 3 tombol sama proporsional */}
-              <div className="col-7">
-                <div className="d-flex gap-1">
-                  <button
-                    type="button"
-                    className={`btn btn-sm flex-fill rounded-pill py-1 px-1 fw-semibold text-center border-0 transition-all ${!filterDate ? 'btn-primary text-white shadow-xs' : 'btn-light text-muted'
-                      }`}
-                    style={{ fontSize: '0.72rem' }}
-                    onClick={() => setFilterDate('')}
-                  >
-                    Semua
-                  </button>
-                  <button
-                    type="button"
-                    className={`btn btn-sm flex-fill rounded-pill py-1 px-1 fw-semibold text-center border-0 transition-all ${filterDate === todayStr ? 'btn-primary text-white shadow-xs' : 'btn-light text-muted'
-                      }`}
-                    style={{ fontSize: '0.72rem' }}
-                    onClick={() => setFilterDate(todayStr)}
-                  >
-                    Hari Ini
-                  </button>
-                  <button
-                    type="button"
-                    className={`btn btn-sm flex-fill rounded-pill py-1 px-1 fw-semibold text-center border-0 transition-all ${filterDate === yesterdayStr ? 'btn-primary text-white shadow-xs' : 'btn-light text-muted'
-                      }`}
-                    style={{ fontSize: '0.72rem' }}
-                    onClick={() => setFilterDate(yesterdayStr)}
-                  >
-                    Kemarin
-                  </button>
-                </div>
-              </div>
-              {/* Date Input Khusus */}
-              <div className="col-5">
-                <input
-                  type="date"
-                  className="form-control form-control-sm border-0 bg-light rounded-pill px-2 py-1 text-dark fw-medium text-center"
-                  style={{ fontSize: '0.72rem', height: '31px' }}
-                  value={filterDate}
-                  onChange={(e) => setFilterDate(e.target.value)}
-                />
-              </div>
-            </div>
+        {/* Cari + pilih barang */}
+        <div className="sh-row2">
+          <div className="sh-sbox">
+            <i className="bi bi-search"></i>
+            <input
+              type="search"
+              className="sh-sin"
+              placeholder="Cari nota / barang"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Cari nota atau barang"
+            />
+            {searchQuery && (
+              <button type="button" className="sh-sclr" onClick={() => setSearchQuery('')} aria-label="Hapus pencarian">
+                <i className="bi bi-x-lg"></i>
+              </button>
+            )}
           </div>
-
-          {/* Baris 2: Filter Item Barang & Pencarian */}
-          <div className="row g-2">
-            <div className="col-6">
-              <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '0.68rem' }}>
-                Filter Item Barang:
-              </label>
-              <select
-                className="form-select form-select-sm rounded-3 border-0 bg-light fw-medium"
-                style={{ fontSize: '0.78rem', padding: '7px 10px' }}
-                value={selectedItem}
-                onChange={(e) => setSelectedItem(e.target.value)}
-              >
-                <option value="ALL">Semua Barang ({uniqueItemNames.length})</option>
-                {uniqueItemNames.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="col-6">
-              <label className="form-label small fw-bold text-muted mb-1" style={{ fontSize: '0.68rem' }}>
-                Cari Nota / Item:
-              </label>
-              <div className="position-relative">
-                <input
-                  type="text"
-                  className="form-control form-control-sm rounded-3 border-0 bg-light"
-                  style={{ fontSize: '0.78rem', padding: '7px 10px', paddingRight: '28px' }}
-                  placeholder="Ketik nota..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-link text-muted position-absolute top-50 end-0 translate-middle-y text-decoration-none p-1 pe-2"
-                    onClick={() => setSearchQuery('')}
-                  >
-                    <i className="bi bi-x-circle-fill" style={{ fontSize: '0.75rem' }}></i>
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
+          <select className="sh-sel" value={selectedItem} onChange={(e) => setSelectedItem(e.target.value)} aria-label="Filter barang">
+            <option value="ALL">Semua barang</option>
+            {uniqueItemNames.map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
         </div>
 
-        {/* DAFTAR MUTASI DENGAN GROUPING TANGGAL & SUMMARY ITEM BERSIH */}
+        {/* Tanggal */}
+        <div className="sh-dates">
+          <div className="sh-chips">
+            <button type="button" className={`sh-chip ${isTodayKey ? 'on' : ''}`} onClick={() => setFilterDate(todayStr)}>Hari ini</button>
+            <button type="button" className={`sh-chip ${isYesterdayKey ? 'on' : ''}`} onClick={() => setFilterDate(yesterdayStr)}>Kemarin</button>
+            <button type="button" className={`sh-chip ${!filterDate ? 'on' : ''}`} onClick={() => setFilterDate('')}>Semua</button>
+          </div>
+          <input
+            type="date"
+            className="sh-din"
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            aria-label="Pilih tanggal"
+          />
+          <button type="button" className="sh-ref" onClick={fetchFromDB} disabled={isRefreshing} title="Muat ulang" aria-label="Muat ulang">
+            <i className={`bi bi-arrow-clockwise ${isRefreshing ? 'spin' : ''}`}></i>
+          </button>
+        </div>
+
+        {/* Daftar per tanggal */}
         {groupedEvents.length === 0 ? (
-          <div className="card border-0 shadow-sm rounded-4 p-5 text-center bg-white my-3">
-            <div
-              className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
-              style={{ width: '60px', height: '60px', backgroundColor: '#eff6ff', color: '#0d5afd' }}
-            >
-              <i className="bi bi-inbox fs-2"></i>
-            </div>
-            <h6 className="fw-bold text-dark mb-1">Belum Ada Riwayat Pergerakan</h6>
-            <p className="text-muted small mb-0 px-2" style={{ fontSize: '0.75rem' }}>
-              Tidak ada data pergerakan stok untuk filter yang dipilih.
-            </p>
+          <div className="sh-empty">
+            <i className="bi bi-inbox"></i>
+            <b>Belum ada pergerakan stok</b>
+            <p>Coba ganti tanggal atau pilih &quot;Semua&quot;.</p>
           </div>
         ) : (
           groupedEvents.map((group) => {
             if (group.summaries.length === 0) return null;
-
+            const heading = formatDateHeading(group.dateObj).split(' • ');
             return (
-              <div key={group.dateKey} className="mb-3">
-                {/* TANGGAL GROUP HEADER */}
-                <div className="d-flex align-items-center justify-content-between mb-2 px-1">
-                  <div className="d-flex align-items-center gap-1.5">
-                    <span className="fw-bold text-dark" style={{ fontSize: '0.82rem' }}>
-                      {formatDateHeading(group.dateObj)}
-                    </span>
-                  </div>
-                  <div className="d-flex align-items-center gap-1">
-                    {group.totalIn > 0 && (
-                      <span
-                        className="badge rounded-pill fw-semibold"
-                        style={{ backgroundColor: '#ecfdf5', color: '#059669', fontSize: '0.65rem' }}
-                      >
-                        +{group.totalIn} In ({group.inCount}x)
-                      </span>
-                    )}
-                    {group.totalOut > 0 && (
-                      <span
-                        className="badge rounded-pill fw-semibold"
-                        style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', fontSize: '0.65rem' }}
-                      >
-                        -{group.totalOut} Out ({group.outCount}x)
-                      </span>
-                    )}
+              <div key={group.dateKey} className="sh-grp">
+                <div className="sh-gh">
+                  <h6>
+                    {heading[0]}
+                    {heading[1] && <span> · {heading[1]}</span>}
+                  </h6>
+                  <div className="sh-net">
+                    {group.totalIn > 0 && <span className="i">+{group.totalIn}</span>}
+                    {group.totalOut > 0 && <span className="o">−{group.totalOut}</span>}
                   </div>
                 </div>
 
-                {/* LIST RINGKASAN ITEM PER TANGGAL (BERSIH, RAPI, TANPA TEKS BERLEBIHAN) */}
-                <div className="d-flex flex-column gap-2">
+                <div className="sh-card">
                   {group.summaries.map((summary) => {
                     const isAdd = summary.type === 'ADD';
+                    const dir = isAdd ? 'in' : 'out';
                     const isExpanded = Boolean(expandedDetails[summary.key]);
+                    const multi = summary.items.length > 1;
+                    const count = isAdd ? summary.addCount : summary.useCount;
+                    const single = !multi ? summary.items[0] : null;
+
+                    const body = (
+                      <>
+                        <span className={`sh-ic ${dir}`}>
+                          <i className={`bi ${isAdd ? 'bi-box-arrow-in-down' : 'bi-box-arrow-up'}`}></i>
+                        </span>
+                        <span className="sh-mid">
+                          <span className="sh-name">{summary.itemName}</span>
+                          <span className="sh-sub">
+                            <span>{isAdd ? `${count}x ditambah` : `${count}x dipakai`}</span>
+                            {summary.lastTime && <span>· {summary.lastTime}</span>}
+                            {single?.invoiceId && (
+                              <a
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/order/${encodeURIComponent(single.invoiceId)}`);
+                                }}
+                                title={`Buka detail order #${single.invoiceId}`}
+                              >
+                                · #{single.invoiceId}
+                              </a>
+                            )}
+                          </span>
+                        </span>
+                        <span className={`sh-qty ${dir}`}>{isAdd ? `+${summary.totalQty}` : `−${summary.totalQty}`}</span>
+                        {multi && <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'} sh-chev`}></i>}
+                      </>
+                    );
 
                     return (
-                      <div
-                        key={summary.key}
-                        className="card border-0 rounded-4 shadow-sm bg-white overflow-hidden"
-                        style={{
-                          borderLeft: isAdd ? '4px solid #10b981' : '4px solid #0d5afd',
-                          transition: 'box-shadow 0.15s ease',
-                        }}
-                      >
-                        <div className="card-body p-3">
-                          <div className="d-flex align-items-center justify-content-between gap-2">
-                            <div className="d-flex align-items-center gap-2.5">
-                              {/* ICON BULAT */}
-                              <div
-                                className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                                style={{
-                                  width: '38px',
-                                  height: '38px',
-                                  backgroundColor: isAdd ? '#ecfdf5' : '#eff6ff',
-                                  color: isAdd ? '#059669' : '#0d5afd',
-                                }}
-                              >
-                                <i className={`bi ${isAdd ? 'bi-box-arrow-in-down' : 'bi-box-arrow-up'} fs-5`}></i>
+                      <div key={summary.key} className="sh-item">
+                        {multi ? (
+                          <button type="button" className="sh-line" onClick={() => toggleDetail(summary.key)} aria-expanded={isExpanded}>
+                            {body}
+                          </button>
+                        ) : (
+                          <div className="sh-line">{body}</div>
+                        )}
+
+                        {isExpanded && multi && (
+                          <div className="sh-notas">
+                            {summary.items.map((it, itIdx) => (
+                              <div key={itIdx} className="sh-nota">
+                                {it.invoiceId ? (
+                                  <a onClick={() => navigate(`/order/${encodeURIComponent(it.invoiceId)}`)} title={`Buka detail order #${it.invoiceId}`}>
+                                    #{it.invoiceId}
+                                  </a>
+                                ) : (
+                                  <span>{it.note || (isAdd ? 'Persetujuan Stok' : 'Pemakaian')}</span>
+                                )}
+                                <span className="r">
+                                  <span>{it.timeStr}</span>
+                                  <b>{isAdd ? `+${it.qty}` : `−${it.qty}`}</b>
+                                </span>
                               </div>
-
-                              {/* NAMA BARANG, BADGE & JAM */}
-                              <div>
-                                <div className="d-flex align-items-center gap-2 flex-wrap mb-1">
-                                  <h6 className="fw-bold text-dark mb-0" style={{ fontSize: '0.92rem' }}>
-                                    {summary.itemName}
-                                  </h6>
-                                  <span
-                                    className="badge rounded-pill px-2.5 py-0.5 fw-bold"
-                                    style={{
-                                      backgroundColor: isAdd ? '#d1fae5' : '#dbeafe',
-                                      color: isAdd ? '#047857' : '#1e40af',
-                                      fontSize: '0.68rem',
-                                    }}
-                                  >
-                                    {isAdd ? `${summary.addCount}x Ditambah` : `${summary.useCount}x Use`}
-                                  </span>
-                                </div>
-
-                                {/* JAM TRANSAKSI & INVOICE */}
-                                <div className="d-flex align-items-center gap-2 flex-wrap text-muted" style={{ fontSize: '0.74rem' }}>
-                                  {summary.lastTime && (
-                                    <div className="d-flex align-items-center gap-1">
-                                      <i className="bi bi-clock" style={{ fontSize: '0.7rem' }}></i>
-                                      <span>{summary.lastTime}</span>
-                                    </div>
-                                  )}
-                                  {summary.items.length === 1 && summary.items[0]?.invoiceId && (
-                                    <span
-                                      className="fw-bold text-primary text-decoration-underline"
-                                      style={{ cursor: 'pointer' }}
-                                      onClick={() => navigate(`/order/${encodeURIComponent(summary.items[0].invoiceId)}`)}
-                                      title={`Buka Detail Order #${summary.items[0].invoiceId}`}
-                                    >
-                                      #{summary.items[0].invoiceId}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* TOTAL QTY */}
-                            <div className="text-end flex-shrink-0">
-                              <span
-                                className={`fw-bold d-block ${isAdd ? 'text-success' : 'text-primary'}`}
-                                style={{ fontSize: '1.1rem', letterSpacing: '-0.3px' }}
-                              >
-                                {isAdd ? `+${summary.totalQty}` : `-${summary.totalQty}`}
-                              </span>
-                              {summary.items.length > 1 && (
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-link p-0 text-decoration-none text-muted fw-semibold d-inline-flex align-items-center gap-1"
-                                  style={{ fontSize: '0.68rem' }}
-                                  onClick={() => toggleDetail(summary.key)}
-                                >
-                                  <span>{isExpanded ? 'Tutup' : `${summary.items.length} Nota`}</span>
-                                  <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'}`} style={{ fontSize: '0.6rem' }}></i>
-                                </button>
-                              )}
-                            </div>
+                            ))}
                           </div>
-
-                          {/* ACCORDION COLLAPSE: DAFTAR NOTA (OPSIONAL JIKA USER KLIK) */}
-                          {isExpanded && summary.items.length > 1 && (
-                            <div className="mt-2.5 pt-2 border-top">
-                              <div className="bg-light rounded-3 p-2 d-flex flex-column gap-1">
-                                {summary.items.map((it, itIdx) => (
-                                  <div
-                                    key={itIdx}
-                                    className="d-flex align-items-center justify-content-between py-1 px-2 bg-white rounded-2 shadow-xs"
-                                    style={{ fontSize: '0.72rem' }}
-                                  >
-                                    <div className="d-flex align-items-center gap-2">
-                                      <span className="badge bg-light text-muted border px-1.5 py-0.5">
-                                        #{itIdx + 1}
-                                      </span>
-                                      {it.invoiceId ? (
-                                        <span
-                                          className="fw-bold text-primary text-decoration-underline"
-                                          style={{ cursor: 'pointer' }}
-                                          onClick={() => navigate(`/order/${encodeURIComponent(it.invoiceId)}`)}
-                                          title={`Buka Detail Order #${it.invoiceId}`}
-                                        >
-                                          #{it.invoiceId}
-                                        </span>
-                                      ) : (
-                                        <span className="text-muted">{it.note || (isAdd ? 'Persetujuan Stok' : 'Pemakaian')}</span>
-                                      )}
-                                    </div>
-                                    <div className="d-flex align-items-center gap-2">
-                                      <span className="text-muted" style={{ fontSize: '0.68rem' }}>
-                                        {it.timeStr}
-                                      </span>
-                                      <span className={`fw-bold ${isAdd ? 'text-success' : 'text-primary'}`}>
-                                        {isAdd ? `+${it.qty}` : `-${it.qty}`}
-                                      </span>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                        )}
                       </div>
                     );
                   })}

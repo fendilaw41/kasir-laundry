@@ -815,11 +815,11 @@ const Home = ({ user }) => {
                         )}
 
                         <div className="row g-2">
-                          <div className="col-8">
+                          <div className="col-7">
                             <label style={{ fontSize: '12px' }}>Nama Item</label>
                             <input type="text" name="nama" className="form-control border-0 py-2 rounded-3 shadow-sm" placeholder="Nama item..." required />
                           </div>
-                          <div className="col-4">
+                          <div className="col-5">
                             <label style={{ fontSize: '12px' }}>Stock (Qty)</label>
                             <div className="input-group shadow-sm rounded-3 overflow-hidden">
                               <input
