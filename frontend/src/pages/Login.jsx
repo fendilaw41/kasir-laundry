@@ -6,6 +6,7 @@ import { db } from '../db';
 import { fetchStoreInfoByCode, updatePwaManifest, promptPwaInstall } from '../utils/pwaHelper';
 import { Skeleton } from '../components/common/Skeleton';
 import AuthShell from '../components/auth/AuthShell';
+import { APP_NAME } from '../constants/appConstants';
 
 const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:3000/api';
 
@@ -217,7 +218,7 @@ const Login = ({ onLogin }) => {
           if (s?.storeCode?.toUpperCase() === cleanCode) {
             info = {
               code: cleanCode,
-              name: s.namaLaundry || 'TokoPlus',
+              name: s.namaLaundry || APP_NAME,
               address: s.alamat || '',
               city: s.kota || '',
               phone: s.telepon || '',
@@ -363,9 +364,9 @@ const Login = ({ onLogin }) => {
             <div className="au-ico-lg"><i className="bi bi-phone"></i></div>
             <span className="au-badge">Aplikasi Siap Diinstall</span>
 
-            <h5>Install Aplikasi {storeInfo?.name || 'TokoPlus'}</h5>
+            <h5>Install Aplikasi {storeInfo?.name || APP_NAME}</h5>
             <p>
-              Pasang aplikasi kasir <strong>{storeInfo?.name || 'TokoPlus'}</strong> langsung di layar utama smartphone Android Anda untuk akses cepat &amp; fitur offline.
+              Pasang aplikasi kasir <strong>{storeInfo?.name || APP_NAME}</strong> langsung di layar utama smartphone Android Anda untuk akses cepat &amp; fitur offline.
             </p>
 
             {/* Outlet Details Card */}
@@ -513,13 +514,13 @@ const Login = ({ onLogin }) => {
     >
       {/* Header Logo & Title */}
       <div className="au-head">
-        <div className="au-logo">{storeInfo?.name ? storeInfo.name.charAt(0).toUpperCase() : 'T'}</div>
+        <div className="au-logo">{storeInfo?.name ? storeInfo.name.charAt(0).toUpperCase() : APP_NAME.charAt(0).toUpperCase()}</div>
         {isCheckingStore ? (
           <div className="d-flex justify-content-center my-1">
             <Skeleton width="180px" height="26px" borderRadius="8px" />
           </div>
         ) : (
-          <h1 className="au-store-name">{(storeInfo?.name || 'TOKOPLUS').toUpperCase()}</h1>
+          <h1 className="au-store-name">{(storeInfo?.name || APP_NAME).toUpperCase()}</h1>
         )}
         <p className="au-sub">
           {storeInfo?.name ? `Sistem Manajemen & Kasir - ${storeInfo.name}` : 'Sistem Manajemen & Kasir Toko'}

@@ -12,6 +12,7 @@ import {
   getTopupWhatsAppUrl,
   topupQuota,
 } from '../services/subscriptionService';
+import { APP_NAME } from '../constants/appConstants';
 
 export default function Plan({ user }) {
   const settings = useLiveQuery(getSettingsQuery);
@@ -821,7 +822,7 @@ export default function Plan({ user }) {
                         ? 'Gratis'
                         : `Rp ${selectedPaymentPlan.price.toLocaleString('id-ID')}`;
                       const message =
-                        `Halo Admin TokoPlus,\n\n` +
+                        `Halo Admin ${APP_NAME},\n\n` +
                         `Saya ingin mengajukan upgrade paket:\n` +
                         `• Nama Toko: ${storeName}\n` +
                         `• Username: @${user?.username || 'owner'}\n` +

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { APP_NAME } from '../../constants/appConstants.js';
 
 /* ==========================================================================
    AuthShell - kerangka tampilan bersama untuk halaman Login & Register.
@@ -241,7 +242,7 @@ const AuthShell = ({ children, overlays = null, headline = 'Kelola usaha laundry
       <aside className="au-side" aria-hidden="false">
         <Link to="/" className="au-brand">
           <span className="au-brand-mark"><i className="bi bi-shop"></i></span>
-          <span>Toko<b>Plus</b></span>
+          <span>{APP_NAME}</span>
         </Link>
 
         <div>
@@ -267,7 +268,7 @@ const AuthShell = ({ children, overlays = null, headline = 'Kelola usaha laundry
       <div className="au-band">
         <Link to="/" className="au-brand">
           <span className="au-brand-mark"><i className="bi bi-shop"></i></span>
-          <span>Toko<b>Plus</b></span>
+          <span>{APP_NAME}</span>
         </Link>
         <p>Kasir laundry cepat, rapi &amp; siap pakai</p>
       </div>

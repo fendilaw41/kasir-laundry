@@ -1,3 +1,5 @@
+import { APP_NAME } from '../constants/appConstants.js';
+
 /**
  * Utilitas PWA Helper: Menangani dynamic manifest dan instalasi PWA di Android / Desktop
  */
@@ -93,7 +95,7 @@ export function updatePwaManifest(storeName) {
     const manifestData = {
       name: cleanName,
       short_name: shortName,
-      description: `Aplikasi TokoPlus - ${cleanName}`,
+      description: `Aplikasi ${APP_NAME} - ${cleanName}`,
       start_url: '/login',
       scope: '/',
       display: 'standalone',

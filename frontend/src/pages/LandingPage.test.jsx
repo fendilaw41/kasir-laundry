@@ -2,21 +2,22 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import LandingPage from './LandingPage';
+import { APP_NAME } from '../constants/appConstants';
 
 describe('LandingPage Component', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('merender nama brand TokoPlus, judul headline, dan tombol CTA utama ke halaman login dan register', () => {
+  it('merender nama brand Klinvo, judul headline, dan tombol CTA utama ke halaman login dan register', () => {
     render(
       <MemoryRouter>
         <LandingPage user={null} />
       </MemoryRouter>
     );
 
-    // Memeriksa nama brand TokoPlus
-    expect(screen.getAllByText(/TokoPlus/i).length).toBeGreaterThan(0);
+    // Memeriksa nama brand Klinvo
+    expect(screen.getAllByText(new RegExp(APP_NAME, 'i')).length).toBeGreaterThan(0);
 
     // Memeriksa headline
     expect(screen.getByText(/Kelola Usaha Laundry Jadi Lebih/i)).not.toBeNull();

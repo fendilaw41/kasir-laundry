@@ -9,6 +9,7 @@ import { Skeleton } from './common/Skeleton';
 import OfflineAlertBanner from './OfflineAlertBanner';
 import NotificationBell from './NotificationBell';
 import { isStatusLunas } from '../utils/paymentStatus';
+import { APP_NAME } from '../constants/appConstants';
 
 const Layout = ({ user, onLogout }) => {
   const location = useLocation();
@@ -130,11 +131,11 @@ const Layout = ({ user, onLogout }) => {
   useEffect(() => {
     if (user) {
       const isChat = location.pathname === '/chat';
-      fetchConversationsFromBackend(isChat).catch(() => {});
+      fetchConversationsFromBackend(isChat).catch(() => { });
       const intervalMs = isChat ? 20000 : 120000;
       const interval = setInterval(() => {
         if (!document.hidden) {
-          fetchConversationsFromBackend(isChat).catch(() => {});
+          fetchConversationsFromBackend(isChat).catch(() => { });
         }
       }, intervalMs);
       return () => clearInterval(interval);
@@ -148,7 +149,7 @@ const Layout = ({ user, onLogout }) => {
     }
   }, [location.pathname]);
 
-  const titleApp = settings?.namaLaundry || 'TokoPlus';
+  const titleApp = settings?.namaLaundry || APP_NAME;
 
   // Daftar menu utama (yang ada di footer)
   const searchParams = new URLSearchParams(location.search);
@@ -288,7 +289,7 @@ const Layout = ({ user, onLogout }) => {
                 /* Header Halaman Transaksi / Data Order */
                 <div className="logo-wrapper">
                   <h5 className="mb-0 fw-bold text-primary">
-                    {location.pathname === '/transaksi' ? 'Transaksi' : location.pathname === '/orders' ? 'Data Order' : (settings?.namaLaundry || 'TokoPlus')}
+                    {location.pathname === '/transaksi' ? 'Transaksi' : location.pathname === '/orders' ? 'Data Order' : (settings?.namaLaundry || APP_NAME)}
                   </h5>
                 </div>
               )}
@@ -491,10 +492,10 @@ const Layout = ({ user, onLogout }) => {
                 const isLunas = isStatusLunas(order.statusBayar) || order.sisaBayar === 0 || (order.total > 0 && (order.bayar || 0) >= order.total);
                 const dateStr = order.createdAt
                   ? new Date(order.createdAt).toLocaleDateString('id-ID', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })
                   : '';
                 return (
                   <div
@@ -523,13 +524,12 @@ const Layout = ({ user, onLogout }) => {
                           {order.invoiceId || `#${order.id}`}
                         </span>
                         <span
-                          className={`badge rounded-pill fw-semibold ${
-                            order.status === 'Selesai'
-                              ? 'bg-success'
-                              : order.status === 'Diambil'
+                          className={`badge rounded-pill fw-semibold ${order.status === 'Selesai'
+                            ? 'bg-success'
+                            : order.status === 'Diambil'
                               ? 'bg-secondary'
                               : 'bg-primary'
-                          }`}
+                            }`}
                           style={{ fontSize: '11px', padding: '4px 8px' }}
                         >
                           {order.status || 'Baru'}
@@ -546,9 +546,8 @@ const Layout = ({ user, onLogout }) => {
                         Rp {(order.total || 0).toLocaleString('id-ID')}
                       </div>
                       <span
-                        className={`badge rounded-pill fw-semibold ${
-                          isLunas ? 'bg-success-subtle text-success border border-success' : 'bg-warning-subtle text-dark border border-warning'
-                        }`}
+                        className={`badge rounded-pill fw-semibold ${isLunas ? 'bg-success-subtle text-success border border-success' : 'bg-warning-subtle text-dark border border-warning'
+                          }`}
                         style={{ fontSize: '11px', padding: '3px 8px' }}
                       >
                         {isLunas ? 'Lunas' : 'Belum Lunas'}
@@ -562,7 +561,7 @@ const Layout = ({ user, onLogout }) => {
         </div>
       )}
 
-      <div className="page-content-wrapper" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}>
+      <div className="page-content-wrapper pb-3">
         <OfflineAlertBanner />
         <div className="container-fluid px-0">
           <Outlet context={outletContext} />
@@ -577,9 +576,8 @@ const Layout = ({ user, onLogout }) => {
           aria-label="Menu navigasi utama"
           style={{
             backgroundColor: '#ffffff',
-            borderTop: '1px solid #e2e8f0',
+            borderTop: '1px solid #f1f5f9',
             boxShadow: 'none',
-            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
         >
           <div className="container px-0" style={{ maxWidth: '680px', backgroundColor: '#ffffff' }}>

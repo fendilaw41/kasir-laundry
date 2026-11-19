@@ -1,3 +1,6 @@
+export const APP_NAME =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_APP_NAME) || 'Klinvo';
+
 export const TOAST_MESSAGES = {
   SUCCESS: 'Sukses',
   ERROR: 'Gagal',

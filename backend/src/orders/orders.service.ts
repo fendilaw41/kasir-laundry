@@ -518,8 +518,9 @@ export class OrdersService {
 
     const shortCode = this.encodeTrackingCode(order.invoiceId);
 
+    const appName = (process.env.APP_NAME || 'Klinvo').trim().toUpperCase();
     const isDefaultPlaceholder = (val?: string | null) =>
-      !val || ['KASIR LAUNDRY', 'TOKOPLUS', 'LAUNDRY STORE'].includes(val.trim().toUpperCase());
+      !val || ['KASIR LAUNDRY', 'TOKOPLUS', 'KLINVO', 'LAUNDRY STORE', appName].includes(val.trim().toUpperCase());
 
     const resolvedStoreName =
       (!isDefaultPlaceholder(order.store?.settings?.namaLaundry) ? order.store?.settings?.namaLaundry : null) ||

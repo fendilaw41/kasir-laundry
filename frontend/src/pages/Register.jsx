@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { registerUser } from '../db/repositories/users';
 import { fetchStoreInfoByCode } from '../utils/pwaHelper';
 import AuthShell from '../components/auth/AuthShell';
+import { APP_NAME } from '../constants/appConstants';
 
 const formatWhatsAppNumber = (rawPhone) => {
   let clean = (rawPhone || '').replace(/\D/g, '');
@@ -117,7 +118,7 @@ const Register = () => {
       localStorage.setItem('saved_store_code', finalCode);
 
       // Template pesan WhatsApp dengan kode toko BOLD
-      const waMessage = `Halo *${finalName}*,\n\nSelamat! Pendaftaran Toko Laundry dan Akun Owner Anda berhasil didaftarkan di sistem TokoPlus:\n\n *Nama Toko*: ${finalName}\n *Kode Toko*: *${finalCode}*\n *Username*: ${username.trim()}\n\nSilakan klik tautan resmi aktivasi & login berikut untuk langsung membuka toko Anda:\n ${activationUrl}\n\n Simpan Kode Toko Anda untuk login di perangkat lain atau menambahkan kasir. Terima kasih! 🙏`;
+      const waMessage = `Halo *${finalName}*,\n\nSelamat! Pendaftaran Toko Laundry dan Akun Owner Anda berhasil didaftarkan di sistem ${APP_NAME}:\n\n *Nama Toko*: ${finalName}\n *Kode Toko*: *${finalCode}*\n *Username*: ${username.trim()}\n\nSilakan klik tautan resmi aktivasi & login berikut untuk langsung membuka toko Anda:\n ${activationUrl}\n\n Simpan Kode Toko Anda untuk login di perangkat lain atau menambahkan kasir. Terima kasih! 🙏`;
       const waUrl = `https://wa.me/${cleanWa}?text=${encodeURIComponent(waMessage)}`;
 
       setSuccessData({

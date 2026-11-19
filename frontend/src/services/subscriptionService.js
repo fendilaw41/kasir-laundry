@@ -1,6 +1,7 @@
 import { db } from '../db';
 import { getPlanByKey, getAllPlansLocal, syncPlansFromBackend } from '../db/repositories/plans';
 import { triggerUnauthorized } from '../utils/authSession';
+import { APP_NAME } from '../constants/appConstants';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 const BILLING_WA = import.meta.env.VITE_BILLING_WHATSAPP_NUMBER || '6281234567890';
@@ -526,7 +527,7 @@ export function getUpgradeWhatsAppUrl(planKey, storeName, username) {
   }
 
   const text = encodeURIComponent(
-    `Halo Admin TokoPlus,\n\n` +
+    `Halo Admin ${APP_NAME},\n\n` +
     `Saya ingin mengajukan upgrade paket:\n` +
     `• Nama Toko: ${cleanName}\n` +
     `• Username: @${activeUsername || 'owner'}\n` +
@@ -561,7 +562,7 @@ export function getTopupWhatsAppUrl(type, amount, storeName, price, username) {
   }
 
   const text = encodeURIComponent(
-    `Halo Admin TokoPlus,\n\n` +
+    `Halo Admin ${APP_NAME},\n\n` +
     `Saya ingin mengajukan top-up kuota tambahan:\n` +
     `• Nama Toko: ${cleanName}\n` +
     `• Username: @${activeUsername || 'owner'}\n` +

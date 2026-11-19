@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Register from './Register';
+import { APP_NAME } from '../constants/appConstants';
 
 // Mock registerUser repository
 vi.mock('../db/repositories/users', () => ({
@@ -18,7 +19,7 @@ describe('Register Page Component', () => {
     vi.clearAllMocks();
   });
 
-  it('merender form pendaftaran akun Owner TokoPlus secara default', () => {
+  it('merender form pendaftaran akun Owner Klinvo secara default', () => {
     render(
       <MemoryRouter>
         <Register />
@@ -26,7 +27,7 @@ describe('Register Page Component', () => {
     );
 
     // Memeriksa header branding
-    expect(screen.getByText('TOKOPLUS')).toBeDefined();
+    expect(screen.getAllByText(new RegExp(APP_NAME, 'i')).length).toBeGreaterThan(0);
     expect(screen.getByText('Daftar Akun Owner')).toBeDefined();
 
     // Memeriksa form input dasar
@@ -52,7 +53,7 @@ describe('Register Page Component', () => {
     const passInput = screen.getByPlaceholderText(/Minimal 6 karakter/i);
     fireEvent.change(passInput, { target: { value: 'Secret123!' } });
 
-    expect(screen.getByText('Ketentuan Keamanan Password:')).toBeDefined();
+    expect(screen.getByText(/Ketentuan Keamanan Password/i)).toBeDefined();
     expect(screen.getByText(/Min 6 karakter/i)).toBeDefined();
     expect(screen.getByText(/Huruf besar & kecil/i)).toBeDefined();
     expect(screen.getByText(/Karakter spesial/i)).toBeDefined();

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { APP_NAME } from '../constants/appConstants';
 
 /* ==========================================================================
    LANDING PAGE - Desain Bersih, Berkarakter & Anti-Slop
@@ -338,7 +339,7 @@ html { scroll-behavior: smooth; scroll-padding-top: 84px; }
 const FAQS = [
   {
     q: 'Apakah bisa digunakan di laptop/PC dan HP sekaligus?',
-    a: 'Ya, tentu saja! Aplikasi TokoPlus dapat diakses melalui browser laptop/PC, tablet, maupun smartphone. Tampilan akan otomatis menyesuaikan layar dengan nyaman.',
+    a: `Ya, tentu saja! Aplikasi ${APP_NAME} dapat diakses melalui browser laptop/PC, tablet, maupun smartphone. Tampilan akan otomatis menyesuaikan layar dengan nyaman.`,
   },
   {
     q: 'Apakah kasir tetap bisa transaksi jika internet tiba-tiba mati?',
@@ -387,9 +388,9 @@ const LandingPage = ({ user }) => {
       <header className="lp-nav">
         <div className="lp-wrap">
           <div className="lp-nav-in">
-            <Link to="/" className="lp-brand" aria-label="TokoPlus Beranda">
+            <Link to="/" className="lp-brand" aria-label={`${APP_NAME} Beranda`}>
               <span className="lp-brand-mark" aria-hidden="true"><i className="bi bi-shop"></i></span>
-              <span>Toko<b>Plus</b></span>
+              <span>{APP_NAME}</span>
             </Link>
 
             <nav className="lp-nav-links" aria-label="Menu utama">
@@ -449,7 +450,7 @@ const LandingPage = ({ user }) => {
             <div className="lp-hero-copy">
               <span className="lp-badge">
                 <i className="bi bi-shop" aria-hidden="true"></i>
-                Sistem Kasir Laundry TokoPlus
+                Sistem Kasir Laundry {APP_NAME}
               </span>
 
               <h1 className="lp-h1">
@@ -581,7 +582,7 @@ const LandingPage = ({ user }) => {
         <div className="lp-wrap">
           <div className="lp-head">
             <span className="lp-eyebrow">Fitur Kasir</span>
-            <h2 className="lp-h2">Semua Kebutuhan Kasir TokoPlus dalam 1 Aplikasi</h2>
+            <h2 className="lp-h2">Semua Kebutuhan Kasir {APP_NAME} dalam 1 Aplikasi</h2>
             <p>
               Didesain khusus untuk operasional laundry modern agar pencatatan tidak berantakan, kasir melayani dengan gesit, dan laporan keuangan selalu sinkron.
             </p>
@@ -720,7 +721,7 @@ const LandingPage = ({ user }) => {
         <div className="lp-wrap">
           <div className="lp-adv">
             <div>
-              <span className="lp-eyebrow">Kenapa TokoPlus?</span>
+              <span className="lp-eyebrow">Kenapa {APP_NAME}?</span>
               <h2 className="lp-h2">Aplikasi Kasir Berbasis Web yang Gesit &amp; Fleksibel</h2>
               <p style={{ marginTop: 14 }}>
                 Didukung teknologi <strong style={{ color: 'var(--lp-ink)', fontWeight: 600 }}>Progressive Web App (PWA)</strong>, Anda tidak perlu mengunduh installer berat. Pasang langsung di layar utama smartphone Android, iPhone, tablet, maupun komputer kasir Windows dan Mac.
@@ -816,9 +817,9 @@ const LandingPage = ({ user }) => {
         <div className="lp-wrap">
           <div className="lp-foot-grid">
             <div>
-              <Link to="/" className="lp-brand" aria-label="TokoPlus Beranda">
+              <Link to="/" className="lp-brand" aria-label={`${APP_NAME} Beranda`}>
                 <span className="lp-brand-mark" aria-hidden="true"><i className="bi bi-shop"></i></span>
-                <span>Toko<b>Plus</b></span>
+                <span>{APP_NAME}</span>
               </Link>
               <p className="lp-foot-note">Sistem POS PWA Kasir Laundry. Transaksi cepat, nota WhatsApp, dan laporan keuangan dalam satu genggaman.</p>
             </div>
@@ -840,7 +841,7 @@ const LandingPage = ({ user }) => {
             </div>
           </div>
           <div className="lp-foot-bar">
-            <span>&copy; {new Date().getFullYear()} TokoPlus. Hak cipta dilindungi.</span>
+            <span>&copy; {new Date().getFullYear()} {APP_NAME}. Hak cipta dilindungi.</span>
             <span>Dirancang untuk kemudahan pemilik toko laundry di Indonesia</span>
           </div>
         </div>

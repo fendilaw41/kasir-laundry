@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { TOAST_MESSAGES } from '../constants/appConstants';
+import { TOAST_MESSAGES, APP_NAME } from '../constants/appConstants';
 import { fetchPublicOrder } from '../utils/tracking';
 import { isStatusLunas } from '../utils/paymentStatus';
 import { PublicTrackOrderSkeleton } from '../components/common/Skeleton';
@@ -233,7 +233,7 @@ export default function PublicTrackOrder() {
             <div className="card border-0 shadow-sm rounded-4 mb-3 bg-white text-center py-3 px-4">
               <div className="d-flex align-items-center justify-content-center gap-2 mb-1">
                 <i className="bi bi-shop text-primary fs-5"></i>
-                <h5 className="fw-bold text-dark mb-0">{order.store?.name || 'TokoPlus'}</h5>
+                <h5 className="fw-bold text-dark mb-0">{order.store?.name || APP_NAME}</h5>
               </div>
               <p className="text-muted small mb-0 fst-italic">
                 {order.store?.motto || 'Solusi Laundry Bersih & Cepat'}
@@ -527,7 +527,7 @@ export default function PublicTrackOrder() {
                     <i className="bi bi-shop fs-4"></i>
                   </div>
                   <div className="flex-grow-1 overflow-hidden">
-                    <h6 className="fw-bold text-dark mb-1">{order.store?.name || 'TokoPlus'}</h6>
+                    <h6 className="fw-bold text-dark mb-1">{order.store?.name || APP_NAME}</h6>
                     <p className="text-muted small mb-1 fst-italic">{order.store?.motto || 'Solusi Laundry Bersih & Cepat'}</p>
                     {order.store?.address && (
                       <small className="text-muted d-block mb-1">
@@ -576,7 +576,7 @@ export default function PublicTrackOrder() {
                     href="/"
                     className="text-primary fw-semibold text-decoration-none"
                   >
-                    TokoPlus
+                    {APP_NAME}
                   </a>
                 </div>
               )}

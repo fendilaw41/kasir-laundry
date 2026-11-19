@@ -154,17 +154,16 @@ describe('Setting Component - Mobile Redesign', () => {
     expect(screen.getAllByText(/^Layanan$/i)[0]).toBeDefined();
     expect(screen.getByText('Cuci Lipat Reguler')).toBeDefined();
     expect(screen.getByText('Cuci Setrika Express')).toBeDefined();
-    expect(screen.getByRole('button', { name: /Tambah Layanan/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Tambah/i })).toBeDefined();
   });
 
-  it('menampilkan tombol Upgrade Akun di card paling atas sebelah nama toko dan tombol Install di bagian bawah', () => {
+  it('menampilkan menu Paket Langganan untuk owner dan tombol Install di bagian bawah', () => {
     setupMockQueries();
 
     renderSetting({ user: { role: 'owner' } });
 
-    // Tombol Upgrade Akun
-    const upgradeBtn = screen.getByRole('button', { name: /Upgrade Akun/i });
-    expect(upgradeBtn).toBeDefined();
+    // Menu Paket Langganan
+    expect(screen.getByText(/Paket Langganan/i)).toBeDefined();
 
     // Tombol Install di bagian bawah
     const installBtns = screen.getAllByRole('button', { name: /Install/i });

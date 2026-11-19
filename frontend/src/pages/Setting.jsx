@@ -23,6 +23,7 @@ import { SettingSkeleton, ProductListSkeleton } from '../components/common/Skele
 import { Barcode } from '../components/common/Barcode';
 import { db } from '../db';
 import { promptPwaInstall } from '../utils/pwaHelper';
+import { APP_NAME } from '../constants/appConstants';
 import {
   isFooterBarcode,
   isFooterLinkOrder,
@@ -571,7 +572,7 @@ const Setting = ({ user, onLogout }) => {
                 </div>
                 <div className="overflow-hidden flex-grow-1">
                   <h4 className="fw-bold text-white text-truncate mb-1" style={{ fontSize: '1.2rem', letterSpacing: '-0.2px' }}>
-                    {settings.namaLaundry || 'TokoPlus'}
+                    {settings.namaLaundry || APP_NAME}
                   </h4>
                   <div className="d-flex align-items-center text-white text-truncate" style={{ fontSize: '0.82rem', opacity: 0.9 }}>
                     <i className="bi bi-geo-alt-fill me-1 flex-shrink-0" style={{ fontSize: '0.85rem' }}></i>
@@ -2178,10 +2179,10 @@ const Setting = ({ user, onLogout }) => {
                 </span>
 
                 <h5 className="fw-bold mb-1 text-dark" style={{ letterSpacing: '-0.3px' }}>
-                  Install Aplikasi {settings?.namaLaundry || 'TokoPlus'}
+                  Install Aplikasi {settings?.namaLaundry || APP_NAME}
                 </h5>
                 <p className="text-muted small mb-3" style={{ fontSize: '12px', lineHeight: '1' }}>
-                  Pasang aplikasi kasir <strong>{settings?.namaLaundry || 'TokoPlus'}</strong> langsung di layar utama smartphone Android Anda untuk akses cepat &amp; fitur offline.
+                  Pasang aplikasi kasir <strong>{settings?.namaLaundry || APP_NAME}</strong> langsung di layar utama smartphone Android Anda untuk akses cepat &amp; fitur offline.
                 </p>
 
                 {/* Outlet Details Card */}
@@ -2189,7 +2190,7 @@ const Setting = ({ user, onLogout }) => {
                   <div className="bg-light p-3 rounded-3 mb-3 text-start small border">
                     <div className="d-flex justify-content-between mb-1">
                       <span className="text-muted">Nama App:</span>
-                      <span className="fw-bold text-dark text-truncate ps-2">{settings.namaLaundry || 'TokoPlus'}</span>
+                      <span className="fw-bold text-dark text-truncate ps-2">{settings.namaLaundry || APP_NAME}</span>
                     </div>
                     {settings.storeCode && (
                       <div className="d-flex justify-content-between mb-1">

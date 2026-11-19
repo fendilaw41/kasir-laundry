@@ -92,9 +92,10 @@ async function bootstrap() {
   });
 
   // Swagger Documentation Setup
+  const appName = process.env.APP_NAME || 'Klinvo';
   const config = new DocumentBuilder()
-    .setTitle('TokoPlus API')
-    .setDescription('Dokumentasi REST API & Sinkronisasi Data TokoPlus (Offline-First)')
+    .setTitle(`${appName} API`)
+    .setDescription(`Dokumentasi REST API & Sinkronisasi Data ${appName} (Offline-First)`)
     .setVersion('1.0.0')
     .addBearerAuth(
       {

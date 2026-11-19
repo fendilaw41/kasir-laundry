@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Login from './Login';
 import * as pwaHelper from '../utils/pwaHelper';
+import { APP_NAME } from '../constants/appConstants';
 
 vi.mock('../db', () => ({
   db: {
@@ -24,14 +25,14 @@ describe('Login Page Store Branding', () => {
     }));
   });
 
-  it('menampilkan "TOKOPLUS" secara default saat belum ada kode toko', () => {
+  it('menampilkan nama brand default secara default saat belum ada kode toko', () => {
     render(
       <MemoryRouter initialEntries={['/login']}>
         <Login onLogin={vi.fn()} />
       </MemoryRouter>
     );
 
-    expect(screen.getByText('TOKOPLUS')).not.toBeNull();
+    expect(screen.getByText(APP_NAME.toUpperCase())).not.toBeNull();
   });
 
   it('memuat dan menampilkan nama store dari API auth/store-info?code=STORE02 dari query params URL', async () => {

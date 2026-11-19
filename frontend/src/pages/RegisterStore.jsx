@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { db } from '../db';
+import { APP_NAME } from '../constants/appConstants';
 
 const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:3000/api';
 const APP_URL = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_APP_URL || import.meta.env?.VITE_PUBLIC_TRACKING_URL)) || (typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '');
@@ -52,7 +53,7 @@ const RegisterStore = () => {
     const origin = (APP_URL || (typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '')).replace(/\/+$/, '');
     const registerUrl = `${origin}/register?code=${encodeURIComponent(storeCode)}`;
 
-    return `Halo *${storeName}*,\n\nToko Anda telah berhasil didaftarkan di sistem TokoPlus dengan detail:\n🏪 *Nama Toko*: ${storeName}\n🔑 *Kode Toko*: ${storeCode}\n📍 *Alamat*: ${storeAddress || '-'}${storeCity ? ` (${storeCity})` : ''}\n\nSilakan segera selesaikan pendaftaran akun Owner Anda melalui tautan resmi berikut:\n👉 ${registerUrl}\n\nSetelah mendaftar, Anda dapat langsung login dan mengelola kasir serta operasional laundry Anda.\n\nTerima kasih! 🙏`;
+    return `Halo *${storeName}*,\n\nToko Anda telah berhasil didaftarkan di sistem ${APP_NAME} dengan detail:\n🏪 *Nama Toko*: ${storeName}\n🔑 *Kode Toko*: ${storeCode}\n📍 *Alamat*: ${storeAddress || '-'}${storeCity ? ` (${storeCity})` : ''}\n\nSilakan segera selesaikan pendaftaran akun Owner Anda melalui tautan resmi berikut:\n👉 ${registerUrl}\n\nSetelah mendaftar, Anda dapat langsung login dan mengelola kasir serta operasional laundry Anda.\n\nTerima kasih! 🙏`;
   };
 
   // Pengecekan otomatis apakah Kode Toko sudah terdaftar dan telah memiliki Owner

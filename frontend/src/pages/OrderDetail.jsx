@@ -8,7 +8,7 @@ import { pullOrdersFromBackend, syncOrderToBackend, syncInventoryToBackend, sync
 import { withNewSyncMeta, withUpdatedSyncMeta } from '../db/syncMeta';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { TOAST_MESSAGES, CONFIRM_MESSAGES, BUTTON_TEXT } from '../constants/appConstants';
+import { TOAST_MESSAGES, CONFIRM_MESSAGES, BUTTON_TEXT, APP_NAME } from '../constants/appConstants';
 import { formatWhatsAppMessage } from '../utils/whatsapp';
 import { getTrackingUrl } from '../utils/tracking';
 import { getStatusLunasByMetode, isStatusLunas } from '../utils/paymentStatus';
@@ -736,7 +736,7 @@ const OrderDetail = ({ user }) => {
                     }}
                   />
                 ) : (
-                  <b>{settings?.namaLaundry || 'TokoPlus'}</b>
+                  <b>{settings?.namaLaundry || APP_NAME}</b>
                 )}
                 <small>{settings?.motto || 'Solusi Laundry Bersih & Cepat'}</small>
                 {order.isPriority && (

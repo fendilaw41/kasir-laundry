@@ -1,4 +1,5 @@
 import { getTrackingUrl } from './tracking.js';
+import { APP_NAME } from '../constants/appConstants.js';
 
 export const formatWhatsAppMessage = (order, pelanggan, settings = null) => {
   const phone = pelanggan?.hp || '';
@@ -13,7 +14,7 @@ export const formatWhatsAppMessage = (order, pelanggan, settings = null) => {
     itemsText += `${item.name} (Rp${item.price.toLocaleString()} x ${item.quantity} kg)\nRp${Math.round(item.price * item.quantity).toLocaleString()}\n`;
   });
 
-  const laundryName = settings?.namaLaundry || 'TokoPlus';
+  const laundryName = settings?.namaLaundry || APP_NAME;
   const motto = settings?.motto || 'Solusi Laundry Bersih & Cepat';
   const trackingLink = getTrackingUrl(order.invoiceId);
 
